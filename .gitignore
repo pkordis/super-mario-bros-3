@@ -1,8 +1,12 @@
 HELP.md
+smb3.db
 target/
+capture**/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.py
+*.log
 
 ### STS ###
 .apt_generated

@@ -1,0 +1,69 @@
+# EditorConfig — Super Mario Bros 3
+# https://editorconfig.org
+root = true
+
+# ── Universal defaults ───────────────────────────────────────────────────────
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ── Java ─────────────────────────────────────────────────────────────────────
+[*.java]
+indent_size = 4
+max_line_length = 120
+
+# Import groups (IntelliJ EditorConfig extension):
+#   1. All non-java / non-javax imports  (project + third-party), alphabetical
+#   2. <blank line>
+#   3. javax.*  alphabetical
+#   4. java.*   alphabetical
+#   5. <blank line>
+#   6. Static imports  alphabetical
+ij_java_imports_layout = *,|,javax.**,java.**,|,$*
+
+# Brace style — K&R (opening brace on same line)
+ij_java_class_brace_style = end_of_line
+ij_java_method_brace_style = end_of_line
+ij_java_other_brace_style = end_of_line
+
+# Continuation indent — 8 spaces (double the base indent)
+ij_java_continuation_indent_size = 4
+
+# final keyword — generate final for method parameters and local variables
+ij_java_generate_final_parameters = true
+ij_java_generate_final_locals = true
+
+# Blank lines
+ij_java_blank_lines_after_class_header = 0
+ij_java_blank_lines_before_package = 0
+ij_java_blank_lines_after_package = 1
+
+# Spaces
+ij_java_space_after_comma = true
+ij_java_space_before_comma = false
+ij_java_space_around_assignment_operators = true
+
+# Wrapping — chop-down multi-line method parameters, closing paren on new line
+ij_java_method_parameters_wrap = on_every_item
+ij_java_align_multiline_parameters = false
+
+# No column-alignment for consecutive declarations or assignments
+ij_java_align_consecutive_assignments = false
+ij_java_align_consecutive_variable_declarations = false
+ij_java_align_group_field_declarations = false
+
+# ── XML / Maven POM ──────────────────────────────────────────────────────────
+[*.xml]
+indent_size = 4
+
+# ── Properties ───────────────────────────────────────────────────────────────
+[*.properties]
+indent_size = 4
+
+# ── Markdown ─────────────────────────────────────────────────────────────────
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off

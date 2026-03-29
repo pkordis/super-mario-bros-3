@@ -1,16 +1,19 @@
 package house.x1337.app.smb3.config;
 
-import house.x1337.app.smb3.model.Sprite;
+import house.x1337.app.smb3.model.repository.LevelSceneRecord;
+import house.x1337.app.smb3.model.repository.TileRecord;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.mapper.jackson.JacksonMapperModule;
 import org.dizitart.no2.mvstore.MVStoreModule;
 import org.dizitart.no2.repository.ObjectRepository;
 import org.dizitart.no2.store.StoreModule;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@ConditionalOnProperty(name = "db.provider", havingValue = "NITRITE", matchIfMissing = true)
 public class NitriteConfig {
     @Bean
     StoreModule storeModule(
@@ -32,7 +35,12 @@ public class NitriteConfig {
     }
 
     @Bean
-    ObjectRepository<Sprite> spriteRepository(final Nitrite nitrite) {
-        return nitrite.getRepository(Sprite.class);
+    ObjectRepository<TileRecord> spriteRepository(final Nitrite nitrite) {
+        return nitrite.getRepository(TileRecord.class);
+    }
+
+    @Bean
+    ObjectRepository<LevelSceneRecord> levelSceneEnvironmentRepository(final Nitrite nitrite) {
+        return nitrite.getRepository(LevelSceneRecord.class);
     }
 }
