@@ -12,7 +12,13 @@ import house.x1337.app.smb3.enumeration.PlayerOrientation;
 import house.x1337.app.smb3.enumeration.PlayerState;
 import lombok.RequiredArgsConstructor;
 
+import static com.jme3.material.RenderState.BlendMode.Alpha;
+import static com.jme3.material.RenderState.FaceCullMode.Off;
+import static com.jme3.texture.Texture.MagFilter.Nearest;
+import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
+import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
+import static house.x1337.app.smb3.enumeration.PlayerState.DUCKING;
 import static house.x1337.app.smb3.enumeration.PlayerState.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerState.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
@@ -72,7 +78,7 @@ public final class RacoonPlayerAnimator {
     /**
      * Sprite path prefix inside the classpath resources.
      */
-    private static final String SPRITE_PATH = "sprites/player/";
+    private static final String SPRITE_PATH = "sprites/player/mario/racoon/";
 
     // All raccoon sprites are 24×32 pixels (body 16px + tail 8px overflow right)
     private static final float SPRITE_WIDTH_PX = 24.0f;
@@ -95,6 +101,9 @@ public final class RacoonPlayerAnimator {
     /** Width of the skid sprite which has no tail overflow. */
     private static final float SKID_SPRITE_WIDTH_PX = 16.0f;
 
+    /** Width of the ducking sprite (23px — body 16px + partial tail 7px). */
+    private static final float DUCK_SPRITE_WIDTH_PX = 23.0f;
+
     private static final float PX_TO_GAME_UNITS = 1.0f / 16.0f;
 
     /** Quad width in game-units for normal sprites (24px / 16 = 1.5 tiles). */
@@ -105,6 +114,12 @@ public final class RacoonPlayerAnimator {
 
     /** Quad height in game-units (32px / 16 = 2.0 tiles). */
     private static final float QUAD_HEIGHT = SPRITE_HEIGHT_PX * PX_TO_GAME_UNITS;
+
+    /** Quad width in game-units for the ducking sprite (23px / 16). */
+    private static final float DUCK_QUAD_WIDTH = DUCK_SPRITE_WIDTH_PX * PX_TO_GAME_UNITS;
+
+    /** Tail overflow for the ducking sprite (23 - 16 = 7px). */
+    private static final float DUCK_TAIL_OFFSET = (DUCK_SPRITE_WIDTH_PX - BODY_WIDTH_PX) * PX_TO_GAME_UNITS;
 
     /** Tail overflow in game-units — shift applied when facing right. */
     private static final float TAIL_OFFSET = TAIL_OVERFLOW_PX * PX_TO_GAME_UNITS;
@@ -124,6 +139,9 @@ public final class RacoonPlayerAnimator {
     // Loaded textures — skid (rapid direction change)
     private Texture skidTexture;
 
+    // Loaded textures — ducking
+    private Texture duckTexture;
+
     // Animation state
     private int walkAnimTicks;
     private int walkFrameIndex;
@@ -140,13 +158,14 @@ public final class RacoonPlayerAnimator {
         if (initialized) {
             return;
         }
-        stillTexture = loadSprite("mario_racoon_still.png");
-        walkTexture1 = loadSprite("mario_racoon_walking_1.png");
-        walkTexture2 = loadSprite("mario_racoon_walking_2.png");
-        runTexture1 = loadSprite("mario_racoon_running_1.png");
-        runTexture2 = loadSprite("mario_racoon_running_2.png");
-        runTexture3 = loadSprite("mario_racoon_running_3.png");
-        skidTexture = loadSprite("mario_racoon_rapid_turn.png");
+        stillTexture = loadSprite("still.png");
+        walkTexture1 = loadSprite("walking_1.png");
+        walkTexture2 = loadSprite("walking_2.png");
+        runTexture1 = loadSprite("running_1.png");
+        runTexture2 = loadSprite("running_2.png");
+        runTexture3 = loadSprite("running_3.png");
+        skidTexture = loadSprite("rapid_turn.png");
+        duckTexture = loadSprite("ducking.png");
         initialized = true;
     }
 
@@ -200,6 +219,22 @@ public final class RacoonPlayerAnimator {
             if (lastRenderedState != SKIDDING || lastOrientation != orientation) {
                 rebuildSkidTexture(node, skidTexture, orientation);
                 lastRenderedState = SKIDDING;
+                lastOrientation = orientation;
+                lastWalkFrame = -1;
+            }
+            return true;
+        }
+
+        if (state == DUCKING) {
+            // Ducking frame — single static sprite, half height (prg008.asm:
+            // PF_DUCK_RACCOON). Uses the same 24px-wide sprite sheet with
+            // tail overflow, but only 16px tall.
+            walkAnimTicks = 0;
+            walkFrameIndex = 0;
+
+            if (lastRenderedState != DUCKING || lastOrientation != orientation) {
+                rebuildDuckTexture(node, duckTexture, orientation);
+                lastRenderedState = DUCKING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
             }
@@ -310,7 +345,7 @@ public final class RacoonPlayerAnimator {
         final Texture texture,
         final PlayerOrientation orientation
     ) {
-        rebuildWithTexture(node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET);
+        rebuildWithTexture(node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET, QUAD_HEIGHT);
     }
 
     /**
@@ -321,7 +356,19 @@ public final class RacoonPlayerAnimator {
         final Texture texture,
         final PlayerOrientation orientation
     ) {
-        rebuildWithTexture(node, texture, orientation, SKID_QUAD_WIDTH, 0f);
+        rebuildWithTexture(node, texture, orientation, SKID_QUAD_WIDTH, 0f, QUAD_HEIGHT);
+    }
+
+    /**
+     * Variant used for the ducking sprite which is 23×32px (slightly narrower
+     * than normal with a shorter tail overflow of 7px).
+     */
+    private void rebuildDuckTexture(
+        final Node node,
+        final Texture texture,
+        final PlayerOrientation orientation
+    ) {
+        rebuildWithTexture(node, texture, orientation, DUCK_QUAD_WIDTH, DUCK_TAIL_OFFSET, QUAD_HEIGHT);
     }
 
     /**
@@ -333,22 +380,24 @@ public final class RacoonPlayerAnimator {
      * @param orientation current facing direction
      * @param quadWidth   quad width in game-units (varies per sprite)
      * @param tailOffset  tail overflow offset in game-units (0 for body-only sprites)
+     * @param quadHeight  quad height in game-units (varies per sprite)
      */
     private void rebuildWithTexture(
         final Node node,
         final Texture texture,
         final PlayerOrientation orientation,
         final float quadWidth,
-        final float tailOffset
+        final float tailOffset,
+        final float quadHeight
     ) {
         node.detachAllChildren();
 
-        final Quad quad = new Quad(quadWidth, QUAD_HEIGHT);
+        final Quad quad = new Quad(quadWidth, quadHeight);
         final Geometry geometry = new Geometry("Player", quad);
 
         final Material material = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         material.setTexture("ColorMap", texture);
-        material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
+        material.getAdditionalRenderState().setBlendMode(Alpha);
 
         geometry.setMaterial(material);
         geometry.setQueueBucket(RenderQueue.Bucket.Transparent);
@@ -365,7 +414,7 @@ public final class RacoonPlayerAnimator {
             // (originally left-side) is now on the right, so shift the quad
             // left by the tail overflow to re-align the body with the
             // collision box.
-            material.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Off);
+            material.getAdditionalRenderState().setFaceCullMode(Off);
             geometry.setLocalScale(-1, 1, 1);
             geometry.setLocalTranslation(quadWidth - tailOffset, 0, 0);
         }
@@ -375,9 +424,9 @@ public final class RacoonPlayerAnimator {
 
     private Texture loadSprite(final String filename) {
         final Texture texture = assetManager.loadTexture(SPRITE_PATH + filename);
-        texture.setMagFilter(Texture.MagFilter.Nearest);
-        texture.setMinFilter(Texture.MinFilter.NearestNoMipMaps);
-        texture.setWrap(Texture.WrapMode.EdgeClamp);
+        texture.setMagFilter(Nearest);
+        texture.setMinFilter(NearestNoMipMaps);
+        texture.setWrap(EdgeClamp);
         return texture;
     }
 }

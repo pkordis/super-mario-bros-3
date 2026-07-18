@@ -43,7 +43,6 @@ import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_SIZE_TOGGLE;
-import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_UP;
 import static java.lang.Math.abs;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floor;
@@ -95,9 +94,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     @Override
     public void updateFrame() {
         handleSizeToggle();
-        handleDucking();
 
-        final int heightOffset = (isSmall() || state.isDucking()) ? 20 : 10;
+        // Determine collision height offset — use direct input check since
+        // the ducking state is applied at end-of-frame.
+        final boolean duckingThisFrame = !isSmall() && !state.isInAir()
+            && inputHandler.isActive(HANDLER_DOWN);
+        final int heightOffset = (isSmall() || duckingThisFrame) ? 20 : 10;
         final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
             !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
         final boolean lowClearance = tileAbove && !state.isInAir();
@@ -123,6 +125,10 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // Refine the logical state after physics + collision
         refinePlayerState();
 
+        // Ducking must be applied after state refinement since collision
+        // resets grounded state to STILL every frame.
+        handleDucking();
+
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         tickRacoonAnimation();
 
@@ -138,12 +144,22 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
         final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
+        final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
 
         // Cancel simultaneous L+R — impossible on a real NES D-pad; on
         // keyboard/gamepad we treat it as no directional input (dasm prg008:
         // original hardware cannot physically produce this combination).
-        final boolean inputLeft = rawLeft && !rawRight;
-        final boolean inputRight = rawRight && !rawLeft;
+        boolean inputLeft = rawLeft && !rawRight;
+        boolean inputRight = rawRight && !rawLeft;
+
+        // Suppress directional acceleration while ducking — the player should
+        // decelerate to a stop via friction only. In the original game this is
+        // implicit because ducking requires releasing L/R; here we allow
+        // ducking while L/R is held, so we suppress them explicitly.
+        if (inputDown && !state.isInAir() && isLarge()) {
+            inputLeft = false;
+            inputRight = false;
+        }
 
         // Update facing orientation from pad input — in the original game the
         // sprite always faces the pressed direction, including during a skid
@@ -318,9 +334,6 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     }
 
     private void handleDucking() {
-        final boolean inputLeft = inputHandler.isActive(HANDLER_LEFT);
-        final boolean inputRight = inputHandler.isActive(HANDLER_RIGHT);
-        final boolean inputUp = inputHandler.isActive(HANDLER_UP);
         final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
 
         if (isSmall()) {
@@ -328,10 +341,10 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 state.setTo(STILL);
             }
         } else if (!state.isInAir()) {
-            final boolean shouldDuck = !inputLeft && !inputRight && !inputUp && inputDown;
-            if (shouldDuck && !state.isDucking()) {
+            // Duck whenever down is held, regardless of left/right input.
+            if (inputDown && !state.isDucking()) {
                 state.setTo(DUCKING);
-            } else if (!shouldDuck && state.isDucking()) {
+            } else if (!inputDown && state.isDucking()) {
                 state.setTo(STILL);
             }
         }
