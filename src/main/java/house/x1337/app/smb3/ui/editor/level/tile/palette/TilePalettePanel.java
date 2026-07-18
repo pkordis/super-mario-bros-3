@@ -14,14 +14,15 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeMap;
 
+import static house.x1337.app.smb3.model.ui.tile.Tile.THUMB_SIZE;
 import static house.x1337.app.smb3.ui.editor.level.tile.palette.TileButton.fromTile;
 import static java.awt.BorderLayout.CENTER;
-import static javax.swing.BorderFactory.createEmptyBorder;
 
 @Singleton
 @RequiredArgsConstructor
@@ -34,12 +35,29 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
     private final TreeMap<TileType, TileGroup> groups = new TreeMap<>();
     private final Set<Integer> addedTileIds = new HashSet<>();
 
+    /** Minimum width to display 4 tile buttons per row (tile + border + gap). */
+    private static final int TILES_PER_ROW = 4;
+    private static final int TILE_BUTTON_SIZE = THUMB_SIZE + 2;
+    private static final int GAP = 2;
+    private static final int PADDING = 4;
+    private static final int MIN_WIDTH =
+        TILES_PER_ROW * TILE_BUTTON_SIZE + (TILES_PER_ROW - 1) * GAP + PADDING * 2 + 20;
+
     @PostConstruct
     void init() {
         setLayout(new BorderLayout());
         add(scrollPane, CENTER);
-        setMinimumSize(new Dimension(180, 100));
-        setPreferredSize(new Dimension(200, 400));
+        setMinimumSize(new Dimension(MIN_WIDTH, 100));
+        setPreferredSize(new Dimension(MIN_WIDTH, 400));
+
+        // Revalidate tile grid panels when viewport resizes so WrapLayout
+        // recalculates row wrapping and preferred height.
+        scrollPane.getViewport().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(final ComponentEvent e) {
+                tilesPanel.revalidate();
+            }
+        });
 
         tilesPanel.add(virtualTilesSection);
         tileService.getClassifiedTiles().forEach(this::addTile);
@@ -64,9 +82,7 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
         final TileGroup group = groups.get(type);
         if (group == null) {
             final JLabel header = buildGroupHeader(type);
-            final JPanel gridPanel = new JPanel(new GridLayout(0, 2, 4, 4));
-            gridPanel.setAlignmentX(LEFT_ALIGNMENT);
-            gridPanel.setBorder(createEmptyBorder(2, 0, 8, 0));
+            final JPanel gridPanel = buildGridPanel();
             final TileGroup newGroup = new TileGroup(header, gridPanel);
             groups.put(type, newGroup);
             rebuildGroupLayout();

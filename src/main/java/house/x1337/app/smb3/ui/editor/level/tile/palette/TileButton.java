@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 
 import javax.swing.JToggleButton;
 import java.awt.Dimension;
+import java.awt.Insets;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.model.ui.tile.Tile.THUMB_SIZE;
-import static javax.swing.BorderFactory.createBevelBorder;
-import static javax.swing.border.BevelBorder.LOWERED;
-import static javax.swing.border.BevelBorder.RAISED;
+import static javax.swing.BorderFactory.createLineBorder;
+import static java.awt.Color.GRAY;
 
 @Getter
 @Prototype
@@ -25,19 +25,23 @@ public class TileButton extends JToggleButton {
         final TileButton button = getBean(TileButton.class, tile);
         final SelectedTileService selectedTileService = getBean(SelectedTileService.class);
         button.setIcon(tile.toThumbnail());
-        button.setPreferredSize(new Dimension(THUMB_SIZE + 12, THUMB_SIZE + 12));
-        button.setBorder(createBevelBorder(RAISED));
+        final int size = THUMB_SIZE + 2;
+        button.setPreferredSize(new Dimension(size, size));
+        button.setMinimumSize(new Dimension(size, size));
+        button.setMaximumSize(new Dimension(size, size));
+        button.setMargin(new Insets(0, 0, 0, 0));
+        button.setBorder(createLineBorder(GRAY, 1));
         button.addActionListener(e -> {
             final JToggleButton selectedButton = selectedTileService.getSelectedTileButton();
             if (button.isSelected()) {
                 if (selectedButton != null && selectedButton != button) {
                     selectedButton.setSelected(false);
-                    selectedButton.setBorder(createBevelBorder(RAISED));
+                    selectedButton.setBorder(createLineBorder(GRAY, 1));
                 }
                 selectedTileService.setSelectedTileButton(button);
-                button.setBorder(createBevelBorder(LOWERED));
+                button.setBorder(createLineBorder(GRAY.brighter(), 1));
             } else {
-                button.setBorder(createBevelBorder(RAISED));
+                button.setBorder(createLineBorder(GRAY, 1));
             }
         });
         return button;
