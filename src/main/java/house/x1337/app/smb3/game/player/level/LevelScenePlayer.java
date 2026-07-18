@@ -135,22 +135,26 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // -------------------------------------------------------------------------
 
     private void handleHorizontalMovement() {
-        final boolean inputLeft = inputHandler.isActive(HANDLER_LEFT);
-        final boolean inputRight = inputHandler.isActive(HANDLER_RIGHT);
+        final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
+        final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
 
-        // Update facing orientation — suppress during skid so the player
-        // keeps facing the movement direction (dasm prg008: skid frame is
-        // displayed without flipping Player_FlipBits).
-        final boolean isSkidding = isCurrentlySkidding(inputLeft, inputRight);
-        if (!isSkidding) {
-            if (inputLeft) {
-                orientation = LEFT;
-                setPlayerOrientation(LEFT);
-            } else if (inputRight) {
-                orientation = RIGHT;
-                setPlayerOrientation(RIGHT);
-            }
+        // Cancel simultaneous L+R — impossible on a real NES D-pad; on
+        // keyboard/gamepad we treat it as no directional input (dasm prg008:
+        // original hardware cannot physically produce this combination).
+        final boolean inputLeft = rawLeft && !rawRight;
+        final boolean inputRight = rawRight && !rawLeft;
+
+        // Update facing orientation from pad input — in the original game the
+        // sprite always faces the pressed direction, including during a skid
+        // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
+        // Pad_Holding regardless of velocity direction).
+        if (inputLeft) {
+            orientation = LEFT;
+            setPlayerOrientation(LEFT);
+        } else if (inputRight) {
+            orientation = RIGHT;
+            setPlayerOrientation(RIGHT);
         }
 
         // Determine top speed
@@ -406,8 +410,10 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 state.setTo(FALLING);
             }
         } else if (!state.isDucking()) {
-            final boolean inputLeft = inputHandler.isActive(HANDLER_LEFT);
-            final boolean inputRight = inputHandler.isActive(HANDLER_RIGHT);
+            final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
+            final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
+            final boolean inputLeft = rawLeft && !rawRight;
+            final boolean inputRight = rawRight && !rawLeft;
             if (isCurrentlySkidding(inputLeft, inputRight)) {
                 state.setTo(SKIDDING);
             } else if (abs(position.getDX()) < 0.01) {
