@@ -453,7 +453,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      */
     private void refinePlayerState() {
         if (state.isInAir()) {
-            if (playerFlyTime > 0 && playerWagCount > 0) {
+            if (playerFlyTime > 0) {
+                // dasm prg008: Player_FlyTime > 0 means the player is in
+                // powered flight mode (raccoon/tanooki). The animation system
+                // (Player_AnimTailWag) selects flying frames whenever FlyTime
+                // is nonzero, independent of WagCount. WagCount only controls
+                // the velocity cap physics, not the logical flight state.
                 state.setTo(FLYING);
             } else if (position.getDY() < 0) {
                 state.setTo(JUMPING);
