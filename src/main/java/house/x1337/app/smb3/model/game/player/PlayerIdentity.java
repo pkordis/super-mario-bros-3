@@ -18,4 +18,10 @@ public class PlayerIdentity {
         playerIdentity.type = type;
         return playerIdentity;
     }
+
+    public String getAnimationFramesPath() {
+        return switch (type) {
+            case MARIO -> "mario";
+        };
+    }
 }

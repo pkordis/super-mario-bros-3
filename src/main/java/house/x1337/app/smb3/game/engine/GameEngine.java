@@ -19,7 +19,7 @@ import static house.x1337.app.smb3.GameConstants.VIEWPORT_HEIGHT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.PlayerIdentityType.MARIO;
-import static house.x1337.app.smb3.enumeration.PlayerMode.RACOON;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 
 @Slf4j
 @Getter
@@ -93,8 +93,8 @@ public final class GameEngine extends GameEngineCapabilities {
         player = PlayerFactory.spawn(
             MARIO.identity(),
             onSpawn -> {
-                onSpawn.setMode(RACOON);
-                onSpawn.renderUpdate();
+                onSpawn.setMode(RACCOON);
+                onSpawn.renderPlayer();
                 onSpawn.updateInCameraState(cameraState);
             },
             this

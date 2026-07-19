@@ -14,7 +14,7 @@ public class MapPlayer implements Player {
     private final ActivePlayerState state = new ActivePlayerState();
 
     @Override
-    public void renderUpdate() {
+    public void renderPlayer() {
     }
 
     @Override

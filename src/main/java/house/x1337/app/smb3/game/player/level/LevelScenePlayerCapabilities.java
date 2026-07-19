@@ -4,6 +4,10 @@ import com.jme3.scene.Node;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientation;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
+import house.x1337.app.smb3.game.player.Player;
+import house.x1337.app.smb3.game.player.PlayerAnimator;
+import house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory;
+import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.model.game.player.ActivePlayerState;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.game.LevelScene;
@@ -20,13 +24,15 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
 
 // TODO: relocate constants
 @RequiredArgsConstructor
 public sealed abstract class LevelScenePlayerCapabilities
     implements
         LevelScenePlayerRenderer,
-        LevelScenePlayerActionEventListener
+        LevelScenePlayerActionEventListener,
+        Player
     permits
         LevelScenePlayer {
     @Getter
@@ -36,7 +42,8 @@ public sealed abstract class LevelScenePlayerCapabilities
     final PlayerIdentity identity;
 
     /** The node containing the player geometry (attached to rootNode). */
-    Node node;
+    @Getter
+    private Node node;
     final CollisionGrid collisionGrid;
     @Getter
     final PlayerPosition position;
@@ -53,7 +60,7 @@ public sealed abstract class LevelScenePlayerCapabilities
 
     /** Animator for raccoon mode sprite rendering and walk animation. */
     @Getter
-    private RacoonPlayerAnimator racoonAnimator;
+    private LevelScenePlayerAnimationContext playerAnimationContext;
 
     public LevelScenePlayerCapabilities(
         final GameEngine gameEngine,
@@ -67,15 +74,16 @@ public sealed abstract class LevelScenePlayerCapabilities
         );
         this.position = initializePosition();
         this.collisionGrid = createCollisionGrid();
-        this.racoonAnimator = new RacoonPlayerAnimator(gameEngine.getAssetManager());
+        this.playerAnimationContext = contextForLevel(this);
     }
 
     @Override
-    public void renderUpdate() {
+    public void renderPlayer() {
         node = createNode();
         gameEngine
             .getRootNode()
             .attachChild(node);
+        playerAnimationContext.loadAssets();
         updateVisualPosition();
     }
 
@@ -117,5 +125,10 @@ public sealed abstract class LevelScenePlayerCapabilities
     public void updateInCameraState(final CameraState cameraState) {
         // Point the camera at the player node so it follows the player
         cameraState.setTarget(node);
+    }
+
+    @Override
+    public void advanceAnimation() {
+        playerAnimationContext.update((LevelScenePlayer) this);
     }
 }

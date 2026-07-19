@@ -60,22 +60,19 @@ import static java.lang.Math.min;
  * is {@link TileType.Category#COLLIDING}.
  */
 @Slf4j
+@Getter
 @Prototype
 public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // P-meter / flight state
-    @Getter
     private int playerPower;
-    private int playerPMeterCnt;
-    private boolean playerRunFlag;
-    @Getter
+    private int playerPowerThrottle;
+    private boolean isRunning;
     private int playerFlyTime;
-    @Getter
     private int playerWagCount;
     private int flyTimeToggle;
 
     // Tail attack state (dasm: Player_TailAttack, set to $12 on B press,
     // auto-decrements to 0)
-    @Getter
     private int playerTailAttack;
 
     private PlayerOrientation orientation = RIGHT;
@@ -138,7 +135,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         handleTailAttack();
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
-        tickRacoonAnimation();
+        advanceAnimation();
 
         // Sync visual
         updateVisualPosition();
@@ -238,25 +235,25 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
 
         // Player_RunFlag: set when on ground, holding B, speed >= TOPRUNSPEED
-        playerRunFlag = inputRun && !state.isInAir()
+        isRunning = inputRun && !state.isInAir()
                 && abs(position.getDX()) >= PLAYER_TOPRUNSPEED - 0.001;
 
         // P-meter update
         if (playerFlyTime <= 0) {
-            if (playerPMeterCnt > 0) {
-                playerPMeterCnt--;
+            if (playerPowerThrottle > 0) {
+                playerPowerThrottle--;
             } else {
-                if (playerRunFlag) {
+                if (isRunning) {
                     if (playerPower < PMETER_LEVELS) {
                         playerPower++;
-                        playerPMeterCnt = PMETER_CHARGE_FRAMES;
+                        playerPowerThrottle = PMETER_CHARGE_FRAMES;
                     } else {
-                        playerPMeterCnt = PMETER_FULL_HOLD_FRAMES;
+                        playerPowerThrottle = PMETER_FULL_HOLD_FRAMES;
                     }
                 } else {
                     if (playerPower > 0) {
                         playerPower--;
-                        playerPMeterCnt = PMETER_DRAIN_FRAMES;
+                        playerPowerThrottle = PMETER_DRAIN_FRAMES;
                     }
                 }
             }
@@ -340,7 +337,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 playerFlyTime--;
                 if (playerFlyTime <= 0) {
                     playerPower = 0;
-                    playerPMeterCnt = 0;
+                    playerPowerThrottle = 0;
                 }
             }
         }
@@ -352,7 +349,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
     private void handleSizeToggle() {
         if (inputHandler.consumePress(HANDLER_SIZE_TOGGLE)) {
-            setMode(this.getMode() == PlayerMode.RACOON ? PlayerMode.SHRUNK : PlayerMode.RACOON);
+            setMode(this.getMode() == PlayerMode.RACCOON ? PlayerMode.SHRUNK : PlayerMode.RACCOON);
         }
     }
 
@@ -403,36 +400,6 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     }
 
     // -------------------------------------------------------------------------
-    // Raccoon animation
-    // -------------------------------------------------------------------------
-
-    /** Tracks whether the last rendered frame was a sprite (true) or cyan box (false). */
-    private boolean lastFrameWasSprite = true;
-
-    /**
-     * Drives the raccoon sprite animator each frame when in raccoon mode.
-     * For states the animator does not handle (jumping, falling, flying, etc.),
-     * the player reverts to the cyan colored box fallback.
-     */
-    private void tickRacoonAnimation() {
-        final RacoonPlayerAnimator animator = getRacoonAnimator();
-        if (animator == null || node == null || getMode() != PlayerMode.RACOON) {
-            return;
-        }
-        final boolean handled = animator.tick(
-            node, state.getCurrent(), orientation, abs(position.getDX()),
-            playerWagCount, playerFlyTime, position.getDY(), playerTailAttack
-        );
-        if (handled) {
-            lastFrameWasSprite = true;
-        } else if (lastFrameWasSprite) {
-            // Transition from sprite to unhandled state — show cyan box
-            buildCyanBox(node);
-            lastFrameWasSprite = false;
-        }
-    }
-
-    // -------------------------------------------------------------------------
     // Utility
     // -------------------------------------------------------------------------
 
@@ -443,7 +410,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      */
     @Override
     public void updateVisualPosition() {
-        if (node == null || getLevelScene() == null) {
+        if (getNode() == null || getLevelScene() == null) {
             return;
         }
         // Convert sprite-pixel position to tile-unit position
@@ -458,7 +425,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // level and let the quad's height determine how far up it extends.
         final float feetOffsetFromY = 32.0f / 16.0f;
         final float playerZ = getVisibility().getPlayerZ();
-        node.setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
+        getNode().setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
     }
 
     /**
@@ -489,11 +456,11 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 state.setTo(SKIDDING);
             } else if (abs(position.getDX()) < 0.01) {
                 state.setTo(STILL);
-            } else if (playerRunFlag && abs(position.getDX()) >= PLAYER_SPREAD_EAGLE_THRESHOLD) {
+            } else if (isRunning && abs(position.getDX()) >= PLAYER_SPREAD_EAGLE_THRESHOLD) {
                 // Spread-eagle: abs(XVel) >= $37 in the original (prg008.asm
                 // Player_SetSpecialFrames). Full P-meter speed reached.
                 state.setTo(POWER_RUNNING);
-            } else if (playerRunFlag) {
+            } else if (isRunning) {
                 // B held, speed >= TOPRUNSPEED but below spread-eagle threshold.
                 // Still uses walk animation frames (accelerating toward max).
                 state.setTo(RUNNING);

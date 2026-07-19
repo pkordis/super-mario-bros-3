@@ -5,16 +5,24 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
-import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientation;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
+import house.x1337.app.smb3.game.player.ActivePlayerStateAware;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
+import house.x1337.app.smb3.game.player.PlayerModeAware;
+import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
+import house.x1337.app.smb3.game.player.level.animator.RaccoonAnimator;
 
 import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 
-public interface LevelScenePlayerRenderer extends PlayerIdentityAware, GameEngineAware {
+public interface LevelScenePlayerRenderer
+    extends
+        ActivePlayerStateAware,
+        GameEngineAware,
+        PlayerIdentityAware,
+        PlayerModeAware {
 
     /**
      * Returns the box height in game-units (tile-fractions) for the current
@@ -37,37 +45,16 @@ public interface LevelScenePlayerRenderer extends PlayerIdentityAware, GameEngin
      * Rebuilds the player quad geometry to match the current size, replacing
      * any existing geometry attached to the node. For raccoon mode, the
      * initial geometry uses the still sprite (wider, 24px) — subsequent
-     * updates are driven by {@link RacoonPlayerAnimator}.
+     * updates are driven by {@link RaccoonAnimator}.
      */
     default void rebuildGeometry(final Node node) {
-        // Remove all existing geometry before attaching the resized quad
         node.detachAllChildren();
 
-        if (getMode() == PlayerMode.RACOON) {
-            // Raccoon mode: delegate to the animator for sprite-based rendering.
-            final RacoonPlayerAnimator animator = getRacoonAnimator();
-            if (animator != null) {
-                animator.initialize();
-                // Trigger an immediate render based on current state
-                final boolean handled = animator.tick(
-                    node,
-                    getState().getCurrent(),
-                    getPlayerOrientation(),
-                    0.0,
-                    0,
-                    0,
-                    0.0,
-                    0
-                );
-                if (handled) {
-                    return;
-                }
-                // State not handled by animator — fall through to cyan box
-            }
+        if (this instanceof LevelScenePlayer levelScenePlayer) {
+            final LevelScenePlayerAnimationContext animationContext = getPlayerAnimationContext();
+            animationContext.updateActiveAnimator(levelScenePlayer);
+            animationContext.update(levelScenePlayer);
         }
-
-        // Fallback: colored box for non-raccoon modes or unhandled raccoon states
-        buildCyanBox(node);
     }
 
     /**
@@ -96,16 +83,8 @@ public interface LevelScenePlayerRenderer extends PlayerIdentityAware, GameEngin
         node.attachChild(geometry);
     }
 
-    /**
-     * Returns the raccoon animator instance, or {@code null} if not available.
-     * Implementors should provide this when raccoon mode is supported.
-     */
-    RacoonPlayerAnimator getRacoonAnimator();
-
-    /**
-     * Returns the current player facing orientation (LEFT or RIGHT).
-     * Used by the renderer to flip sprites horizontally.
-     */
+    void advanceAnimation();
+    LevelScenePlayerAnimationContext getPlayerAnimationContext();
     PlayerOrientation getPlayerOrientation();
 }
 
