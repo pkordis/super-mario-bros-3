@@ -311,6 +311,21 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                     }
                 }
             }
+
+            // Raccoon air drag (dasm prg008 PRG008_B082): when flying or
+            // wagging, apply 1 raw unit/frame deceleration toward walk speed.
+            // This prevents maintaining launch speed indefinitely during flight.
+            if (isLarge() && (playerFlyTime > 0 || playerWagCount > 0)) {
+                final double dx = position.getDX();
+                final double absDx = abs(dx);
+                if (absDx > PLAYER_TOPWALKSPEED) {
+                    if (dx > 0) {
+                        position.addToDX(-1.0 / 16.0);
+                    } else {
+                        position.addToDX(1.0 / 16.0);
+                    }
+                }
+            }
         }
     }
 
