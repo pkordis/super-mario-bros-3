@@ -18,7 +18,11 @@ import static com.jme3.texture.Texture.MagFilter.Nearest;
 import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerState.DUCKING;
+import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
+import static house.x1337.app.smb3.enumeration.PlayerState.FLYING;
+import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerState.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerState.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
@@ -74,6 +78,14 @@ public final class RacoonPlayerAnimator {
      * Uses the same {@code Player_WalkFrame} counter and tick timing as walking.
      */
     private static final int[] RUN_FRAME_SEQUENCE = {0, 1, 2, 1};
+
+    /**
+     * Duration of one tail wag animation cycle in ticks (dasm prg008:
+     * {@code Player_TailCount} is set to 10 on each A press and auto-
+     * decrements). The 3 visual frames are indexed by {@code count >> 2}:
+     * ticks 10-8 → frame 2, ticks 7-4 → frame 1, ticks 3-1 → frame 0.
+     */
+    private static final int TAIL_WAG_ANIM_DURATION = 10;
 
     /**
      * Sprite path prefix inside the classpath resources.
@@ -142,9 +154,25 @@ public final class RacoonPlayerAnimator {
     // Loaded textures — ducking
     private Texture duckTexture;
 
+    // Loaded textures — tail wag fall control (fluttering)
+    private Texture tailFallTexture1;
+    private Texture tailFallTexture2;
+
+    // Loaded textures — tail wag fly control (flying upward)
+    private Texture tailFlyTexture1;
+    private Texture tailFlyTexture2;
+    private Texture tailFlyTexture3;
+
+    // Loaded textures — tail attack (ground B press)
+    private Texture tailAttackTexture1;
+    private Texture tailAttackTexture2;
+    private Texture tailAttackTexture3;
+
     // Animation state
     private int walkAnimTicks;
     private int walkFrameIndex;
+    private int tailWagCount;
+    private boolean wasTailAttacking;
     private PlayerState lastRenderedState;
     private PlayerOrientation lastOrientation;
     private int lastWalkFrame = -1;
@@ -166,6 +194,14 @@ public final class RacoonPlayerAnimator {
         runTexture3 = loadSprite("running_3.png");
         skidTexture = loadSprite("rapid_turn.png");
         duckTexture = loadSprite("ducking.png");
+        tailFallTexture1 = loadSprite("tail_wagging_control_fall_1.png");
+        tailFallTexture2 = loadSprite("tail_wagging_control_fall_2.png");
+        tailFlyTexture1 = loadSprite("tail_wagging_control_fly_1.png");
+        tailFlyTexture2 = loadSprite("tail_wagging_control_fly_2.png");
+        tailFlyTexture3 = loadSprite("tail_wagging_control_fly_3.png");
+        tailAttackTexture1 = loadSprite("tail_wagging_attack_1.png");
+        tailAttackTexture2 = loadSprite("tail_wagging_attack_2.png");
+        tailAttackTexture3 = loadSprite("tail_wagging_attack_3.png");
         initialized = true;
     }
 
@@ -174,14 +210,19 @@ public final class RacoonPlayerAnimator {
      * display based on the player's current state, velocity, and orientation.
      *
      * <p>Must be called once per fixed-rate tick from the player's
-     * {@code updateFrame()} method. Only handles STILL, WALKING, RUNNING,
-     * and POWER_RUNNING states — all other states should be rendered by the
-     * caller (e.g. as the legacy cyan box).
+     * {@code updateFrame()} method. Handles STILL, WALKING, RUNNING,
+     * POWER_RUNNING, SKIDDING, DUCKING, and airborne tail-wag states.
+     * States not handled return {@code false} so the caller can provide
+     * its own rendering (e.g. the legacy cyan box).
      *
      * @param node        the player's scene node to update
      * @param state       the current player state
      * @param orientation the current facing direction
      * @param absDx       absolute horizontal velocity (game-units/tick)
+     * @param wagCount    current tail wag countdown (0 = not wagging)
+     * @param flyTime     remaining flight frames (0 = not flying)
+     * @param dy          vertical velocity (negative = rising)
+     * @param tailAttack  tail attack countdown (0 = not attacking, 18→1 = attacking)
      * @return {@code true} if this animator rendered a sprite for the given
      *         state, {@code false} if the state is not handled and the caller
      *         should provide its own rendering (e.g. cyan box fallback).
@@ -190,10 +231,51 @@ public final class RacoonPlayerAnimator {
         final Node node,
         final PlayerState state,
         final PlayerOrientation orientation,
-        final double absDx
+        final double absDx,
+        final int wagCount,
+        final int flyTime,
+        final double dy,
+        final int tailAttack
     ) {
         if (!initialized || node == null) {
             return false;
+        }
+
+        // Tail attack overrides all grounded animations (dasm prg008:
+        // Player_TailAttackAnim runs after all other ground logic).
+        if (tailAttack > 0) {
+            final int frameIndex = tailAttack >> 2; // 4→3→2→1→0
+            final int clampedFrame = Math.min(frameIndex, 4);
+            // Flip orientation at tailAttack == 11 and 3 (dasm: EOR #SPR_HFLIP)
+            final boolean flipped = (tailAttack <= 11 && tailAttack > 3);
+            final PlayerOrientation effectiveOrientation = flipped
+                ? (orientation == LEFT ? RIGHT : LEFT)
+                : orientation;
+            final Texture texture = textureForTailAttackFrame(clampedFrame);
+            final float quadWidth = tailAttackFrameWidth(clampedFrame);
+            final float tailOffset = tailAttackFrameTailOffset(clampedFrame);
+
+            if (lastWalkFrame != clampedFrame
+                    || lastOrientation != effectiveOrientation
+                    || lastRenderedState != state) {
+                rebuildWithTexture(
+                    node, texture, effectiveOrientation, quadWidth, tailOffset, QUAD_HEIGHT
+                );
+                lastRenderedState = state;
+                lastOrientation = effectiveOrientation;
+                lastWalkFrame = clampedFrame;
+            }
+            wasTailAttacking = true;
+            return true;
+        }
+
+        // When tail attack just ended, force a rebuild so the player
+        // reverts to normal sprite with the correct pre-attack orientation.
+        if (wasTailAttacking) {
+            wasTailAttacking = false;
+            lastRenderedState = null;
+            lastOrientation = null;
+            lastWalkFrame = -1;
         }
 
         if (state == STILL) {
@@ -241,6 +323,54 @@ public final class RacoonPlayerAnimator {
             return true;
         }
 
+        if ((state == FLYING || state == FALLING || state == JUMPING) && wagCount > 0) {
+            // Tail wag animation — two distinct visual sets (dasm prg008:
+            // Player_AnimTailWag selects row from Player_TailWagFlyFrames):
+            //
+            // 1. FLY control (flyTime > 0): PF_TAILWAGFLY_BASE — 3 frames,
+            //    player is rising or at apex during powered flight.
+            // 2. FALL control (flyTime == 0): PF_TAILWAGFALL — 2 frames,
+            //    player is fluttering to slow their descent.
+            //
+            // Both use Player_TailCount (set to 10 on A press, auto-decrements)
+            // with frame = TailCount >> 2 indexing into the frame table.
+            if (tailWagCount <= 0 || lastRenderedState != state) {
+                tailWagCount = TAIL_WAG_ANIM_DURATION;
+            }
+
+            final int frameOffset = tailWagCount >> 2; // 2, 1, or 0
+            final boolean flying = flyTime > 0;
+            final int tailFrame;
+            final Texture texture;
+
+            if (flying) {
+                // Fly control: 3 distinct frames (PF_TAILWAGFLY_BASE +2/+1/+0)
+                tailFrame = Math.min(frameOffset, 2);
+                texture = textureForTailWagFlyFrame(tailFrame);
+            } else {
+                // Fall control: 2 distinct frames (PF_TAILWAGFALL +1/+0)
+                tailFrame = Math.min(frameOffset, 1);
+                texture = textureForTailWagFallFrame(tailFrame);
+            }
+
+            if (lastRenderedState != state
+                    || lastWalkFrame != tailFrame
+                    || lastOrientation != orientation) {
+                // dasm prg008: Player_AnimTailWag never modifies Player_FlipBits.
+                // All frames render with the player's current facing direction
+                // unchanged. The tail "swish" comes from distinct sprite tiles.
+                rebuildWithTexture(
+                    node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET, QUAD_HEIGHT
+                );
+                lastRenderedState = state;
+                lastOrientation = orientation;
+                lastWalkFrame = tailFrame;
+            }
+
+            tailWagCount--;
+            return true;
+        }
+
         if (state == WALKING || state == RUNNING || state == POWER_RUNNING) {
             // Advance walk animation based on NES tick timing
             advanceWalkAnimation(absDx);
@@ -280,6 +410,8 @@ public final class RacoonPlayerAnimator {
         lastOrientation = null;
         lastWalkFrame = -1;
         walkAnimTicks = 0;
+        tailWagCount = 0;
+        wasTailAttacking = false;
     }
 
     /**
@@ -325,6 +457,69 @@ public final class RacoonPlayerAnimator {
             case 2 -> runTexture3;
             default -> runTexture1;
         };
+    }
+
+    /**
+     * Returns the texture for a flying tail wag frame (dasm prg008:
+     * {@code Player_TailWagFlyFrames} row 0 — {@code PF_TAILWAGFLY_BASE+2, +1, +0}).
+     * Used when {@code flyTime > 0} and the player is rising or at apex.
+     *
+     * @param frameOffset 2, 1, or 0 (derived from TailCount >> 2)
+     */
+    private Texture textureForTailWagFlyFrame(final int frameOffset) {
+        return switch (frameOffset) {
+            case 2 -> tailFlyTexture3;
+            case 1 -> tailFlyTexture2;
+            default -> tailFlyTexture1;
+        };
+    }
+
+    /**
+     * Returns the texture for a falling flutter wag frame (dasm prg008:
+     * {@code Player_TailWagFlyFrames} row 3 — {@code PF_TAILWAGFALL+1, +0}).
+     * Used when {@code flyTime == 0} and the player is fluttering descent.
+     *
+     * @param frameOffset 1 or 0 (derived from TailCount >> 2, clamped to 1)
+     */
+    private Texture textureForTailWagFallFrame(final int frameOffset) {
+        if (frameOffset == 1) {
+            return tailFallTexture2;
+        }
+        return tailFallTexture1;
+    }
+
+    /**
+     * Returns the texture for the given tail attack frame index (dasm prg008:
+     * {@code Player_TailAttackFrames} ground sequence: base, base+1, base, base+2, base).
+     */
+    private Texture textureForTailAttackFrame(final int frameIndex) {
+        return switch (frameIndex) {
+            case 1 -> tailAttackTexture2;
+            case 3 -> tailAttackTexture3;
+            default -> tailAttackTexture1;
+        };
+    }
+
+    /**
+     * Returns the quad width for the given tail attack frame.
+     * attack_1 is 24px wide (indices 0, 2, 4); attack_2 and attack_3 are 16px.
+     */
+    private float tailAttackFrameWidth(final int frameIndex) {
+        if (frameIndex == 0 || frameIndex == 2 || frameIndex == 4) {
+            return QUAD_WIDTH;
+        }
+        return SKID_QUAD_WIDTH;
+    }
+
+    /**
+     * Returns the tail offset for the given tail attack frame.
+     * Only attack_1 (24px, indices 0, 2, 4) has tail overflow.
+     */
+    private float tailAttackFrameTailOffset(final int frameIndex) {
+        if (frameIndex == 0 || frameIndex == 2 || frameIndex == 4) {
+            return TAIL_OFFSET;
+        }
+        return 0f;
     }
 
     /**

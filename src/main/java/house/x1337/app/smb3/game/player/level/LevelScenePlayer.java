@@ -73,6 +73,11 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     private int playerWagCount;
     private int flyTimeToggle;
 
+    // Tail attack state (dasm: Player_TailAttack, set to $12 on B press,
+    // auto-decrements to 0)
+    @Getter
+    private int playerTailAttack;
+
     private PlayerOrientation orientation = RIGHT;
 
     public LevelScenePlayer(
@@ -128,6 +133,9 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // Ducking must be applied after state refinement since collision
         // resets grounded state to STILL every frame.
         handleDucking();
+
+        // Tail attack (raccoon B press on ground)
+        handleTailAttack();
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         tickRacoonAnimation();
@@ -350,6 +358,35 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         }
     }
 
+    /**
+     * Handles the raccoon tail attack (dasm prg008: Player_TailAttackAnim).
+     *
+     * <p>Triggered by a new B press while grounded, not ducking, and not
+     * already attacking. Sets {@code playerTailAttack} to 18 ($12) which
+     * auto-decrements each frame. The animation plays over 18 frames with
+     * the player sprite flipping at frames 11 and 3.
+     */
+    private void handleTailAttack() {
+        if (!isLarge()) {
+            return;
+        }
+
+        // Decrement counter each frame (at start, so the trigger frame
+        // displays at the full $12 value matching the dasm)
+        if (playerTailAttack > 0) {
+            playerTailAttack--;
+        }
+
+        final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
+
+        // Cannot initiate while ducking (dasm: if PAD_DOWN held, skip)
+        if (!inputDown && playerTailAttack == 0) {
+            if (inputHandler.consumePress(HANDLER_RUN)) {
+                playerTailAttack = 0x12;
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Raccoon animation
     // -------------------------------------------------------------------------
@@ -368,7 +405,8 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
             return;
         }
         final boolean handled = animator.tick(
-            node, state.getCurrent(), orientation, abs(position.getDX())
+            node, state.getCurrent(), orientation, abs(position.getDX()),
+            playerWagCount, playerFlyTime, position.getDY(), playerTailAttack
         );
         if (handled) {
             lastFrameWasSprite = true;

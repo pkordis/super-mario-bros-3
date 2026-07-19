@@ -53,7 +53,11 @@ public interface LevelScenePlayerRenderer extends PlayerIdentityAware, GameEngin
                     node,
                     getState().getCurrent(),
                     getPlayerOrientation(),
-                    0.0
+                    0.0,
+                    0,
+                    0,
+                    0.0,
+                    0
                 );
                 if (handled) {
                     return;
