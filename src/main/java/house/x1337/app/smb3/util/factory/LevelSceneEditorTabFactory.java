@@ -5,8 +5,8 @@ import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.ui.editor.level.scene.tab.LevelSceneEditorGrid;
-import house.x1337.app.smb3.ui.editor.level.scene.tab.LevelSceneEditorTab;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.service.SelectedTileService;
 

@@ -3,10 +3,10 @@ package house.x1337.app.smb3.enumeration;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import static lombok.AccessLevel.PRIVATE;
+import static house.x1337.app.smb3.GameConstants.Z_STEP_BETWEEN_LAYERS;
 
 @Getter
-@RequiredArgsConstructor(access = PRIVATE)
+@RequiredArgsConstructor
 public enum LevelSceneLayerType {
     AIR(0, "Air"),
     DECORATIONS_AIR(1, "Decorations (Air)"),
@@ -17,6 +17,12 @@ public enum LevelSceneLayerType {
 
     private final int order;
     private final String label;
+    @Getter(lazy = true)
+    private final float z = initZ();
+
+    public final float initZ() {
+        return getOrder() * Z_STEP_BETWEEN_LAYERS;
+    }
 }
 
 

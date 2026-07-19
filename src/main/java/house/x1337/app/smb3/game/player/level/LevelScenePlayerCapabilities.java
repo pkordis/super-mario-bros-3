@@ -1,0 +1,121 @@
+package house.x1337.app.smb3.game.player.level;
+
+import com.jme3.scene.Node;
+import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.enumeration.PlayerOrientation;
+import house.x1337.app.smb3.enumeration.PlayerVisibility;
+import house.x1337.app.smb3.model.game.player.ActivePlayerState;
+import house.x1337.app.smb3.model.game.player.PlayerIdentity;
+import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.game.collision.CollisionGrid;
+import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
+import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+
+// TODO: relocate constants
+@RequiredArgsConstructor
+public sealed abstract class LevelScenePlayerCapabilities
+    implements
+        LevelScenePlayerRenderer,
+        LevelScenePlayerActionEventListener
+    permits
+        LevelScenePlayer {
+    @Getter
+    final GameEngine gameEngine;
+    final PlayerInputHandler inputHandler;
+    @Getter
+    final PlayerIdentity identity;
+
+    /** The node containing the player geometry (attached to rootNode). */
+    Node node;
+    final CollisionGrid collisionGrid;
+    @Getter
+    final PlayerPosition position;
+    @Getter
+    private PlayerMode mode;
+    @Getter
+    @Setter
+    private PlayerVisibility visibility = FOREGROUND;
+    @Getter
+    final ActivePlayerState state = getBean(ActivePlayerState.class);
+    @Getter
+    @Setter
+    private PlayerOrientation playerOrientation = RIGHT;
+
+    /** Animator for raccoon mode sprite rendering and walk animation. */
+    @Getter
+    private RacoonPlayerAnimator racoonAnimator;
+
+    public LevelScenePlayerCapabilities(
+        final GameEngine gameEngine,
+        final PlayerIdentity identity
+    ) {
+        this.gameEngine = gameEngine;
+        this.identity = identity;
+        this.inputHandler = getBean(
+            PlayerInputHandler.class,
+            gameEngine
+        );
+        this.position = initializePosition();
+        this.collisionGrid = createCollisionGrid();
+        this.racoonAnimator = new RacoonPlayerAnimator(gameEngine.getAssetManager());
+    }
+
+    @Override
+    public void renderUpdate() {
+        node = createNode();
+        gameEngine
+            .getRootNode()
+            .attachChild(node);
+        updateVisualPosition();
+    }
+
+    @Override
+    public void setMode(final PlayerMode playerMode) {
+        this.mode = playerMode;
+        if (node != null) {
+            rebuildGeometry(node);
+            updateVisualPosition();
+        }
+    }
+
+    private PlayerPosition initializePosition() {
+        final LevelScene levelScene = getLevelScene();
+        final PlayerPosition position = new PlayerPosition();
+        // Convert tile coords to sprite-pixel coords
+        position.setX(levelScene.getSpawnPointColumn() * TILE_SPRITE_SIZE);
+        position.setY(levelScene.getSpawnPointRow() * TILE_SPRITE_SIZE);
+        position.setDX(0);
+        position.setDY(0);
+        return position;
+    }
+
+    CollisionGrid createCollisionGrid() {
+        final LevelScene levelScene = getLevelScene();
+        if (levelScene == null) {
+            return null;
+        }
+
+        return new CollisionGrid(
+            this,
+            levelScene.getTilesOfConsolidatedLayers(),
+            levelScene.getRows(),
+            levelScene.getColumns()
+        );
+    }
+
+    @Override
+    public void updateInCameraState(final CameraState cameraState) {
+        // Point the camera at the player node so it follows the player
+        cameraState.setTarget(node);
+    }
+}

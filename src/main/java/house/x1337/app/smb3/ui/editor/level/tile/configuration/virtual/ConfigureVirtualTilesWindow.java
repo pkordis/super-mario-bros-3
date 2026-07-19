@@ -3,7 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tile.configuration.virtual;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.scene.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 

@@ -78,4 +78,44 @@ public final class GameConstants {
         .build();
 
     public static final ColorRGBA BLACK = new ColorRGBA(0, 0, 0, 0);
+
+    public static final float Z_STEP_BETWEEN_LAYERS = 0.01f;
+
+    // -------------------------------------------------------------------------
+    // SMB3 velocity constants (4.4 fixed-point / 16 → px/frame from the JS port)
+    // All values are in game-units (tile-fraction) per tick.
+    // -------------------------------------------------------------------------
+
+    public static final double PLAYER_TOPWALKSPEED = 1.5;
+    public static final double PLAYER_TOPRUNSPEED = 2.5;
+    public static final double PLAYER_TOPPOWERSPEED = 3.5;
+
+    /**
+     * Minimum velocity magnitude for the "spread-eagle" running sprites.
+     * From prg008.asm {@code Player_SetSpecialFrames}: {@code CMP #$37}.
+     * In 4.4 fixed-point: $37/16 = 3.4375 px/frame.
+     */
+    public static final double PLAYER_SPREAD_EAGLE_THRESHOLD = 3.4375;
+
+    /**
+     * Minimum velocity magnitude to trigger the skid state when the player
+     * presses the opposite direction. From prg008.asm:
+     * {@code LDA Player_XVel; ADD #$01; CMP #$03; BLT} — i.e. |XVel| ≥ $02.
+     * In 4.4 fixed-point: $02/16 = 0.125 px/frame.
+     */
+    public static final double PLAYER_SKID_VEL_THRESHOLD = 0.125;
+    public static final double PLAYER_FLY_YVEL = -1.5;
+    public static final double PLAYER_FLY_APEX_YVEL = -1.0;
+    public static final double PLAYER_TAILWAG_YVEL = 1.0;
+
+    public static final double GRAVITY_SLOW = 1.0;
+    public static final double GRAVITY_FAST = 5.0;
+    public static final double[] JUMP_FORCE = {-3.5, -3.625, -3.75, -4.0};
+
+    public static final int PMETER_LEVELS = 7;
+    public static final int PMETER_CHARGE_FRAMES = 8;
+    public static final int PMETER_DRAIN_FRAMES = 24;
+    public static final int PMETER_FULL_HOLD_FRAMES = 16;
+    public static final int FLY_TIME = 0x80;
+    public static final int WAG_COUNT = 0x10;
 }

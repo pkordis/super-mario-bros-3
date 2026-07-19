@@ -6,8 +6,8 @@ import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
-import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.engine.core.GameEngine;
+import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.game.engine.GameEngine;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import static java.lang.Math.round;
 
 @Slf4j
 @Getter
-@Singleton
+@Prototype
 @RequiredArgsConstructor
 public class CameraState extends BaseAppState {
     private final Target<Spatial> target = new Target<>();

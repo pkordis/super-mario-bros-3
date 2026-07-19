@@ -1,9 +1,8 @@
 package house.x1337.app.smb3.runner;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.app.ApplicationTerminator;
 import house.x1337.app.smb3.service.ConfigurationService;
-import house.x1337.app.smb3.ui.editor.level.scene.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
