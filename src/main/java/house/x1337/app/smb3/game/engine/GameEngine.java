@@ -88,6 +88,10 @@ public final class GameEngine extends GameEngineCapabilities {
         // Render the level tile layers
         renderLevelTiles(cameraTarget);
 
+        // Constrain camera to level boundaries — the viewport can never
+        // scroll past the tile area, eliminating the black background at edges.
+        cameraState.setLevelSceneBounds(levelScene.getColumns(), levelScene.getRows());
+
         // Create and attach the players
         player = PlayerFactory.spawn(
             MARIO.identity(),

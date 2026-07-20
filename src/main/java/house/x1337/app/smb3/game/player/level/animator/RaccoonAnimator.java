@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 
 import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.material.RenderState.FaceCullMode.Off;
-import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.texture.Texture.MagFilter.Nearest;
 import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
@@ -640,7 +640,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         material.getAdditionalRenderState().setBlendMode(Alpha);
 
         geometry.setMaterial(material);
-        geometry.setQueueBucket(Transparent);
+        geometry.setQueueBucket(Translucent);
 
         // Sprites are drawn facing left: body on the left, tail on the right.
         // The node origin corresponds to Player_X (left edge of the collision box).
