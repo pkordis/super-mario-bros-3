@@ -217,6 +217,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         final int tailAttack = levelScenePlayer.getPlayerTailAttack();
         final PlayerOrientation orientation = levelScenePlayer.getPlayerOrientation();
         final PlayerState state = levelScenePlayer.getState().getCurrent();
+        final boolean isDucking = levelScenePlayer.getState().isDucking();
         final Node node = levelScenePlayer.getNode();
         if (node == null) {
             return;
@@ -298,10 +299,13 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             return;
         }
 
-        if (state == DUCKING) {
-            // Ducking frame - single static sprite, half height (prg008.asm:
-            // PF_DUCK_RACCOON). Uses the same 24px-wide sprite sheet with
-            // tail overflow, but only 16px tall.
+        if (isDucking) {
+            // Ducking frame — single static sprite (prg008.asm: PF_DUCK_RACCOON).
+            // The ducking flag persists independently of the movement state, so
+            // this renders the duck frame whether grounded or airborne (duck-jump).
+            // dasm prg008: Player_AnimTailWag (PRG008_B082) and
+            // Player_SoarJumpFallFrame (PRG008_B0C5) both early-return when
+            // Player_IsDucking is set, leaving the duck frame intact.
             walkAnimTicks = 0;
             walkFrameIndex = 0;
 

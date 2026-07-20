@@ -74,11 +74,10 @@ public final class GameEngine extends GameEngineCapabilities {
         // deterministic camera movement and physics regardless of wall-clock jitter.
         setTimer(new FixedRateTimer());
 
-//        setDisplayFps(true);
-//        setDisplayStatView(true);
+        setDisplayFps(false);
+        setDisplayStatView(false);
 
         stateManager.attach(cameraState);
-
         viewPort.setBackgroundColor(BLACK);
 
         // Camera target node - the camera follows the player

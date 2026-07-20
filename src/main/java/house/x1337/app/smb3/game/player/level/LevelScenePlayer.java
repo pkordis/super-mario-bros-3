@@ -28,7 +28,6 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.WAG_COUNT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
-import static house.x1337.app.smb3.enumeration.PlayerState.DUCKING;
 import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerState.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
@@ -97,11 +96,13 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     public void updateFrame() {
         handleSizeToggle();
 
-        // Determine collision height offset — use direct input check since
-        // the ducking state is applied at end-of-frame.
-        final boolean duckingThisFrame = !isSmall() && !state.isInAir()
-            && inputHandler.isActive(HANDLER_DOWN);
-        final int heightOffset = (isSmall() || duckingThisFrame) ? 20 : 10;
+        // Ducking is handled early (matching dasm/JS reference order) so
+        // the flag is current for the height offset and collision probes.
+        handleDucking();
+
+        // Determine collision height offset from the ducking flag (dasm
+        // prg008 PRG008_A736: Y=20 when small or ducking, Y=10 otherwise).
+        final int heightOffset = (isSmall() || state.isDucking()) ? 20 : 10;
         final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
             !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
         final boolean lowClearance = tileAbove && !state.isInAir();
@@ -117,7 +118,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         }
 
         handleHorizontalMovement();
-        handlePMeterAndRunFlag();
+        handlePowerMeterAndRunFlag();
         handleVerticalMovement();
         handleFlyTimeCountdown();
 
@@ -126,10 +127,6 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
         // Refine the logical state after physics + collision
         refinePlayerState();
-
-        // Ducking must be applied after state refinement since collision
-        // resets grounded state to STILL every frame.
-        handleDucking();
 
         // Tail attack (raccoon B press on ground)
         handleTailAttack();
@@ -149,7 +146,6 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
         final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
-        final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
 
         // Cancel simultaneous L+R — impossible on a real NES D-pad; on
         // keyboard/gamepad we treat it as no directional input (dasm prg008:
@@ -157,11 +153,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         boolean inputLeft = rawLeft && !rawRight;
         boolean inputRight = rawRight && !rawLeft;
 
-        // Suppress directional acceleration while ducking — the player should
-        // decelerate to a stop via friction only. In the original game this is
-        // implicit because ducking requires releasing L/R; here we allow
-        // ducking while L/R is held, so we suppress them explicitly.
-        if (inputDown && !state.isInAir() && isLarge()) {
+        // Suppress directional acceleration while ducking on the ground —
+        // the player should decelerate to a stop via friction only. When
+        // duck-jumping (ducking flag set + in air), air control is NOT
+        // suppressed (dasm: horizontal control runs normally in air
+        // regardless of Player_IsDucking).
+        if (state.isDucking() && !state.isInAir()) {
             inputLeft = false;
             inputRight = false;
         }
@@ -231,7 +228,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // P-meter and run flag
     // -------------------------------------------------------------------------
 
-    private void handlePMeterAndRunFlag() {
+    private void handlePowerMeterAndRunFlag() {
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
 
         // Player_RunFlag: set when on ground, holding B, speed >= TOPRUNSPEED
@@ -357,17 +354,21 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
 
         if (isSmall()) {
-            if (state.isDucking()) {
-                state.setTo(STILL);
-            }
+            // Small Mario cannot duck (dasm prg008 PRG008_A70E: forcefully
+            // disable ducking when small/holding/sliding).
+            state.standUp();
         } else if (!state.isInAir()) {
-            // Duck whenever down is held, regardless of left/right input.
-            if (inputDown && !state.isDucking()) {
-                state.setTo(DUCKING);
-            } else if (!inputDown && state.isDucking()) {
-                state.setTo(STILL);
+            // Grounded: re-evaluate ducking from pad input each frame.
+            // dasm prg008 PRG008_A72B: duck when ONLY down is held.
+            if (inputDown) {
+                state.duck();
+            } else {
+                state.standUp();
             }
         }
+        // In air: ducking flag is frozen (dasm prg008 PRG008_A715: if already
+        // ducking when airborne, keep it; if not, keep it unset). No action
+        // needed — the flag persists from whatever it was before takeoff.
     }
 
     /**
@@ -432,6 +433,10 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      * Refines the player state after collision resolution. Ground states are
      * determined by velocity; air states are set during jump initiation and
      * collision (landing / walking off ledge).
+     *
+     * <p>Ducking is now a separate flag on {@code ActivePlayerState} and does
+     * not participate in the movement state machine. The animator is
+     * responsible for rendering the duck frame when the flag is set.
      */
     private void refinePlayerState() {
         if (state.isInAir()) {
@@ -447,7 +452,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
             } else {
                 state.setTo(FALLING);
             }
-        } else if (!state.isDucking()) {
+        } else {
             final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
             final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
             final boolean inputLeft = rawLeft && !rawRight;
