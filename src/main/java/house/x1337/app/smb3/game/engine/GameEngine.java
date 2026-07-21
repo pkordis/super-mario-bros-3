@@ -4,6 +4,8 @@ import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
+import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
+import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.LevelScene;
@@ -15,6 +17,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.GameConstants.BLACK;
+import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_HEIGHT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
@@ -27,10 +30,12 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
     private final CameraState cameraState;
+    private final PlayerData playerData;
 
     @Setter
     private LevelScene levelScene;
     private GameContext gameContext = LEVEL_SCENE;
+    private HeadsUpDisplay headsUpDisplay;
     private Player player;
 
     @Override
@@ -80,6 +85,15 @@ public final class GameEngine extends GameEngineCapabilities {
         stateManager.attach(cameraState);
         viewPort.setBackgroundColor(BLACK);
 
+        // Restrict the game viewport to the upper portion of the window,
+        // leaving the bottom strip for the fixed HUD region.
+        viewPort.getCamera().setViewPort(0f, 1f, HUD_VIEWPORT_BOTTOM, 1f);
+
+        // Create the HUD viewport - a separate camera that renders a solid
+        // colored strip at the bottom of the screen, independent of camera
+        // scrolling. This mirrors the NES IRQ-driven status bar (scanline 192+).
+
+
         // Camera target node - the camera follows the player
         final Node cameraTarget = new Node("CameraTarget");
         rootNode.attachChild(cameraTarget);
@@ -93,8 +107,9 @@ public final class GameEngine extends GameEngineCapabilities {
         cameraState.setLevelSceneBounds(levelScene.getColumns(), levelScene.getRows());
 
         // Create and attach the players
+        playerData.setIdentity(MARIO.identity());
         player = PlayerFactory.spawn(
-            MARIO.identity(),
+            playerData,
             onSpawn -> {
                 onSpawn.setMode(RACCOON);
                 onSpawn.renderPlayer();
@@ -102,12 +117,14 @@ public final class GameEngine extends GameEngineCapabilities {
             },
             this
         );
+        headsUpDisplay = HeadsUpDisplayFactory.create(this);
     }
 
     @Override
-    public void simpleUpdate(final float tpf) {
+    public void simpleUpdate(final float timePerFrame) {
         if (player != null) {
             player.updateFrame();
         }
+        headsUpDisplay.update(timePerFrame);
     }
 }

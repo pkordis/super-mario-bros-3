@@ -22,6 +22,7 @@ public class PlayerIdentity {
     public String getAnimationFramesPath() {
         return switch (type) {
             case MARIO -> "mario";
+            case LUIGI -> "luigi";
         };
     }
 }

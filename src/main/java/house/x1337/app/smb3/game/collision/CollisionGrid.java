@@ -31,7 +31,7 @@ public record CollisionGrid(
         final PlayerPosition position = player.getPosition();
         final ActivePlayerState playerState = player.getState();
         final boolean playerIsMovingUp = position.getDY() < 0;
-        final boolean playerIsLeftHalf = mod16(position.getX()) < 8;
+        final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
 
         final CollisionProbe probe = resolveProbe(playerIsMovingUp, playerIsLeftHalf);
         final ProbeLocation tVert = probe.vertical();
@@ -52,7 +52,7 @@ public record CollisionGrid(
             final int dir = playerIsLeftHalf ? -1 : 1;
             final int edx = playerIsLeftHalf ? leftEdgeOffset : rightEdgeOffset;
             final double edgeX = position.getX() + edx;
-            final double localX = mod16(edgeX);
+            final double localX = tileModulo(edgeX);
             if (floor(localX) != 0) {
                 position.addToX(dir);
                 if ((position.getDX() < 0 && dir == 1) || (position.getDX() >= 0 && dir == -1)) {
@@ -66,7 +66,7 @@ public record CollisionGrid(
         // Vertical collision
         if (position.getDY() >= 0 || !state.isInAir()) {
             if (solidVert) {
-                final double localY = mod16(floor(position.getY()));
+                final double localY = tileModulo(floor(position.getY()));
                 if (localY < 6) {
                     if (localY == 1) {
                         position.decrementY();

@@ -41,27 +41,43 @@ public final class GameConstants {
     // Viewport
     // -------------------------------------------------------------------------
 
-    public static final int VIEWPORT_WIDTH    = 1024;
-    public static final int VIEWPORT_HEIGHT   = 960;
-    public static final int VIEWPORT_TILES_X  = VIEWPORT_WIDTH  / TILE_SIZE;
-    public static final int VIEWPORT_TILES_Y  = VIEWPORT_HEIGHT / TILE_SIZE;
+    public static final int VIEWPORT_WIDTH = 1024;
+    public static final int VIEWPORT_HEIGHT = 960;
+    public static final int VIEWPORT_TILES_X = VIEWPORT_WIDTH / TILE_SIZE;
+    public static final int VIEWPORT_TILES_Y = VIEWPORT_HEIGHT / TILE_SIZE;
+
+    // -------------------------------------------------------------------------
+    // HUD — fixed status bar at the bottom of the screen
+    //
+    // The NES original splits its 240 scanlines into 192 game + 48 status bar
+    // (3 tiles × 16 px/tile). We mirror that ratio: the bottom 3 tile-rows are
+    // reserved for the HUD and the upper 12 tile-rows are the scrollable game
+    // area. The HUD is rendered in a separate viewport so it remains fixed
+    // regardless of camera movement.
+    // -------------------------------------------------------------------------
+
+    /** Height of the HUD region in tile rows (3 tiles = 48 NES scanlines). */
+    public static final int HUD_TILES_Y = 3;
+
+    /** Height of the game area in tile rows (total viewport tiles minus HUD). */
+    public static final int GAME_TILES_Y = VIEWPORT_TILES_Y - HUD_TILES_Y;
+
+    /**
+     * Normalized bottom edge of the game viewport (fraction of window height).
+     * The HUD occupies [0, HUD_VIEWPORT_BOTTOM) and the game occupies
+     * [HUD_VIEWPORT_BOTTOM, 1.0].
+     */
+    public static final float HUD_VIEWPORT_BOTTOM = (float) HUD_TILES_Y / VIEWPORT_TILES_Y;
 
     // -------------------------------------------------------------------------
     // Camera
     // -------------------------------------------------------------------------
 
-    // Frustum = VIEWPORT_TILES_Y / 2  →  visible height = VIEWPORT_TILES_Y game-units
+    // Frustum = GAME_TILES_Y / 2  →  visible height = GAME_TILES_Y game-units.
     // This makes every sprite pixel map to exactly TILE_SCALE (4) screen pixels,
     // preventing sub-pixel texture sampling which causes tile shimmer during scrolling.
-    // With frustum = 8.0 the ratio was 3.75 px/sprite-px (non-integer → constant shimmer).
-    public static final float FRUSTUM = VIEWPORT_TILES_Y / 2.0F;
-
-    // -------------------------------------------------------------------------
-    // Player
-    // -------------------------------------------------------------------------
-
-    public static final int PLAYER_WIDTH  = 48;
-    public static final int PLAYER_HEIGHT = 112;
+    // The frustum covers only the game area (12 tiles), not the full window.
+    public static final float FRUSTUM = GAME_TILES_Y / 2.0F;
 
     // -------------------------------------------------------------------------
     // Timing

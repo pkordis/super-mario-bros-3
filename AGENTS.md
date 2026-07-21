@@ -115,6 +115,10 @@ this project. Every agent **must** comply with it at all times:
 * **File endings** — LF line endings, one trailing newline, no extra blank lines
   after the closing `}` of the top-scene type.
 * **Braces** — K&R style (`{` on the same line, never on a new line).
+* **Prefer `Math.clamp` over `Math.min`/`Math.max` combos** — never combine
+  `Math.min` and `Math.max` (or their static imports) in the same expression to
+  bound a value. Always use `Math.clamp(value, min, max)` (or the static import
+  `clamp`) instead. This applies to `int`, `long`, `float`, and `double` overloads.
 
 Before committing any Java file, verify that it conforms to every rule above.
 When in doubt, consult `.editorconfig` for the authoritative settings.

@@ -2,6 +2,7 @@ HELP.md
 smb3.db
 target/
 capture**/
+original**/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

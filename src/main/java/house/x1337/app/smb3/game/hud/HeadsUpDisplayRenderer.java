@@ -1,0 +1,241 @@
+package house.x1337.app.smb3.game.hud;
+
+import com.jme3.material.Material;
+import com.jme3.material.RenderState;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.shape.Quad;
+import com.jme3.texture.Texture2D;
+import com.jme3.util.BufferUtils;
+import house.x1337.app.smb3.enumeration.PlayerIdentityType;
+import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.GameEngineAware;
+import house.x1337.app.smb3.game.engine.PlayerData;
+import house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph;
+import house.x1337.app.smb3.util.GameMath;
+
+import java.nio.ByteBuffer;
+
+import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
+import static java.lang.Math.clamp;
+import static java.lang.Math.pow;
+
+/**
+ * Programmatic renderer for the SMB3 status bar HUD.
+ *
+ * <p>Uses the pixel-perfect static base image ({@code hud_base.png}) as the
+ * background — this provides the exact frame borders, "WORLD" text, card slot
+ * outlines, and all other static elements without any approximation.
+ *
+ * <p>Dynamic content (digits, P-meter arrows, icons) is rendered by blitting
+ * CHR-extracted glyph images over the positions identified by the colored
+ * zones in the {@code hud_basic.png} template.
+ *
+ * <p>The final 240×48 image is scaled by {@code TILE_SCALE} (4×) using
+ * nearest-neighbor interpolation for pixel-perfect NES rendering.
+ *
+ * <p>Zone positions (from hud_basic.png template analysis):
+ * <pre>
+ * Top sub-row (y=16-23):
+ *   Col 3  (x=24):   World number (green zone) — but checking example, number is at x=42
+ *   Col 5  (x=40):   World number digit
+ *   Cols 7-12 (x=56-103): P-meter 6 arrows (green zone)
+ *   Cols 13-14 (x=104-119): [P] indicator (purple zone)
+ *   Cols 17-18 (x=136-151): Timer digits
+ *
+ * Bottom sub-row (y=24-31):
+ *   Cols 1-2 (x=8-23): Mario/Luigi icon (medblue zone)
+ *   Col 5 (x=40): Lives digit
+ *   Cols 7-13 (x=56-111): Score 7 digits
+ *   Cols 16-18 (x=128-151): Coin count 3 digits
+ *
+ * Card slots (both rows, y=16-31):
+ *   Cols 21-22 (x=168-183): Card 1
+ *   Cols 24-25 (x=192-207): Card 2
+ *   Cols 27-28 (x=216-231): Card 3
+ * </pre>
+ */
+public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, GameEngineAware, GameMath {
+    // Top sub-row (y=16-23)
+    int TOP_Y = 16;
+    int WORLD_NUM_X = 40;
+    int P_METER_X = 56;
+    int P_METER_ARROW_COUNT = 6;
+    int P_INDICATOR_X = 104;
+    int TIMER_TOP_X = 136;
+
+    // Bottom sub-row (y=24-31)
+    int BOT_Y = 24;
+    int PLAYER_ICON_X = 8;
+    int LIVES_X = 40;
+    int SCORE_X = 56;
+    int SCORE_DIGITS = 7;
+    int COIN_X = 128;
+    int COIN_DIGITS = 3;
+
+    /**
+     * Renders the HUD by copying the static base image and overlaying dynamic
+     * content based on the current {@link PlayerData}.
+     *
+     * @param data the current player state to render
+     * @return int array of ARGB pixels (240×48, row-major, top-to-bottom)
+     */
+    default int[] renderToPixels(final PlayerData data) {
+        // Start from the pixel-perfect base image
+        final int[] clonedBaseImagePixels = getBaseImage().copy().rgbData();
+
+        // --- Top sub-row: world number + P-meter + timer ---
+        blitGlyph(clonedBaseImagePixels, digitGlyph(clampDigit(data.getWorld())), WORLD_NUM_X, TOP_Y);
+        renderPMeter(clonedBaseImagePixels, data.getPMeter(), data.isPMeterFull());
+
+        if (data.isTimerActive()) {
+            renderDigits(clonedBaseImagePixels, data.getTimer(), 3, TIMER_TOP_X, TOP_Y);
+        }
+
+        // --- Bottom sub-row: player icon + lives + score + coins ---
+        // Note: the '×' symbol and 'c' coin symbol are static in hud_base.png
+        renderPlayerIcon(clonedBaseImagePixels, data.getIdentity().getType());
+        renderLives(clonedBaseImagePixels, data.getLives());
+        renderDigits(clonedBaseImagePixels, data.getScore(), SCORE_DIGITS, SCORE_X, BOT_Y);
+        renderDigits(clonedBaseImagePixels, data.getCoins(), COIN_DIGITS, COIN_X, BOT_Y);
+
+        return clonedBaseImagePixels;
+    }
+
+    /**
+     * Creates or updates a jME3 {@link Geometry} from the given player state,
+     * scaling it by {@code TILE_SCALE} for display in the HUD viewport.
+     */
+    default void renderToGeometry(
+        final Node hudRoot,
+        final PlayerData state
+    ) {
+        final int[] pixels = renderToPixels(state);
+        final int scaledWidth = HUD_WIDTH * TILE_SCALE;
+        final int scaledHeight = HUD_HEIGHT * TILE_SCALE;
+        final ByteBuffer buffer = BufferUtils.createByteBuffer(scaledWidth * scaledHeight * 4);
+
+        // jME3 expects bottom-to-top row order; scale with nearest-neighbor
+        for (int imgRow = 0; imgRow < scaledHeight; imgRow++) {
+            final int srcRow = (scaledHeight - 1 - imgRow) / TILE_SCALE;
+            for (int imgCol = 0; imgCol < scaledWidth; imgCol++) {
+                final int srcCol = imgCol / TILE_SCALE;
+                final int argb = pixels[srcRow * HUD_WIDTH + srcCol];
+                buffer.put((byte) ((argb >> 16) & 0xFF)); // R
+                buffer.put((byte) ((argb >> 8) & 0xFF));  // G
+                buffer.put((byte) (argb & 0xFF));         // B
+                buffer.put((byte) ((argb >> 24) & 0xFF)); // A
+            }
+        }
+        final Texture2D texture = toTexture(buffer, scaledWidth, scaledHeight);
+        final Geometry cachedGeometry = (Geometry) hudRoot.getChild("HudTexture");
+        if (cachedGeometry != null) {
+            cachedGeometry.getMaterial().setTexture("ColorMap", texture);
+            return;
+        }
+        final Geometry geometry = new Geometry("HudTexture", new Quad(1f, 1f));
+        final Material material = new Material(
+            getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md"
+        );
+        material.setTexture("ColorMap", texture);
+        material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Off);
+        geometry.setMaterial(material);
+        hudRoot.attachChild(geometry);
+    }
+
+    // -------------------------------------------------------------------------
+    // Element renderers
+    // -------------------------------------------------------------------------
+
+    private void renderPMeter(final int[] pixels, final int pMeter, final boolean full) {
+        for (int i = 0; i < P_METER_ARROW_COUNT; i++) {
+            final HeadsUpDisplayGlyph arrow = (pMeter > i) ? HeadsUpDisplayGlyph.ARROW_LIT : HeadsUpDisplayGlyph.ARROW_DARK;
+            blitGlyph(pixels, arrow, P_METER_X + i * CELL_WIDTH, TOP_Y);
+        }
+
+        // [P] indicator (2 cells wide)
+        if (full) {
+            blitGlyph(pixels, HeadsUpDisplayGlyph.P_LEFT_LIT, P_INDICATOR_X, TOP_Y);
+            blitGlyph(pixels, HeadsUpDisplayGlyph.P_RIGHT_LIT, P_INDICATOR_X + CELL_WIDTH, TOP_Y);
+        } else {
+            blitGlyph(pixels, HeadsUpDisplayGlyph.P_LEFT_DARK, P_INDICATOR_X, TOP_Y);
+            blitGlyph(pixels, HeadsUpDisplayGlyph.P_RIGHT_DARK, P_INDICATOR_X + CELL_WIDTH, TOP_Y);
+        }
+    }
+
+    private void renderPlayerIcon(final int[] pixels, final PlayerIdentityType identity) {
+        switch (identity) {
+            case MARIO:
+                blitGlyph(pixels, HeadsUpDisplayGlyph.MARIO_LEFT, PLAYER_ICON_X, BOT_Y);
+                blitGlyph(pixels, HeadsUpDisplayGlyph.MARIO_RIGHT, PLAYER_ICON_X + CELL_WIDTH, BOT_Y);
+                break;
+            case LUIGI:
+                blitGlyph(pixels, HeadsUpDisplayGlyph.LUIGI_LEFT, PLAYER_ICON_X, BOT_Y);
+                blitGlyph(pixels, HeadsUpDisplayGlyph.LUIGI_RIGHT, PLAYER_ICON_X + CELL_WIDTH, BOT_Y);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown playerIdentity: " + identity);
+        }
+    }
+
+    private void renderLives(final int[] pixels, final int lives) {
+        final int clamped = clamp(lives, 0, 99);
+        if (clamped >= 10) {
+            blitGlyph(pixels, digitGlyph(clamped / 10), LIVES_X, BOT_Y);
+            blitGlyph(pixels, digitGlyph(clamped % 10), LIVES_X + CELL_WIDTH, BOT_Y);
+        } else {
+            blitGlyph(pixels, digitGlyph(clamped), LIVES_X, BOT_Y);
+        }
+    }
+
+    private void renderDigits(
+        final int[] pixels,
+        final int value,
+        final int digitCount,
+        final int startX,
+        final int y
+    ) {
+        final int maxVal = (int) pow(10, digitCount) - 1;
+        final int clamped = clamp(value, 0, maxVal);
+        for (int i = 0; i < digitCount; i++) {
+            final int power = (int) pow(10, digitCount - 1 - i);
+            final int digit = (clamped / power) % 10;
+            blitGlyph(pixels, digitGlyph(digit), startX + i * CELL_WIDTH, y);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Glyph blitting
+    // -------------------------------------------------------------------------
+
+    /**
+     * Blits a hud-font glyph onto the pixel buffer at the given position.
+     * Only non-transparent pixels are drawn (alpha > 0), preserving the
+     * static base image underneath transparent areas of the glyph.
+     */
+    private void blitGlyph(
+        final int[] pixels,
+        final HeadsUpDisplayGlyph glyph,
+        final int posX,
+        final int posY
+    ) {
+        final int[] glyphPixels = pixels(glyph);
+        for (int row = 0; row < CELL_HEIGHT; row++) {
+            final int destY = posY + row;
+            if (destY < 0 || destY >= HUD_HEIGHT) {
+                continue;
+            }
+            for (int col = 0; col < CELL_WIDTH; col++) {
+                final int destX = posX + col;
+                if (destX < 0 || destX >= HUD_WIDTH) {
+                    continue;
+                }
+                final int argb = glyphPixels[row * CELL_WIDTH + col];
+                final int alpha = (argb >> 24) & 0xFF;
+                if (alpha > 0) {
+                    pixels[destY * HUD_WIDTH + destX] = argb;
+                }
+            }
+        }
+    }
+}

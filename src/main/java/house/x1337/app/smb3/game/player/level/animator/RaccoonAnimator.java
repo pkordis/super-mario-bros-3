@@ -22,6 +22,7 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.texture.Texture.MagFilter.Nearest;
 import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
@@ -35,6 +36,7 @@ import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerState.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerState.WALKING;
 import static java.lang.Math.abs;
+import static java.lang.Math.min;
 
 /**
  * Manages raccoon Mario's sprite-based rendering and walk/run animation.
@@ -120,7 +122,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     /** Width of the ducking sprite (23px - body 16px + partial tail 7px). */
     private static final float DUCK_SPRITE_WIDTH_PX = 23.0f;
 
-    private static final float PX_TO_GAME_UNITS = 1.0f / 16.0f;
+    private static final float PX_TO_GAME_UNITS = 1.0f / TILE_SPRITE_SIZE;
 
     /** Quad width in game-units for normal sprites (24px / 16 = 1.5 tiles). */
     private static final float QUAD_WIDTH = SPRITE_WIDTH_PX * PX_TO_GAME_UNITS;
@@ -190,9 +192,6 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private int lastWalkFrame = -1;
 
     public void loadAssets() {
-//        if (initialized) {
-//            return;
-//        }
         stillTexture = loadSprite("still.png");
         walkTexture1 = loadSprite("walking_1.png");
         walkTexture2 = loadSprite("walking_2.png");
@@ -210,7 +209,6 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         tailAttackTexture1 = loadSprite("tail_wagging_attack_1.png");
         tailAttackTexture2 = loadSprite("tail_wagging_attack_2.png");
         tailAttackTexture3 = loadSprite("tail_wagging_attack_3.png");
-//        initialized = true;
     }
 
     public void update(final LevelScenePlayer levelScenePlayer) {
@@ -230,7 +228,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         // Player_TailAttackAnim runs after all other logic).
         if (tailAttack > 0) {
             final int frameIndex = tailAttack >> 2; // 4→3→2→1→0
-            final int clampedFrame = Math.min(frameIndex, 4);
+            final int clampedFrame = min(frameIndex, 4);
             // Flip orientation at tailAttack == 11 and 3 (dasm: EOR #SPR_HFLIP)
             final boolean flipped = (tailAttack <= 11 && tailAttack > 3);
             final PlayerOrientation effectiveOrientation = flipped
@@ -342,11 +340,11 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
 
             if (flying) {
                 // Fly control: 3 distinct frames (PF_TAILWAGFLY_BASE +2/+1/+0)
-                tailFrame = Math.min(frameOffset, 2);
+                tailFrame = min(frameOffset, 2);
                 texture = textureForTailWagFlyFrame(tailFrame);
             } else {
                 // Fall control: 2 distinct frames (PF_TAILWAGFALL +1/+0)
-                tailFrame = Math.min(frameOffset, 1);
+                tailFrame = min(frameOffset, 1);
                 texture = textureForTailWagFallFrame(tailFrame);
             }
 
@@ -462,8 +460,8 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      * raw_value / 16.0, so raw = absDx * 16. Index = (int)(raw) >> 3.
      */
     private void advanceWalkAnimation(final double absDx) {
-        final int rawVel = (int) (absDx * 16.0);
-        final int tickIndex = Math.min(rawVel >> 3, WALK_ANIM_TICK_MAX.length - 1);
+        final int rawVel = (int) (absDx * TILE_SPRITE_SIZE);
+        final int tickIndex = min(rawVel >> 3, WALK_ANIM_TICK_MAX.length - 1);
         final int tickMax = WALK_ANIM_TICK_MAX[tickIndex];
 
         walkAnimTicks++;
