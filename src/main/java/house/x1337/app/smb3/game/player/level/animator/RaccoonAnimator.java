@@ -270,6 +270,27 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             lastWalkFrame = -1;
         }
 
+        if (isDucking) {
+            // Ducking frame — single static sprite (prg008.asm: PF_DUCK_RACCOON).
+            // The ducking flag persists independently of the movement state, so
+            // this renders the duck frame whether grounded or airborne (duck-jump).
+            // dasm prg008: Player_AnimTailWag (PRG008_B082) and
+            // Player_SoarJumpFallFrame (PRG008_B0C5) both early-return when
+            // Player_IsDucking is set, leaving the duck frame intact.
+            // This check MUST precede the movement-state checks (STILL, WALKING,
+            // etc.) because ducking visually overrides all grounded states.
+            walkAnimTicks = 0;
+            walkFrameIndex = 0;
+
+            if (lastRenderedState != DUCKING || lastOrientation != orientation) {
+                rebuildDuckTexture(node, duckTexture, orientation);
+                lastRenderedState = DUCKING;
+                lastOrientation = orientation;
+                lastWalkFrame = -1;
+            }
+            return;
+        }
+
         if (state == STILL) {
             // Reset walk animation when standing still
             walkAnimTicks = 0;
@@ -293,25 +314,6 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             if (lastRenderedState != SKIDDING || lastOrientation != orientation) {
                 rebuildSkidTexture(node, skidTexture, orientation);
                 lastRenderedState = SKIDDING;
-                lastOrientation = orientation;
-                lastWalkFrame = -1;
-            }
-            return;
-        }
-
-        if (isDucking) {
-            // Ducking frame — single static sprite (prg008.asm: PF_DUCK_RACCOON).
-            // The ducking flag persists independently of the movement state, so
-            // this renders the duck frame whether grounded or airborne (duck-jump).
-            // dasm prg008: Player_AnimTailWag (PRG008_B082) and
-            // Player_SoarJumpFallFrame (PRG008_B0C5) both early-return when
-            // Player_IsDucking is set, leaving the duck frame intact.
-            walkAnimTicks = 0;
-            walkFrameIndex = 0;
-
-            if (lastRenderedState != DUCKING || lastOrientation != orientation) {
-                rebuildDuckTexture(node, duckTexture, orientation);
-                lastRenderedState = DUCKING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
             }
