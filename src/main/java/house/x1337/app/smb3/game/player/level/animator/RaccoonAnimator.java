@@ -411,7 +411,8 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         if (state == FALLING) {
             // Falling without wag - static frame (dasm prg008: PF_JUMPRACCOON
             // row in Player_TailWagFlyFrames when WagCount = 0).
-            if (lastRenderedState != FALLING || lastOrientation != orientation) {
+            if (lastRenderedState != FALLING || lastOrientation != orientation
+                    || lastWalkFrame != -1) {
                 rebuildWithTexture(node, tailFallTexture1, orientation, QUAD_WIDTH, TAIL_OFFSET);
                 lastRenderedState = FALLING;
                 lastOrientation = orientation;
