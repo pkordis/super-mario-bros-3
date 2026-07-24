@@ -12,6 +12,7 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.GameMath;
 
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
 import static house.x1337.app.smb3.enumeration.TileType.PANEL_WALKABLE_TOP;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
@@ -24,7 +25,13 @@ public record CollisionGrid(
     int gridRows,
     int gridColumns
 ) implements GameMath {
-    public void handleCollision(
+
+    /**
+     * Handles Player's collision against solid tiles (wall and ground).
+     * Returns {@code true} if a horizontal wall hit occurred this frame
+     * (dasm prg008 Player_DetectSolids: wall hit detection at PRG008_B4F3).
+     */
+    public boolean handleCollision(
         final int initialHeightOffset,
         final boolean lowClearance
     ) {
@@ -45,19 +52,72 @@ public record CollisionGrid(
         final boolean oneWayHoriz2 = isOneWayTileFromPlayer(tHoriz.second());
         final boolean solidHoriz = (solidHoriz1 && !oneWayHoriz1) || (solidHoriz2 && !oneWayHoriz2);
 
-        // Horizontal collision
+        // Horizontal collision — eject player from wall (dasm prg008
+        // PRG008_B4F3). When probes detect a solid tile, snap the player
+        // so their edge aligns exactly to the wall's tile boundary.
+        //
+        // The probe direction is determined by playerIsLeftHalf:
+        // - Left half (mod16 < 8): probes check RIGHT (X+0x0E). Wall is
+        //   to the right. Snap the right edge (rightEdgeOffset) to the
+        //   wall boundary by subtracting the overlap.
+        // - Right half (mod16 >= 8): probes check LEFT (X+0x01). Wall is
+        //   to the left. Snap the left edge (leftEdgeOffset) to the wall
+        //   boundary by adding the gap to the next boundary.
+        boolean hitWall = false;
         final int leftEdgeOffset = player.isLarge() ? 2 : 3;
         final int rightEdgeOffset = player.isLarge() ? 14 : 13;
         if (solidHoriz && !lowClearance) {
-            final int dir = playerIsLeftHalf ? -1 : 1;
-            final int edx = playerIsLeftHalf ? leftEdgeOffset : rightEdgeOffset;
-            final double edgeX = position.getX() + edx;
-            final double localX = tileModulo(edgeX);
-            if (floor(localX) != 0) {
-                position.addToX(dir);
-                if ((position.getDX() < 0 && dir == 1) || (position.getDX() >= 0 && dir == -1)) {
-                    position.setDX(0);
+            // Only apply wall correction when the player is moving INTO
+            // the wall. If moving away from the wall, the player is
+            // naturally leaving the collision zone — skip correction to
+            // avoid catapulting them in the wrong direction.
+            // DX == 0 (stationary) is deliberately excluded: after emexit
+            // ends, the player exits with DX = 0 while positioned against
+            // the wall that bounds the emexit end object. Treating DX = 0
+            // as "into-wall" permanently freezes the player because the
+            // snap zeroes DX again, recreating the same condition next frame.
+            // A stationary player is not pushing into anything; positional
+            // overlap from a prior frame is corrected naturally on the next
+            // frame that has a non-zero DX.
+            final boolean movingIntoWall = playerIsLeftHalf
+                    ? position.getDX() > 0
+                    : position.getDX() < 0;
+
+            if (movingIntoWall) {
+                hitWall = true;
+
+                // Check the edge that faces the wall for misalignment.
+                final int edx = playerIsLeftHalf ? rightEdgeOffset : leftEdgeOffset;
+                final double edgeX = position.getX() + edx;
+                final double localX = tileModulo(edgeX);
+
+                if (localX > 0.001 && localX < TILE_SPRITE_SIZE - 0.001) {
+                    if (playerIsLeftHalf) {
+                        // Wall on right: the right edge has penetrated into
+                        // the wall tile. Push left by localX to align the
+                        // edge to the wall boundary.
+                        position.addToX(-localX);
+                    } else {
+                        // Wall on left: determine whether the edge is still
+                        // inside the wall tile or has already cleared it.
+                        // Compare the edge's tile column with the probe's.
+                        final int probeX = (int) floor(position.getX())
+                                + tHoriz.first().x();
+                        final int probeTileCol = Math.floorDiv(probeX, TILE_SPRITE_SIZE);
+                        final int edgeTileCol = Math.floorDiv(
+                                (int) floor(edgeX), TILE_SPRITE_SIZE);
+                        if (edgeTileCol <= probeTileCol) {
+                            // Edge is still inside (or at) the wall tile.
+                            // Push right to the next boundary.
+                            position.addToX(TILE_SPRITE_SIZE - localX);
+                        } else {
+                            // Edge already cleared the wall — push left to
+                            // snap back to the boundary it just crossed.
+                            position.addToX(-localX);
+                        }
+                    }
                 }
+                position.setDX(0);
             }
         }
 
@@ -88,6 +148,7 @@ public record CollisionGrid(
                 position.setDY(GRAVITY_SLOW / 16.0);
             }
         }
+        return hitWall;
     }
 
     private boolean isSolidVert(ProbeLocation tVert, boolean playerIsMovingUp) {
