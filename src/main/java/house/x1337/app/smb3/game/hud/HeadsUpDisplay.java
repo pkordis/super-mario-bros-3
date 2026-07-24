@@ -7,8 +7,9 @@ import com.jme3.renderer.ViewPort;
 import com.jme3.scene.Node;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.engine.PlayerData;
 import house.x1337.app.smb3.game.player.Player;
+import house.x1337.app.smb3.game.player.PlayerData;
+import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import jakarta.annotation.PostConstruct;
@@ -53,6 +54,7 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     private ViewPort hudViewPort;
     private Camera hudCamera;
     private Node hudRoot;
+    private PlayerTimer playerTimer;
 
     /** Tracks whether the HUD needs re-rendering (dirty flag). */
     private boolean dirty = true;
@@ -100,6 +102,8 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         hudViewPort.setClearFlags(true, true, true);
         hudRoot.updateGeometricState();
 
+        playerTimer = playerData.getPlayerTimer();
+
         log.info("HUD viewport initialized (bottom {}% of window)", (int) (HUD_VIEWPORT_BOTTOM * 100));
     }
 
@@ -115,7 +119,6 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
      * @param timePerFrame time per frame in seconds
      */
     public void update(final float timePerFrame) {
-        // Sync state from player
         syncStateFromPlayer();
 
         // Only re-render the texture when state actually changed
@@ -137,6 +140,9 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         if (player == null) {
             return;
         }
+
+        // Tick the countdown timer each frame
+        dirty |= playerTimer.tick();
 
         // P-meter: convert from playerPower (0–7) to display level
         if (player instanceof LevelScenePlayer levelPlayer) {

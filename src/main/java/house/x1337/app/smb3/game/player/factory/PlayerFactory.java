@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.game.player.factory;
 
-import house.x1337.app.smb3.game.engine.PlayerData;
+import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;

@@ -9,7 +9,7 @@ import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.engine.PlayerData;
+import house.x1337.app.smb3.game.player.PlayerData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

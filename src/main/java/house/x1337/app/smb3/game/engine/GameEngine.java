@@ -7,6 +7,7 @@ import house.x1337.app.smb3.enumeration.GameContext;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
 import house.x1337.app.smb3.game.player.Player;
+import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -118,6 +119,8 @@ public final class GameEngine extends GameEngineCapabilities {
             this
         );
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
+        playerData.getPlayerTimer().setInitialTime(300);
+        playerData.getPlayerTimer().start();
     }
 
     @Override

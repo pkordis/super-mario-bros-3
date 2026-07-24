@@ -4,7 +4,7 @@ import com.jme3.scene.Node;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientation;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
-import house.x1337.app.smb3.game.engine.PlayerData;
+import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.model.game.player.ActivePlayerState;

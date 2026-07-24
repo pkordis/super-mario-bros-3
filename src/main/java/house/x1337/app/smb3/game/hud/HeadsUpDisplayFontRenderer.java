@@ -45,41 +45,18 @@ public interface HeadsUpDisplayFontRenderer extends GameRenderer {
     /** Classpath directory containing the glyph PNGs and base image. */
     String FONT_PATH = "/font/hud/";
 
-    // -------------------------------------------------------------------------
-    // Glyph enumeration
-    // -------------------------------------------------------------------------
-
-    /** Digit glyphs indexed 0–9 for quick lookup. */
-    HeadsUpDisplayGlyph[] DIGIT_HEADS_UP_DISPLAY_GLYPHS = HeadsUpDisplayGlyph.getDigits();
-
-    // -------------------------------------------------------------------------
-    // Cached data
-    // -------------------------------------------------------------------------
-
     Map<HeadsUpDisplayGlyph, int[]> GLYPH_CACHE = new EnumMap<>(HeadsUpDisplayGlyph.class);
+    HeadsUpDisplayGlyph[] DIGIT_HEADS_UP_DISPLAY_GLYPHS = HeadsUpDisplayGlyph.getDigits();
 
     ImageResource getBaseImage();
 
-    // -------------------------------------------------------------------------
-    // Loading
-    // -------------------------------------------------------------------------
-
-    /**
-     * Loads the HUD base image and all glyph PNGs from the classpath.
-     * Must be called once at startup before any rendering occurs.
-     */
     @PostConstruct
     default void initFontRenderer() {
-
-        // Load base image
-//        loadBaseImage();
-
         // Load all glyphs
         for (final HeadsUpDisplayGlyph glyph : HeadsUpDisplayGlyph.values()) {
             final String resourcePath = FONT_PATH + glyph.getFilename() + ".png";
             try (final InputStream is = HeadsUpDisplayFontRenderer.class.getResourceAsStream(resourcePath)) {
                 if (is == null) {
-//                    log.warn("Hud-font glyph missing: {} (expected at {})", glyph, resourcePath);
                     GLYPH_CACHE.put(glyph, new int[CELL_WIDTH * CELL_HEIGHT]);
                     continue;
                 }
@@ -88,33 +65,10 @@ public interface HeadsUpDisplayFontRenderer extends GameRenderer {
                 image.getRGB(0, 0, CELL_WIDTH, CELL_HEIGHT, argb, 0, CELL_WIDTH);
                 GLYPH_CACHE.put(glyph, argb);
             } catch (final IOException e) {
-//                log.error("Failed to load hud-font glyph: {}", glyph, e);
                 GLYPH_CACHE.put(glyph, new int[CELL_WIDTH * CELL_HEIGHT]);
             }
         }
-//        log.info("Hud-font loaded: {} glyphs + base image from {}", GLYPH_CACHE.size(), FONT_PATH);
     }
-
-//    private static void loadBaseImage() {
-//        final String path = FONT_PATH + "hud_base.png";
-//        try (final InputStream is = HudFontRenderer.class.getResourceAsStream(path)) {
-//            if (is == null) {
-//                log.error("HUD base image missing: {}", path);
-//                baseImage = new int[HUD_WIDTH * HUD_HEIGHT];
-//                return;
-//            }
-//            final BufferedImage image = ImageIO.read(is);
-//            baseImage = new int[HUD_WIDTH * HUD_HEIGHT];
-//            image.getRGB(0, 0, HUD_WIDTH, HUD_HEIGHT, baseImage, 0, HUD_WIDTH);
-//        } catch (final IOException e) {
-//            log.error("Failed to load HUD base image", e);
-//            baseImage = new int[HUD_WIDTH * HUD_HEIGHT];
-//        }
-//    }
-
-    // -------------------------------------------------------------------------
-    // Glyph access
-    // -------------------------------------------------------------------------
 
     /**
      * Returns the cached ARGB pixel data for the given glyph.

@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.engine;
+package house.x1337.app.smb3.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
@@ -36,26 +36,36 @@ public final class PlayerData {
     private int playerPowerThrottle;
 
     /** P-meter display level (0 = empty, 7 = full). Bits 0–6 represent arrows. */
-    private int pMeter;
+    private int pMeter = 0;
 
     /** Whether the P-meter is at max (triggers [P] flash). */
-    private boolean pMeterFull;
+    private boolean pMeterFull = false;
 
     /** Player score (0–9999999). */
-    private int score;
+    private int score = 0;
 
     /** Coins held (0–99). */
-    private int coins;
+    private int coins = 0;
 
     /** Lives remaining (0–99). */
     private int lives = 4;
 
-    /** Timer value (0–999). Timer of 0 means no timer / map screen. */
-    private int timer;
+    /** Level countdown timer (manages start/pause/clear and event publishing). */
+    private final PlayerTimer playerTimer = new PlayerTimer();
 
-    /** Whether the timer is active (false on world map). */
-    private boolean timerActive;
+    /**
+     * Returns the current timer display value (0–999).
+     * Delegates to {@link PlayerTimer#getTime()}.
+     */
+    public int getTimer() {
+        return playerTimer.getTime();
+    }
 
-    /** True if current player is Mario, false if Luigi. */
-    private boolean mario = true;
+    /**
+     * Returns whether the timer is actively counting down.
+     * Delegates to {@link PlayerTimer#isActive()}.
+     */
+    public boolean haveTimerActive() {
+        return playerTimer.isActive();
+    }
 }
