@@ -14,13 +14,14 @@ import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.util.GameRenderer;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
-public interface GameEngineRenderer extends Application {
+public interface GameEngineRenderer extends Application, GameRenderer {
     default void renderLevelTiles(final Node cameraTarget) {
         final GameEngine gameEngine = (GameEngine) this;
         final LevelScene levelScene = gameEngine.getLevelScene();
@@ -76,14 +77,7 @@ public interface GameEngineRenderer extends Application {
                 }
             }
         }
-        buffer.flip();
-
-        final Image image = new Image(Image.Format.RGBA8, imageWidth, imageHeight, buffer, ColorSpace.Linear);
-        final Texture2D texture = new Texture2D(image);
-        texture.setMagFilter(Texture.MagFilter.Nearest);
-        texture.setMinFilter(Texture.MinFilter.NearestNoMipMaps);
-        texture.setWrap(Texture.WrapMode.EdgeClamp);
-
+        final Texture2D texture = toTexture(buffer, imageWidth, imageHeight);
         final Material material = new Material(getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
         material.setTexture("ColorMap", texture);
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);

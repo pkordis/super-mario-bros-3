@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.game.player.factory;
 
-import house.x1337.app.smb3.model.game.player.PlayerIdentity;
+import house.x1337.app.smb3.game.engine.PlayerData;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -12,7 +12,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface PlayerFactory {
     static Player spawn(
-        final PlayerIdentity playerIdentity,
+        final PlayerData playerData,
         final Consumer<Player> onSpawn,
         final GameEngine gameEngine
     ) {
@@ -20,7 +20,7 @@ public interface PlayerFactory {
             case LEVEL_SCENE -> getBean(
                 LevelScenePlayer.class,
                 gameEngine,
-                playerIdentity
+                playerData
             );
             case MAP -> getBean(MapPlayer.class);
         };

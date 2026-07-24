@@ -2,6 +2,7 @@ package house.x1337.app.smb3.util.factory;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.engine.factory.GameEngineFactory;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.service.ConfigurationService;
 import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
@@ -16,7 +17,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 public interface LevelSceneTesterSessionFactory {
     static LevelSceneTesterSession fromLevelScene(final LevelScene levelScene) {
         final LevelSceneEditorTabSystem editorTabSystem = getBean(LevelSceneEditorTabSystem.class);
-        final GameEngine gameEngine = getBean(GameEngine.class, getBean(CameraState.class));
+        final GameEngine gameEngine = GameEngineFactory.start();
         final LevelSceneTesterSession testerSession = getBean(
             LevelSceneTesterSession.class,
             editorTabSystem,

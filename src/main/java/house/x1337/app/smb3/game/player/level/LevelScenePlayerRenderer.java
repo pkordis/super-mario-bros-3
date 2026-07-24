@@ -6,7 +6,6 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 import house.x1337.app.smb3.enumeration.PlayerOrientation;
-import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.ActivePlayerStateAware;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
@@ -72,8 +71,7 @@ public interface LevelScenePlayerRenderer
 
         final Quad quad = new Quad(boxWidth, boxHeight);
         final Geometry geometry = new Geometry("Player", quad);
-        final GameEngine gameEngine = getGameEngine();
-        final Material material = new Material(gameEngine.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+        final Material material = new Material(getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
         material.setColor("Color", new ColorRGBA(0, 1, 1, 1)); // Cyan like the JS reference
         material.getAdditionalRenderState().setBlendMode(Alpha);
 

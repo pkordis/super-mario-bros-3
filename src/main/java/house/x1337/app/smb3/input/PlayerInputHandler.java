@@ -101,7 +101,7 @@ public final class PlayerInputHandler
     public void onAction(
         final String name,
         final boolean isPressed,
-        final float tpf
+        final float timePerFrame
     ) {
         if (isPressed) {
             if (!activeKeys.contains(name)) {

@@ -54,7 +54,11 @@ public class CameraState extends BaseAppState {
         // Reapply the orthographic frustum every frame to counteract jME3's
         // automatic resize (which adjusts the frustum when the AwtPanel
         // dimensions change, shrinking the visible area).
-        final float aspect = (float) camera3D.getWidth() / camera3D.getHeight();
+        // Use the viewport sub-region dimensions (not full window) so that
+        // the frustum matches the actual visible rectangle on screen.
+        final float viewportWidth = (camera3D.getViewPortRight() - camera3D.getViewPortLeft()) * camera3D.getWidth();
+        final float viewportHeight = (camera3D.getViewPortTop() - camera3D.getViewPortBottom()) * camera3D.getHeight();
+        final float aspect = viewportWidth / viewportHeight;
         if (aspect != lastAspect) {
             lastAspect = aspect;
             camera3D.setFrustum(
@@ -75,7 +79,7 @@ public class CameraState extends BaseAppState {
 
         // Snap directly to the nearest screen-pixel boundary - no lag.
         // 1 screen pixel = (2 × frustum) / viewportHeight game-units.
-        final float pixelSize = (2.0f * FRUSTUM) / camera3D.getHeight();
+        final float pixelSize = (2.0f * FRUSTUM) / viewportHeight;
         position.set(
             round(positionVector.x / pixelSize) * pixelSize,
             round(positionVector.y / pixelSize) * pixelSize,
@@ -107,7 +111,9 @@ public class CameraState extends BaseAppState {
         if (camera3D == null) {
             return;
         }
-        final float aspect = (float) camera3D.getWidth() / camera3D.getHeight();
+        final float vpWidth = (camera3D.getViewPortRight() - camera3D.getViewPortLeft()) * camera3D.getWidth();
+        final float vpHeight = (camera3D.getViewPortTop() - camera3D.getViewPortBottom()) * camera3D.getHeight();
+        final float aspect = vpWidth / vpHeight;
         final float halfViewWidth = aspect * FRUSTUM;
         final float halfViewHeight = FRUSTUM;
 
@@ -146,7 +152,9 @@ public class CameraState extends BaseAppState {
     }
 
     private Camera initializeCamera(final Camera camera) {
-        final float aspect = (float) camera.getWidth() / camera.getHeight();
+        final float vpWidth = (camera.getViewPortRight() - camera.getViewPortLeft()) * camera.getWidth();
+        final float vpHeight = (camera.getViewPortTop() - camera.getViewPortBottom()) * camera.getHeight();
+        final float aspect = vpWidth / vpHeight;
         camera.setParallelProjection(true);
         camera.setFrustum(
             -1000.0f,

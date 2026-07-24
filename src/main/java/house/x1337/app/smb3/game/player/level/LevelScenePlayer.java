@@ -1,11 +1,15 @@
 package house.x1337.app.smb3.game.player.level;
 
+import com.jme3.renderer.queue.RenderQueue;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
-import house.x1337.app.smb3.enumeration.PlayerOrientation;
+import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.model.game.player.PlayerIdentity;
+import house.x1337.app.smb3.game.engine.PlayerData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,8 +67,6 @@ import static java.lang.Math.min;
 @Prototype
 public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // P-meter / flight state
-    private int playerPower;
-    private int playerPowerThrottle;
     private boolean isRunning;
     private int playerFlyTime;
     private int playerWagCount;
@@ -74,14 +76,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // auto-decrements to 0)
     private int playerTailAttack;
 
-    private PlayerOrientation orientation = RIGHT;
-
     public LevelScenePlayer(
         final GameEngine gameEngine,
-        final PlayerIdentity identity
+        final PlayerData playerData
     ) {
-        super(gameEngine, identity);
-        setPlayerOrientation(orientation);
+        super(gameEngine, playerData);
+        setPlayerOrientation(RIGHT);
     }
 
     // -------------------------------------------------------------------------
@@ -168,10 +168,8 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
         // Pad_Holding regardless of velocity direction).
         if (inputLeft) {
-            orientation = LEFT;
             setPlayerOrientation(LEFT);
         } else if (inputRight) {
-            orientation = RIGHT;
             setPlayerOrientation(RIGHT);
         }
 
@@ -179,7 +177,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         double topSpeed = PLAYER_TOPWALKSPEED;
         if (inputRun) {
             topSpeed = PLAYER_TOPRUNSPEED;
-            if (playerPower >= PMETER_LEVELS) {
+            if (getPlayerData().getPlayerPower() >= PMETER_LEVELS) {
                 topSpeed = PLAYER_TOPPOWERSPEED;
             }
         }
@@ -230,6 +228,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
     private void handlePowerMeterAndRunFlag() {
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
+        final PlayerData pd = getPlayerData();
 
         // Player_RunFlag: set when on ground, holding B, speed >= TOPRUNSPEED
         isRunning = inputRun && !state.isInAir()
@@ -237,20 +236,22 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
         // P-meter update
         if (playerFlyTime <= 0) {
-            if (playerPowerThrottle > 0) {
-                playerPowerThrottle--;
+            final int throttle = pd.getPlayerPowerThrottle();
+            if (throttle > 0) {
+                pd.setPlayerPowerThrottle(throttle - 1);
             } else {
+                final int power = pd.getPlayerPower();
                 if (isRunning) {
-                    if (playerPower < PMETER_LEVELS) {
-                        playerPower++;
-                        playerPowerThrottle = PMETER_CHARGE_FRAMES;
+                    if (power < PMETER_LEVELS) {
+                        pd.setPlayerPower(power + 1);
+                        pd.setPlayerPowerThrottle(PMETER_CHARGE_FRAMES);
                     } else {
-                        playerPowerThrottle = PMETER_FULL_HOLD_FRAMES;
+                        pd.setPlayerPowerThrottle(PMETER_FULL_HOLD_FRAMES);
                     }
                 } else {
-                    if (playerPower > 0) {
-                        playerPower--;
-                        playerPowerThrottle = PMETER_DRAIN_FRAMES;
+                    if (power > 0) {
+                        pd.setPlayerPower(power - 1);
+                        pd.setPlayerPowerThrottle(PMETER_DRAIN_FRAMES);
                     }
                 }
             }
@@ -272,7 +273,8 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 state.setTo(JUMPING);
                 playerWagCount = 0;
                 // Full P-meter launch grants flight (raccoon mode)
-                if (isLarge() && playerPower >= PMETER_LEVELS && playerFlyTime <= 0) {
+                if (isLarge() && getPlayerData().getPlayerPower() >= PMETER_LEVELS
+                        && playerFlyTime <= 0) {
                     playerFlyTime = FLY_TIME;
                 }
             } else if (isLarge()) {
@@ -333,8 +335,8 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
             if (flyTimeToggle != 0) {
                 playerFlyTime--;
                 if (playerFlyTime <= 0) {
-                    playerPower = 0;
-                    playerPowerThrottle = 0;
+                    getPlayerData().setPlayerPower(0);
+                    getPlayerData().setPlayerPowerThrottle(0);
                 }
             }
         }
@@ -501,5 +503,45 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     @Override
     public void onLayerSwitch() {
         setVisibility(getVisibility().opposite());
+        updateForegroundLayerBuckets();
+    }
+
+    /**
+     * When in BACKGROUND mode, moves layers that should render in front of
+     * the player (DECORATIONS_LAND and above) into the {@code Translucent}
+     * bucket and re-attaches them after the player node so they draw on top.
+     * When back in FOREGROUND mode, restores them to {@code Transparent}.
+     *
+     * <p>This solves the ordering problem: the player must be in
+     * {@code Translucent} to avoid frustum-related visibility issues
+     * (see commit "Camera bounds aligned"), but when behind scenery,
+     * those layers need to render after the player.
+     */
+    private void updateForegroundLayerBuckets() {
+        final Node rootNode = gameEngine.getRootNode();
+        final boolean background = (getVisibility() == PlayerVisibility.BACKGROUND);
+
+        // Layers that should appear IN FRONT of the player when in BACKGROUND
+        final String[] foregroundLayers = {
+            "Layer-DECORATIONS_LAND",
+            "Layer-STATIC_ENVIRONMENT",
+            "Layer-INTERACTIVE_OBJECTS",
+            "Layer-NON_PLAYABLE_CHARACTERS",
+        };
+
+        for (final String layerName : foregroundLayers) {
+            final Spatial layerSpatial = rootNode.getChild(layerName);
+            if (layerSpatial instanceof Geometry layerGeometry) {
+                if (background) {
+                    // Move to Translucent and re-attach after player so it renders on top
+                    layerGeometry.setQueueBucket(RenderQueue.Bucket.Translucent);
+                    rootNode.detachChild(layerGeometry);
+                    rootNode.attachChild(layerGeometry);
+                } else {
+                    // Restore to Transparent (renders before player's Translucent)
+                    layerGeometry.setQueueBucket(RenderQueue.Bucket.Transparent);
+                }
+            }
+        }
     }
 }
