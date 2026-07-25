@@ -5,6 +5,37 @@ the code alone. Read it before making structural changes to the project.
 
 ---
 
+## Project Terminology
+
+This section defines shorthand terms used throughout conversations and code comments.
+Always look here first when encountering an unfamiliar word or abbreviation.
+
+### emexit — Embedded/Emergency-Object Exit
+
+**emexit** (short for "embedded exit") describes the state and recovery behaviour
+that triggers when the player has slid (skid-ducked) underneath a back-to-back array
+of solid objects (blocks, bricks, or any solid tiles/objects), and then stops ducking
+while still inside that array.
+
+Because the player's hitbox can no longer legally occupy the space, the engine enters
+a semi-illegal recovery mode:
+
+- The player is **auto-skidded to the right** at a fixed rate, regardless of the
+  direction the player is actually trying to move.
+- **Allowed inputs during emexit:**
+  - Left/Right — changes the player's facing direction and cycles the walk animation
+    frames, but does not override the forced rightward movement.
+  - No input — player appears still (no animation).
+- **Forbidden actions during emexit:** jumping, firing, axe throwing, tail-wag,
+  flight, crouching, and any other active action. All such inputs are ignored until
+  the state ends.
+- **emexit start** — the first object in the back-to-back array that the player
+  entered from.
+- **emexit end** — the last object in that same contiguous array; clearing it
+  terminates the emexit state and returns the player to normal control.
+
+---
+
 ## Reference Disassembly — `~/Projects/smb3dasm` aka "dasm" (MANDATORY)
 
 For **all** new features, debugging, and improvements to existing features, agents

@@ -76,6 +76,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
     // auto-decrements to 0)
     private int playerTailAttack;
 
+    // Frames remaining to suppress wall correction after exiting low
+    // clearance. The horizontal probes can detect the ceiling block's
+    // edge as a wall on the first frames after the player clears it,
+    // causing a snap that jerks the camera.
+    private int lowClearanceGrace;
+
     public LevelScenePlayer(
         final GameEngine gameEngine,
         final PlayerData playerData
@@ -103,12 +109,16 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // Determine collision height offset from the ducking flag (dasm
         // prg008 PRG008_A736: Y=20 when small or ducking, Y=10 otherwise).
         final int heightOffset = (isSmall() || state.isDucking()) ? 20 : 10;
-        final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
-            !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
-        final boolean lowClearance = tileAbove && !state.isInAir();
+
+        // Emergency exit (emexit) detection — checks for a solid non-one-way tile
+        // above the player's head at horizontal center (X+8). Matches dasm PRG008_A77E.
+        final boolean lowClearance = isLowClearance(heightOffset);
         if (lowClearance) {
             position.setDX(0);
             position.incrementX();
+            lowClearanceGrace = 4;
+        } else if (lowClearanceGrace > 0) {
+            lowClearanceGrace--;
         }
 
         // Advance position
@@ -117,16 +127,42 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
             position.addToY(min(4, position.getDY()));
         }
 
+        // In low clearance, the NES zeroes Pad_Input (prg008 PRG008_A795)
+        // which prevents new button presses (jump) but NOT held-direction
+        // input (Pad_Holding). Horizontal movement (acceleration, facing)
+        // still runs normally — the velocity just gets zeroed at the start
+        // of each low-clearance frame so only the +1 slide moves position.
+        // We consume the jump press to discard it without disabling the
+        // directional input that handleHorizontalMovement reads.
+        if (lowClearance) {
+            inputHandler.consumePress(HANDLER_JUMP);
+            inputHandler.consumePress(HANDLER_RUN);
+        }
         handleHorizontalMovement();
         handlePowerMeterAndRunFlag();
         handleVerticalMovement();
         handleFlyTimeCountdown();
 
-        // Collision detection
-        collisionGrid.handleCollision(heightOffset, lowClearance);
+        // During low clearance, zero ALL velocity after movement runs.
+        // handleHorizontalMovement updates facing and animation state
+        // (reading held directions), but no velocity must carry over —
+        // only the +1 per-frame slide moves position. Preserving any DX
+        // causes jerky movement when the lowClearance check flickers at
+        // tile boundaries (the preserved DX gets applied on frames where
+        // lowClearance is momentarily false).
+        if (lowClearance) {
+            position.setDX(0);
+        }
+
+        // Collision detection — suppress horizontal wall correction during
+        // low clearance and for a few frames after exiting. On exit, the
+        // horizontal probes may detect the ceiling block edge as a wall
+        // and snap the player backward, causing a visible camera jolt.
+        final boolean suppressWalls = lowClearance || lowClearanceGrace > 0;
+        final boolean hitWall = collisionGrid.handleCollision(heightOffset, suppressWalls);
 
         // Refine the logical state after physics + collision
-        refinePlayerState();
+        refinePlayerState(hitWall, lowClearance);
 
         // Tail attack (raccoon B press on ground)
         handleTailAttack();
@@ -136,6 +172,16 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
         // Sync visual
         updateVisualPosition();
+    }
+
+    private boolean isLowClearance(final int heightOffset) {
+        // Probe at horizontal center (X+8) only — matching dasm PRG008_A77E which
+        // checks a single fixed point above the player's head. Adding a right-edge
+        // probe (X+14) at the same heightOffset falsely detects a normal rightward
+        // wall collision as low-clearance, causing the player to slide through walls.
+        final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
+            !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
+        return tileAbove && !state.isInAir();
     }
 
     // -------------------------------------------------------------------------
@@ -439,8 +485,13 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      * <p>Ducking is now a separate flag on {@code ActivePlayerState} and does
      * not participate in the movement state machine. The animator is
      * responsible for rendering the duck frame when the flag is set.
+     *
+     * @param hitWall true if the player collided with a horizontal wall this
+     *               frame (dasm prg008 PRG008_B4F3: INC Player_WalkAnimTicks
+     *               on wall hit keeps the walk animation running)
+     * @param lowClearance true if the player is in low-clearance slide mode
      */
-    private void refinePlayerState() {
+    private void refinePlayerState(final boolean hitWall, final boolean lowClearance) {
         if (state.isInAir()) {
             if (playerFlyTime > 0) {
                 // dasm prg008: Player_FlyTime > 0 means the player is in
@@ -461,6 +512,17 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
             final boolean inputRight = rawRight && !rawLeft;
             if (isCurrentlySkidding(inputLeft, inputRight)) {
                 state.setTo(SKIDDING);
+            } else if (lowClearance && (inputLeft || inputRight)) {
+                // During low clearance slide, show walk animation only when
+                // a direction is held (dasm: WalkAnimTicks advances via
+                // Player_GroundHControl which reads Pad_Holding).
+                state.setTo(WALKING);
+            } else if (hitWall && (inputLeft || inputRight)) {
+                // dasm prg008 PRG008_B4F3: when the player hits a wall while
+                // pressing a direction, Player_WalkAnimTicks is incremented
+                // which keeps the walk animation cycling. The player appears to
+                // "walk in place" against the wall rather than going still.
+                state.setTo(WALKING);
             } else if (abs(position.getDX()) < 0.01) {
                 state.setTo(STILL);
             } else if (isRunning && abs(position.getDX()) >= PLAYER_SPREAD_EAGLE_THRESHOLD) {
