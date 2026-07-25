@@ -38,4 +38,3 @@ public class NitriteTileRepository implements TileRepository {
             .update(where("id").eq(id), patch);
     }
 }
-

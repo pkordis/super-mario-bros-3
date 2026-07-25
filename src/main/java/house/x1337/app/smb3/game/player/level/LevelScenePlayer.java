@@ -466,7 +466,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final float gameX = (float) (position.getX() / 16.0);
         // Invert Y: row 0 is at the top of the scene in tile space, but at
         // (rows - 1) in jme3 world space (where Y=0 is the bottom).
-        final float gameY = (float) (collisionGrid.gridRows() - (position.getY() / 16.0));
+        final float gameY = (float) (collisionGrid.getGridRows() - (position.getY() / 16.0));
 
         // The player's feet are always 32 sprite-pixels (2.0 game-units) below
         // Player_Y regardless of size (collision probes use 0x20 for both).

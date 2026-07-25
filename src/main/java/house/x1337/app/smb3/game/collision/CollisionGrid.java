@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.collision;
 
+import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.TileOffset;
@@ -8,23 +9,23 @@ import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.collision.ProbeLocation;
 import house.x1337.app.smb3.model.game.player.ActivePlayerState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
-import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.GameMath;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
-import static house.x1337.app.smb3.enumeration.TileType.PANEL_WALKABLE_TOP;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
 
-public record CollisionGrid(
-    Player player,
-    Tile[][] tiles,
-    int gridRows,
-    int gridColumns
-) implements GameMath {
+@Getter
+@RequiredArgsConstructor
+public final class CollisionGrid implements GameMath {
+    private final Player player;
+    private final LevelObject[][] objects;
+    private final int gridRows;
+    private final int gridColumns;
 
     /**
      * Handles Player's collision against solid tiles (wall and ground).
@@ -151,7 +152,7 @@ public record CollisionGrid(
         return hitWall;
     }
 
-    private boolean isSolidVert(ProbeLocation tVert, boolean playerIsMovingUp) {
+    private boolean isSolidVert(final ProbeLocation tVert, final boolean playerIsMovingUp) {
         final boolean solidVert1 = collidesAtOffset(tVert.first());
         final boolean solidVert2 = collidesAtOffset(tVert.second());
         final boolean solidVert;
@@ -180,20 +181,20 @@ public record CollisionGrid(
     }
 
     // -------------------------------------------------------------------------
-    // Tile query helpers
+    // Object query helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Checks whether the tile at the given pixel offset from the player
-     * position is a solid (COLLIDING category) tile.
+     * Checks whether the object at the given pixel offset from the player
+     * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      */
     public boolean collidesAtOffset(final int dx, final int dy) {
         return collidesAtOffset(new Offset(dx, dy));
     }
 
     /**
-     * Checks whether the tile at the given {@link Offset} from the player
-     * position is a solid (COLLIDING category) tile.
+     * Checks whether the object at the given {@link Offset} from the player
+     * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      */
     public boolean collidesAtOffset(final Offset offset) {
         final TileOffset tileOffset = TileOffset.fromPlayerOffset(player, offset);
@@ -209,14 +210,11 @@ public record CollisionGrid(
             return true; // Out of horizontal bounds = solid
         }
 
-        final Tile tile = tiles[ty][tx];
-        return tile != null
-            && tile.getType() != null
-            && tile.getType().getCategory() == COLLIDING;
+        return objects[ty][tx].isCollidable();
     }
 
     /**
-     * Checks whether the tile at the given pixel offset from the player
+     * Checks whether the object at the given pixel offset from the player
      * position is a one-way platform.
      */
     public boolean isOneWayTileFromPlayer(final int dx, final int dy) {
@@ -224,7 +222,7 @@ public record CollisionGrid(
     }
 
     /**
-     * Checks whether the tile at the given {@link Offset} from the player
+     * Checks whether the object at the given {@link Offset} from the player
      * position is a one-way platform.
      */
     public boolean isOneWayTileFromPlayer(final Offset offset) {
@@ -236,7 +234,6 @@ public record CollisionGrid(
             return false;
         }
 
-        final Tile tile = tiles[ty][tx];
-        return tile != null && tile.getType() == PANEL_WALKABLE_TOP;
+        return objects[ty][tx].isOneWayPlatform();
     }
 }

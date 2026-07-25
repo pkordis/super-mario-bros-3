@@ -93,8 +93,8 @@ public class TileService implements TilesProvider {
 
         if (w % s != 0 || h % s != 0) {
             throw new IllegalArgumentException(
-                "Image dimensions (" + w + "—" + h + ") are not multiples of " + s + "—" + s + ".\n" +
-                    "Each tile must be exactly " + s + "—" + s + " pixels."
+                "Image dimensions (" + w + "\u2014" + h + ") are not multiples of " + s + "\u2014" + s + ".\n" +
+                    "Each tile must be exactly " + s + "\u2014" + s + " pixels."
             );
         }
 
@@ -137,6 +137,15 @@ public class TileService implements TilesProvider {
             .stream()
             .filter(t -> t.getType() != null && !t.isVirtual())
             .sorted(comparing(Tile::getType).thenComparing(Tile::getId))
+            .toList();
+    }
+
+    public List<Tile> getInteractiveSingleTiles() {
+        return tileCache
+            .values()
+            .stream()
+            .filter(t -> t.getType() == TileType.OBJECT_INTERACTIVE_SINGLE)
+            .sorted(comparing(Tile::getId))
             .toList();
     }
 

@@ -8,6 +8,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
+import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import org.bson.Document;
@@ -50,6 +51,9 @@ public class MongoDBConfig {
     @Value("${spring.data.mongodb.collection.level-scenes:levelScenes}")
     private String levelScenesCollection;
 
+    @Value("${spring.data.mongodb.collection.level-objects:levelObjects}")
+    private String levelObjectsCollection;
+
     @Value("${spring.data.mongodb.collection.configuration:configuration}")
     private String configurationCollection;
 
@@ -88,6 +92,7 @@ public class MongoDBConfig {
                     .register(TileRecord.class)
                     .register(LevelSceneRecord.class)
                     .register(LevelSceneRecord.LevelSceneLayerData.class)
+                    .register(LevelObjectRecord.class)
                     .build()
             )
         );
@@ -124,6 +129,11 @@ public class MongoDBConfig {
     @Bean
     MongoCollection<LevelSceneRecord> levelSceneMongoCollection(final MongoDatabase mongoDatabase) {
         return mongoDatabase.getCollection(levelScenesCollection, LevelSceneRecord.class);
+    }
+
+    @Bean
+    MongoCollection<LevelObjectRecord> levelObjectMongoCollection(final MongoDatabase mongoDatabase) {
+        return mongoDatabase.getCollection(levelObjectsCollection, LevelObjectRecord.class);
     }
 
     @Bean

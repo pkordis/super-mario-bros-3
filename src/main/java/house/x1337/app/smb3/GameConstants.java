@@ -2,6 +2,8 @@ package house.x1337.app.smb3;
 
 import com.jme3.math.ColorRGBA;
 import house.x1337.app.smb3.enumeration.TileType;
+import house.x1337.app.smb3.game.object.level.EmptyLevelObject;
+import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.NoArgsConstructor;
 
@@ -92,6 +94,8 @@ public final class GameConstants {
         .type(TileType.NULL)
         .argbData(new int[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE])
         .build();
+
+    public static final LevelObject EMPTY_LEVEL_OBJECT = new EmptyLevelObject();
 
     public static final ColorRGBA BLACK = new ColorRGBA(0, 0, 0, 0);
 

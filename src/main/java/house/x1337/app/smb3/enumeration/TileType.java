@@ -7,9 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.*;
-import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
-import static house.x1337.app.smb3.enumeration.TileType.Category.NON_COLLIDING;
-import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static house.x1337.app.smb3.enumeration.TileType.Category.*;
 import static lombok.AccessLevel.PRIVATE;
 
 @Getter
@@ -33,10 +31,11 @@ public enum TileType {
     HEDGE("Hedge", NON_COLLIDING, DECORATIONS_LAND),
 
     // Panel
-    PANEL_WALKABLE_TOP("Panel Top (Walkable)", COLLIDING, DECORATIONS_LAND),
+    PANEL_WALKABLE_TOP("Panel Top (Walkable)", ONE_WAY_PLATFORM, DECORATIONS_LAND),
     PANEL_TRANSPARENT("Panel (Bottom, Left/Right Side, Shadow)", NON_COLLIDING, DECORATIONS_LAND),
 
     // Solid
+    LAKITU_CLOUD("Lakitu Cloud (Walkable)", ONE_WAY_PLATFORM, DECORATIONS_LAND),
     OBJECT_INTERACTIVE_SINGLE("Interactive Object (Single-tiled)", COLLIDING, INTERACTIVE_OBJECTS),
     OBJECT_INTERACTIVE_PART("Interactive Object (Multi-tiled)", COLLIDING, INTERACTIVE_OBJECTS),
     PIPE_TERMINATION_PART("Pipe - Termination", COLLIDING, STATIC_ENVIRONMENT),
@@ -55,6 +54,7 @@ public enum TileType {
     public enum Category {
         COLLIDING,
         NON_COLLIDING,
+        ONE_WAY_PLATFORM,
         VIRTUAL
     }
 

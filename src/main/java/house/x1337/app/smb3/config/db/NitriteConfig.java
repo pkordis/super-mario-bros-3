@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.config.db;
 
+import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import org.dizitart.no2.Nitrite;
@@ -42,5 +43,10 @@ public class NitriteConfig {
     @Bean
     ObjectRepository<LevelSceneRecord> levelSceneEnvironmentRepository(final Nitrite nitrite) {
         return nitrite.getRepository(LevelSceneRecord.class);
+    }
+
+    @Bean
+    ObjectRepository<LevelObjectRecord> levelObjectRepository(final Nitrite nitrite) {
+        return nitrite.getRepository(LevelObjectRecord.class);
     }
 }

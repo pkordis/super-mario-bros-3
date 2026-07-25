@@ -1,6 +1,5 @@
 package house.x1337.app.smb3.model.repository;
 
-import house.x1337.app.smb3.enumeration.TileType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,20 +8,19 @@ import org.dizitart.no2.repository.annotations.Entity;
 import org.dizitart.no2.repository.annotations.Id;
 
 import java.io.Serializable;
+import java.util.Map;
 
 @Entity(
-    value = "tiles"
+    value = "levelObjects"
 )
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public final class TileRecord implements TileRecordCapabilities, Serializable {
+public final class LevelObjectRecord implements Serializable, LevelObjectRecordCapabilities {
     @Id
     private int id;
-    private String sha256;
-    private TileType type;
+    private String type;
     private String description;
-    private int[] originalArgbData;
-    private int[] argbData;
+    private Map<String, Object> data;
 }

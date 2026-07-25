@@ -11,4 +11,3 @@ public interface TileRepository {
 
     void updateMetadata(int id, TileType type, String description, int[] argbData);
 }
-
