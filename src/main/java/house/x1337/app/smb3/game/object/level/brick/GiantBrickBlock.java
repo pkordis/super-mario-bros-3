@@ -7,15 +7,16 @@ import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_BLOCK;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.BRICK_BLOCK;
 
 @Getter
 @RequiredArgsConstructor
-public class EmptyBlock implements LevelObject {
-    private final LevelObjectType type = EMPTY_BLOCK;
+public class GiantBrickBlock implements LevelObject {
+    private final LevelObjectType type = BRICK_BLOCK;
     private final Offset offset;
 
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+
     }
 }

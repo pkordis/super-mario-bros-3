@@ -3,6 +3,7 @@ package house.x1337.app.smb3.util.factory;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
@@ -50,8 +51,10 @@ public interface LevelSceneEditorTabFactory {
         levelScene.setId(editor.getSceneId());
         levelScene.setTitle(editor.getSceneTitle());
         levelScene.setDescription(editor.getSceneDescription());
-        levelScene.setRows(editor.getRows());
-        levelScene.setColumns(editor.getColumns());
+        levelScene.setDimensions(new LevelSceneDimensions(
+            editor.getColumns(),
+            editor.getRows()
+        ));
         for (final LevelSceneLayer layer : layers) {
             final LevelSceneLayer copy = copyLevelSceneLayer(layer);
             switch (layer.getType()) {
@@ -73,8 +76,8 @@ public interface LevelSceneEditorTabFactory {
     static LevelSceneEditorTab fromScene(final LevelScene levelScene) {
         final LevelSceneEditorTab tab = newInstance();
         final LevelSceneEditorGrid grid = tab.getLevelSceneEditorGrid();
-        final int columns = levelScene.getColumns();
-        final int rows = levelScene.getRows();
+        final int columns = levelScene.getDimensions().columns();
+        final int rows = levelScene.getDimensions().rows();
         tab.setRows(rows);
         tab.setColumns(columns);
         final LevelSceneLayer airLayer = copyLevelSceneLayer(levelScene, AIR);
@@ -153,8 +156,8 @@ public interface LevelSceneEditorTabFactory {
             case INTERACTIVE_OBJECTS -> sourceScene.getInteractiveObjectsLayer();
             case NON_PLAYABLE_CHARACTERS -> sourceScene.getNonPlayableCharactersLayer();
         };
-        final int rows = sourceScene.getRows();
-        final int columns = sourceScene.getColumns();
+        final int rows = sourceScene.getDimensions().rows();
+        final int columns = sourceScene.getDimensions().columns();
         if (sourceLayer == null) {
             return newVisibleLayer(targetType, emptyTiles(rows, columns));
         }

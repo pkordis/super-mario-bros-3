@@ -12,6 +12,19 @@ public class PlayerPosition {
     private double dX;
     private double dY;
 
+    /** Previous-tick position for render interpolation. */
+    private double prevX;
+    private double prevY;
+
+    /**
+     * Snapshots the current position into prevX/prevY. Must be called
+     * once at the start of each simulation tick, before physics runs.
+     */
+    public void snapshotPrevious() {
+        prevX = x;
+        prevY = y;
+    }
+
     public void incrementX() {
         setX(x + 1);
     }

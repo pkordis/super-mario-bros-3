@@ -6,11 +6,19 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
+import house.x1337.app.smb3.enumeration.PlayerOrientationVertical;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
+import house.x1337.app.smb3.game.collision.CollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.PlayerData;
-import lombok.Getter;
+import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
+import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.game.player.ActivePlayerState;
+import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.GameConstants.FLY_TIME;
@@ -30,8 +38,13 @@ import static house.x1337.app.smb3.GameConstants.PMETER_DRAIN_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_FULL_HOLD_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.WAG_COUNT;
-import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
-import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.DOWN;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
 import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerState.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
@@ -40,6 +53,9 @@ import static house.x1337.app.smb3.enumeration.PlayerState.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerState.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerState.WALKING;
+import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
+import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
@@ -62,32 +78,67 @@ import static java.lang.Math.min;
  * reference. Collision is resolved against tiles whose {@link TileType} category
  * is {@link TileType.Category#COLLIDING}.
  */
+@Data
 @Slf4j
-@Getter
 @Prototype
-public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
-    // P-meter / flight state
-    private boolean isRunning;
-    private int playerFlyTime;
-    private int playerWagCount;
-    private int flyTimeToggle;
+public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
+    private final ActivePlayerState state = getBean(ActivePlayerState.class);
+    private final LevelScenePlayerAnimationContext playerAnimationContext;
+    private final PlayerInputHandler inputHandler;
+    private final CollisionGrid collisionGrid;
+    private final PlayerPosition position;
+    private final PlayerData playerData;
+    private final GameEngine gameEngine;
 
-    // Tail attack state (dasm: Player_TailAttack, set to $12 on B press,
-    // auto-decrements to 0)
-    private int playerTailAttack;
+    private PlayerVisibility visibility = FOREGROUND;
+    private PlayerOrientationHorizontal playerOrientationHorizontal = RIGHT;
+    private PlayerOrientationVertical playerOrientationVertical = SUSTAINED;
 
-    // Frames remaining to suppress wall correction after exiting low
-    // clearance. The horizontal probes can detect the ceiling block's
-    // edge as a wall on the first frames after the player clears it,
-    // causing a snap that jerks the camera.
+    private PlayerMode mode;
+    private Node node;
+
     private int lowClearanceGrace;
+    private int playerTailAttack;
+    private int playerWagCount;
+    private int playerFlyTime;
+    private int flyTimeToggle;
+    private boolean isRunning;
 
     public LevelScenePlayer(
         final GameEngine gameEngine,
         final PlayerData playerData
     ) {
-        super(gameEngine, playerData);
-        setPlayerOrientation(RIGHT);
+        this.gameEngine = gameEngine;
+        this.playerData = playerData;
+        this.inputHandler = getBean(
+            PlayerInputHandler.class,
+            gameEngine
+        );
+        this.position = initializePosition();
+        this.collisionGrid = getLevelScene().toCollisionGrid(this);
+        this.playerAnimationContext = contextForLevel(this);
+        setPlayerOrientationHorizontal(RIGHT);
+        setPlayerOrientationVertical(SUSTAINED);
+    }
+
+    @Override
+    public void setMode(final PlayerMode playerMode) {
+        this.mode = playerMode;
+        if (node != null) {
+            rebuildGeometry(node);
+            updateVisualPosition();
+        }
+    }
+
+    @Override
+    public void updateInCameraState(final CameraState cameraState) {
+        // Point the camera at the player node so it follows the player
+        cameraState.setTarget(node);
+    }
+
+    @Override
+    public void advanceAnimation() {
+        playerAnimationContext.update(this);
     }
 
     // -------------------------------------------------------------------------
@@ -159,13 +210,15 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // horizontal probes may detect the ceiling block edge as a wall
         // and snap the player backward, causing a visible camera jolt.
         final boolean suppressWalls = lowClearance || lowClearanceGrace > 0;
-        final boolean hitWall = collisionGrid.handleCollision(heightOffset, suppressWalls);
+        final boolean hitSomething = collisionGrid.handleCollision(heightOffset, suppressWalls);
 
         // Refine the logical state after physics + collision
-        refinePlayerState(hitWall, lowClearance);
+        refinePlayerState(hitSomething, lowClearance);
 
-        // Tail attack (raccoon B press on ground)
-        handleTailAttack();
+        if (getMode() == RACCOON) {
+            // Tail attack (raccoon B press on ground)
+            handleTailAttack();
+        }
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         advanceAnimation();
@@ -214,9 +267,9 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
         // Pad_Holding regardless of velocity direction).
         if (inputLeft) {
-            setPlayerOrientation(LEFT);
+            setPlayerOrientationHorizontal(LEFT);
         } else if (inputRight) {
-            setPlayerOrientation(RIGHT);
+            setPlayerOrientationHorizontal(RIGHT);
         }
 
         // Determine top speed
@@ -369,6 +422,19 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 }
             }
         }
+
+        // Track vertical orientation from the resolved DY for this frame.
+        // Mirrors how playerOrientationHorizontal reflects the active movement
+        // direction: UP when rising (DY < 0), DOWN when falling (DY > 0),
+        // SUSTAINED when grounded. This is read by collision handling on the
+        // Y axis in the same way horizontal orientation is read on the X axis.
+        if (!state.isInAir()) {
+            setPlayerOrientationVertical(SUSTAINED);
+        } else if (position.getDY() < 0) {
+            setPlayerOrientationVertical(UP);
+        } else {
+            setPlayerOrientationVertical(DOWN);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -394,7 +460,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
 
     private void handleSizeToggle() {
         if (inputHandler.consumePress(HANDLER_SIZE_TOGGLE)) {
-            setMode(this.getMode() == PlayerMode.RACCOON ? PlayerMode.SHRUNK : PlayerMode.RACCOON);
+            setMode(this.getMode() == RACCOON ? PlayerMode.SHRUNK : RACCOON);
         }
     }
 
@@ -428,9 +494,6 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      * the player sprite flipping at frames 11 and 3.
      */
     private void handleTailAttack() {
-        if (!isLarge()) {
-            return;
-        }
 
         // Decrement counter each frame (at start, so the trigger frame
         // displays at the full $12 value matching the dasm)
@@ -466,12 +529,28 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final float gameX = (float) (position.getX() / 16.0);
         // Invert Y: row 0 is at the top of the scene in tile space, but at
         // (rows - 1) in jme3 world space (where Y=0 is the bottom).
-        final float gameY = (float) (collisionGrid.getGridRows() - (position.getY() / 16.0));
+        final float gameY = (float) (collisionGrid.getDimensions().rows() - (position.getY() / 16.0));
 
         // The player's feet are always 32 sprite-pixels (2.0 game-units) below
         // Player_Y regardless of size (collision probes use 0x20 for both).
         // The quad is drawn upward from its origin, so place the origin at foot
         // level and let the quad's height determine how far up it extends.
+        final float feetOffsetFromY = 32.0f / 16.0f;
+        final float playerZ = getVisibility().getPlayerZ();
+        getNode().setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
+    }
+
+    @Override
+    public void interpolateVisualPosition(final double alpha) {
+        if (getNode() == null || getLevelScene() == null) {
+            return;
+        }
+        // Linearly interpolate between previous and current simulation positions
+        final double interpX = position.getPrevX() + (position.getX() - position.getPrevX()) * alpha;
+        final double interpY = position.getPrevY() + (position.getY() - position.getPrevY()) * alpha;
+
+        final float gameX = (float) (interpX / 16.0);
+        final float gameY = (float) (collisionGrid.getDimensions().rows() - (interpY / 16.0));
         final float feetOffsetFromY = 32.0f / 16.0f;
         final float playerZ = getVisibility().getPlayerZ();
         getNode().setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
@@ -486,12 +565,12 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
      * not participate in the movement state machine. The animator is
      * responsible for rendering the duck frame when the flag is set.
      *
-     * @param hitWall true if the player collided with a horizontal wall this
+     * @param hitSomething true if the player collided with a horizontal wall this
      *               frame (dasm prg008 PRG008_B4F3: INC Player_WalkAnimTicks
      *               on wall hit keeps the walk animation running)
      * @param lowClearance true if the player is in low-clearance slide mode
      */
-    private void refinePlayerState(final boolean hitWall, final boolean lowClearance) {
+    private void refinePlayerState(final boolean hitSomething, final boolean lowClearance) {
         if (state.isInAir()) {
             if (playerFlyTime > 0) {
                 // dasm prg008: Player_FlyTime > 0 means the player is in
@@ -517,7 +596,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
                 // a direction is held (dasm: WalkAnimTicks advances via
                 // Player_GroundHControl which reads Pad_Holding).
                 state.setTo(WALKING);
-            } else if (hitWall && (inputLeft || inputRight)) {
+            } else if (hitSomething && (inputLeft || inputRight)) {
                 // dasm prg008 PRG008_B4F3: when the player hits a wall while
                 // pressing a direction, Player_WalkAnimTicks is incremented
                 // which keeps the walk animation cycling. The player appears to
@@ -583,15 +662,7 @@ public final class LevelScenePlayer extends LevelScenePlayerCapabilities {
         final Node rootNode = gameEngine.getRootNode();
         final boolean background = (getVisibility() == PlayerVisibility.BACKGROUND);
 
-        // Layers that should appear IN FRONT of the player when in BACKGROUND
-        final String[] foregroundLayers = {
-            "Layer-DECORATIONS_LAND",
-            "Layer-STATIC_ENVIRONMENT",
-            "Layer-INTERACTIVE_OBJECTS",
-            "Layer-NON_PLAYABLE_CHARACTERS",
-        };
-
-        for (final String layerName : foregroundLayers) {
+        for (final String layerName : FOREGROUND_LAYERS) {
             final Spatial layerSpatial = rootNode.getChild(layerName);
             if (layerSpatial instanceof Geometry layerGeometry) {
                 if (background) {

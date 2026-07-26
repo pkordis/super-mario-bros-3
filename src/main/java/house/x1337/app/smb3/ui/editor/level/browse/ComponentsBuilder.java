@@ -75,7 +75,7 @@ public sealed interface ComponentsBuilder extends LevelScenesTableOwner permits 
             levelScene.getId(),
             levelScene.getTitle() != null ? levelScene.getTitle() : "",
             levelScene.getDescription() != null ? levelScene.getDescription() : "",
-            levelScene.getColumns() + " × " + levelScene.getRows()
+            levelScene.getDimensions().columns() + " × " + levelScene.getDimensions().rows()
         };
     }
 

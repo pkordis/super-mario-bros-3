@@ -7,7 +7,7 @@ import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
-import house.x1337.app.smb3.enumeration.PlayerOrientation;
+import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerState;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -24,8 +24,7 @@ import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
-import static house.x1337.app.smb3.enumeration.PlayerOrientation.LEFT;
-import static house.x1337.app.smb3.enumeration.PlayerOrientation.RIGHT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerState.DUCKING;
 import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerState.FLYING;
@@ -188,7 +187,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private int tailWagCount;
     private boolean wasTailAttacking;
     private PlayerState lastRenderedState;
-    private PlayerOrientation lastOrientation;
+    private PlayerOrientationHorizontal lastOrientation;
     private int lastWalkFrame = -1;
 
     public void loadAssets() {
@@ -213,7 +212,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
 
     public void update(final LevelScenePlayer levelScenePlayer) {
         final int tailAttack = levelScenePlayer.getPlayerTailAttack();
-        final PlayerOrientation orientation = levelScenePlayer.getPlayerOrientation();
+        final PlayerOrientationHorizontal orientation = levelScenePlayer.getPlayerOrientationHorizontal();
         final PlayerState state = levelScenePlayer.getState().getCurrent();
         final boolean isDucking = levelScenePlayer.getState().isDucking();
         final Node node = levelScenePlayer.getNode();
@@ -231,9 +230,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             final int clampedFrame = min(frameIndex, 4);
             // Flip orientation at tailAttack == 11 and 3 (dasm: EOR #SPR_HFLIP)
             final boolean flipped = (tailAttack <= 11 && tailAttack > 3);
-            final PlayerOrientation effectiveOrientation = flipped
-                ? (orientation == LEFT ? RIGHT : LEFT)
-                : orientation;
+            final PlayerOrientationHorizontal effectiveOrientation = orientation.oppositeIf(flipped);
 
             // dasm prg008: In-air tail attack uses a different frame table
             // (Player_TailAttackFrames +5). The "resting" frames (indices
@@ -586,7 +583,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private void rebuildWithTexture(
         final Node node,
         final Texture texture,
-        final PlayerOrientation orientation
+        final PlayerOrientationHorizontal orientation
     ) {
         rebuildWithTexture(node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET);
     }
@@ -597,7 +594,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private void rebuildSkidTexture(
         final Node node,
         final Texture texture,
-        final PlayerOrientation orientation
+        final PlayerOrientationHorizontal orientation
     ) {
         rebuildWithTexture(node, texture, orientation, SKID_QUAD_WIDTH, 0f);
     }
@@ -609,7 +606,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private void rebuildDuckTexture(
         final Node node,
         final Texture texture,
-        final PlayerOrientation orientation
+        final PlayerOrientationHorizontal orientation
     ) {
         rebuildWithTexture(node, texture, orientation, DUCK_QUAD_WIDTH, DUCK_TAIL_OFFSET);
     }
@@ -627,7 +624,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private void rebuildWithTexture(
         final Node node,
         final Texture texture,
-        final PlayerOrientation orientation,
+        final PlayerOrientationHorizontal orientation,
         final float quadWidth,
         final float tailOffset
     ) {

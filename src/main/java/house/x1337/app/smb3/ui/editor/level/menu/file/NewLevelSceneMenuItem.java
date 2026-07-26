@@ -19,6 +19,5 @@ public class NewLevelSceneMenuItem extends JMenuItem {
     }
 
     private void promptNewScene() {
-        System.out.println();
     }
 }

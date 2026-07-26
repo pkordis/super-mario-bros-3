@@ -5,13 +5,16 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum PlayerOrientation {
+public enum PlayerOrientationHorizontal {
     LEFT("Left"),
     RIGHT("Right");
 
     private final String label;
 
-    public final PlayerOrientation opposite() {
+    public final PlayerOrientationHorizontal oppositeIf(final boolean flipped) {
+        if (!flipped) {
+            return this;
+        }
         return switch (this) {
             case LEFT -> RIGHT;
             case RIGHT -> LEFT;

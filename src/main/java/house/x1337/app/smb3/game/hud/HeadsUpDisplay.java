@@ -65,6 +65,9 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     /** Snapshot of last rendered P-meter full state. */
     private boolean lastPMeterFull;
 
+    /** Snapshot of last displayed timer value for dirty detection. */
+    private int lastDisplayedTime = -1;
+
     /**
      * [P] flash tick counter. Decremented every frame when P-meter is full.
      * From prg026.asm {@code MaxPower_Tick}: the flash state is determined by
@@ -141,8 +144,10 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
             return;
         }
 
-        // Tick the countdown timer each frame
-        dirty |= playerTimer.tick();
+        // Timer value is ticked from the simulation loop in GameEngine;
+        // here we just check if the displayed value has changed.
+        dirty |= (playerTimer.getTime() != lastDisplayedTime);
+        lastDisplayedTime = playerTimer.getTime();
 
         // P-meter: convert from playerPower (0–7) to display level
         if (player instanceof LevelScenePlayer levelPlayer) {

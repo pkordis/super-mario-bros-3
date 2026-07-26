@@ -2,6 +2,7 @@ package house.x1337.app.smb3.util.converter;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.util.normalizer.LevelSceneRecordNormalizer;
 import house.x1337.app.smb3.util.provider.TilesProvider;
@@ -16,8 +17,7 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .id(levelSceneRecord.getId())
             .title(levelSceneRecord.getTitle())
             .description(levelSceneRecord.getDescription())
-            .rows(levelSceneRecord.getRows())
-            .columns(levelSceneRecord.getColumns())
+            .dimensions(new LevelSceneDimensions(levelSceneRecord.getColumns(), levelSceneRecord.getRows()))
             .updatedAt(levelSceneRecord.getUpdatedAt())
             .renderingStarterRow(levelSceneRecord.getRenderingStarterRow())
             .renderingStarterColumn(levelSceneRecord.getRenderingStarterColumn())
@@ -37,8 +37,8 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .id(levelScene.getId())
             .title(levelScene.getTitle())
             .description(levelScene.getDescription())
-            .rows(levelScene.getRows())
-            .columns(levelScene.getColumns())
+            .rows(levelScene.getDimensions().rows())
+            .columns(levelScene.getDimensions().columns())
             .updatedAt(System.currentTimeMillis())
             .renderingStarterRow(levelScene.getRenderingStarterRow())
             .renderingStarterColumn(levelScene.getRenderingStarterColumn())

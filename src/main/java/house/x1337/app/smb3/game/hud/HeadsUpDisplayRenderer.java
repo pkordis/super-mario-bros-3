@@ -81,7 +81,7 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
      */
     default int[] renderToPixels(final PlayerData data) {
         // Start from the pixel-perfect base image
-        final int[] clonedBaseImagePixels = getBaseImage().copy().rgbData();
+        final int[] clonedBaseImagePixels = getBaseImage().copy().getRgbData();
 
         // --- Top sub-row: world number + P-meter + coins ---
         blitGlyph(clonedBaseImagePixels, digitGlyph(clampDigit(data.getWorld())), WORLD_NUM_X, TOP_Y);

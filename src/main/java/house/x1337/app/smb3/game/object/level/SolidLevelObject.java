@@ -1,5 +1,7 @@
 package house.x1337.app.smb3.game.object.level;
 
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,9 +21,14 @@ import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFOR
 public final class SolidLevelObject implements LevelObject {
     private final Tile tile;
     private final LevelObjectType type;
+    private final Offset offset;
 
     @Override
     public boolean isOneWayPlatform() {
         return tile.getType().getCategory() == ONE_WAY_PLATFORM;
+    }
+
+    @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
     }
 }

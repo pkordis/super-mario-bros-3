@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,8 +21,7 @@ public final class LevelScene implements LevelSceneCapabilities {
     private String id = UUID.randomUUID().toString();
     private String title;
     private String description;
-    private int rows;
-    private int columns;
+    private LevelSceneDimensions dimensions;
     private long updatedAt;
     private Integer renderingStarterRow;
     private Integer renderingStarterColumn;

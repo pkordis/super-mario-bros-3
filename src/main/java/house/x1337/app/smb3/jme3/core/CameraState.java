@@ -105,7 +105,10 @@ public class CameraState extends BaseAppState {
      * @param columns level width in game-units (tile columns)
      * @param rows    level height in game-units (tile rows)
      */
-    public void setLevelSceneBounds(final int columns, final int rows) {
+    public void setLevelSceneBounds(
+        final int columns,
+        final int rows
+    ) {
         pendingColumns = columns;
         pendingRows = rows;
         if (camera3D == null) {

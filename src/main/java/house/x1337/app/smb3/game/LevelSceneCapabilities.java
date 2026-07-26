@@ -1,6 +1,8 @@
 package house.x1337.app.smb3.game;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.game.collision.CollisionGridCapabilities;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 import java.util.Arrays;
@@ -11,7 +13,7 @@ import java.util.stream.Stream;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static java.util.Comparator.comparingInt;
 
-public sealed interface LevelSceneCapabilities permits LevelScene {
+public sealed interface LevelSceneCapabilities extends CollisionGridCapabilities permits LevelScene {
     /**
      * Returns every environment layer ordered bottom-to-top by its
      * {@link LevelSceneLayerType#getOrder() order} (lowest first). The renderer draws them in this
@@ -35,14 +37,16 @@ public sealed interface LevelSceneCapabilities permits LevelScene {
 
     default Tile[][] getTilesOfConsolidatedLayers() {
         final List<LevelScene.LevelSceneLayer> layers = getLayersBottomToTop();
-        final Tile[][] composite = new Tile[getRows()][getColumns()];
+        final int rows = getDimensions().rows();
+        final int columns = getDimensions().columns();
+        final Tile[][] composite = new Tile[rows][columns];
         for (final Tile[] row : composite) {
             Arrays.fill(row, NULL_TILE);
         }
         for (final LevelScene.LevelSceneLayer layer : layers) {
             final Tile[][] tiles = layer.getTiles();
-            for (int row = 0; row < getRows(); row++) {
-                for (int col = 0; col < getColumns(); col++) {
+            for (int row = 0; row < rows; row++) {
+                for (int col = 0; col < columns; col++) {
                     final Tile tile = tiles[row][col];
                     if (tile.isRenderable()) {
                         composite[row][col] = tile;
@@ -69,8 +73,7 @@ public sealed interface LevelSceneCapabilities permits LevelScene {
         };
     }
 
-    int getRows();
-    int getColumns();
+    LevelSceneDimensions getDimensions();
     LevelScene.LevelSceneLayer getAirLayer();
     LevelScene.LevelSceneLayer getAirDecorationsLayer();
     LevelScene.LevelSceneLayer getLandDecorationsLayer();
@@ -79,12 +82,27 @@ public sealed interface LevelSceneCapabilities permits LevelScene {
     LevelScene.LevelSceneLayer getNonPlayableCharactersLayer();
 
     interface LevelSceneLayerCapabilities {
+        String AIR = "Layer-AIR";
+        String DECORATIONS_AIR = "Layer-DECORATIONS_AIR";
+        String DECORATIONS_LAND = "Layer-DECORATIONS_LAND";
+        String INTERACTIVE_OBJECTS = "Layer-INTERACTIVE_OBJECTS";
+        String NON_PLAYABLE_CHARACTERS = "Layer-NON_PLAYABLE_CHARACTERS";
+        String STATIC_ENVIRONMENT = "Layer-STATIC_ENVIRONMENT";
+
+        // Layers that should appear IN FRONT of the player when in BACKGROUND
+        String[] FOREGROUND_LAYERS = {
+            DECORATIONS_LAND,
+            INTERACTIVE_OBJECTS,
+            NON_PLAYABLE_CHARACTERS,
+            STATIC_ENVIRONMENT
+        };
+
         LevelSceneLayerType getType();
         boolean isVisible();
         Tile[][] getTiles();
 
         default String getName() {
-            return getType().getLabel();
+            return "Layer-" + getType().name();
         }
     }
 }

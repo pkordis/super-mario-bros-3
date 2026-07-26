@@ -2,9 +2,13 @@ package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.model.game.Offset;
 import org.jspecify.annotations.NonNull;
+
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord {
     /**
@@ -15,19 +19,10 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
      * @throws IllegalArgumentException if the type string cannot be resolved to either enum.
      * @throws IllegalStateException if the resolved type's instance class cannot be instantiated.
      */
-    default LevelObject toLevelObject() {
+    default LevelObject toLevelObject(final Offset offset) {
         final LevelObjectRecord record = (LevelObjectRecord) this;
         final LevelObjectType type = resolveLevelObjectType(record.getType());
-
-        try {
-            return type.getInstanceType().getDeclaredConstructor().newInstance();
-        } catch (final ReflectiveOperationException e) {
-            throw new IllegalStateException(
-                "Failed to instantiate " + type.getInstanceType().getName()
-                    + " for record id=" + record.getId(),
-                e
-            );
-        }
+        return getBean(type.getInstanceType(), offset);
     }
 
     @NonNull

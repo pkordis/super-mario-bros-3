@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import static house.x1337.app.smb3.GameConstants.TARGET_FPS;
+import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
 
 /**
  * Manages the level countdown timer, ticking once per second from an initial
@@ -17,7 +17,7 @@ import static house.x1337.app.smb3.GameConstants.TARGET_FPS;
  * ({@code StatusBar_Fill_Time}): the timer decrements once per second while
  * active and triggers a time-out death when it reaches zero.
  *
- * <p>The timer operates in frame-based ticks — every {@link #TARGET_FPS}
+ * <p>The timer operates in frame-based ticks — every {@link #SIMULATION_FPS}
  * calls to {@link #tick()} constitutes one second, at which point the
  * displayed timer value decrements by one.
  */
@@ -40,7 +40,7 @@ public final class PlayerTimer implements GameEventBusAware {
     @Getter
     private boolean active;
 
-    /** Frame counter — counts up to TARGET_FPS to produce a 1-second tick. */
+    /** Frame counter — counts up to SIMULATION_FPS to produce a 1-second tick. */
     private int frameTick;
 
     /**
@@ -80,8 +80,8 @@ public final class PlayerTimer implements GameEventBusAware {
     }
 
     /**
-     * Advances the timer by one frame. Must be called once per game frame
-     * (at {@link #TARGET_FPS} fps). When {@link #TARGET_FPS} frames have
+     * Advances the timer by one frame. Must be called once per simulation tick
+     * (at {@link #SIMULATION_FPS} fps). When {@link #SIMULATION_FPS} frames have
      * elapsed, the displayed timer decrements by one. When the timer
      * reaches zero, a {@link PlayerTimerExpired} event is published and
      * the timer deactivates.
@@ -92,7 +92,7 @@ public final class PlayerTimer implements GameEventBusAware {
         }
 
         frameTick++;
-        if (frameTick >= TARGET_FPS) {
+        if (frameTick >= SIMULATION_FPS) {
             frameTick = 0;
             time--;
 

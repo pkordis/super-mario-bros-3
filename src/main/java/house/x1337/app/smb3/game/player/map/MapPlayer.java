@@ -30,6 +30,10 @@ public class MapPlayer implements Player {
     }
 
     @Override
+    public void interpolateVisualPosition(final double alpha) {
+    }
+
+    @Override
     public void updateInCameraState(final CameraState cameraState) {
     }
 

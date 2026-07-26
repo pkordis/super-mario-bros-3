@@ -6,21 +6,27 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
+import house.x1337.app.smb3.game.object.level.AnimationManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 import static house.x1337.app.smb3.GameConstants.BLACK;
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
+import static house.x1337.app.smb3.GameConstants.SIMULATION_DT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_HEIGHT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.PlayerIdentityType.MARIO;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
@@ -30,6 +36,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 @Prototype
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
+    private final List<? extends AnimationManager> animationManagers = getBean(AnimationManager.Registry.class).getAll();
     private final CameraState cameraState;
     private final PlayerData playerData;
 
@@ -38,6 +45,13 @@ public final class GameEngine extends GameEngineCapabilities {
     private GameContext gameContext = LEVEL_SCENE;
     private HeadsUpDisplay headsUpDisplay;
     private Player player;
+
+    /**
+     * Accumulates real elapsed time between render frames. When it exceeds
+     * {@link house.x1337.app.smb3.GameConstants#SIMULATION_DT}, one simulation
+     * tick is consumed. This decouples game-logic rate (60 Hz) from render rate.
+     */
+    private double simulationAccumulator = 0.0;
 
     @Override
     public void start() {
@@ -75,9 +89,10 @@ public final class GameEngine extends GameEngineCapabilities {
 
     @Override
     public void simpleInitApp() {
-        // Replace jme3's variable-timestep NanoTimer with a fixed-rate timer so
-        // that every update tick always receives tpf = 1 / TARGET_FPS, giving
-        // deterministic camera movement and physics regardless of wall-clock jitter.
+        // Replace jme3's variable-timestep NanoTimer with a fixed-rate timer
+        // that ticks at TARGET_FPS. The simulation loop inside simpleUpdate
+        // accumulates the elapsed time and steps game logic at SIMULATION_FPS,
+        // decoupling render rate from game speed.
         setTimer(new FixedRateTimer());
 
         setDisplayFps(false);
@@ -105,7 +120,10 @@ public final class GameEngine extends GameEngineCapabilities {
 
         // Constrain camera to level boundaries — the viewport can never
         // scroll past the tile area, eliminating the black background at edges.
-        cameraState.setLevelSceneBounds(levelScene.getColumns(), levelScene.getRows());
+        cameraState.setLevelSceneBounds(
+            levelScene.getDimensions().columns(),
+            levelScene.getDimensions().rows()
+        );
 
         // Create and attach the players
         playerData.setIdentity(MARIO.identity());
@@ -125,9 +143,31 @@ public final class GameEngine extends GameEngineCapabilities {
 
     @Override
     public void simpleUpdate(final float timePerFrame) {
-        if (player != null) {
-            player.updateFrame();
+        simulationAccumulator += timePerFrame;
+
+        // Run as many fixed-step simulation ticks as have accumulated.
+        // Each tick advances game logic by exactly one NES frame (1/60 s).
+        while (simulationAccumulator >= SIMULATION_DT) {
+            simulationAccumulator -= SIMULATION_DT;
+            if (player != null) {
+                final PlayerPosition pos = player.getPosition();
+                if (pos != null) {
+                    pos.snapshotPrevious();
+                }
+                player.updateFrame();
+            }
+            playerData.getPlayerTimer().tick();
+            animationManagers.forEach(AnimationManager::update);
         }
+
+        // Interpolate the player's visual position between the previous and
+        // current simulation states so that rendering at rates above 60 Hz
+        // produces smooth, jitter-free movement.
+        if (player != null) {
+            final double alpha = simulationAccumulator / SIMULATION_DT;
+            player.interpolateVisualPosition(alpha);
+        }
+
         headsUpDisplay.update(timePerFrame);
     }
 }

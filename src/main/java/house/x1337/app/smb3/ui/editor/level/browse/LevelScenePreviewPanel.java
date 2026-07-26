@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.browse;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 import javax.swing.JPanel;
@@ -65,6 +66,7 @@ public class LevelScenePreviewPanel extends JPanel {
         final List<LevelSceneLayer> layers = levelScene.getLayersBottomToTop();
         final Integer rsRow = levelScene.getRenderingStarterRow();
         final Integer rsColumn = levelScene.getRenderingStarterColumn();
+        final LevelSceneDimensions dimensions = levelScene.getDimensions();
         final int startCol = (rsColumn != null && rsColumn >= 0) ? rsColumn : 0;
         final int startRow;
         if (rsRow != null && rsRow >= 0) {
@@ -72,8 +74,8 @@ public class LevelScenePreviewPanel extends JPanel {
         } else {
             startRow = 0;
         }
-        final int rowCount = min(levelScene.getRows() - startRow, PREVIEW_TILES_Y);
-        final int colCount = min(levelScene.getColumns() - startCol, PREVIEW_TILES_X);
+        final int rowCount = min(dimensions.rows() - startRow, PREVIEW_TILES_Y);
+        final int colCount = min(dimensions.columns() - startCol, PREVIEW_TILES_X);
 
         final BufferedImage composite = new BufferedImage(
             colCount * PREVIEW_TILE_PX,

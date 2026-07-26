@@ -1,9 +1,12 @@
 package house.x1337.app.smb3.game.collision;
 
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
-import house.x1337.app.smb3.game.player.Player;
+import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.LevelObjectOffset;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.TileOffset;
 import house.x1337.app.smb3.model.game.collision.CollisionProbe;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.collision.ProbeLocation;
@@ -12,20 +15,25 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.util.GameMath;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
+import static house.x1337.app.smb3.model.game.LevelObjectOffset.fromPlayerOffset;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
 
 @Getter
+@Slf4j
 @RequiredArgsConstructor
 public final class CollisionGrid implements GameMath {
-    private final Player player;
+    private final LevelScenePlayer levelScenePlayer;
     private final LevelObject[][] objects;
-    private final int gridRows;
-    private final int gridColumns;
+    private final LevelSceneDimensions dimensions;
+    private final GameEngine gameEngine;
 
     /**
      * Handles Player's collision against solid tiles (wall and ground).
@@ -36,8 +44,8 @@ public final class CollisionGrid implements GameMath {
         final int initialHeightOffset,
         final boolean lowClearance
     ) {
-        final PlayerPosition position = player.getPosition();
-        final ActivePlayerState playerState = player.getState();
+        final PlayerPosition position = levelScenePlayer.getPosition();
+        final ActivePlayerState playerState = levelScenePlayer.getState();
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
 
@@ -65,8 +73,8 @@ public final class CollisionGrid implements GameMath {
         //   to the left. Snap the left edge (leftEdgeOffset) to the wall
         //   boundary by adding the gap to the next boundary.
         boolean hitWall = false;
-        final int leftEdgeOffset = player.isLarge() ? 2 : 3;
-        final int rightEdgeOffset = player.isLarge() ? 14 : 13;
+        final int leftEdgeOffset = levelScenePlayer.isLarge() ? 2 : 3;
+        final int rightEdgeOffset = levelScenePlayer.isLarge() ? 14 : 13;
         if (solidHoriz && !lowClearance) {
             // Only apply wall correction when the player is moving INTO
             // the wall. If moving away from the wall, the player is
@@ -122,7 +130,7 @@ public final class CollisionGrid implements GameMath {
             }
         }
 
-        final ActivePlayerState state = player.getState();
+        final ActivePlayerState state = levelScenePlayer.getState();
 
         // Vertical collision
         if (position.getDY() >= 0 || !state.isInAir()) {
@@ -145,14 +153,55 @@ public final class CollisionGrid implements GameMath {
         } else {
             // Moving up
             if (solidVert) {
-                // Hit head
-                position.setDY(GRAVITY_SLOW / 16.0);
+                // Head hitting objects
+                position.setDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
+                handleVerticalCollision(tVert);
             }
         }
         return hitWall;
     }
 
-    private boolean isSolidVert(final ProbeLocation tVert, final boolean playerIsMovingUp) {
+    /**
+     * Checks whether the tile struck during a head-hit is a {@link BrickBlockWithoutReward}
+     * and, if so, removes it from the collision grid and triggers the appropriate animation.
+     *
+     * <p>Uses {@code tVert.first()} — the single upward probe shared by both left-half and
+     * right-half large-player probes (Offset(0x08, 0x06)) — to resolve the hit tile's
+     * grid coordinates.
+     *
+     * @param tVert vertical probe for the current move direction
+     */
+    private void handleVerticalCollision(final ProbeLocation tVert) {
+        final LevelObjectOffset objectOffset = fromPlayerOffset(levelScenePlayer, tVert.first());
+        if (objectOffset.isOutsideOf(this)) {
+            return;
+        }
+        final LevelObject hitObject = getLevelObjectAt(objectOffset);
+        if (levelScenePlayer.getPlayerOrientationVertical() == UP) {
+            hitObject.onCollisionFromBelow(levelScenePlayer);
+        }
+    }
+
+    public LevelObject getLevelObjectAt(final Offset offset) {
+        try {
+            return objects[offset.y()][offset.x()];
+        }  catch (final ArrayIndexOutOfBoundsException e) {
+            return EMPTY_LEVEL_OBJECT;
+        }
+    }
+
+    public void removeLevelObjectAt(final Offset offset) {
+        try {
+            objects[offset.y()][offset.x()] = EMPTY_LEVEL_OBJECT;
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            log.error("removeLevelObjectAt error", e);
+        }
+    }
+
+    private boolean isSolidVert(
+        final ProbeLocation tVert,
+        final boolean playerIsMovingUp
+    ) {
         final boolean solidVert1 = collidesAtOffset(tVert.first());
         final boolean solidVert2 = collidesAtOffset(tVert.second());
         final boolean solidVert;
@@ -174,7 +223,7 @@ public final class CollisionGrid implements GameMath {
         final boolean movingUp,
         final boolean leftHalf
     ) {
-        final DirectionalProbes probes = (!player.isLarge() || player.getState().isDucking())
+        final DirectionalProbes probes = (!levelScenePlayer.isLarge() || levelScenePlayer.getState().isDucking())
             ? SMALL_PROBES
             : LARGE_PROBES;
         return probes.resolve(movingUp, leftHalf);
@@ -189,7 +238,7 @@ public final class CollisionGrid implements GameMath {
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      */
     public boolean collidesAtOffset(final int dx, final int dy) {
-        return collidesAtOffset(new Offset(dx, dy));
+        return collidesAtOffset(Offset.of(dx, dy));
     }
 
     /**
@@ -197,20 +246,20 @@ public final class CollisionGrid implements GameMath {
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      */
     public boolean collidesAtOffset(final Offset offset) {
-        final TileOffset tileOffset = TileOffset.fromPlayerOffset(player, offset);
-        final int tx = tileOffset.getX();
-        int ty = tileOffset.getY();
+        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(levelScenePlayer, offset);
+        final int tx = levelObjectOffset.x();
+        int ty = levelObjectOffset.y();
 
         if (ty < 0) {
             ty = 0;
-        } else if (ty >= gridRows) {
+        } else if (ty >= dimensions.rows()) {
             return true; // Below world = solid
         }
-        if (tx < 0 || tx >= gridColumns) {
+        if (tx < 0 || tx >= dimensions.columns()) {
             return true; // Out of horizontal bounds = solid
         }
 
-        return objects[ty][tx].isCollidable();
+        return getLevelObjectAt(levelObjectOffset).isCollidable();
     }
 
     /**
@@ -218,7 +267,7 @@ public final class CollisionGrid implements GameMath {
      * position is a one-way platform.
      */
     public boolean isOneWayTileFromPlayer(final int dx, final int dy) {
-        return isOneWayTileFromPlayer(new Offset(dx, dy));
+        return isOneWayTileFromPlayer(Offset.of(dx, dy));
     }
 
     /**
@@ -226,14 +275,12 @@ public final class CollisionGrid implements GameMath {
      * position is a one-way platform.
      */
     public boolean isOneWayTileFromPlayer(final Offset offset) {
-        final TileOffset tileOffset = TileOffset.fromPlayerOffset(player, offset);
-        final int tx = tileOffset.getX();
-        final int ty = tileOffset.getY();
+        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(levelScenePlayer, offset);
 
-        if (ty < 0 || ty >= gridRows || tx < 0 || tx >= gridColumns) {
+        if (levelObjectOffset.isOutsideOf(this)) {
             return false;
         }
 
-        return objects[ty][tx].isOneWayPlatform();
+        return getLevelObjectAt(levelObjectOffset).isOneWayPlatform();
     }
 }

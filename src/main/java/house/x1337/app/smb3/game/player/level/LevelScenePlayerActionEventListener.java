@@ -10,7 +10,7 @@ public interface LevelScenePlayerActionEventListener extends GameEventBusAware {
     default void subscribeListeners() {
         getGameEventBus().subscribe(LevelScenePlayerSwitchedLayer.class, event -> {
             if (this instanceof LevelScenePlayer levelScenePlayer &&
-                levelScenePlayer.inputHandler.getId().equals(event.getInputHandlerId())
+                levelScenePlayer.getInputHandler().getId().equals(event.getInputHandlerId())
             ) {
                 onLayerSwitch();
             }

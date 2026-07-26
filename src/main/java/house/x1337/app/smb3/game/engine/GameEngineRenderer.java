@@ -6,13 +6,13 @@ import com.jme3.material.RenderState;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
-import com.jme3.texture.Image;
-import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
-import com.jme3.texture.image.ColorSpace;
 import com.jme3.util.BufferUtils;
 import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.object.GameObjectAnimator;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.GameRenderer;
 
@@ -20,6 +20,8 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 public interface GameEngineRenderer extends Application, GameRenderer {
     default void renderLevelTiles(final Node cameraTarget) {
@@ -29,16 +31,36 @@ public interface GameEngineRenderer extends Application, GameRenderer {
             return;
         }
         final List<LevelScene.LevelSceneLayer> layers = levelScene.getLayersBottomToTop();
-        final int rows = levelScene.getRows();
-        final int columns = levelScene.getColumns();
+        final LevelSceneDimensions dimensions = levelScene.getDimensions();
 
-        positionCameraTarget(levelScene, cameraTarget, rows, columns);
+        positionCameraTarget(levelScene, cameraTarget, dimensions);
 
         for (final LevelScene.LevelSceneLayer layer : layers) {
-            final Geometry layerGeometry = bakeLayerGeometry(layer, rows, columns);
+            final Geometry layerGeometry = bakeLayerGeometry(layer, dimensions);
             layerGeometry.setLocalTranslation(0, 0, layer.getType().getZ());
             gameEngine.getRootNode().attachChild(layerGeometry);
         }
+
+        final List<? extends GameObjectAnimator<?>> animators = getBean(GameObjectAnimator.Registry.class).getAll();
+        final Geometry interactiveObjectlayerGeometry = getLayerGeometry(INTERACTIVE_OBJECTS);
+        gameEngine
+            .enqueue(() -> animators.forEach(animator ->
+                animator.registerLevel(
+                    interactiveObjectlayerGeometry,
+                    dimensions
+                )
+            )
+        );
+    }
+
+    default Geometry getLayerGeometry(final String layerName) {
+        final GameEngine gameEngine = (GameEngine) this;
+        final Node rootNode = gameEngine.getRootNode();
+        final Spatial spatial = rootNode.getChild(layerName);
+        if (spatial instanceof Geometry geometry) {
+            return geometry;
+        }
+        throw new IllegalStateException("No geometry found for layer: " + layerName);
     }
 
     /**
@@ -48,18 +70,17 @@ public interface GameEngineRenderer extends Application, GameRenderer {
      */
     private Geometry bakeLayerGeometry(
         final LevelScene.LevelSceneLayer layer,
-        final int rows,
-        final int columns
+        final LevelSceneDimensions dimensions
     ) {
         final Tile[][] tiles = layer.getTiles();
         // jme3 expects the ByteBuffer in bottom-to-top row order, so imgRow 0 = bottom of image =
         // bottom of the level = tile row (rows - 1), sprite pixel row (TILE_SPRITE_SIZE - 1).
-        final int imageWidth = columns * TILE_SPRITE_SIZE;
-        final int imageHeight = rows * TILE_SPRITE_SIZE;
+        final int imageWidth = dimensions.columns() * TILE_SPRITE_SIZE;
+        final int imageHeight = dimensions.rows() * TILE_SPRITE_SIZE;
         final ByteBuffer buffer = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
 
         for (int imgRow = 0; imgRow < imageHeight; imgRow++) {
-            final int tileRow = rows - 1 - (imgRow / TILE_SPRITE_SIZE);
+            final int tileRow = dimensions.rows() - 1 - (imgRow / TILE_SPRITE_SIZE);
             final int spritePixelRow = TILE_SPRITE_SIZE - 1 - (imgRow % TILE_SPRITE_SIZE);
             for (int imgCol = 0; imgCol < imageWidth; imgCol++) {
                 final int tileCol = imgCol / TILE_SPRITE_SIZE;
@@ -86,7 +107,7 @@ public interface GameEngineRenderer extends Application, GameRenderer {
         material.getAdditionalRenderState().setDepthWrite(false);
         material.getAdditionalRenderState().setDepthTest(false);
 
-        final Geometry geometry = new Geometry("Layer-" + layer.getType(), new Quad(columns, rows));
+        final Geometry geometry = new Geometry(layer.getName(), dimensions.toQuad());
         geometry.setMaterial(material);
         geometry.setQueueBucket(RenderQueue.Bucket.Transparent);
         return geometry;
@@ -95,17 +116,16 @@ public interface GameEngineRenderer extends Application, GameRenderer {
     private void positionCameraTarget(
         final LevelScene levelScene,
         final Node cameraTarget,
-        final int rows,
-        final int columns
+        final LevelSceneDimensions dimensions
     ) {
         final float startX;
         final float startY;
         if (levelScene.getRenderingStarterColumn() != null && levelScene.getRenderingStarterRow() != null) {
             startX = levelScene.getRenderingStarterColumn();
-            startY = (rows - 1) - levelScene.getRenderingStarterRow();
+            startY = (dimensions.rows() - 1) - levelScene.getRenderingStarterRow();
         } else {
-            startX = columns / 2.0F;
-            startY = rows / 2.0F;
+            startX = dimensions.columns() / 2.0F;
+            startY = dimensions.rows() / 2.0F;
         }
         cameraTarget.setLocalTranslation(startX, startY, 0);
     }

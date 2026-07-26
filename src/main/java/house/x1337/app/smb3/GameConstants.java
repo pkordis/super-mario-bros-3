@@ -83,9 +83,21 @@ public final class GameConstants {
 
     // -------------------------------------------------------------------------
     // Timing
+    //
+    // SIMULATION_FPS — the fixed rate at which game logic (physics, animation,
+    //                  P-meter, timers) advances. Must remain 60 to match the
+    //                  NES frame cadence that all per-tick constants assume.
+    //
+    // TARGET_FPS    — the rate at which frames are rendered and presented.
+    //                 May be set higher than SIMULATION_FPS for smoother visuals;
+    //                 the game loop accumulates real time and runs the correct
+    //                 number of simulation steps per render frame.
     // -------------------------------------------------------------------------
 
-    public static final int TARGET_FPS = 60;
+    public static final int SIMULATION_FPS = 60;
+    public static final double SIMULATION_DT = 1.0 / SIMULATION_FPS;
+
+    public static final int TARGET_FPS = 100;
     public static final double FRAME_TIME_SECONDS = 1.0 / TARGET_FPS;
 
     public static final Tile NULL_TILE = Tile
