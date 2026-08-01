@@ -82,10 +82,10 @@ import static java.lang.Math.min;
 @Slf4j
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
-    private final ActivePlayerState state = getBean(ActivePlayerState.class);
     private final LevelScenePlayerAnimationContext playerAnimationContext;
     private final PlayerInputHandler inputHandler;
     private final CollisionGrid collisionGrid;
+    private final ActivePlayerState state;
     private final PlayerPosition position;
     private final PlayerData playerData;
     private final GameEngine gameEngine;
@@ -115,6 +115,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             gameEngine
         );
         this.position = initializePosition();
+        this.state = getBean(ActivePlayerState.class);
         this.collisionGrid = getLevelScene().toCollisionGrid(this);
         this.playerAnimationContext = contextForLevel(this);
         setPlayerOrientationHorizontal(RIGHT);
@@ -371,8 +372,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
                 position.setDY(JUMP_FORCE[dx]);
                 state.setTo(JUMPING);
                 playerWagCount = 0;
-                // Full P-meter launch grants flight (raccoon mode)
-                if (isLarge() && getPlayerData().getPlayerPower() >= PMETER_LEVELS
+                // Full P-meter launch grants flyTime to ALL suits (dasm
+                // prg008 Player_JumpFlyFlutter: LDA #$80 / STA Player_FlyTime
+                // runs before the PowerUp_Ability check). For large suits this
+                // enables actual flight/wag Y-effects; for small Mario flyTime
+                // > 0 is used only as a visual cue to show PF_FASTJUMPFALLSMALL.
+                if (getPlayerData().getPlayerPower() >= PMETER_LEVELS
                         && playerFlyTime <= 0) {
                     playerFlyTime = FLY_TIME;
                 }
@@ -572,12 +577,17 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      */
     private void refinePlayerState(final boolean hitSomething, final boolean lowClearance) {
         if (state.isInAir()) {
-            if (playerFlyTime > 0) {
+            if (playerFlyTime > 0 && isLarge()) {
                 // dasm prg008: Player_FlyTime > 0 means the player is in
                 // powered flight mode (raccoon/tanooki). The animation system
                 // (Player_AnimTailWag) selects flying frames whenever FlyTime
                 // is nonzero, independent of WagCount. WagCount only controls
                 // the velocity cap physics, not the logical flight state.
+                //
+                // Small Mario also receives FlyTime on full-P launch (the dasm
+                // grants it to all suits before the ability check), but it has
+                // no flight Y-effects and uses JUMPING/FALLING states with the
+                // PF_FASTJUMPFALLSMALL visual frame instead of FLYING.
                 state.setTo(FLYING);
             } else if (position.getDY() < 0) {
                 state.setTo(JUMPING);

@@ -13,15 +13,14 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.asset.RaccoonAnimatorAssets;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
-import static com.jme3.texture.Texture.MagFilter.Nearest;
-import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
-import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
@@ -63,7 +62,7 @@ import static java.lang.Math.min;
  */
 @Prototype
 @RequiredArgsConstructor
-public final class RaccoonAnimator implements LevelScenePlayerAnimator {
+public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAnimatorAssets> {
 
     /**
      * NES tick counts before advancing to the next walk frame, indexed by
@@ -148,38 +147,8 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     @Getter
     private final PlayerIdentity identity;
 
-    // Loaded textures - walk
-    private Texture stillTexture;
-    private Texture walkTexture1;
-    private Texture walkTexture2;
-
-    // Loaded textures - run (spread-eagle)
-    private Texture runTexture1;
-    private Texture runTexture2;
-    private Texture runTexture3;
-
-    // Loaded textures - skid (rapid direction change)
-    private Texture skidTexture;
-
-    // Loaded textures - ducking
-    private Texture duckTexture;
-
-    // Loaded textures - jumping (airborne, no wag)
-    private Texture jumpTexture;
-
-    // Loaded textures - tail wag fall control (fluttering)
-    private Texture tailFallTexture1;
-    private Texture tailFallTexture2;
-
-    // Loaded textures - tail wag fly control (flying upward)
-    private Texture tailFlyTexture1;
-    private Texture tailFlyTexture2;
-    private Texture tailFlyTexture3;
-
-    // Loaded textures - tail attack (ground B press)
-    private Texture tailAttackTexture1;
-    private Texture tailAttackTexture2;
-    private Texture tailAttackTexture3;
+    @Setter
+    private RaccoonAnimatorAssets assets;
 
     // Animation state
     private int walkAnimTicks;
@@ -189,26 +158,6 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
     private PlayerState lastRenderedState;
     private PlayerOrientationHorizontal lastOrientation;
     private int lastWalkFrame = -1;
-
-    public void loadAssets() {
-        stillTexture = loadSprite("still.png");
-        walkTexture1 = loadSprite("walking_1.png");
-        walkTexture2 = loadSprite("walking_2.png");
-        runTexture1 = loadSprite("running_1.png");
-        runTexture2 = loadSprite("running_2.png");
-        runTexture3 = loadSprite("running_3.png");
-        skidTexture = loadSprite("rapid_turn.png");
-        duckTexture = loadSprite("ducking.png");
-        jumpTexture = loadSprite("jumping.png");
-        tailFallTexture1 = loadSprite("tail_wagging_control_fall_1.png");
-        tailFallTexture2 = loadSprite("tail_wagging_control_fall_2.png");
-        tailFlyTexture1 = loadSprite("tail_wagging_control_fly_1.png");
-        tailFlyTexture2 = loadSprite("tail_wagging_control_fly_2.png");
-        tailFlyTexture3 = loadSprite("tail_wagging_control_fly_3.png");
-        tailAttackTexture1 = loadSprite("tail_wagging_attack_1.png");
-        tailAttackTexture2 = loadSprite("tail_wagging_attack_2.png");
-        tailAttackTexture3 = loadSprite("tail_wagging_attack_3.png");
-    }
 
     public void update(final LevelScenePlayer levelScenePlayer) {
         final int tailAttack = levelScenePlayer.getPlayerTailAttack();
@@ -278,7 +227,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             walkFrameIndex = 0;
 
             if (lastRenderedState != DUCKING || lastOrientation != orientation) {
-                rebuildDuckTexture(node, duckTexture, orientation);
+                rebuildDuckTexture(node, assets.duckTexture(), orientation);
                 lastRenderedState = DUCKING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
@@ -292,7 +241,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             walkFrameIndex = 2; // Original: Player_WalkFrame forced to 2 when still
 
             if (lastRenderedState != STILL || lastOrientation != orientation) {
-                rebuildWithTexture(node, stillTexture, orientation);
+                rebuildWithTexture(node, assets.stillTexture(), orientation);
                 lastRenderedState = STILL;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
@@ -307,7 +256,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             walkFrameIndex = 0;
 
             if (lastRenderedState != SKIDDING || lastOrientation != orientation) {
-                rebuildSkidTexture(node, skidTexture, orientation);
+                rebuildSkidTexture(node, assets.skidTexture(), orientation);
                 lastRenderedState = SKIDDING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
@@ -410,7 +359,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
             // row in Player_TailWagFlyFrames when WagCount = 0).
             if (lastRenderedState != FALLING || lastOrientation != orientation
                     || lastWalkFrame != -1) {
-                rebuildWithTexture(node, tailFallTexture1, orientation, QUAD_WIDTH, TAIL_OFFSET);
+                rebuildWithTexture(node, assets.tailFallTexture1(), orientation, QUAD_WIDTH, TAIL_OFFSET);
                 lastRenderedState = FALLING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
@@ -421,7 +370,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         if (state == JUMPING) {
             // Jumping without wag - dedicated jump frame.
             if (lastRenderedState != JUMPING || lastOrientation != orientation) {
-                rebuildWithTexture(node, jumpTexture, orientation, QUAD_WIDTH, TAIL_OFFSET);
+                rebuildWithTexture(node, assets.jumpTexture(), orientation, QUAD_WIDTH, TAIL_OFFSET);
                 lastRenderedState = JUMPING;
                 lastOrientation = orientation;
                 lastWalkFrame = -1;
@@ -475,9 +424,9 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      */
     private Texture textureForWalkFrame(final int spriteFrame) {
         return switch (spriteFrame) {
-            case 1 -> walkTexture2;
-            case 2 -> stillTexture;
-            default -> walkTexture1;
+            case 1 -> assets.walkTexture2();
+            case 2 -> assets.stillTexture();
+            default -> assets.walkTexture1();
         };
     }
 
@@ -489,9 +438,9 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      */
     private Texture textureForRunFrame(final int spriteFrame) {
         return switch (spriteFrame) {
-            case 1 -> runTexture2;
-            case 2 -> runTexture3;
-            default -> runTexture1;
+            case 1 -> assets.runTexture2();
+            case 2 -> assets.runTexture3();
+            default ->assets.runTexture1();
         };
     }
 
@@ -504,9 +453,9 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      */
     private Texture textureForTailWagFlyFrame(final int frameOffset) {
         return switch (frameOffset) {
-            case 2 -> tailFlyTexture3;
-            case 1 -> tailFlyTexture2;
-            default -> tailFlyTexture1;
+            case 2 -> assets.tailFlyTexture3();
+            case 1 -> assets.tailFlyTexture2();
+            default -> assets.tailFlyTexture1();
         };
     }
 
@@ -519,9 +468,9 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      */
     private Texture textureForTailWagFallFrame(final int frameOffset) {
         if (frameOffset == 1) {
-            return tailFallTexture2;
+            return assets.tailFallTexture2();
         }
-        return tailFallTexture1;
+        return assets.tailFallTexture1();
     }
 
     /**
@@ -538,9 +487,9 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
      */
     private Texture textureForTailAttackFrame(final int frameIndex, final boolean inAir) {
         return switch (frameIndex) {
-            case 1 -> tailAttackTexture2;
-            case 3 -> tailAttackTexture3;
-            default -> inAir ? walkTexture1 : tailAttackTexture1;
+            case 1 -> assets.tailAttackTexture2();
+            case 3 -> assets.tailAttackTexture3();
+            default -> inAir ? assets.walkTexture1() : assets.tailAttackTexture1();
         };
     }
 
@@ -658,13 +607,5 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator {
         }
 
         node.attachChild(geometry);
-    }
-
-    private Texture loadSprite(final String filename) {
-        final Texture texture = getAssetManager().loadTexture(getFramesParentContext() + filename);
-        texture.setMagFilter(Nearest);
-        texture.setMinFilter(NearestNoMipMaps);
-        texture.setWrap(EdgeClamp);
-        return texture;
     }
 }
