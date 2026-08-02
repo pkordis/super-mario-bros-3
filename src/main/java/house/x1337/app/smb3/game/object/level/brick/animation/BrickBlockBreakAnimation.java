@@ -1,21 +1,15 @@
-package house.x1337.app.smb3.game.object.level.brick.animator;
+package house.x1337.app.smb3.game.object.level.brick.animation;
 
-import com.jme3.asset.AssetManager;
-import com.jme3.material.Material;
-import com.jme3.material.RenderState;
-import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Getter;
 
 import static com.jme3.material.RenderState.FaceCullMode.Off;
-import static com.jme3.texture.Texture.MagFilter.Nearest;
-import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
-import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
 /**
@@ -25,7 +19,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
  * jme3 Y increases upward; tile row 0 = top of level.
  */
 @Getter
-public final class BrickBlockAnimation {
+public final class BrickBlockBreakAnimation implements GameRenderer {
 
     // -- Physics constants measured from video capture (smb3.avi, 60 FPS) --
 
@@ -66,8 +60,11 @@ public final class BrickBlockAnimation {
     /**
      * Fragment sprite: 8 sprite-pixels wide × 16 tall.
      */
-    private static final float FRAG_W = 8.0f / TILE_SPRITE_SIZE;
-    private static final float FRAG_H = 16.0f / TILE_SPRITE_SIZE;
+    private static final Dimensions FRAGMENT_DIMENSIONS = new Dimensions(
+        "BrickFragment",
+        8.0f / TILE_SPRITE_SIZE,
+        16.0f / TILE_SPRITE_SIZE
+    );
 
     /**
      * Z for fragments — in front of the player (FOREGROUND = 0.1) to overlay Mario,
@@ -136,7 +133,7 @@ public final class BrickBlockAnimation {
 
     // ---------------------------------------------------------------------
 
-    public BrickBlockAnimation(
+    public BrickBlockBreakAnimation(
         final GameEngine gameEngine,
         final Offset offset
     ) {
@@ -159,7 +156,11 @@ public final class BrickBlockAnimation {
 
         final Texture texture = loadTexture(gameEngine.getAssetManager(), FRAGMENT_ASSET);
         for (int i = 0; i < 4; i++) {
-            fragmentGeometries[i] = buildQuad(gameEngine.getAssetManager(), texture);
+            fragmentGeometries[i] = fromTexture(
+                gameEngine.getAssetManager(),
+                texture,
+                FRAGMENT_DIMENSIONS
+            );
             // Always disable face culling — fragments can be V-flipped (scale -Y)
             // which reverses the winding order, so we must render both sides.
             fragmentGeometries[i].getMaterial()
@@ -216,7 +217,7 @@ public final class BrickBlockAnimation {
         // +FRAG_H to keep the quad in the same world position (negative scale
         // pivots around the quad's local origin at its bottom edge).
         final float sy = vFlip ? -1f : 1f;
-        final float vShift = vFlip ? FRAG_H : 0f;
+        final float vShift = vFlip ? FRAGMENT_DIMENSIONS.height() : 0f;
 
         positionFragment(0, leftX, upperPairY, 1f, sy, vShift, false);  // UL
         positionFragment(1, rightX, upperPairY, -1f, sy, vShift, true); // UR — H-mirrored
@@ -242,7 +243,7 @@ public final class BrickBlockAnimation {
             return;
         }
         // H-flip: negative scaleX; pivot offset = +FRAG_W to keep the quad right-edge-anchored.
-        final float hShift = hFlip ? FRAG_W : 0f;
+        final float hShift = hFlip ? FRAGMENT_DIMENSIONS.width() : 0f;
         fragmentGeometries[idx].setLocalTranslation(
             (float) x + hShift,
             (float) y + vShift,
@@ -251,18 +252,10 @@ public final class BrickBlockAnimation {
         fragmentGeometries[idx].setLocalScale(sx, sy, 1f);
     }
 
-    private Texture loadTexture(
-        final AssetManager assetManager,
-        final String path
+    private void checkOffScreen(
+        final int idx,
+        final double y
     ) {
-        final Texture texture = assetManager.loadTexture(path);
-        texture.setMagFilter(Nearest);
-        texture.setMinFilter(NearestNoMipMaps);
-        texture.setWrap(EdgeClamp);
-        return texture;
-    }
-
-    private void checkOffScreen(final int idx, final double y) {
         if ((hiddenMask & (1 << idx)) != 0) {
             return;
         }
@@ -272,17 +265,5 @@ public final class BrickBlockAnimation {
             hiddenMask |= (1 << idx);
             rootNode.detachChild(fragmentGeometries[idx]);
         }
-    }
-
-    private Geometry buildQuad(final AssetManager assetManager, final Texture tex) {
-        final Geometry g = new Geometry("BrickFrag", new Quad(FRAG_W, FRAG_H));
-        final Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat.setTexture("ColorMap", tex);
-        mat.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
-        mat.getAdditionalRenderState().setDepthWrite(false);
-        mat.getAdditionalRenderState().setDepthTest(false);
-        g.setMaterial(mat);
-        g.setQueueBucket(RenderQueue.Bucket.Translucent);
-        return g;
     }
 }

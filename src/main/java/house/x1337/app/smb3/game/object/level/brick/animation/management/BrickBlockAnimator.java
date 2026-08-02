@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.brick.animator;
+package house.x1337.app.smb3.game.object.level.brick.animation.management;
 
 import com.jme3.scene.Geometry;
 import com.jme3.texture.Image;
@@ -16,7 +16,9 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
@@ -56,6 +58,7 @@ public final class BrickBlockAnimator implements GameObjectAnimator<BrickBlock> 
     private static final int FRAME_COUNT = 4;
 
     private final List<BrickBlockWithoutReward> bricks = new ArrayList<>();
+    private final Set<Offset> pausedOffsets = new HashSet<>();
     private Geometry interactiveObjectsLayerGeometry;
     private LevelSceneDimensions dimensions;
     private int currentFrame;
@@ -84,6 +87,36 @@ public final class BrickBlockAnimator implements GameObjectAnimator<BrickBlock> 
 
     public void unregisterAt(final Offset offset) {
         bricks.removeIf(b -> b.getOffset().equals(offset));
+    }
+
+    /**
+     * Temporarily pauses shimmer animation for a brick at the given offset.
+     * The brick remains in the list but is skipped during painting.
+     * Call {@link #resumeAt(Offset)} to resume animation.
+     *
+     * @param offset the tile offset to pause
+     */
+    public void pauseAt(final Offset offset) {
+        pausedOffsets.add(offset);
+    }
+
+    /**
+     * Resumes shimmer animation for a previously paused brick.
+     *
+     * @param offset the tile offset to resume
+     */
+    public void resumeAt(final Offset offset) {
+        pausedOffsets.remove(offset);
+    }
+
+    /**
+     * Checks if a brick at the given offset is currently paused.
+     *
+     * @param offset the tile offset to check
+     * @return true if paused, false otherwise
+     */
+    public boolean isPausedAt(final Offset offset) {
+        return pausedOffsets.contains(offset);
     }
 
     @Override
@@ -117,6 +150,10 @@ public final class BrickBlockAnimator implements GameObjectAnimator<BrickBlock> 
         final int imageWidth = dimensions.columns() * TILE_SPRITE_SIZE;
 
         for (final BrickBlockWithoutReward brick : bricks) {
+            // Skip paused bricks (e.g. during bounce animation)
+            if (pausedOffsets.contains(brick.getOffset())) {
+                continue;
+            }
             writeTile(buf, pixels, brick.getOffset(), imageWidth);
         }
         image.setUpdateNeeded();

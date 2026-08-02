@@ -33,6 +33,12 @@ public final class GameConstants {
     /** Integer scale factor: screen pixels rendered per sprite pixel. */
     public static final int TILE_SCALE = 4;
 
+
+    /**
+     * Sprite size: one full tile (16×16 sprite pixels).
+     */
+    public static final float TILE_SIZE_GAME_UNITS = 1.0f;
+
     /**
      * Logical tile size used throughout game-world maths (collision, camera, layout).
      * Equals {@code TILE_SPRITE_SIZE × TILE_SCALE} = 64 px.

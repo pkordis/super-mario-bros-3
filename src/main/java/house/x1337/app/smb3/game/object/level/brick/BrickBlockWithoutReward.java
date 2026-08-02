@@ -5,8 +5,8 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.collision.CollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.brick.animator.BrickBlockBreakAnimationManager;
-import house.x1337.app.smb3.game.object.level.brick.animator.BrickBlockAnimator;
+import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockBreakAnimationManager;
+import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
@@ -24,6 +24,21 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
  * <ul>
  *   <li><b>Large Mario</b> — the block is destroyed immediately. The tile is erased from
  *       the baked background texture and four flying fragments are spawned.</li>
+ *   <li><b>Small Mario</b> — the block is not destroyed. Instead, a 10-frame bounce
+ *       animation plays where the brick quickly shifts upward then back to its original
+ *       position. The brick remains solid throughout.</li>
+ * </ul>
+ *
+ * <h2>Bounce physics — ported from dasm {@code prg001.asm ObjNorm_BounceDU}</h2>
+ * <p>When small Mario hits the brick from below:
+ * <ul>
+ *   <li>A position counter ({@code Level_BlkBump_Pos}) is set to 10 and decrements each frame.</li>
+ *   <li>Y velocity is read from the {@code Bouncer_PUpVel} table at the current position index.</li>
+ *   <li>Velocity values (in 4.4 fixed-point, 16ths of a pixel per frame):
+ *       <pre>$00, -$40, -$40, -$30, -$20, -$10, $00, $10, $20, $30, $40</pre></li>
+ *   <li>The brick rises ~4 pixels over the first few frames, pauses at the apex,
+ *       then descends back to its resting position over 10 frames total.</li>
+ *   <li>A bump sound ({@code SND_PLAYERBUMP}) is played when hit.</li>
  * </ul>
  *
  * <h2>Fragment physics — ported from dasm {@code prg007.asm BrickBusts_DrawAndUpdate}</h2>
@@ -80,7 +95,9 @@ public class BrickBlockWithoutReward implements BrickBlock {
             // Erase tile visually and spawn the four flying fragments
             triggerBreak(gameEngine);
         } else {
-            // TODO: Implement bump animation for small Mario head-hit (10-frame bounce from dasm prg001.asm Bouncer_PUpVel)
+            // Small Mario bounce: brick stays intact but visually bounces
+            // Ported from dasm prg001.asm ObjNorm_BounceDU / Bouncer_PUpVel
+            brickBlockBreakAnimationManager.spawnBounce(gameEngine, offset);
         }
     }
 }
