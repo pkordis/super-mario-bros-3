@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.object;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
+import house.x1337.app.smb3.game.object.level.AnimationManager;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -14,15 +15,14 @@ import java.util.Map;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface GameObjectAnimator<A extends AnimatableLevelObject> {
+public interface GameObjectAnimator<A extends AnimatableLevelObject> extends AnimationManager {
     void add(A animatableLevelObject);
     void reset();
-    void tick();
     void registerLevel(
         Geometry interactiveObjectsLayerGeometry,
         LevelSceneDimensions dimensions
     );
-    List<Class<? extends AnimatableLevelObject>> getSupportedTypes();
+    List<Class<? extends A>> getSupportedTypes();
 
     @Singleton
     @RequiredArgsConstructor
@@ -70,7 +70,13 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> {
         public GameObjectAnimator<AnimatableLevelObject> findSuitableAnimator(
             final Class<? extends AnimatableLevelObject> animatableObjectType
         ) {
-            return getAllMapped().get(animatableObjectType);
+            final GameObjectAnimator<AnimatableLevelObject> animator = getAllMapped().get(animatableObjectType);
+            if (animator == null) {
+                throw new IllegalStateException(
+                    "No suitable GameObjectAnimator found for type " + animatableObjectType
+                );
+            }
+            return animator;
         }
     }
 }

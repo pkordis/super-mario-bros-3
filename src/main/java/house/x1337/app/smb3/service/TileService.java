@@ -163,6 +163,43 @@ public class TileService implements TilesProvider {
         );
     }
 
+    /**
+     * Creates a new custom tile record with the given properties.
+     *
+     * @param type             the tile type
+     * @param description      optional description
+     * @param originalArgbData the original ARGB pixel data (as imported from PNG)
+     * @param editedArgbData   the edited ARGB pixel data (after user modifications)
+     * @return the created TileRecord
+     */
+    public TileRecord createCustomTile(
+        final TileType type,
+        final String description,
+        final int[] originalArgbData,
+        final int[] editedArgbData
+    ) {
+        final String sha256 = calculateSha256(originalArgbData);
+
+        final TileRecord record = TileRecord.builder()
+            .id(nextTileId++)
+            .sha256(sha256)
+            .type(type)
+            .description(description)
+            .originalArgbData(originalArgbData)
+            .argbData(editedArgbData)
+            .build();
+
+        tileRepository.insert(record);
+
+        final Tile tile = record.toTile();
+        tileCache.put(tile.getId(), tile);
+        tilesBySha256.put(sha256, tile);
+
+        log.info("Created custom tile: id={}, type={}, sha256={}", record.getId(), type, sha256);
+
+        return record;
+    }
+
     private Tile fromPixels(final String sha256, final int[] argbPixels) {
         return Tile.builder()
             .id(nextTileId++)

@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.ui.editor.level.menu.tile;
+package house.x1337.app.smb3.ui.editor.level.menu.levelobject;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.ui.editor.level.menu.LevelSceneEditorWindowMenuItem;
@@ -12,7 +12,7 @@ public class EditInteractiveSingleTiledMenuItem extends LevelSceneEditorWindowMe
 
     @PostConstruct
     void init() {
-        setText("Single Tiled");
+        setText("Single Tiled...");
         addActionListener(e -> openWindow());
     }
 

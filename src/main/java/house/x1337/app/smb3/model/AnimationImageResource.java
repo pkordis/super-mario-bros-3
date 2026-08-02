@@ -15,4 +15,8 @@ public class AnimationImageResource {
     public int[] getFrameRgbData(final int frameIdx) {
         return imageResources.get(frameIdx).getRgbData();
     }
+
+    public int number() {
+        return imageResources.size();
+    }
 }

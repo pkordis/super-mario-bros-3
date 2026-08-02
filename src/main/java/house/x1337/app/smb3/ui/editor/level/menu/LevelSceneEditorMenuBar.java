@@ -12,6 +12,7 @@ public class LevelSceneEditorMenuBar extends JMenuBar {
     private final FileMenu fileMenu;
     private final EditMenu editMenu;
     private final TilesMenu tilesMenu;
+    private final LevelObjectsMenu levelObjectsMenu;
     private final LevelSceneMenu levelSceneMenu;
 
     @PostConstruct
@@ -19,6 +20,7 @@ public class LevelSceneEditorMenuBar extends JMenuBar {
         add(fileMenu);
         add(editMenu);
         add(tilesMenu);
+        add(levelObjectsMenu);
         add(levelSceneMenu);
     }
 }

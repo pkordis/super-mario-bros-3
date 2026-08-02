@@ -29,7 +29,7 @@ public final class BrickBlockBreakAnimationManager implements AnimationManager {
      */
     @Override
     public void update() {
-        brickBlockAnimator.tick();
+        brickBlockAnimator.update();
 
         // Update break animations
         final Iterator<BrickBlockBreakAnimation> breakIterator = activeBreaks.iterator();

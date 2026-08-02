@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
+import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.LevelObjectService;
 
@@ -76,7 +77,7 @@ public interface CollisionGridCapabilities {
                 }
 
                 objects[row][col] = record.toLevelObject(Offset.of(col, row));
-                objects[row][col].configure(record.getData());
+                objects[row][col].configure(new LevelObjectData(record.getData()));
             }
         }
 

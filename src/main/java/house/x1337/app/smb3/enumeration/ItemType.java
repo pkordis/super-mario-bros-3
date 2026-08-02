@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.enumeration;
 
-public enum Item {
+public enum ItemType {
     ANCHOR,
     COIN_MULTIPLE,
     COIN_SINGLE,

@@ -79,7 +79,7 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
      */
     private static final int FLIP_PERIOD = 4;
 
-    private static final String FRAGMENT_ASSET = "sprites/object/brick/fragment.png";
+    private static final String FRAGMENT_ASSET = "sprites/object/brick/plain/fragment.png";
 
     // -- Position fields ---------------------------------------------------
 
