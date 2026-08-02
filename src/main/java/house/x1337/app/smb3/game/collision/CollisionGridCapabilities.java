@@ -76,6 +76,7 @@ public interface CollisionGridCapabilities {
                 }
 
                 objects[row][col] = record.toLevelObject(Offset.of(col, row));
+                objects[row][col].configure(record.getData());
             }
         }
 
@@ -93,6 +94,11 @@ public interface CollisionGridCapabilities {
             }
         }
 
-        return new CollisionGrid(levelScenePlayer, objects, dimensions, levelScenePlayer.getGameEngine());
+        return new CollisionGrid(
+            levelScenePlayer,
+            objects,
+            dimensions,
+            levelScenePlayer.getGameEngine()
+        );
     }
 }

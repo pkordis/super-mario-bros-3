@@ -2,7 +2,6 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
-import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelObjectOffset;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -161,16 +160,6 @@ public final class CollisionGrid implements GameMath {
         return hitWall;
     }
 
-    /**
-     * Checks whether the tile struck during a head-hit is a {@link BrickBlockWithoutReward}
-     * and, if so, removes it from the collision grid and triggers the appropriate animation.
-     *
-     * <p>Uses {@code tVert.first()} — the single upward probe shared by both left-half and
-     * right-half large-player probes (Offset(0x08, 0x06)) — to resolve the hit tile's
-     * grid coordinates.
-     *
-     * @param tVert vertical probe for the current move direction
-     */
     private void handleVerticalCollision(final ProbeLocation tVert) {
         final LevelObjectOffset objectOffset = fromPlayerOffset(levelScenePlayer, tVert.first());
         if (objectOffset.isOutsideOf(this)) {
