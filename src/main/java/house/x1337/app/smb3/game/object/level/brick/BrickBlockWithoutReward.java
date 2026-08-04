@@ -8,6 +8,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockBreakAnimationManager;
 import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
@@ -63,6 +64,7 @@ public class BrickBlockWithoutReward implements BrickBlock {
     private final BrickBlockBreakAnimationManager animationManager = getBean(BrickBlockBreakAnimationManager.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final LevelObjectType type = BRICK_BLOCK_NO_REWARD;
+    private final ImageResource imageResource;
     private final Offset offset;
 
     public void triggerBreak(final GameEngine gameEngine) {

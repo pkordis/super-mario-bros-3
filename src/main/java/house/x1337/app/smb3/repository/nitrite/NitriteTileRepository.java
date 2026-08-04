@@ -9,6 +9,8 @@ import org.dizitart.no2.repository.ObjectRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 import static org.dizitart.no2.filters.FluentFilter.where;
 
 @Repository
@@ -26,6 +28,14 @@ public class NitriteTileRepository implements TileRepository {
     @Override
     public Iterable<TileRecord> findAll() {
         return tileObjectRepository.find();
+    }
+
+    @Override
+    public Optional<TileRecord> findById(final int id) {
+        for (final TileRecord record : tileObjectRepository.find(where("id").eq(id))) {
+            return Optional.of(record);
+        }
+        return Optional.empty();
     }
 
     @Override

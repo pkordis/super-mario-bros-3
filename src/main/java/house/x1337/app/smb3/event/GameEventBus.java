@@ -2,6 +2,7 @@ package house.x1337.app.smb3.event;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.model.event.GameEvent;
+import house.x1337.app.smb3.util.CastCapable;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -21,7 +22,7 @@ import java.util.function.Consumer;
  */
 @Slf4j
 @Singleton
-public final class GameEventBus {
+public final class GameEventBus implements CastCapable {
     private final Map<Class<? extends GameEvent>, List<Consumer<GameEvent>>> listeners = new ConcurrentHashMap<>();
 
     public <T extends GameEvent> void subscribe(
@@ -31,9 +32,7 @@ public final class GameEventBus {
         if (!listeners.containsKey(eventType)) {
             listeners.put(eventType, new CopyOnWriteArrayList<>());
         }
-        @SuppressWarnings("unchecked")
-        final Consumer<GameEvent> castedListener = (Consumer<GameEvent>) listener;
-        listeners.get(eventType).add(castedListener);
+        listeners.get(eventType).add(checkedCast(listener));
     }
 
     public <T extends GameEvent> void unsubscribe(final Class<T> eventType) {
@@ -41,8 +40,7 @@ public final class GameEventBus {
     }
 
     public <T extends GameEvent> void publish(final T event) {
-        @SuppressWarnings("unchecked")
-        final Class<T> eventType = (Class<T>) event.getClass();
+        final Class<T> eventType = checkedCast(event.getClass());
         final List<Consumer<GameEvent>> consumers = listeners.get(eventType);
         if (consumers == null) {
             return;

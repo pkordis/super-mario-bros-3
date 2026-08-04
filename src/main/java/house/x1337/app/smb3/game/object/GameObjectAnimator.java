@@ -5,6 +5,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.AnimationManager;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.util.CastCapable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -26,7 +27,7 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Ani
 
     @Singleton
     @RequiredArgsConstructor
-    class Registry {
+    class Registry implements CastCapable {
         private final ListableBeanFactory beanFactory;
         @Getter(lazy = true)
         private final List<? extends GameObjectAnimator<?>> all = findAll();
@@ -55,16 +56,11 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Ani
             final Map<Class<? extends AnimatableLevelObject>, GameObjectAnimator<AnimatableLevelObject>> map =
                 new HashMap<>();
             for (final GameObjectAnimator<?> animator : getAll()) {
-                for (final Class<? extends AnimatableLevelObject> supportedType : animator.getSupportedTypes()) {
-                    map.put(supportedType, downcast(animator));
+                for (final Class<?> supportedType : animator.getSupportedTypes()) {
+                    map.put(checkedCast(supportedType), checkedCast(animator));
                 }
             }
             return map;
-        }
-
-        @SuppressWarnings("unchecked")
-        private GameObjectAnimator<AnimatableLevelObject> downcast(final GameObjectAnimator<?> animator) {
-            return (GameObjectAnimator<AnimatableLevelObject>) animator;
         }
 
         public GameObjectAnimator<AnimatableLevelObject> findSuitableAnimator(
