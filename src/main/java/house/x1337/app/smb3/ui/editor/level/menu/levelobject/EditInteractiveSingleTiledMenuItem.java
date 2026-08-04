@@ -9,7 +9,6 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Singleton
 public class EditInteractiveSingleTiledMenuItem extends LevelSceneEditorWindowMenuItem {
-
     @PostConstruct
     void init() {
         setText("Single Tiled...");

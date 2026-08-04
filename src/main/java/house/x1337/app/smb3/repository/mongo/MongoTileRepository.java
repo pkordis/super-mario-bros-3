@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Updates.combine;
 import static com.mongodb.client.model.Updates.set;
@@ -30,6 +32,12 @@ public class MongoTileRepository implements TileRepository {
     @Override
     public Iterable<TileRecord> findAll() {
         return tileMongoCollection.find();
+    }
+
+    @Override
+    public Optional<TileRecord> findById(final int id) {
+        final TileRecord record = tileMongoCollection.find(eq("_id", id)).first();
+        return Optional.ofNullable(record);
     }
 
     @Override

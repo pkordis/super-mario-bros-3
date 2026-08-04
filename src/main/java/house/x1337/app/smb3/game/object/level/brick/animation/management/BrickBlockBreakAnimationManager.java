@@ -94,4 +94,5 @@ public final class BrickBlockBreakAnimationManager implements AnimationManager {
         }
         activeBounces.add(new BrickBlockBounceAnimation(gameEngine, offset, brickBlockAnimator));
     }
+
 }

@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_
 public class BrickBlockWithReward implements BrickBlock {
     private final LevelObjectType type = BRICK_BLOCK_WITH_REWARD;
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
+    private final ImageResource imageResource;
     private final Offset offset;
 
     public void triggerReward(final GameEngine gameEngine) {
