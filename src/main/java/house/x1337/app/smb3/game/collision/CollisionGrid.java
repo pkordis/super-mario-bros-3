@@ -187,6 +187,14 @@ public final class CollisionGrid implements GameMath {
         }
     }
 
+    public void placeLevelObjectAt(final Offset offset, final LevelObject levelObject) {
+        try {
+            objects[offset.y()][offset.x()] = levelObject;
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            log.error("placeLevelObjectAt error", e);
+        }
+    }
+
     private boolean isSolidVert(
         final ProbeLocation tVert,
         final boolean playerIsMovingUp

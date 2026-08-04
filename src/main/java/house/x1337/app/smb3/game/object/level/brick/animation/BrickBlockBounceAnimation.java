@@ -116,7 +116,7 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
     );
 
 
-    private static final String BRICK_SPRITE_ASSET = "sprites/object/brick/brick_frame_0.png";
+    private static final String BRICK_SPRITE_ASSET = "sprites/object/brick/plain/frame_0.png";
 
     // -- Position fields ---------------------------------------------------
 

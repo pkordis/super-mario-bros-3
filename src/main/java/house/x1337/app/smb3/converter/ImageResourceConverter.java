@@ -15,6 +15,8 @@ import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
+import static house.x1337.app.smb3.model.ImageResource.fromData;
+
 @Slf4j
 @Singleton
 public class ImageResourceConverter extends BaseValueConverter<ImageResource> {
@@ -32,10 +34,10 @@ public class ImageResourceConverter extends BaseValueConverter<ImageResource> {
             final int height = image.getHeight();
             final int[] rgbData = new int[width * height];
             image.getRGB(0, 0, width, height, rgbData, 0, width);
-            return new ImageResource(rgbData, width, height);
+            return fromData(rgbData, width, height);
         } catch (final IOException e) {
             log.error("Failed to load image resource: {}", source, e);
-            return new ImageResource(new int[0], 0, 0);
+            return fromData(new int[0], 0, 0);
         }
     }
 }

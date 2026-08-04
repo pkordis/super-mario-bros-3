@@ -41,6 +41,7 @@ public final class PlayerInputHandler
     public static final String HANDLER_RUN = "PLAYER_RUN";
     public static final String HANDLER_SIZE_TOGGLE = "PLAYER_SIZE_TOGGLE";
     public static final String HANDLER_LAYER_TOGGLE = "PLAYER_LAYER_TOGGLE";
+    public static final String HANDLER_CAPTURE_TOGGLE = "PLAYER_CAPTURE_TOGGLE";
     public static final String HANDLER_EXIT = "PLAYER_EXIT";
 
     /** Keys currently held down. */

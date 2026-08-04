@@ -9,11 +9,8 @@ import house.x1337.app.smb3.service.LevelObjectService;
 import house.x1337.app.smb3.service.TileService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -61,7 +58,6 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
 
     private final TileService tileService = getBean(TileService.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
-    private final JFrame parentFrame;
     private final int[] originalArgbData;
 
     // Object properties
@@ -86,7 +82,6 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         final int[] originalArgbData
     ) {
         super(parent);
-        this.parentFrame = parent;
         this.originalArgbData = originalArgbData;
         this.tileEditorPanel = getBean(CustomLevelObjectTileEditorPanel.class, originalArgbData);
     }
@@ -181,6 +176,15 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         tableScroll.setPreferredSize(new Dimension(300, 200));
 
         // Buttons for adding/removing rows
+        final JPanel tableButtons = createTableButtons();
+
+        panel.add(tableScroll, CENTER);
+        panel.add(tableButtons, SOUTH);
+
+        return panel;
+    }
+
+    private @NonNull JPanel createTableButtons() {
         final JPanel tableButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
         final JButton addRowButton = new JButton("Add");
         addRowButton.addActionListener(e -> customDataModel.addRow(new String[]{"", ""}));
@@ -193,11 +197,7 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         });
         tableButtons.add(addRowButton);
         tableButtons.add(removeRowButton);
-
-        panel.add(tableScroll, CENTER);
-        panel.add(tableButtons, SOUTH);
-
-        return panel;
+        return tableButtons;
     }
 
     private JPanel buildFooter() {

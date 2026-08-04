@@ -6,7 +6,7 @@ import house.x1337.app.smb3.game.object.level.SolidLevelObject;
 import house.x1337.app.smb3.game.object.level.block.QuestionBlock;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithReward;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
-import house.x1337.app.smb3.game.object.level.brick.EmptyBlock;
+import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

@@ -6,8 +6,8 @@ original**/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-*.py
 *.log
+*.ps1
 
 ### STS ###
 .apt_generated

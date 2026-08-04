@@ -51,7 +51,7 @@ public final class EditInteractiveSingleTiledWindow extends JDialog implements C
 
     @PostConstruct
     void init() {
-        setTitle("Edit Interactive Objects \u2013 Single Tiled");
+        setTitle("Edit Interactive Objects - Single Tiled");
         setModal(false);
         setDefaultCloseOperation(HIDE_ON_CLOSE);
         setResizable(true);
