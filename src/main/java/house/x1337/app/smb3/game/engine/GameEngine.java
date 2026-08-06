@@ -1,5 +1,8 @@
 package house.x1337.app.smb3.game.engine;
 
+import com.jme3.input.KeyInput;
+import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
 import house.x1337.app.smb3.annotation.Prototype;
@@ -11,6 +14,7 @@ import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -45,6 +49,7 @@ public final class GameEngine extends GameEngineCapabilities {
     private GameContext gameContext = LEVEL_SCENE;
     private HeadsUpDisplay headsUpDisplay;
     private Player player;
+    private FrameCaptureState frameCaptureState;
 
     /**
      * Accumulates real elapsed time between render frames. When it exceeds
@@ -139,6 +144,29 @@ public final class GameEngine extends GameEngineCapabilities {
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
         playerData.getPlayerTimer().setInitialTime(300);
         playerData.getPlayerTimer().start();
+
+        // Frame-capture state — toggled by pressing 9.
+        // Uses a post viewport so the readback fires after all main viewports
+        // (game scene + HUD) have fully rendered including their Translucent
+        // bucket, which is where the player sprite lives.
+        frameCaptureState = new FrameCaptureState();
+        stateManager.attach(frameCaptureState);
+        registerCaptureTrigger();
+    }
+
+    private void registerCaptureTrigger() {
+        getInputManager().addMapping(
+            PlayerInputHandler.HANDLER_CAPTURE_TOGGLE,
+            new KeyTrigger(KeyInput.KEY_9)
+        );
+        getInputManager().addListener(
+            (ActionListener) (name, isPressed, tpf) -> {
+                if (isPressed && PlayerInputHandler.HANDLER_CAPTURE_TOGGLE.equals(name)) {
+                    frameCaptureState.toggleCapture();
+                }
+            },
+            PlayerInputHandler.HANDLER_CAPTURE_TOGGLE
+        );
     }
 
     @Override
