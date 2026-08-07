@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+
 /**
  * Manages coin pop and score popup animations spawned when hitting ? blocks.
  *
@@ -151,7 +153,7 @@ public final class CoinRewardAnimationManager implements AnimationManager {
         }
 
         // Spawn coin animation
-        final CoinPopAnimation coinAnim = new CoinPopAnimation(gameEngine, offset);
+        final CoinPopAnimation coinAnim = getBean(CoinPopAnimation.class, gameEngine, offset);
         activeCoins.add(coinAnim);
 
         // Register pending score popup (will spawn when coin expires)
