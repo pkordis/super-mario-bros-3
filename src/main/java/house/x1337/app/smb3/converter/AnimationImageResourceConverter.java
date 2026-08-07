@@ -18,7 +18,7 @@ public class AnimationImageResourceConverter extends BaseValueConverter<Animatio
 
     @Override
     public AnimationImageResource convert(@NonNull final String source) {
-        final Matcher matcher = IMG_BUNDLE_REGEX.matcher(source);
+        Matcher matcher = IMG_BUNDLE_REGEX.matcher(source);
         if (matcher.matches()) {
             final String name = matcher.group(1);
             final int start = Integer.parseInt(matcher.group(2));
@@ -31,6 +31,9 @@ public class AnimationImageResourceConverter extends BaseValueConverter<Animatio
             }
             return builder.build();
         }
-        throw new IllegalArgumentException("Value supplied does not conform to " + IMG_BUNDLE_REGEX);
+        return AnimationImageResource
+            .builder()
+            .imageResource(imageResourceConverter.convert(source))
+            .build();
     }
 }
