@@ -7,7 +7,6 @@ import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.model.AnimationImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
-import org.springframework.core.ResolvableType;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -18,12 +17,6 @@ import java.util.Set;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
 public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObject> implements GameObjectAnimator<A> {
-    @SuppressWarnings("unchecked")
-    private final Class<A> genericType = (Class<A>) ResolvableType
-        .forClass(getClass())
-        .as(GameObjectAnimatorSingleTiled.class)
-        .getGeneric(0)
-        .getRawClass();
     private final List<A> animatableLevelObjects = new ArrayList<>();
     private final Set<Offset> pausedOffsets = new HashSet<>();
     private Geometry interactiveObjectsLayerGeometry;
@@ -115,7 +108,6 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
     public boolean isPausedAt(final Offset offset) {
         return pausedOffsets.contains(offset);
     }
-
 
     private void paintFrame(final int frameIdx) {
         final Texture2D texture = (Texture2D) interactiveObjectsLayerGeometry

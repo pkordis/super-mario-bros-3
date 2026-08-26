@@ -68,4 +68,8 @@ public final class PlayerData {
     public boolean haveTimerActive() {
         return playerTimer.isActive();
     }
+
+    public void addToScore(final Integer score) {
+        this.score += score;
+    }
 }

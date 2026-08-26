@@ -3,7 +3,7 @@ package house.x1337.app.smb3.enumeration;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.brick.GiantBrickBlock;
-import house.x1337.app.smb3.game.object.level.brick.GiantEmptyBlock;
+import house.x1337.app.smb3.game.object.level.block.GiantEmptyBlock;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

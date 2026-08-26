@@ -1,6 +1,9 @@
 package house.x1337.app.smb3.service;
 
 import house.x1337.app.smb3.annotation.Singleton;
+import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
+import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.repository.LevelObjectRepository;
 import jakarta.annotation.PostConstruct;
@@ -14,10 +17,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_BLOCK;
+
 @Slf4j
 @Singleton
 @RequiredArgsConstructor
 public class LevelObjectService {
+    private final Map<LevelObjectTypeSingleTiled, Integer> singleTiledLevelObjectIdsByType = new HashMap<>();
     private final Map<Integer, LevelObjectRecord> cache = new HashMap<>();
     private final LevelObjectRepository levelObjectRepository;
 
@@ -69,5 +75,31 @@ public class LevelObjectService {
             record.getId(),
             record.getType()
         );
+    }
+
+    public Optional<Integer> getLevelObjectIdOfType(
+        final LevelObjectTypeSingleTiled levelObjectTypeSingleTiled
+    ) {
+        final Integer id = singleTiledLevelObjectIdsByType.get(levelObjectTypeSingleTiled);
+        if (id != null) {
+            return Optional.of(id);
+        }
+        final String type = EMPTY_BLOCK.name();
+        final Integer matchedId = cache
+            .entrySet()
+            .stream()
+            .filter(e -> type.equals(e.getValue().getType()))
+            .findFirst()
+            .map(Map.Entry::getKey)
+            .orElseThrow();
+        singleTiledLevelObjectIdsByType.put(levelObjectTypeSingleTiled, matchedId);
+        return Optional.of(matchedId);
+    }
+
+    public EmptyBlock createEmptyBlock(final Offset offset) {
+        final Optional<Integer> emptyBlockId = getLevelObjectIdOfType(EMPTY_BLOCK);
+        return (EmptyBlock) cache
+            .get(emptyBlockId.orElseThrow())
+            .toLevelObject(offset);
     }
 }

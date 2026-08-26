@@ -1,6 +1,7 @@
 package house.x1337.app.smb3;
 
 import com.jme3.math.ColorRGBA;
+import house.x1337.app.smb3.display.MonitorRefreshRate;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.object.level.EmptyLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObject;
@@ -94,16 +95,23 @@ public final class GameConstants {
     //                  P-meter, timers) advances. Must remain 60 to match the
     //                  NES frame cadence that all per-tick constants assume.
     //
-    // TARGET_FPS    — the rate at which frames are rendered and presented.
-    //                 May be set higher than SIMULATION_FPS for smoother visuals;
-    //                 the game loop accumulates real time and runs the correct
-    //                 number of simulation steps per render frame.
+    // TARGET_FPS    — the rate at which frames are rendered and presented. Taken
+    //                 from the display settings of the monitor rendering the game
+    //                 so frames land on the monitor's own cadence; usually higher
+    //                 than SIMULATION_FPS, in which case the game loop accumulates
+    //                 real time and runs the correct number of simulation steps
+    //                 per render frame.
     // -------------------------------------------------------------------------
 
     public static final int SIMULATION_FPS = 60;
     public static final double SIMULATION_DT = 1.0 / SIMULATION_FPS;
 
-    public static final int TARGET_FPS = 100;
+    /**
+     * Render rate in Hz, read from the monitor that renders the game.
+     * Falls back to {@link MonitorRefreshRate#FALLBACK_HERTZ} when the monitor
+     * reports an unknown rate or no display is available.
+     */
+    public static final int TARGET_FPS = MonitorRefreshRate.ofDefaultScreen();
     public static final double FRAME_TIME_SECONDS = 1.0 / TARGET_FPS;
 
     public static final Tile NULL_TILE = Tile

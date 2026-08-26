@@ -12,10 +12,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Singleton that owns every in-flight brick animation (both break and bounce).
- * Call {@link #update()} once per game-tick from {@code GameEngine.simpleUpdate()}.
- */
 @Singleton
 @RequiredArgsConstructor
 public final class BrickBlockBreakAnimationManager implements AnimationManager {
@@ -23,14 +19,8 @@ public final class BrickBlockBreakAnimationManager implements AnimationManager {
     private final List<BrickBlockBounceAnimation> activeBounces = new ArrayList<>();
     private final BrickBlockAnimator brickBlockAnimator;
 
-    /**
-     * Advances all active brick animations (breaks and bounces) and the tile shimmer
-     * animator by one game-tick. Removes completed animations.
-     */
     @Override
     public void update() {
-        brickBlockAnimator.update();
-
         // Update break animations
         final Iterator<BrickBlockBreakAnimation> breakIterator = activeBreaks.iterator();
         while (breakIterator.hasNext()) {

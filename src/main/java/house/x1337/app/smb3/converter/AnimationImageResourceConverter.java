@@ -31,6 +31,9 @@ public class AnimationImageResourceConverter extends BaseValueConverter<Animatio
             }
             return builder.build();
         }
-        throw new IllegalArgumentException("Value supplied does not conform to " + IMG_BUNDLE_REGEX);
+        return AnimationImageResource
+            .builder()
+            .imageResource(imageResourceConverter.convert(source))
+            .build();
     }
 }

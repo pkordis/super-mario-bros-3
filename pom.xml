@@ -31,6 +31,8 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <jmonkeyengine.version>3.6.1-stable</jmonkeyengine.version>
+        <!-- JDK 26 (class file major version 70) support was added in Lombok 1.18.46. -->
+        <lombok.version>1.18.46</lombok.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

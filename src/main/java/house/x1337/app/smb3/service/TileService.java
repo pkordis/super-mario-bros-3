@@ -25,6 +25,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static java.lang.Math.max;
 import static java.util.Comparator.comparing;
 
 @Slf4j
@@ -53,7 +54,7 @@ public class TileService implements TilesProvider {
                     if (tile.getSha256() != null) {
                         tilesBySha256.put(tile.getSha256(), tile);
                     }
-                    nextTileId = Math.max(nextTileId, tile.getId() + 1);
+                    nextTileId = max(nextTileId, tile.getId() + 1);
                 }
             });
         log.info("Tile cache initialised with {} entries.", tileCache.size());
@@ -93,8 +94,8 @@ public class TileService implements TilesProvider {
 
         if (w % s != 0 || h % s != 0) {
             throw new IllegalArgumentException(
-                "Image dimensions (" + w + "\u2014" + h + ") are not multiples of " + s + "\u2014" + s + ".\n" +
-                    "Each tile must be exactly " + s + "\u2014" + s + " pixels."
+                "Image dimensions (" + w + "x" + h + ") are not multiples of " + s + "x" + s + ".\n" +
+                    "Each tile must be exactly " + s + "x" + s + " pixels."
             );
         }
 
@@ -128,6 +129,13 @@ public class TileService implements TilesProvider {
     }
 
     public Optional<Tile> findById(final int id) {
+        if (!tileCache.containsKey(id)) {
+            final TileRecord tileRecord = tileRepository.findById(id).orElse(null);
+            if (tileRecord == null || tileRecord.getType() == null || tileRecord.getType().getCategory() == VIRTUAL) {
+                return Optional.empty();
+            }
+            tileCache.put(id, tileRecord.toTile());
+        }
         return Optional.ofNullable(tileCache.get(id));
     }
 
