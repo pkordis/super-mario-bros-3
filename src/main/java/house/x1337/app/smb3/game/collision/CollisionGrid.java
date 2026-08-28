@@ -100,25 +100,35 @@ public final class CollisionGrid implements GameMath {
             final double edgeX = position.getX() + edx;
             final double localX = tileModulo(edgeX);
 
+            // Halt horizontal velocity whenever the player is pushing into the
+            // wall (its sign opposes the ejection direction) — dasm PRG008_B52F.
+            // This runs EVERY frame the wall is detected, independent of the
+            // positional-nudge gate below. If it were only applied on frames
+            // that nudge (floor(localX) != 0), then on the "flush" frames
+            // (facing edge already within [0,1) of the boundary, no nudge) the
+            // input-driven DX would keep re-accumulating and push the player a
+            // fraction of a pixel back into the wall each frame; once that
+            // creeps past 1px the next frame nudges it back out — a 1px
+            // drift/snap oscillation that shows up as the camera shaking left
+            // and right while the player is held against a body. Corner-slide
+            // is unaffected: a straight-up jump has DX == 0, which is not
+            // "moving into the wall", so its velocity is preserved.
+            final boolean movingIntoWall = (dir == 1 && position.getDX() < 0)
+                || (dir == -1 && position.getDX() > 0);
+            if (movingIntoWall) {
+                position.setDX(0);
+            }
+
             // Nudge only while the facing edge has not yet reached a tile
             // boundary. Once aligned the player has cleared the wall/corner,
-            // so no further correction (or velocity change) is applied. This
-            // alignment gate is also what lets a flush, stationary player
-            // (e.g. the frame after an emexit ends against the bounding tile)
-            // rest against the wall without being repeatedly re-snapped —
-            // the previous full-snap-plus-setDX(0) approach froze the camera
-            // in exactly that situation.
+            // so no further correction is applied. This alignment gate is also
+            // what lets a flush, stationary player (e.g. the frame after an
+            // emexit ends against the bounding tile) rest against the wall
+            // without being repeatedly re-snapped — the previous
+            // full-snap-plus-setDX(0) approach froze the camera in exactly
+            // that situation.
             if (floor(localX) != 0) {
                 position.addToX(dir);
-
-                // Halt horizontal velocity only when its sign opposes the
-                // ejection direction, i.e. the player is moving into the wall
-                // (dasm PRG008_B52F).
-                final boolean movingIntoWall = (dir == 1 && position.getDX() < 0)
-                    || (dir == -1 && position.getDX() >= 0);
-                if (movingIntoWall) {
-                    position.setDX(0);
-                }
             }
         }
 

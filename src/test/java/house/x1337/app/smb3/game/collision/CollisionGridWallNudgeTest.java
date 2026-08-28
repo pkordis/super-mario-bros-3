@@ -72,6 +72,30 @@ class CollisionGridWallNudgeTest {
     }
 
     @Test
+    @DisplayName("Flush player pushing into a wall has velocity halted even when no nudge is needed (camera-shake regression)")
+    void flushPlayerPushingIntoWallHaltsVelocityWithoutDrift() {
+        // Prepare
+        // X = 34 -> right edge X + 14 = 48, localX = 0: the facing edge is
+        // already tile-aligned, so NO positional nudge runs this frame. The
+        // player is nonetheless holding into the wall (DX = 2.0 > 0). The
+        // velocity halt MUST still fire; otherwise the input-driven DX carries
+        // over, drifts the player back into the wall next frame, and the
+        // following nudge snaps it out — a 1px drift/snap that shakes the
+        // camera left and right while held against a body.
+        final PlayerPosition position = positionAt(34, 32, 2.0, -2);
+        final LevelScenePlayer player = largePlayerMovingUp(position);
+        final CollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+
+        // Execute
+        final boolean hitWall = grid.handleCollision(10, false);
+
+        // Verify
+        assertThat(hitWall).as("Flush contact still registers as a wall hit").isTrue();
+        assertThat(position.getX()).as("No nudge for an already tile-aligned edge").isCloseTo(34.0, within(TOLERANCE));
+        assertThat(position.getDX()).as("Velocity into the wall is halted on the flush frame too").isCloseTo(0.0, within(TOLERANCE));
+    }
+
+    @Test
     @DisplayName("Sliding in the ejection direction preserves horizontal velocity")
     void slideDoesNotStopVelocityMovingAwayFromWall() {
         // Prepare
