@@ -5,7 +5,7 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 
 public interface Player
     extends
-        ActivePlayerStateAware,
+        PlayerRuntimeStateAware,
         PlayerModeAware {
     void renderPlayer();
     void updateFrame();

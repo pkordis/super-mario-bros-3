@@ -9,7 +9,7 @@ import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.CollisionProbe;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.collision.ProbeLocation;
-import house.x1337.app.smb3.model.game.player.ActivePlayerState;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.util.GameMath;
 import lombok.Getter;
@@ -44,7 +44,7 @@ public final class CollisionGrid implements GameMath {
         final boolean lowClearance
     ) {
         final PlayerPosition position = levelScenePlayer.getPosition();
-        final ActivePlayerState playerState = levelScenePlayer.getState();
+        final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
 
@@ -122,10 +122,8 @@ public final class CollisionGrid implements GameMath {
             }
         }
 
-        final ActivePlayerState state = levelScenePlayer.getState();
-
         // Vertical collision
-        if (position.getDY() >= 0 || !state.isInAir()) {
+        if (position.getDY() >= 0 || !runtimeState.isInAir()) {
             if (solidVert) {
                 final double localY = tileModulo(floor(position.getY()));
                 if (localY < 6) {
@@ -134,13 +132,13 @@ public final class CollisionGrid implements GameMath {
                     } else if (localY != 0) {
                         position.subtractFromY(2);
                     }
-                    playerState.stop();
+                    runtimeState.stop();
                     position.setDY(0);
                 }
-            } else if (!state.isInAir()) {
+            } else if (!runtimeState.isInAir()) {
                 // Walked off ledge
                 position.setDY(0);
-                playerState.fall();
+                runtimeState.fall();
             }
         } else {
             // Moving up
@@ -213,7 +211,7 @@ public final class CollisionGrid implements GameMath {
         final boolean movingUp,
         final boolean leftHalf
     ) {
-        final DirectionalProbes probes = (!levelScenePlayer.isLarge() || levelScenePlayer.getState().isDucking())
+        final DirectionalProbes probes = (!levelScenePlayer.isLarge() || levelScenePlayer.getRuntimeState().isDucking())
             ? SMALL_PROBES
             : LARGE_PROBES;
         return probes.resolve(movingUp, leftHalf);

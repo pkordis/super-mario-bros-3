@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Logical movement / action state of the player.
+ * Logical movement / action mode of the player.
  *
  * <p>This enum captures <em>what the player is doing</em>, independently of
  * which power-up appearance they carry ({@link PlayerMode}).
@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum PlayerState {
+public enum PlayerMovement {
     DUCKING("Ducking"),
     FALLING("Falling"),
     FLYING("Flying"),
@@ -44,4 +44,3 @@ public enum PlayerState {
 
     private final String label;
 }
-

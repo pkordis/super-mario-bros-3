@@ -8,7 +8,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
-import house.x1337.app.smb3.enumeration.PlayerState;
+import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
@@ -26,13 +26,13 @@ import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
-import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
-import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
-import static house.x1337.app.smb3.enumeration.PlayerState.POWER_RUNNING;
-import static house.x1337.app.smb3.enumeration.PlayerState.RUNNING;
-import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
-import static house.x1337.app.smb3.enumeration.PlayerState.STILL;
-import static house.x1337.app.smb3.enumeration.PlayerState.WALKING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 
@@ -129,7 +129,7 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
     // Animation state
     private int walkAnimTicks;
     private int walkFrameIndex;
-    private PlayerState lastRenderedState;
+    private PlayerMovement lastRenderedState;
     private PlayerOrientationHorizontal lastOrientation;
     private int lastWalkFrame = -1;
 
@@ -141,8 +141,8 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
         }
 
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientationHorizontal();
-        final PlayerState state = levelScenePlayer.getState().getCurrent();
-        final int flyTime = levelScenePlayer.getPlayerFlyTime();
+        final PlayerMovement movement = levelScenePlayer.getRuntimeState().getMovement();
+        final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
         // -----------------------------------------------------------------------
@@ -151,7 +151,7 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
         // so we never check isDucking() here — it will always be false.
         // -----------------------------------------------------------------------
 
-        if (state == STILL) {
+        if (movement == STILL) {
             walkAnimTicks = 0;
             walkFrameIndex = 2; // match raccoon animator convention (WalkFrame=2 when still)
 
@@ -164,7 +164,7 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
             return;
         }
 
-        if (state == SKIDDING) {
+        if (movement == SKIDDING) {
             walkAnimTicks = 0;
             walkFrameIndex = 0;
 
@@ -177,7 +177,7 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
             return;
         }
 
-        if (state == JUMPING || state == FALLING) {
+        if (movement == JUMPING || movement == FALLING) {
             // Small Mario has two distinct air frames (dasm GndMov_Small):
             //   PF_JUMPFALLSMALL ($40) — standard jump/fall
             //   PF_FASTJUMPFALLSMALL ($4E) — active when flyTime > 0
@@ -190,11 +190,11 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
             final Texture airTexture = (flyTime > 0) ? assets.fastJumpTexture() : assets.jumpTexture();
             final int airFrame = (flyTime > 0) ? 1 : 0;
 
-            if (lastRenderedState != state
+            if (lastRenderedState != movement
                     || lastWalkFrame != airFrame
                     || lastOrientation != orientation) {
                 rebuildWithTexture(node, airTexture, orientation);
-                lastRenderedState = state;
+                lastRenderedState = movement;
                 lastOrientation = orientation;
                 lastWalkFrame = airFrame;
             }
@@ -205,23 +205,23 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
         // animation tick system. RUNNING uses the walk sprite set (faster
         // cycle, not spread-eagle). POWER_RUNNING selects the run sprite set
         // (PF_4C/4D — dasm Player_SpreadEagleFrames last row).
-        if (state == POWER_RUNNING
-                || state == RUNNING
-                || state == WALKING) {
+        if (movement == POWER_RUNNING
+                || movement == RUNNING
+                || movement == WALKING) {
             advanceWalkAnimation(absDx);
 
-            final int[] frameSequence = (state == POWER_RUNNING)
+            final int[] frameSequence = (movement == POWER_RUNNING)
                     ? RUN_FRAME_SEQUENCE : WALK_FRAME_SEQUENCE;
             final int currentSpriteFrame = frameSequence[walkFrameIndex];
 
-            if (lastRenderedState != state
+            if (lastRenderedState != movement
                     || lastWalkFrame != currentSpriteFrame
                     || lastOrientation != orientation) {
-                final Texture texture = (state == POWER_RUNNING)
+                final Texture texture = (movement == POWER_RUNNING)
                         ? textureForRunFrame(currentSpriteFrame)
                         : textureForWalkFrame(currentSpriteFrame);
                 rebuildWithTexture(node, texture, orientation);
-                lastRenderedState = state;
+                lastRenderedState = movement;
                 lastOrientation = orientation;
                 lastWalkFrame = currentSpriteFrame;
             }

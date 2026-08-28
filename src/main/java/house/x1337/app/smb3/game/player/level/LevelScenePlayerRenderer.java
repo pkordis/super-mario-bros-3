@@ -11,7 +11,7 @@ import house.x1337.app.smb3.enumeration.PlayerOrientationVertical;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
-import house.x1337.app.smb3.game.player.ActivePlayerStateAware;
+import house.x1337.app.smb3.game.player.PlayerRuntimeStateAware;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
 import house.x1337.app.smb3.game.player.PlayerModeAware;
@@ -27,7 +27,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 
 public interface LevelScenePlayerRenderer
     extends
-        ActivePlayerStateAware,
+        PlayerRuntimeStateAware,
         GameEngineAware,
         PlayerIdentityAware,
         PlayerModeAware,
@@ -40,7 +40,7 @@ public interface LevelScenePlayerRenderer
      * sprite is 32px. Small/ducking: head at Y+16, feet at Y+32 → 16px = 1.0.
      */
     default float currentBoxHeight() {
-        final boolean compact = isSmall() || getState().isDucking();
+        final boolean compact = isSmall() || getRuntimeState().isDucking();
         return (compact ? 16.0f : 32.0f) / 16.0f;
     }
 

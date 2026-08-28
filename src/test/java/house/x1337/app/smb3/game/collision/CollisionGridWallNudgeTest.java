@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.collision;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.player.ActivePlayerState;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
-import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
@@ -149,12 +149,12 @@ class CollisionGridWallNudgeTest {
     }
 
     private LevelScenePlayer largePlayerMovingUp(final PlayerPosition position) {
-        final ActivePlayerState state = new ActivePlayerState();
-        state.setTo(JUMPING); // airborne so the "moving up" branch is taken
+        final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
+        runtimeState.setTo(JUMPING); // airborne so the "moving up" branch is taken
 
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getPosition()).thenReturn(position);
-        when(player.getState()).thenReturn(state);
+        when(player.getRuntimeState()).thenReturn(runtimeState);
         when(player.isLarge()).thenReturn(true);
         return player;
     }

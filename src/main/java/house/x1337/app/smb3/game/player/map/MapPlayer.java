@@ -4,14 +4,14 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.jme3.core.CameraState;
-import house.x1337.app.smb3.model.game.player.ActivePlayerState;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import lombok.Getter;
 
 @Prototype
 public class MapPlayer implements Player {
     @Getter
-    private final ActivePlayerState state = new ActivePlayerState();
+    private final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
 
     @Override
     public void renderPlayer() {

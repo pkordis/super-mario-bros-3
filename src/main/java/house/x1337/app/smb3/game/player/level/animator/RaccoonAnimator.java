@@ -8,11 +8,12 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
-import house.x1337.app.smb3.enumeration.PlayerState;
+import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.asset.RaccoonAnimatorAssets;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -24,15 +25,15 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
-import static house.x1337.app.smb3.enumeration.PlayerState.DUCKING;
-import static house.x1337.app.smb3.enumeration.PlayerState.FALLING;
-import static house.x1337.app.smb3.enumeration.PlayerState.FLYING;
-import static house.x1337.app.smb3.enumeration.PlayerState.JUMPING;
-import static house.x1337.app.smb3.enumeration.PlayerState.POWER_RUNNING;
-import static house.x1337.app.smb3.enumeration.PlayerState.RUNNING;
-import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
-import static house.x1337.app.smb3.enumeration.PlayerState.STILL;
-import static house.x1337.app.smb3.enumeration.PlayerState.WALKING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.DUCKING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 
@@ -155,21 +156,24 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
     private int walkFrameIndex;
     private int tailWagCount;
     private boolean wasTailAttacking;
-    private PlayerState lastRenderedState;
+    private PlayerMovement lastRenderedState;
     private PlayerOrientationHorizontal lastOrientation;
     private int lastWalkFrame = -1;
 
     public void update(final LevelScenePlayer levelScenePlayer) {
-        final int tailAttack = levelScenePlayer.getPlayerTailAttack();
-        final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientationHorizontal();
-        final PlayerState state = levelScenePlayer.getState().getCurrent();
-        final boolean isDucking = levelScenePlayer.getState().isDucking();
+        final PlayerOrientationHorizontal orientationHorizontal = levelScenePlayer.getOrientationHorizontal();
+        final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
+        final PlayerMovement movement = runtimeState.getMovement();
+
+        final int tailAttack = runtimeState.getPlayerTailAttackCountdown();
+        final boolean isDucking = runtimeState.isDucking();
+
         final Node node = levelScenePlayer.getNode();
         if (node == null) {
             return;
         }
-        final int wagCount = levelScenePlayer.getPlayerWagCount();
-        final int flyTime = levelScenePlayer.getPlayerFlyTime();
+        final int wagCount = runtimeState.getPlayerWagCount();
+        final int flyTime = runtimeState.getPlayerFlyTime();
         final PlayerPosition position = levelScenePlayer.getPosition();
 
         // Tail attack overrides all other animations (dasm prg008:
@@ -179,25 +183,18 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
             final int clampedFrame = min(frameIndex, 4);
             // Flip orientation at tailAttack == 11 and 3 (dasm: EOR #SPR_HFLIP)
             final boolean flipped = (tailAttack <= 11 && tailAttack > 3);
-            final PlayerOrientationHorizontal effectiveOrientation = orientation.oppositeIf(flipped);
-
-            // dasm prg008: In-air tail attack uses a different frame table
-            // (Player_TailAttackFrames +5). The "resting" frames (indices
-            // 0, 2, 4) become PF_TAILATKINAIR_BASE ($09 = jump/fall body
-            // frame) instead of PF_TAILATKGROUND_BASE (attack_1). The
-            // active swing frames (indices 1, 3) remain the same.
-            final boolean inAir = (state == JUMPING || state == FALLING || state == FLYING);
-            final Texture texture = textureForTailAttackFrame(clampedFrame, inAir);
+            final PlayerOrientationHorizontal effectiveOrientation = orientationHorizontal.oppositeIf(flipped);
+            final Texture texture = textureForTailAttackFrame(clampedFrame, runtimeState.isInAir());
             final float quadWidth = tailAttackFrameWidth(clampedFrame);
             final float tailOffset = tailAttackFrameTailOffset(clampedFrame);
 
             if (lastWalkFrame != clampedFrame
                     || lastOrientation != effectiveOrientation
-                    || lastRenderedState != state) {
+                    || lastRenderedState != movement) {
                 rebuildWithTexture(
                     node, texture, effectiveOrientation, quadWidth, tailOffset
                 );
-                lastRenderedState = state;
+                lastRenderedState = movement;
                 lastOrientation = effectiveOrientation;
                 lastWalkFrame = clampedFrame;
             }
@@ -226,45 +223,45 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
             walkAnimTicks = 0;
             walkFrameIndex = 0;
 
-            if (lastRenderedState != DUCKING || lastOrientation != orientation) {
-                rebuildDuckTexture(node, assets.duckTexture(), orientation);
+            if (lastRenderedState != DUCKING || lastOrientation != orientationHorizontal) {
+                rebuildDuckTexture(node, assets.duckTexture(), orientationHorizontal);
                 lastRenderedState = DUCKING;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
             }
             return;
         }
 
-        if (state == STILL) {
+        if (movement == STILL) {
             // Reset walk animation when standing still
             walkAnimTicks = 0;
             walkFrameIndex = 2; // Original: Player_WalkFrame forced to 2 when still
 
-            if (lastRenderedState != STILL || lastOrientation != orientation) {
-                rebuildWithTexture(node, assets.stillTexture(), orientation);
+            if (lastRenderedState != STILL || lastOrientation != orientationHorizontal) {
+                rebuildWithTexture(node, assets.stillTexture(), orientationHorizontal);
                 lastRenderedState = STILL;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
             }
             return;
         }
 
-        if (state == SKIDDING) {
+        if (movement == SKIDDING) {
             // Skid frame - single static sprite while braking (prg008.asm:
             // Player_SkidFrame). Orientation stays as movement direction.
             walkAnimTicks = 0;
             walkFrameIndex = 0;
 
-            if (lastRenderedState != SKIDDING || lastOrientation != orientation) {
-                rebuildSkidTexture(node, assets.skidTexture(), orientation);
+            if (lastRenderedState != SKIDDING || lastOrientation != orientationHorizontal) {
+                rebuildSkidTexture(node, assets.skidTexture(), orientationHorizontal);
                 lastRenderedState = SKIDDING;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
             }
             return;
         }
 
-        if ((state == FLYING || state == FALLING || state == JUMPING) && wagCount > 0) {
+        if (runtimeState.isInAir() && wagCount > 0) {
             // Tail wag animation - two distinct visual sets (dasm prg008:
             // Player_AnimTailWag selects row from Player_TailWagFlyFrames):
             //
@@ -275,7 +272,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
             //
             // Both use Player_TailCount (set to 10 on A press, auto-decrements)
             // with frame = TailCount >> 2 indexing into the frame table.
-            if (tailWagCount <= 0 || lastRenderedState != state) {
+            if (tailWagCount <= 0 || lastRenderedState != movement) {
                 tailWagCount = TAIL_WAG_ANIM_DURATION;
             }
 
@@ -294,17 +291,17 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
                 texture = textureForTailWagFallFrame(tailFrame);
             }
 
-            if (lastRenderedState != state
+            if (lastRenderedState != movement
                     || lastWalkFrame != tailFrame
-                    || lastOrientation != orientation) {
+                    || lastOrientation != orientationHorizontal) {
                 // dasm prg008: Player_AnimTailWag never modifies Player_FlipBits.
                 // All frames render with the player's current facing direction
                 // unchanged. The tail "swish" comes from distinct sprite tiles.
                 rebuildWithTexture(
-                    node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET
+                    node, texture, orientationHorizontal, QUAD_WIDTH, TAIL_OFFSET
                 );
-                lastRenderedState = state;
-                lastOrientation = orientation;
+                lastRenderedState = movement;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = tailFrame;
             }
 
@@ -312,7 +309,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
             return;
         }
 
-        if (state == FLYING) {
+        if (movement == FLYING) {
             // Flying without active wag cycle (dasm prg008: Player_AnimTailWag
             // still runs the frame lookup with TailCount = 0, yielding offset 0
             // into the fly row). When rising (DY < 0) → fly_2 (wings up),
@@ -322,57 +319,57 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
 
             if (lastRenderedState != FLYING
                     || lastWalkFrame != flyFrame
-                    || lastOrientation != orientation) {
+                    || lastOrientation != orientationHorizontal) {
                 rebuildWithTexture(
-                    node, texture, orientation, QUAD_WIDTH, TAIL_OFFSET
+                    node, texture, orientationHorizontal, QUAD_WIDTH, TAIL_OFFSET
                 );
                 lastRenderedState = FLYING;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = flyFrame;
             }
             return;
         }
 
-        if (state == WALKING || state == RUNNING || state == POWER_RUNNING) {
+        if (movement == WALKING || movement == RUNNING || movement == POWER_RUNNING) {
             // Advance walk animation based on NES tick timing
             advanceWalkAnimation(abs(position.getDX()));
 
-            final int[] frameSequence = (state == POWER_RUNNING)
+            final int[] frameSequence = (movement == POWER_RUNNING)
                     ? RUN_FRAME_SEQUENCE : WALK_FRAME_SEQUENCE;
             final int currentSpriteFrame = frameSequence[walkFrameIndex];
-            if (lastRenderedState != state
+            if (lastRenderedState != movement
                     || lastWalkFrame != currentSpriteFrame
-                    || lastOrientation != orientation) {
-                final Texture texture = (state == POWER_RUNNING)
+                    || lastOrientation != orientationHorizontal) {
+                final Texture texture = (movement == POWER_RUNNING)
                         ? textureForRunFrame(currentSpriteFrame)
                         : textureForWalkFrame(currentSpriteFrame);
-                rebuildWithTexture(node, texture, orientation);
-                lastRenderedState = state;
-                lastOrientation = orientation;
+                rebuildWithTexture(node, texture, orientationHorizontal);
+                lastRenderedState = movement;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = currentSpriteFrame;
             }
             return;
         }
 
-        if (state == FALLING) {
+        if (movement == FALLING) {
             // Falling without wag - static frame (dasm prg008: PF_JUMPRACCOON
             // row in Player_TailWagFlyFrames when WagCount = 0).
-            if (lastRenderedState != FALLING || lastOrientation != orientation
+            if (lastRenderedState != FALLING || lastOrientation != orientationHorizontal
                     || lastWalkFrame != -1) {
-                rebuildWithTexture(node, assets.tailFallTexture1(), orientation, QUAD_WIDTH, TAIL_OFFSET);
+                rebuildWithTexture(node, assets.tailFallTexture1(), orientationHorizontal, QUAD_WIDTH, TAIL_OFFSET);
                 lastRenderedState = FALLING;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
             }
             return;
         }
 
-        if (state == JUMPING) {
+        if (movement == JUMPING) {
             // Jumping without wag - dedicated jump frame.
-            if (lastRenderedState != JUMPING || lastOrientation != orientation) {
-                rebuildWithTexture(node, assets.jumpTexture(), orientation, QUAD_WIDTH, TAIL_OFFSET);
+            if (lastRenderedState != JUMPING || lastOrientation != orientationHorizontal) {
+                rebuildWithTexture(node, assets.jumpTexture(), orientationHorizontal, QUAD_WIDTH, TAIL_OFFSET);
                 lastRenderedState = JUMPING;
-                lastOrientation = orientation;
+                lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
             }
             return;
