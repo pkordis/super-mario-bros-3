@@ -4,25 +4,34 @@ import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerOrientationVertical;
+import house.x1337.app.smb3.enumeration.PlayerVisibility;
+import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.ActivePlayerStateAware;
+import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
 import house.x1337.app.smb3.game.player.PlayerModeAware;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.game.player.level.animator.RaccoonAnimator;
+import house.x1337.app.smb3.model.game.player.PlayerPosition;
 
 import static com.jme3.material.RenderState.BlendMode.Alpha;
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
+import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
+import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
 
 public interface LevelScenePlayerRenderer
     extends
         ActivePlayerStateAware,
         GameEngineAware,
         PlayerIdentityAware,
-        PlayerModeAware {
+        PlayerModeAware,
+        Player {
 
     /**
      * Returns the box height in game-units (tile-fractions) for the current
@@ -51,7 +60,7 @@ public interface LevelScenePlayerRenderer
         node.detachAllChildren();
 
         if (this instanceof LevelScenePlayer levelScenePlayer) {
-            final LevelScenePlayerAnimationContext animationContext = getPlayerAnimationContext();
+            final LevelScenePlayerAnimationContext animationContext = getAnimationContext();
             animationContext.updateActiveAnimator(levelScenePlayer);
             animationContext.update(levelScenePlayer);
         }
@@ -82,9 +91,58 @@ public interface LevelScenePlayerRenderer
         node.attachChild(geometry);
     }
 
+    default void updateForegroundLayerBuckets() {
+        final Node rootNode = getGameEngine().getRootNode();
+        final boolean background = (getVisibility() == BACKGROUND);
+
+        for (final String layerName : FOREGROUND_LAYERS) {
+            final Spatial layerSpatial = rootNode.getChild(layerName);
+            if (layerSpatial instanceof Geometry layerGeometry) {
+                if (background) {
+                    // Move to Translucent and re-attach after player so it renders on top
+                    layerGeometry.setQueueBucket(Translucent);
+                    rootNode.detachChild(layerGeometry);
+                    rootNode.attachChild(layerGeometry);
+                } else {
+                    // Restore to Transparent (renders before player's Translucent)
+                    layerGeometry.setQueueBucket(Transparent);
+                }
+            }
+        }
+    }
+
+    default void renderPlayer() {
+        setNode(createNode());
+        getGameEngine()
+            .getRootNode()
+            .attachChild(getNode());
+        getAnimationContext().loadAssets();
+        updateVisualPosition();
+    }
+
+    @Override
+    default void updateVisualPosition() {
+        if (getNode() == null || getLevelScene() == null) {
+            return;
+        }
+        final PlayerPosition position = getPosition();
+        final LevelScene levelScene = getGameEngine().getLevelScene();
+
+        final PlayerPosition tileUnitBasedPosition = position.toTileUnitBased(levelScene.getDimensions());
+        getNode()
+            .setLocalTranslation(
+                (float) tileUnitBasedPosition.getX(),
+                (float) tileUnitBasedPosition.getY() - 2,
+                getVisibility().getPlayerZ()
+            );
+    }
+
+    Node getNode();
+    void setNode(Node node);
     void advanceAnimation();
-    LevelScenePlayerAnimationContext getPlayerAnimationContext();
-    PlayerOrientationHorizontal getPlayerOrientationHorizontal();
-    PlayerOrientationVertical getPlayerOrientationVertical();
+    LevelScenePlayerAnimationContext getAnimationContext();
+    PlayerOrientationHorizontal getOrientationHorizontal();
+    PlayerOrientationVertical getOrientationVertical();
+    PlayerVisibility getVisibility();
 }
 

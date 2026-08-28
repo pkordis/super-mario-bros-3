@@ -6,8 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.deceleratingRise;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.parabolic;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pins the derived {@link PopMotion} functions against the hand-traced frame tables they
@@ -55,33 +54,38 @@ class PopMotionTest {
     private static final PopMotion SCORE_MOTION = deceleratingRise(16, 3);
 
     @Test
-    @DisplayName("score rise reproduces the traced table pixel-for-pixel")
+    @DisplayName("Score rise reproduces the traced table pixel-for-pixel")
     void scoreRiseMatchesTracedTable() {
-        assertEquals(TRACED_SCORE_OFFSETS.length, SCORE_MOTION.durationTicks());
+        // Execute & Verify
+        assertThat(SCORE_MOTION.durationTicks()).isEqualTo(TRACED_SCORE_OFFSETS.length);
         for (int tick = 0; tick < TRACED_SCORE_OFFSETS.length; tick++) {
-            assertEquals(TRACED_SCORE_OFFSETS[tick], SCORE_MOTION.verticalOffsetAt(tick), "tick " + tick);
+            assertThat(SCORE_MOTION.verticalOffsetAt(tick)).as("Tick " + tick).isEqualTo(TRACED_SCORE_OFFSETS[tick]);
         }
     }
 
     @Test
-    @DisplayName("coin spin reproduces the traced texture sequence exactly")
+    @DisplayName("Coin spin reproduces the traced texture sequence exactly")
     void coinSpinMatchesTracedSequence() {
+        // Execute & Verify
         for (int tick = 0; tick < TRACED_COIN_TEXTURES.length; tick++) {
-            assertEquals(TRACED_COIN_TEXTURES[tick], COIN_MOTION.textureIndexAt(tick), "tick " + tick);
+            assertThat(COIN_MOTION.textureIndexAt(tick)).as("Tick " + tick).isEqualTo(TRACED_COIN_TEXTURES[tick]);
         }
     }
 
     @Test
-    @DisplayName("coin arc runs for the traced number of ticks")
+    @DisplayName("Coin arc runs for the traced number of ticks")
     void coinArcMatchesTracedDuration() {
-        assertEquals(TRACED_COIN_OFFSETS.length, COIN_MOTION.durationTicks());
+        // Execute & Verify
+        assertThat(COIN_MOTION.durationTicks()).isEqualTo(TRACED_COIN_OFFSETS.length);
     }
 
     @Test
-    @DisplayName("coin arc matches the traced table exactly at spawn, apex and removal")
+    @DisplayName("Coin arc matches the traced table exactly at spawn, apex and removal")
     void coinArcMatchesTracedLandmarks() {
+        // Prepare
         final int lastTick = TRACED_COIN_OFFSETS.length - 1;
 
+        // Execute
         int apex = 0;
         int apexTick = 0;
         for (int tick = 0; tick < TRACED_COIN_OFFSETS.length; tick++) {
@@ -91,27 +95,31 @@ class PopMotionTest {
             }
         }
 
-        assertEquals(TRACED_COIN_OFFSETS[0], COIN_MOTION.verticalOffsetAt(0));
-        assertEquals(62, apex);
-        assertTrue(apexTick >= 18 && apexTick <= 22, "apex reached at tick " + apexTick);
-        assertEquals(TRACED_COIN_OFFSETS[lastTick], COIN_MOTION.verticalOffsetAt(lastTick));
+        // Verify
+        assertThat(COIN_MOTION.verticalOffsetAt(0)).isEqualTo(TRACED_COIN_OFFSETS[0]);
+        assertThat(apex).isEqualTo(62);
+        assertThat(apexTick).as("Apex reached at tick " + apexTick).isBetween(18, 22);
+        assertThat(COIN_MOTION.verticalOffsetAt(lastTick)).isEqualTo(TRACED_COIN_OFFSETS[lastTick]);
     }
 
     @Test
-    @DisplayName("coin arc stays within tolerance of the traced table at every tick")
+    @DisplayName("Coin arc stays within tolerance of the traced table at every tick")
     void coinArcTracksTracedTableWithinTolerance() {
+        // Execute & Verify
         for (int tick = 0; tick < TRACED_COIN_OFFSETS.length; tick++) {
             final int deviation = Math.abs(COIN_MOTION.verticalOffsetAt(tick) - TRACED_COIN_OFFSETS[tick]);
-            assertTrue(deviation <= COIN_TOLERANCE, "tick " + tick + " deviates by " + deviation + " px");
+            assertThat(deviation).as("Tick " + tick + " deviates by " + deviation + " px")
+                .isLessThanOrEqualTo(COIN_TOLERANCE);
         }
     }
 
     @Test
-    @DisplayName("offsets clamp outside the animation lifetime")
+    @DisplayName("Offsets clamp outside the animation lifetime")
     void offsetsClampOutsideLifetime() {
-        assertEquals(SCORE_MOTION.verticalOffsetAt(0), SCORE_MOTION.verticalOffsetAt(-5));
-        assertEquals(SCORE_MOTION.verticalOffsetAt(48), SCORE_MOTION.verticalOffsetAt(500));
-        assertEquals(COIN_MOTION.verticalOffsetAt(0), COIN_MOTION.verticalOffsetAt(-5));
-        assertEquals(COIN_MOTION.verticalOffsetAt(38), COIN_MOTION.verticalOffsetAt(500));
+        // Execute & Verify
+        assertThat(SCORE_MOTION.verticalOffsetAt(-5)).isEqualTo(SCORE_MOTION.verticalOffsetAt(0));
+        assertThat(SCORE_MOTION.verticalOffsetAt(500)).isEqualTo(SCORE_MOTION.verticalOffsetAt(48));
+        assertThat(COIN_MOTION.verticalOffsetAt(-5)).isEqualTo(COIN_MOTION.verticalOffsetAt(0));
+        assertThat(COIN_MOTION.verticalOffsetAt(500)).isEqualTo(COIN_MOTION.verticalOffsetAt(38));
     }
 }

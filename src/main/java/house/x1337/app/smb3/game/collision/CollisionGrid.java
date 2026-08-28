@@ -25,8 +25,8 @@ import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_P
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
 
-@Getter
 @Slf4j
+@Getter
 @RequiredArgsConstructor
 public final class CollisionGrid implements GameMath {
     private final LevelScenePlayer levelScenePlayer;
@@ -60,72 +60,65 @@ public final class CollisionGrid implements GameMath {
         final boolean oneWayHoriz2 = isOneWayTileFromPlayer(tHoriz.second());
         final boolean solidHoriz = (solidHoriz1 && !oneWayHoriz1) || (solidHoriz2 && !oneWayHoriz2);
 
-        // Horizontal collision — eject player from wall (dasm prg008
-        // PRG008_B4F3). When probes detect a solid tile, snap the player
-        // so their edge aligns exactly to the wall's tile boundary.
+        // Horizontal collision — eject the player from a wall, or slide them
+        // off a corner (dasm prg008 Player_DetectSolids @ PRG008_B4F3; JS
+        // reference index.html "eject player from wall").
         //
-        // The probe direction is determined by playerIsLeftHalf:
-        // - Left half (mod16 < 8): probes check RIGHT (X+0x0E). Wall is
-        //   to the right. Snap the right edge (rightEdgeOffset) to the
-        //   wall boundary by subtracting the overlap.
-        // - Right half (mod16 >= 8): probes check LEFT (X+0x01). Wall is
-        //   to the left. Snap the left edge (leftEdgeOffset) to the wall
-        //   boundary by adding the gap to the next boundary.
+        // The original nudges Player_X by ±1 pixel every frame whenever the
+        // in-front probe detects a solid tile and the facing edge has not yet
+        // reached a tile boundary — regardless of the player's horizontal
+        // velocity. This ±1-per-frame slide (not a single full-overlap snap)
+        // is what lets the player skid off the corner of a solid object they
+        // jump into at its very edge: while rising with DX == 0 they drift
+        // toward the free side, clear the corner, and fall back down instead
+        // of catching on top of the object. Gating the position nudge behind a
+        // "moving into the wall" (non-zero DX) test breaks this corner-slide,
+        // because a straight-up jump has DX == 0.
+        //
+        // Velocity is a separate concern (dasm PRG008_B52F): XVel is halted
+        // only when the player is actually pushing into the wall, so a corner
+        // slide preserves horizontal motion while a head-on wall hit stops it.
+        //
+        // Probe direction (playerIsLeftHalf):
+        // - Left half (mod16 < 8): in-front probes check RIGHT (X+0x0E), so
+        //   the wall is to the right. Push left (dir = -1) and align the right
+        //   edge (rightEdgeOffset).
+        // - Right half (mod16 >= 8): in-front probes check LEFT (X+0x01), so
+        //   the wall is to the left. Push right (dir = +1) and align the left
+        //   edge (leftEdgeOffset).
         boolean hitWall = false;
         final int leftEdgeOffset = levelScenePlayer.isLarge() ? 2 : 3;
         final int rightEdgeOffset = levelScenePlayer.isLarge() ? 14 : 13;
         if (solidHoriz && !lowClearance) {
-            // Only apply wall correction when the player is moving INTO
-            // the wall. If moving away from the wall, the player is
-            // naturally leaving the collision zone — skip correction to
-            // avoid catapulting them in the wrong direction.
-            // DX == 0 (stationary) is deliberately excluded: after emexit
-            // ends, the player exits with DX = 0 while positioned against
-            // the wall that bounds the emexit end object. Treating DX = 0
-            // as "into-wall" permanently freezes the player because the
-            // snap zeroes DX again, recreating the same condition next frame.
-            // A stationary player is not pushing into anything; positional
-            // overlap from a prior frame is corrected naturally on the next
-            // frame that has a non-zero DX.
-            final boolean movingIntoWall = playerIsLeftHalf
-                    ? position.getDX() > 0
-                    : position.getDX() < 0;
+            // Touching a wall keeps the walk animation cycling (dasm
+            // PRG008_B4F3: INC Player_WalkAnimTicks fires on any wall touch,
+            // before the alignment and velocity checks).
+            hitWall = true;
 
-            if (movingIntoWall) {
-                hitWall = true;
+            final int dir = playerIsLeftHalf ? -1 : 1;
+            final int edx = playerIsLeftHalf ? rightEdgeOffset : leftEdgeOffset;
+            final double edgeX = position.getX() + edx;
+            final double localX = tileModulo(edgeX);
 
-                // Check the edge that faces the wall for misalignment.
-                final int edx = playerIsLeftHalf ? rightEdgeOffset : leftEdgeOffset;
-                final double edgeX = position.getX() + edx;
-                final double localX = tileModulo(edgeX);
+            // Nudge only while the facing edge has not yet reached a tile
+            // boundary. Once aligned the player has cleared the wall/corner,
+            // so no further correction (or velocity change) is applied. This
+            // alignment gate is also what lets a flush, stationary player
+            // (e.g. the frame after an emexit ends against the bounding tile)
+            // rest against the wall without being repeatedly re-snapped —
+            // the previous full-snap-plus-setDX(0) approach froze the camera
+            // in exactly that situation.
+            if (floor(localX) != 0) {
+                position.addToX(dir);
 
-                if (localX > 0.001 && localX < TILE_SPRITE_SIZE - 0.001) {
-                    if (playerIsLeftHalf) {
-                        // Wall on right: the right edge has penetrated into
-                        // the wall tile. Push left by localX to align the
-                        // edge to the wall boundary.
-                        position.addToX(-localX);
-                    } else {
-                        // Wall on left: determine whether the edge is still
-                        // inside the wall tile or has already cleared it.
-                        // Compare the edge's tile column with the probe's.
-                        final int probeX = (int) floor(position.getX())
-                                + tHoriz.first().x();
-                        final int probeTileCol = Math.floorDiv(probeX, TILE_SPRITE_SIZE);
-                        final int edgeTileCol = Math.floorDiv(
-                                (int) floor(edgeX), TILE_SPRITE_SIZE);
-                        if (edgeTileCol <= probeTileCol) {
-                            // Edge is still inside (or at) the wall tile.
-                            // Push right to the next boundary.
-                            position.addToX(TILE_SPRITE_SIZE - localX);
-                        } else {
-                            // Edge already cleared the wall — push left to
-                            // snap back to the boundary it just crossed.
-                            position.addToX(-localX);
-                        }
-                    }
+                // Halt horizontal velocity only when its sign opposes the
+                // ejection direction, i.e. the player is moving into the wall
+                // (dasm PRG008_B52F).
+                final boolean movingIntoWall = (dir == 1 && position.getDX() < 0)
+                    || (dir == -1 && position.getDX() >= 0);
+                if (movingIntoWall) {
+                    position.setDX(0);
                 }
-                position.setDX(0);
             }
         }
 
@@ -166,7 +159,7 @@ public final class CollisionGrid implements GameMath {
             return;
         }
         final LevelObject hitObject = getLevelObjectAt(objectOffset);
-        if (levelScenePlayer.getPlayerOrientationVertical() == UP) {
+        if (levelScenePlayer.getOrientationVertical() == UP) {
             hitObject.onCollisionFromBelow(levelScenePlayer);
         }
     }

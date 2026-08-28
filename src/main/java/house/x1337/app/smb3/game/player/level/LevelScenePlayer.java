@@ -1,9 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
-import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
@@ -27,7 +24,6 @@ import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.JUMP_FORCE;
 import static house.x1337.app.smb3.GameConstants.PLAYER_FLY_APEX_YVEL;
 import static house.x1337.app.smb3.GameConstants.PLAYER_FLY_YVEL;
-import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TAILWAG_YVEL;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOPPOWERSPEED;
@@ -54,7 +50,6 @@ import static house.x1337.app.smb3.enumeration.PlayerState.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerState.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerState.WALKING;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
-import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
 import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
@@ -82,7 +77,7 @@ import static java.lang.Math.min;
 @Slf4j
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
-    private final LevelScenePlayerAnimationContext playerAnimationContext;
+    private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
     private final CollisionGrid collisionGrid;
     private final ActivePlayerState state;
@@ -91,8 +86,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private final GameEngine gameEngine;
 
     private PlayerVisibility visibility = FOREGROUND;
-    private PlayerOrientationHorizontal playerOrientationHorizontal = RIGHT;
-    private PlayerOrientationVertical playerOrientationVertical = SUSTAINED;
+    private PlayerOrientationHorizontal orientationHorizontal = RIGHT;
+    private PlayerOrientationVertical orientationVertical = SUSTAINED;
 
     private PlayerMode mode;
     private Node node;
@@ -117,9 +112,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         this.position = initializePosition();
         this.state = getBean(ActivePlayerState.class);
         this.collisionGrid = getLevelScene().toCollisionGrid(this);
-        this.playerAnimationContext = contextForLevel(this);
-        setPlayerOrientationHorizontal(RIGHT);
-        setPlayerOrientationVertical(SUSTAINED);
+        this.animationContext = contextForLevel(this);
+        setOrientationHorizontal(RIGHT);
+        setOrientationVertical(SUSTAINED);
     }
 
     @Override
@@ -139,7 +134,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void advanceAnimation() {
-        playerAnimationContext.update(this);
+        animationContext.update(this);
     }
 
     // -------------------------------------------------------------------------
@@ -268,9 +263,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
         // Pad_Holding regardless of velocity direction).
         if (inputLeft) {
-            setPlayerOrientationHorizontal(LEFT);
+            setOrientationHorizontal(LEFT);
         } else if (inputRight) {
-            setPlayerOrientationHorizontal(RIGHT);
+            setOrientationHorizontal(RIGHT);
         }
 
         // Determine top speed
@@ -434,11 +429,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // SUSTAINED when grounded. This is read by collision handling on the
         // Y axis in the same way horizontal orientation is read on the X axis.
         if (!state.isInAir()) {
-            setPlayerOrientationVertical(SUSTAINED);
+            setOrientationVertical(SUSTAINED);
         } else if (position.getDY() < 0) {
-            setPlayerOrientationVertical(UP);
+            setOrientationVertical(UP);
         } else {
-            setPlayerOrientationVertical(DOWN);
+            setOrientationVertical(DOWN);
         }
     }
 
@@ -516,49 +511,22 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Utility
-    // -------------------------------------------------------------------------
-
-    /**
-     * Syncs the jme3 node position from the internal sprite-pixel coordinates.
-     * Converts sprite-pixels to game-units (tile-fractions): divide by 16.
-     * Y-axis is flipped: jme3 Y increases upward, tile rows increase downward.
-     */
-    @Override
-    public void updateVisualPosition() {
-        if (getNode() == null || getLevelScene() == null) {
-            return;
-        }
-        // Convert sprite-pixel position to tile-unit position
-        final float gameX = (float) (position.getX() / 16.0);
-        // Invert Y: row 0 is at the top of the scene in tile space, but at
-        // (rows - 1) in jme3 world space (where Y=0 is the bottom).
-        final float gameY = (float) (collisionGrid.getDimensions().rows() - (position.getY() / 16.0));
-
-        // The player's feet are always 32 sprite-pixels (2.0 game-units) below
-        // Player_Y regardless of size (collision probes use 0x20 for both).
-        // The quad is drawn upward from its origin, so place the origin at foot
-        // level and let the quad's height determine how far up it extends.
-        final float feetOffsetFromY = 32.0f / 16.0f;
-        final float playerZ = getVisibility().getPlayerZ();
-        getNode().setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
-    }
-
     @Override
     public void interpolateVisualPosition(final double alpha) {
         if (getNode() == null || getLevelScene() == null) {
             return;
         }
         // Linearly interpolate between previous and current simulation positions
-        final double interpX = position.getPrevX() + (position.getX() - position.getPrevX()) * alpha;
-        final double interpY = position.getPrevY() + (position.getY() - position.getPrevY()) * alpha;
+        final PlayerPosition interpolatedPosition = position
+            .interpolateBetweenPreviousAndCurrent(alpha)
+            .toTileUnitBased(getLevelScene().getDimensions());
 
-        final float gameX = (float) (interpX / 16.0);
-        final float gameY = (float) (collisionGrid.getDimensions().rows() - (interpY / 16.0));
-        final float feetOffsetFromY = 32.0f / 16.0f;
-        final float playerZ = getVisibility().getPlayerZ();
-        getNode().setLocalTranslation(gameX, gameY - feetOffsetFromY, playerZ);
+        getNode()
+            .setLocalTranslation(
+                (float) interpolatedPosition.getX(),
+                (float) interpolatedPosition.getY() - 2,
+                getVisibility().getPlayerZ()
+            );
     }
 
     /**
@@ -628,63 +596,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
-    /**
-     * Determines whether the player is currently in a skid condition.
-     *
-     * <p>From prg008.asm: the skid triggers when the player is grounded, not in
-     * water, has |XVel| ≥ $02 (raw fixed-point), and is pressing the direction
-     * opposite to their current movement.
-     *
-     * @param inputLeft  true if the left input is active
-     * @param inputRight true if the right input is active
-     * @return true if the player meets all skid conditions
-     */
-    private boolean isCurrentlySkidding(final boolean inputLeft, final boolean inputRight) {
-        if (state.isInAir()) {
-            return false;
-        }
-        final double dx = position.getDX();
-        if (abs(dx) < PLAYER_SKID_VEL_THRESHOLD) {
-            return false;
-        }
-        // Pressing opposite direction from current movement
-        return (dx > 0 && inputLeft) || (dx < 0 && inputRight);
-    }
-
     @Override
     public void onLayerSwitch() {
         setVisibility(getVisibility().opposite());
         updateForegroundLayerBuckets();
-    }
-
-    /**
-     * When in BACKGROUND mode, moves layers that should render in front of
-     * the player (DECORATIONS_LAND and above) into the {@code Translucent}
-     * bucket and re-attaches them after the player node so they draw on top.
-     * When back in FOREGROUND mode, restores them to {@code Transparent}.
-     *
-     * <p>This solves the ordering problem: the player must be in
-     * {@code Translucent} to avoid frustum-related visibility issues
-     * (see commit "Camera bounds aligned"), but when behind scenery,
-     * those layers need to render after the player.
-     */
-    private void updateForegroundLayerBuckets() {
-        final Node rootNode = gameEngine.getRootNode();
-        final boolean background = (getVisibility() == PlayerVisibility.BACKGROUND);
-
-        for (final String layerName : FOREGROUND_LAYERS) {
-            final Spatial layerSpatial = rootNode.getChild(layerName);
-            if (layerSpatial instanceof Geometry layerGeometry) {
-                if (background) {
-                    // Move to Translucent and re-attach after player so it renders on top
-                    layerGeometry.setQueueBucket(RenderQueue.Bucket.Translucent);
-                    rootNode.detachChild(layerGeometry);
-                    rootNode.attachChild(layerGeometry);
-                } else {
-                    // Restore to Transparent (renders before player's Translucent)
-                    layerGeometry.setQueueBucket(RenderQueue.Bucket.Transparent);
-                }
-            }
-        }
     }
 }

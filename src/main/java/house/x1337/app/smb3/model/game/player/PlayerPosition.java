@@ -1,6 +1,9 @@
 package house.x1337.app.smb3.model.game.player;
 
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import lombok.Data;
+
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
 @Data
 public class PlayerPosition {
@@ -63,5 +66,23 @@ public class PlayerPosition {
 
     public void subtractFromY(final double toSubtract) {
         setY(y - toSubtract);
+    }
+
+    public PlayerPosition interpolateBetweenPreviousAndCurrent(final double alpha) {
+        final double interpolatedX = getPrevX() + (getX() - getPrevX()) * alpha;
+        final double interpolatedY = getPrevY() + (getY() - getPrevY()) * alpha;
+        final PlayerPosition interpolatedPosition = new PlayerPosition();
+        interpolatedPosition.setX(interpolatedX);
+        interpolatedPosition.setY(interpolatedY);
+        return interpolatedPosition;
+    }
+
+    public PlayerPosition toTileUnitBased(final LevelSceneDimensions dimensions) {
+        final PlayerPosition tilePosition = new PlayerPosition();
+        final double gameX = (getX() / TILE_SPRITE_SIZE);
+        final double gameY = (dimensions.rows() - (getY() / TILE_SPRITE_SIZE));
+        tilePosition.setX(gameX);
+        tilePosition.setY(gameY);
+        return tilePosition;
     }
 }

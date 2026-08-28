@@ -161,7 +161,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
 
     public void update(final LevelScenePlayer levelScenePlayer) {
         final int tailAttack = levelScenePlayer.getPlayerTailAttack();
-        final PlayerOrientationHorizontal orientation = levelScenePlayer.getPlayerOrientationHorizontal();
+        final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientationHorizontal();
         final PlayerState state = levelScenePlayer.getState().getCurrent();
         final boolean isDucking = levelScenePlayer.getState().isDucking();
         final Node node = levelScenePlayer.getNode();
