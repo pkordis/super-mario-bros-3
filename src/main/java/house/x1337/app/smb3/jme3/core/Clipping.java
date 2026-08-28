@@ -23,4 +23,3 @@ public class Clipping {
         return minimum != null && maximum != null;
     }
 }
-

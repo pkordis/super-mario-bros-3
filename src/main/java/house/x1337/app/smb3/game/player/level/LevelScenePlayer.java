@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.collision.CollisionGrid;
+import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
@@ -54,7 +55,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private final GameEngine gameEngine;
 
     private PlayerVisibility visibility = FOREGROUND;
-
+    private LevelSceneVerticalScroll verticalScroll;
     private PlayerMode mode;
     private Node node;
 
@@ -71,6 +72,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         this.position = initializePosition();
         this.runtimeState = getBean(PlayerRuntimeState.class);
         this.collisionGrid = getLevelScene().toCollisionGrid(this);
+        this.verticalScroll = getBean(LevelSceneVerticalScroll.class, getLevelScene());
         this.animationContext = contextForLevel(this);
         this.orientation = new PlayerOrientation(RIGHT, SUSTAINED);
     }
@@ -86,8 +88,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateInCameraState(final CameraState cameraState) {
-        // Point the camera at the player node so it follows the player
+        // X follows the player node. Y is driven by the SMB3 vertical-scroll
+        // model instead of the node so the camera stays locked at the bottom of
+        // a horizontal level (World 1-1 = Level_FreeVertScroll mode 0) rather
+        // than scrolling on every jump. Called once, at spawn.
         cameraState.setTarget(node);
+        cameraState.setVerticalScrollProvider(verticalScroll::getCameraY);
     }
 
     @Override
@@ -109,7 +115,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
         // Emergency exit (emexit) detection — checks for a solid non-one-way tile
         // above the player's head at horizontal center (X+8). Matches dasm PRG008_A77E.
-        final boolean lowClearance = isLowClearance(heightOffset);
+        final boolean lowClearance = isLowClearance(collisionGrid, heightOffset);
         if (lowClearance) {
             position.setDX(0);
             position.incrementX();
@@ -169,18 +175,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         advanceAnimation();
 
+        // Advance the vertical camera scroll (locked at the level bottom unless
+        // flying/climbing — SMB3 Level_FreeVertScroll mode 0).
+        updateVerticalScroll();
+
         // Sync visual
         updateVisualPosition();
-    }
-
-    private boolean isLowClearance(final int heightOffset) {
-        // Probe at horizontal center (X+8) only — matching dasm PRG008_A77E which
-        // checks a single fixed point above the player's head. Adding a right-edge
-        // probe (X+14) at the same heightOffset falsely detects a normal rightward
-        // wall collision as low-clearance, causing the player to slide through walls.
-        final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
-            !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
-        return tileAbove && !runtimeState.isInAir();
     }
 
     private void handleSizeToggle() {

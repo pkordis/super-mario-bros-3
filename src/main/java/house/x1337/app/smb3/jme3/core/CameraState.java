@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.function.DoubleSupplier;
+
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;
 import static java.lang.Math.round;
 
@@ -28,6 +30,7 @@ public class CameraState extends BaseAppState {
     private int pendingColumns;
     private int pendingRows;
     private float lastAspect;
+    private DoubleSupplier verticalScrollProvider;
 
     @Override
     protected void initialize(final Application app) {
@@ -73,7 +76,16 @@ public class CameraState extends BaseAppState {
         }
 
         final Vector3f translation = target.getLocalTranslation();
-        final Vector2f positionVector = clipping.clamp(translation.x, translation.y);
+        // X always follows the target node. Y may be driven independently by a
+        // vertical-scroll provider (see setVerticalScrollProvider) so that
+        // horizontal levels can lock the camera to the bottom instead of
+        // tracking the player node on every jump (SMB3 Level_FreeVertScroll
+        // mode 0). When no provider is set the camera follows the target on
+        // both axes, as the world map does.
+        final float targetY = verticalScrollProvider != null
+            ? (float) verticalScrollProvider.getAsDouble()
+            : translation.y;
+        final Vector2f positionVector = clipping.clamp(translation.x, targetY);
 
         // Snap directly to the nearest screen-pixel boundary - no lag.
         // 1 screen pixel = (2 × frustum) / viewportHeight game-units.
@@ -88,6 +100,21 @@ public class CameraState extends BaseAppState {
 
     public void setTarget(final Spatial spatial) {
         target.setValue(spatial);
+    }
+
+    /**
+     * Installs an optional provider for the camera's vertical position. When
+     * set, the camera's Y is taken from the provider each frame instead of the
+     * target node's Y (X still follows the target). This lets level scenes drive
+     * vertical scrolling from a {@code LevelVerticalScroll} model — locking the
+     * view to the bottom unless the player is flying/climbing — while the world
+     * map keeps following the target node on both axes by leaving it {@code null}.
+     *
+     * @param verticalScrollProvider supplier of the camera centre Y in
+     *                               game-units, or {@code null} to follow the target
+     */
+    public void setVerticalScrollProvider(final DoubleSupplier verticalScrollProvider) {
+        this.verticalScrollProvider = verticalScrollProvider;
     }
 
     /**

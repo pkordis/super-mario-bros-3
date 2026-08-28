@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.game.collision.CollisionGrid;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -21,12 +22,23 @@ import static java.lang.Math.abs;
 
 public interface LevelScenePlayerRuntimeStateAware
     extends
-        Player,
+        LevelScenePlayerOrientationAware,
         LevelScenePlayerPositionAware,
-        LevelScenePlayerOrientationAware {
+        Player {
     PlayerRuntimeState getRuntimeState();
     default int determineHeightOffset() {
         return (isSmall() || getRuntimeState().isDucking()) ? 20 : 10;
+    }
+
+    default boolean isLowClearance(final CollisionGrid collisionGrid, final int heightOffset) {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        // Probe at horizontal center (X+8) only — matching dasm PRG008_A77E which
+        // checks a single fixed point above the player's head. Adding a right-edge
+        // probe (X+14) at the same heightOffset falsely detects a normal rightward
+        // wall collision as low-clearance, causing the player to slide through walls.
+        final boolean tileAbove = collisionGrid.collidesAtOffset(8, heightOffset) &&
+            !collisionGrid.isOneWayTileFromPlayer(8, heightOffset);
+        return tileAbove && !runtimeState.isInAir();
     }
 
     /**

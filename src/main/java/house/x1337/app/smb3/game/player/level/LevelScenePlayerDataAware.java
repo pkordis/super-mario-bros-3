@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 

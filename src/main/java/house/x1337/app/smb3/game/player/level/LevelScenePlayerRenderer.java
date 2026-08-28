@@ -20,13 +20,14 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
 
 public interface LevelScenePlayerRenderer
     extends
-        PlayerRuntimeStateAware,
         GameEngineAware,
+        PlayerRuntimeStateAware,
         PlayerIdentityAware,
         PlayerModeAware,
         Player {
@@ -39,7 +40,7 @@ public interface LevelScenePlayerRenderer
      */
     default float currentBoxHeight() {
         final boolean compact = isSmall() || getRuntimeState().isDucking();
-        return (compact ? 16.0f : 32.0f) / 16.0f;
+        return (float) (compact ? TILE_SPRITE_SIZE : TILE_SPRITE_SIZE * 2) / TILE_SPRITE_SIZE;
     }
 
     default Node createNode() {
@@ -109,6 +110,7 @@ public interface LevelScenePlayerRenderer
         }
     }
 
+    @Override
     default void renderPlayer() {
         setNode(createNode());
         getGameEngine()
