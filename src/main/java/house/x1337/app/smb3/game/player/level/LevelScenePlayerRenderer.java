@@ -6,8 +6,6 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
-import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
-import house.x1337.app.smb3.enumeration.PlayerOrientationVertical;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
@@ -141,8 +139,6 @@ public interface LevelScenePlayerRenderer
     void setNode(Node node);
     void advanceAnimation();
     LevelScenePlayerAnimationContext getAnimationContext();
-    PlayerOrientationHorizontal getOrientationHorizontal();
-    PlayerOrientationVertical getOrientationVertical();
     PlayerVisibility getVisibility();
 }
 

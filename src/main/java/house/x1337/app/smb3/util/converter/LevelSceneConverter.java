@@ -7,7 +7,12 @@ import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.util.normalizer.LevelSceneRecordNormalizer;
 import house.x1337.app.smb3.util.provider.TilesProvider;
 
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.*;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 
 public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelSceneRecordNormalizer {
     TilesProvider getTilesProvider();

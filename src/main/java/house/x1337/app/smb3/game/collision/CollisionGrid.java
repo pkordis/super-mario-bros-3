@@ -157,7 +157,7 @@ public final class CollisionGrid implements GameMath {
             return;
         }
         final LevelObject hitObject = getLevelObjectAt(objectOffset);
-        if (levelScenePlayer.getOrientationVertical() == UP) {
+        if (levelScenePlayer.getOrientation().getVertical() == UP) {
             hitObject.onCollisionFromBelow(levelScenePlayer);
         }
     }

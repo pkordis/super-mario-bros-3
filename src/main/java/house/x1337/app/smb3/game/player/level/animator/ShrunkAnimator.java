@@ -140,7 +140,7 @@ public final class ShrunkAnimator implements LevelScenePlayerAnimator<ShrunkAnim
             return;
         }
 
-        final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientationHorizontal();
+        final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
         final PlayerMovement movement = levelScenePlayer.getRuntimeState().getMovement();
         final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());

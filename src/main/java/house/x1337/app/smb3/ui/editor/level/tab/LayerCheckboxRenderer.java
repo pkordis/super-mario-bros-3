@@ -7,7 +7,7 @@ import jakarta.annotation.PostConstruct;
 import javax.swing.JCheckBox;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
-import java.awt.*;
+import java.awt.Component;
 
 import static javax.swing.BorderFactory.createEmptyBorder;
 

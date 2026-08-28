@@ -3,8 +3,6 @@ package house.x1337.app.smb3.game.player.level;
 import com.jme3.scene.Node;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
-import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
-import house.x1337.app.smb3.enumeration.PlayerOrientationVertical;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.collision.CollisionGrid;
@@ -13,6 +11,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import lombok.Data;
@@ -50,12 +49,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private final CollisionGrid collisionGrid;
     private final PlayerRuntimeState runtimeState;
     private final PlayerPosition position;
+    private final PlayerOrientation orientation;
     private final PlayerData playerData;
     private final GameEngine gameEngine;
 
     private PlayerVisibility visibility = FOREGROUND;
-    private PlayerOrientationHorizontal orientationHorizontal = RIGHT;
-    private PlayerOrientationVertical orientationVertical = SUSTAINED;
 
     private PlayerMode mode;
     private Node node;
@@ -74,8 +72,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         this.runtimeState = getBean(PlayerRuntimeState.class);
         this.collisionGrid = getLevelScene().toCollisionGrid(this);
         this.animationContext = contextForLevel(this);
-        setOrientationHorizontal(RIGHT);
-        setOrientationVertical(SUSTAINED);
+        this.orientation = new PlayerOrientation(RIGHT, SUSTAINED);
     }
 
     @Override

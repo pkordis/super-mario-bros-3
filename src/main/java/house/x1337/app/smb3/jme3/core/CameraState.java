@@ -14,8 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static java.lang.Math.round;
 
 @Slf4j

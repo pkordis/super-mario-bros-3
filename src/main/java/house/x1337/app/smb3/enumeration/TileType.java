@@ -6,8 +6,15 @@ import lombok.RequiredArgsConstructor;
 import java.util.Arrays;
 import java.util.List;
 
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.*;
-import static house.x1337.app.smb3.enumeration.TileType.Category.*;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
+import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
+import static house.x1337.app.smb3.enumeration.TileType.Category.NON_COLLIDING;
+import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
+import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
 import static lombok.AccessLevel.PRIVATE;
 
 @Getter

@@ -2,13 +2,17 @@ package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.GameConstants;
 import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
+import static house.x1337.app.smb3.GameConstants.GRAVITY_FAST;
+import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOPPOWERSPEED;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOPRUNSPEED;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOPWALKSPEED;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
@@ -29,6 +33,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
         final boolean inputRun = inputHandler.isActive(HANDLER_RUN);
         final PlayerRuntimeState runtimeState = getRuntimeState();
+        final PlayerOrientation orientation = getOrientation();
         final PlayerPosition position = getPosition();
 
         // Cancel simultaneous L+R — impossible on a real NES D-pad; on
@@ -52,9 +57,9 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
         // Pad_Holding regardless of velocity direction).
         if (inputLeft) {
-            setOrientationHorizontal(LEFT);
+            orientation.setHorizontal(LEFT);
         } else if (inputRight) {
-            setOrientationHorizontal(RIGHT);
+            orientation.setHorizontal(RIGHT);
         }
 
         // Determine top speed
@@ -110,6 +115,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         final boolean jumpHit = inputHandler.consumePress(HANDLER_JUMP);
         final boolean jumpHeld = inputHandler.isActive(HANDLER_JUMP);
         final PlayerRuntimeState runtimeState = getRuntimeState();
+        final PlayerOrientation orientation = getOrientation();
         final PlayerPosition position = getPosition();
 
         if (jumpHit) {
@@ -135,9 +141,9 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
 
         if (runtimeState.isInAir()) {
             if (position.getDY() < -2 && jumpHeld) {
-                position.addToDY(GameConstants.GRAVITY_SLOW / GameConstants.TILE_SPRITE_SIZE);
+                position.addToDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
             } else {
-                position.addToDY(GameConstants.GRAVITY_FAST / GameConstants.TILE_SPRITE_SIZE);
+                position.addToDY(GRAVITY_FAST / TILE_SPRITE_SIZE);
             }
 
             // Raccoon tail wag / flight effects on Y velocity
@@ -167,9 +173,9 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                 final double absDx = abs(dx);
                 if (absDx > PLAYER_TOPWALKSPEED) {
                     if (dx > 0) {
-                        position.addToDX(-1.0 / GameConstants.TILE_SPRITE_SIZE);
+                        position.addToDX(-1.0 / TILE_SPRITE_SIZE);
                     } else {
-                        position.addToDX(1.0 / GameConstants.TILE_SPRITE_SIZE);
+                        position.addToDX(1.0 / TILE_SPRITE_SIZE);
                     }
                 }
             }
@@ -181,11 +187,11 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         // SUSTAINED when grounded. This is read by collision handling on the
         // Y axis in the same way horizontal orientation is read on the X axis.
         if (!runtimeState.isInAir()) {
-            setOrientationVertical(SUSTAINED);
+            orientation.setVertical(SUSTAINED);
         } else if (position.getDY() < 0) {
-            setOrientationVertical(UP);
+            orientation.setVertical(UP);
         } else {
-            setOrientationVertical(DOWN);
+            orientation.setVertical(DOWN);
         }
     }
 }

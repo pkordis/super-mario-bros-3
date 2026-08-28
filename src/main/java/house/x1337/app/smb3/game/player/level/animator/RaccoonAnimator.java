@@ -161,7 +161,7 @@ public final class RaccoonAnimator implements LevelScenePlayerAnimator<RaccoonAn
     private int lastWalkFrame = -1;
 
     public void update(final LevelScenePlayer levelScenePlayer) {
-        final PlayerOrientationHorizontal orientationHorizontal = levelScenePlayer.getOrientationHorizontal();
+        final PlayerOrientationHorizontal orientationHorizontal = levelScenePlayer.getOrientation().getHorizontal();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final PlayerMovement movement = runtimeState.getMovement();
 

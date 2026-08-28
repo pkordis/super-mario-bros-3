@@ -5,9 +5,11 @@ import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
-import static house.x1337.app.smb3.GameConstants.*;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOPRUNSPEED;
+import static house.x1337.app.smb3.GameConstants.PMETER_CHARGE_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_DRAIN_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_FULL_HOLD_FRAMES;
+import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static java.lang.Math.abs;
 

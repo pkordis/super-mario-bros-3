@@ -16,7 +16,16 @@ import java.nio.ByteBuffer;
 
 import static com.jme3.material.RenderState.BlendMode.Off;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
-import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.*;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.ARROW_DARK;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.ARROW_LIT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.LUIGI_LEFT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.LUIGI_RIGHT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.MARIO_LEFT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.MARIO_RIGHT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.P_LEFT_DARK;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.P_LEFT_LIT;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.P_RIGHT_DARK;
+import static house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph.P_RIGHT_LIT;
 import static java.lang.Math.clamp;
 import static java.lang.Math.pow;
 
