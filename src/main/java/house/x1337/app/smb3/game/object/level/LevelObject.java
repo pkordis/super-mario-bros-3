@@ -11,7 +11,10 @@ import static org.slf4j.LoggerFactory.getLogger;
 public interface LevelObject extends GameObject {
     Offset getOffset();
     LevelObjectType getType();
-    void onCollisionFromBelow(LevelScenePlayer levelScenePlayer);
+
+    default void onCollisionFromBelow(LevelScenePlayer levelScenePlayer) {
+        // Do nothing by default
+    }
 
     default boolean isCollidable() {
         return true;

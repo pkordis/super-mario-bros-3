@@ -1,8 +1,8 @@
-package house.x1337.app.smb3.game.object.level.block.animation.management;
+package house.x1337.app.smb3.game.object.level.block.motion;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.object.level.AnimationManager;
+import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.EmptyBlockBounceAnimation;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Offset;
@@ -17,7 +17,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
 
 @Singleton
 @RequiredArgsConstructor
-public final class EmptyBlockBounceAnimationManager implements AnimationManager {
+public final class EmptyBlockBounceMotionManager implements MotionManager {
     private final List<EmptyBlockBounceAnimation> activeBounces = new ArrayList<>();
     private final ImageResource emptyBlockTileResource = loadForLevelObjectType(EMPTY_BLOCK);
 

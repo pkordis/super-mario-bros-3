@@ -4,7 +4,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.block.animation.management.EmptyBlockBounceAnimationManager;
+import house.x1337.app.smb3.game.object.level.block.motion.EmptyBlockBounceMotionManager;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
@@ -21,14 +21,14 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
  * <p>On its very first collision from below it plays the same 10-frame bounce animation
  * as a {@link BrickBlockWithoutReward} hit by small Mario (dasm {@code prg001.asm
  * ObjNorm_BounceDU / Bouncer_PUpVel}). That one-shot bounce is self-contained inside
- * {@link EmptyBlockBounceAnimationManager} and uses the correct empty-block sprite.
+ * {@link EmptyBlockBounceMotionManager} and uses the correct empty-block sprite.
  * After it fires, any subsequent hit from below is silently ignored.
  */
 @Getter
 @Prototype
 @RequiredArgsConstructor
 public class EmptyBlock implements LevelObject {
-    private final EmptyBlockBounceAnimationManager animationManager = getBean(EmptyBlockBounceAnimationManager.class);
+    private final EmptyBlockBounceMotionManager animationManager = getBean(EmptyBlockBounceMotionManager.class);
     private final LevelObjectType type = EMPTY_BLOCK;
     private final ImageResource imageResource;
     private final Offset offset;

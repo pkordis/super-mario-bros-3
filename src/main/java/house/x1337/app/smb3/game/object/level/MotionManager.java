@@ -10,7 +10,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface AnimationManager extends ImageResourceLoader {
+public interface MotionManager extends ImageResourceLoader {
     void update();
 
     @Singleton
@@ -18,13 +18,13 @@ public interface AnimationManager extends ImageResourceLoader {
     class Registry {
         private final ListableBeanFactory beanFactory;
         @Getter(lazy = true)
-        private final List<? extends AnimationManager> all = findAll();
+        private final List<? extends MotionManager> all = findAll();
 
-        private List<? extends AnimationManager> findAll() {
-            final ListableBeanFactory beanFactory = getBean(AnimationManager.Registry.class).beanFactory;
+        private List<? extends MotionManager> findAll() {
+            final ListableBeanFactory beanFactory = getBean(MotionManager.Registry.class).beanFactory;
             assert beanFactory != null;
             return beanFactory
-                .getBeansOfType(AnimationManager.class)
+                .getBeansOfType(MotionManager.class)
                 .values()
                 .stream()
                 .toList();

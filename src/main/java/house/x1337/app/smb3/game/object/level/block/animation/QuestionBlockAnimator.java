@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.block.animation.management;
+package house.x1337.app.smb3.game.object.level.block.animation;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;

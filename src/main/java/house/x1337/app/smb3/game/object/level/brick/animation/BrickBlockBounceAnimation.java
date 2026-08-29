@@ -6,7 +6,6 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;

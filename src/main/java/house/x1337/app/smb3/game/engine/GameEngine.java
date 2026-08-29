@@ -9,7 +9,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
-import house.x1337.app.smb3.game.object.level.AnimationManager;
+import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
@@ -39,7 +39,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 @Prototype
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
-    private final List<? extends AnimationManager> animationManagers = getBean(AnimationManager.Registry.class).getAll();
+    private final List<? extends MotionManager> animationManagers = getBean(MotionManager.Registry.class).getAll();
     private final CameraState cameraState;
     private final PlayerData playerData;
 
@@ -56,6 +56,19 @@ public final class GameEngine extends GameEngineCapabilities {
      * tick is consumed. This decouples game-logic rate (60 Hz) from render rate.
      */
     private double simulationAccumulator = 0.0;
+
+    /**
+     * All players currently active in the scene. Today a scene runs a single player, but
+     * callers must treat this as a collection so that planned multi-player levels need no
+     * change beyond this method. This is the one place the single-player assumption lives —
+     * world objects (e.g. {@code SuperLeaf}) resolve collisions against every player here
+     * rather than holding a hard-wired reference to one.
+     *
+     * @return an immutable view of the scene's players
+     */
+    public List<Player> getPlayers() {
+        return List.of(player);
+    }
 
     @Override
     public void start() {
@@ -181,7 +194,7 @@ public final class GameEngine extends GameEngineCapabilities {
             simulationAccumulator -= SIMULATION_DT;
             player.updateFrame();
             playerData.getPlayerTimer().tick();
-            animationManagers.forEach(AnimationManager::update);
+            animationManagers.forEach(MotionManager::update);
         }
 
         // Interpolate the player's visual position between the previous and

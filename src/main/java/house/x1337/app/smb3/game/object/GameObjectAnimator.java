@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.object;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
-import house.x1337.app.smb3.game.object.level.AnimationManager;
+import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.util.CastCapable;
 import lombok.Getter;
@@ -16,7 +16,7 @@ import java.util.Map;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface GameObjectAnimator<A extends AnimatableLevelObject> extends AnimationManager {
+public interface GameObjectAnimator<A extends AnimatableLevelObject> extends MotionManager {
     void add(A animatableLevelObject);
     void reset();
     void registerLevel(

@@ -10,8 +10,8 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.RewardDispensingLevelObject;
-import house.x1337.app.smb3.game.object.level.block.animation.management.CoinRewardAnimationManager;
-import house.x1337.app.smb3.game.object.level.block.animation.management.QuestionBlockAnimator;
+import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
+import house.x1337.app.smb3.game.object.level.block.animation.QuestionBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -37,7 +37,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 @RequiredArgsConstructor
 public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLevelObject {
     private final QuestionBlockAnimator questionBlockAnimator = getBean(QuestionBlockAnimator.class);
-    private final CoinRewardAnimationManager coinRewardAnimationManager = getBean(CoinRewardAnimationManager.class);
+    private final CoinRewardMotionManager coinRewardAnimationManager = getBean(CoinRewardMotionManager.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
     private final LevelObjectType type = QUESTION_BLOCK;
     private final ImageResource imageResource;

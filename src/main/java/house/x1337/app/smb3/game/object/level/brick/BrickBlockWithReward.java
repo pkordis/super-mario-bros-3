@@ -3,16 +3,13 @@ package house.x1337.app.smb3.game.object.level.brick;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.collision.CollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
+import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-
-import java.util.Map;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_BLOCK_WITH_REWARD;

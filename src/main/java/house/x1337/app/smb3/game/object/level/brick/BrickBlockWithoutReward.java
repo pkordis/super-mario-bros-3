@@ -5,8 +5,8 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.collision.CollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockBreakAnimationManager;
-import house.x1337.app.smb3.game.object.level.brick.animation.management.BrickBlockAnimator;
+import house.x1337.app.smb3.game.object.level.brick.motion.BrickBlockBreakMotionManager;
+import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -61,7 +61,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 @Prototype
 @RequiredArgsConstructor
 public class BrickBlockWithoutReward implements BrickBlock {
-    private final BrickBlockBreakAnimationManager animationManager = getBean(BrickBlockBreakAnimationManager.class);
+    private final BrickBlockBreakMotionManager animationManager = getBean(BrickBlockBreakMotionManager.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final LevelObjectType type = BRICK_BLOCK_NO_REWARD;
     private final ImageResource imageResource;
