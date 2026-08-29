@@ -1,5 +1,7 @@
 package house.x1337.app.smb3.game.camera;
 
+import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -26,11 +28,22 @@ class LevelSceneVerticalScrollTest {
     private static final float BOTTOM = HALF_VIEW;              // 6
     private static final float MAX_UP_PER_TICK = 3.0f / 16.0f;  // 0.1875
 
+    /**
+     * Builds a scroll model for a level of the given tile height. The model
+     * derives its half-view from {@code FRUSTUM} (= {@link #HALF_VIEW}) and its
+     * bounds from the level dimensions.
+     */
+    private static LevelSceneVerticalScroll scrollForRows(final int rows) {
+        final LevelScene levelScene = new LevelScene();
+        levelScene.setDimensions(new LevelSceneDimensions(100, rows));
+        return new LevelSceneVerticalScroll(levelScene);
+    }
+
     @Test
     @DisplayName("Locked at the bottom during normal play — jumping never scrolls the camera")
     void lockedAtBottomWhenNotFlying() {
         // Prepare
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(ROWS, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
 
         // Execute & Verify — the player jumps high (world Y rises) but no
         // flight/climb override is active, so the camera stays pinned.
@@ -44,7 +57,7 @@ class LevelSceneVerticalScrollTest {
     @DisplayName("Flight scrolls the camera up, capped at 3 px/frame")
     void flightScrollsUpCappedAtThreePixelsPerFrame() {
         // Prepare
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(ROWS, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
         final float highPlayer = 15f; // well above the dead-zone band
 
         // Execute & Verify — each flying tick raises the camera by exactly the cap.
@@ -62,7 +75,7 @@ class LevelSceneVerticalScrollTest {
     @DisplayName("Player inside the dead-zone band does not move the camera")
     void deadZoneHoldsCameraStill() {
         // Prepare — raise the camera off the bottom via flight so free-scroll is active.
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(ROWS, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
         for (int tick = 0; tick < 10; tick++) {
             scroll.update(15f, true);
         }
@@ -82,7 +95,7 @@ class LevelSceneVerticalScrollTest {
     @DisplayName("After flight, the camera returns to the bottom as the player descends and then re-locks")
     void returnsToBottomAfterFlight() {
         // Prepare — fly up for a while to lift the camera.
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(ROWS, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
         for (int tick = 0; tick < 20; tick++) {
             scroll.update(15f, true);
         }
@@ -105,7 +118,7 @@ class LevelSceneVerticalScrollTest {
     @DisplayName("Downward return is not capped to 3 px/frame")
     void downwardReturnIsNotRateCapped() {
         // Prepare — lift the camera high via flight.
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(ROWS, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
         for (int tick = 0; tick < 30; tick++) {
             scroll.update(20f, true);
         }
@@ -125,7 +138,7 @@ class LevelSceneVerticalScrollTest {
     void shortLevelLocksToCentre() {
         // Prepare — 10-tile level with a 12-tile view (2 * HALF_VIEW).
         final int shortRows = 10;
-        final LevelSceneVerticalScroll scroll = LevelSceneVerticalScroll.forLevel(shortRows, HALF_VIEW);
+        final LevelSceneVerticalScroll scroll = scrollForRows(shortRows);
         final float centre = shortRows / 2.0f;
 
         // Execute & Verify — neither flight nor jumps move the locked centre.

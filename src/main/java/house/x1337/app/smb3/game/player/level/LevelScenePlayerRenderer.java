@@ -44,9 +44,13 @@ public interface LevelScenePlayerRenderer
     }
 
     default Node createNode() {
-        final Node node = new Node("PlayerNode");
-        rebuildGeometry(node);
-        return node;
+        // Assign the node field BEFORE building geometry. rebuildGeometry()
+        // drives the active animator, which reads getNode() (the field) rather
+        // than any passed-in reference — building before the assignment would
+        // hand the animator a null node.
+        setNode(new Node("PlayerNode"));
+        rebuildGeometry(getNode());
+        return getNode();
     }
 
     /**
@@ -112,11 +116,14 @@ public interface LevelScenePlayerRenderer
 
     @Override
     default void renderPlayer() {
-        setNode(createNode());
+        // Assets (and each animator's sprite spec) must be loaded before the
+        // first geometry build, because createNode() -> rebuildGeometry() runs
+        // the active animator's update(), which reads the loaded textures.
+        getAnimationContext().loadAssets();
+        createNode();
         getGameEngine()
             .getRootNode()
             .attachChild(getNode());
-        getAnimationContext().loadAssets();
         updateVisualPosition();
     }
 

@@ -2,8 +2,8 @@ package house.x1337.app.smb3.game.player.level.animator;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.player.asset.RaccoonAnimatorAssets;
-import house.x1337.app.smb3.model.game.player.asset.ShrunkAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.RaccoonAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.ShrunkAnimatorAssets;
 import lombok.RequiredArgsConstructor;
 
 @Prototype

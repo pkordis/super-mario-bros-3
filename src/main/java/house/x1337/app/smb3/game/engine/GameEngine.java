@@ -17,7 +17,6 @@ import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
-import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -173,17 +172,14 @@ public final class GameEngine extends GameEngineCapabilities {
     public void simpleUpdate(final float timePerFrame) {
         simulationAccumulator += timePerFrame;
 
-        // Run as many fixed-step simulation ticks as have accumulated.
-        // Each tick advances game logic by exactly one NES frame (1/60 s).
+        // jME3 fully runs simpleInitApp() — which spawns the player, builds its
+        // node and loads its assets — before it ever calls simpleUpdate(). So
+        // the player (and, for a level, its position/node/assets) is guaranteed
+        // present here; no null checks are needed. MapPlayer's update methods
+        // are no-ops and it snapshots nothing, so the same path serves both.
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
-            if (player != null) {
-                final PlayerPosition pos = player.getPosition();
-                if (pos != null) {
-                    pos.snapshotPrevious();
-                }
-                player.updateFrame();
-            }
+            player.updateFrame();
             playerData.getPlayerTimer().tick();
             animationManagers.forEach(AnimationManager::update);
         }
@@ -191,10 +187,8 @@ public final class GameEngine extends GameEngineCapabilities {
         // Interpolate the player's visual position between the previous and
         // current simulation states so that rendering at rates above 60 Hz
         // produces smooth, jitter-free movement.
-        if (player != null) {
-            final double alpha = simulationAccumulator / SIMULATION_DT;
-            player.interpolateVisualPosition(alpha);
-        }
+        final double alpha = simulationAccumulator / SIMULATION_DT;
+        player.interpolateVisualPosition(alpha);
 
         headsUpDisplay.update(timePerFrame);
     }

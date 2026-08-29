@@ -1,0 +1,28 @@
+{
+  "stillTexture": "still.png",
+  "skidTexture": "rapid_turn.png",
+  "duckTexture": "ducking.png",
+  "jumpTexture": "jumping.png",
+  "tailFallTextures": [
+    "tail_wagging_control_fall_1.png",
+    "walking_1.png",
+    "tail_wagging_control_fall_2.png"
+  ],
+  "tailFlyTextures": [
+    "tail_wagging_control_fly_1.png",
+    "tail_wagging_control_fly_2.png",
+    "tail_wagging_control_fly_3.png"
+  ],
+  "tailAttackTextures": [
+    "tail_wagging_attack_1.png",
+    "tail_wagging_attack_2.png",
+    "tail_wagging_attack_3.png"
+  ],
+  "tailAttackInAirTextures": [
+    "walking_1.png",
+    "tail_wagging_attack_2.png",
+    "tail_wagging_attack_3.png"
+  ],
+  "walkFrameTextures": ["walking_1.png", "walking_2.png", "still.png"],
+  "runFrameTextures": ["running_1.png", "running_2.png", "running_3.png"]
+}

@@ -40,6 +40,9 @@ public final class GameConstants {
      */
     public static final float TILE_SIZE_GAME_UNITS = 1.0f;
 
+
+    public static final float PIXELS_TO_GAME_UNITS = TILE_SIZE_GAME_UNITS / TILE_SPRITE_SIZE;
+
     /**
      * Logical tile size used throughout game-world maths (collision, camera, layout).
      * Equals {@code TILE_SPRITE_SIZE × TILE_SCALE} = 64 px.

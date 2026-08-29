@@ -103,6 +103,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateFrame() {
+        // Capture the pre-tick position for render interpolation. Done here
+        // (rather than in the engine loop) so the engine never dereferences a
+        // player's position — MapPlayer, which has none, simply no-ops.
+        position.snapshotPrevious();
+
         handleSizeToggle();
 
         // Ducking is handled early (matching dasm/JS reference order) so

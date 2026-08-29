@@ -1,0 +1,9 @@
+{
+  "stillTexture": "still.png",
+  "walkTexture": "walking.png",
+  "skidTexture": "rapid_turn.png",
+  "jumpTexture": "jumping.png",
+  "fastJumpTexture": "flying.png",
+  "walkFrameTextures": ["still.png", "walking.png"],
+  "runFrameTextures": ["running_1.png", "running_2.png"]
+}

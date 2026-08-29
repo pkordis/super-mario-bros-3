@@ -6,13 +6,13 @@ import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
 import house.x1337.app.smb3.game.player.PlayerAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.player.asset.AnimatorAssets;
+import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssets;
 
 import static com.jme3.texture.Texture.MagFilter.Nearest;
 import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 
-public interface LevelScenePlayerAnimator<A extends AnimatorAssets>
+public interface LevelScenePlayerAnimator<A extends PlayerAnimatorAssets>
     extends
         GameEngineAware,
         PlayerAnimator,
