@@ -28,7 +28,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
 @Prototype
 @RequiredArgsConstructor
 public class EmptyBlock implements LevelObject {
-    private final EmptyBlockBounceMotionManager animationManager = getBean(EmptyBlockBounceMotionManager.class);
+    private final EmptyBlockBounceMotionManager motionManager = getBean(EmptyBlockBounceMotionManager.class);
     private final LevelObjectType type = EMPTY_BLOCK;
     private final ImageResource imageResource;
     private final Offset offset;
@@ -50,7 +50,7 @@ public class EmptyBlock implements LevelObject {
      * @param gameEngine the game engine
      */
     public void triggerBounce(final GameEngine gameEngine) {
-        animationManager.spawnBounce(gameEngine, offset);
+        motionManager.spawnBounce(gameEngine, offset);
         bounced = true;
     }
 

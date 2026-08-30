@@ -39,7 +39,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 @Prototype
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
-    private final List<? extends MotionManager> animationManagers = getBean(MotionManager.Registry.class).getAll();
+    private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
     private final CameraState cameraState;
     private final PlayerData playerData;
 
@@ -194,7 +194,7 @@ public final class GameEngine extends GameEngineCapabilities {
             simulationAccumulator -= SIMULATION_DT;
             player.updateFrame();
             playerData.getPlayerTimer().tick();
-            animationManagers.forEach(MotionManager::update);
+            motionManagers.forEach(MotionManager::update);
         }
 
         // Interpolate the player's visual position between the previous and

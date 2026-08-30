@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.object.level.reward;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.Score;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -9,6 +10,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.util.GameRenderer;
 import jakarta.annotation.PostConstruct;
@@ -20,33 +22,8 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_LEAF;
+import static house.x1337.app.smb3.model.game.WorldOffset.of;
 
-/**
- * A dispensed Super Leaf reward that pops out of a bounced block, rises, and then
- * flutters down while swaying left and right — matching the original game.
- *
- * <h2>Physics — ported from dasm {@code prg001.asm ObjInit_SuperLeaf / ObjNorm_SuperLeaf}</h2>
- *
- * <p>All velocities are the ROM's 4.4 fixed-point values (in 16ths of a sprite pixel per
- * frame). Two phases drive the motion:
- *
- * <ol>
- *   <li><b>Rise</b> — {@code YVel} starts at {@code -$20} (up) and is incremented by 1 each
- *       frame ({@code INC Objects_YVel}); when it reaches 0 the rise ends. This produces the
- *       ~33px pop above the block over 32 frames (dasm {@code PRG001_ABD1} branch).</li>
- *   <li><b>Flutter</b> — {@code XVel} accumulates {@code Leaf_XVelByOsc = ±$02} each frame and
- *       reverses when it hits {@code Leaf_XVelLimit = ±$20}, giving the side-to-side sway. The
- *       vertical bob comes from {@code PRG001_ABD1 = {$0A, -$0A, $08}} plus a {@code +$06} bias,
- *       indexed by the oscillation direction and the sign of {@code XVel}.</li>
- * </ol>
- *
- * <p>The sprite art ({@code leaf_normal.png}) points left; while moving right the ROM sets
- * {@code SPR_HFLIP} (dasm {@code PRG001_AC15}), which this class reproduces with the same
- * negative-X-scale flip the player sprites use.
- *
- * <p>Unlike the ROM's {@code ObjHit_SuperLeaf} (which grants the Raccoon suit), collecting the
- * leaf currently just makes it vanish — see {@link #onCollisionWith(LevelScenePlayer)}.
- */
 @Getter
 @Prototype
 @RequiredArgsConstructor
@@ -62,6 +39,9 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
 
     private final LevelObjectType type = SUPER_LEAF;
 
+    /** Points awarded (and captioned) when the leaf is collected — 1000, as in the ROM. */
+    private final Score rewardScore = Score.SCORE_1000;
+
     @Value("classpath:/sprites/reward/leaf/leaf_normal.png")
     private ImageResource leafImage;
 
@@ -72,6 +52,7 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
     private Geometry spriteGeometry;
 
     private boolean expired;
+    private boolean collected;
     private boolean facingRight;
     private boolean rising = true;
     private double pixelX;
@@ -136,8 +117,31 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
         }
     }
 
+    /**
+     * Collects the leaf: awards {@link #rewardScore} to the collecting player and marks the leaf
+     * collected. The leaf is not removed immediately — its manager keeps it rendered for exactly
+     * one more frame alongside the freshly spawned score caption, matching the ROM where the leaf
+     * and the "1000" caption are both visible for a single frame before the leaf vanishes. (The
+     * ROM's {@code ObjHit_SuperLeaf} also grants the Raccoon suit; that is still deferred.)
+     *
+     * @param levelScenePlayer the player that collected the leaf
+     */
     public void onCollisionWith(final LevelScenePlayer levelScenePlayer) {
-        expired = true;
+        levelScenePlayer
+            .getPlayerData()
+            .addToScore(rewardScore.getData().getValue());
+        collected = true;
+    }
+
+    /**
+     * @return the leaf's current world position using the same top-edge convention as
+     *         {@code PopAnimation}, so the score caption pops from where the leaf was collected
+     */
+    public WorldOffset getCurrentWorldOffset() {
+        final int rows = gameEngine.getLevelScene().getDimensions().rows();
+        final float worldX = (float) (pixelX / TILE_SPRITE_SIZE);
+        final float topEdgeWorldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE) + spriteDimensions.height();
+        return of(worldX, topEdgeWorldY, Z_DEPTH);
     }
 
     /**

@@ -37,7 +37,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 @RequiredArgsConstructor
 public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLevelObject {
     private final QuestionBlockAnimator questionBlockAnimator = getBean(QuestionBlockAnimator.class);
-    private final CoinRewardMotionManager coinRewardAnimationManager = getBean(CoinRewardMotionManager.class);
+    private final CoinRewardMotionManager coinRewardMotionManager = getBean(CoinRewardMotionManager.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
     private final LevelObjectType type = QUESTION_BLOCK;
     private final ImageResource imageResource;
@@ -90,7 +90,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
 
     @Override
     public void onCoinDispensed(final LevelScenePlayer levelScenePlayer) {
-        coinRewardAnimationManager
+        coinRewardMotionManager
             .spawnCoinReward(
                 levelScenePlayer.getGameEngine(),
                 SCORE_100,

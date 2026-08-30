@@ -61,7 +61,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 @Prototype
 @RequiredArgsConstructor
 public class BrickBlockWithoutReward implements BrickBlock {
-    private final BrickBlockBreakMotionManager animationManager = getBean(BrickBlockBreakMotionManager.class);
+    private final BrickBlockBreakMotionManager motionManager = getBean(BrickBlockBreakMotionManager.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final LevelObjectType type = BRICK_BLOCK_NO_REWARD;
     private final ImageResource imageResource;
@@ -73,7 +73,7 @@ public class BrickBlockWithoutReward implements BrickBlock {
 
         brickBlockAnimator.unregisterAt(offset);
         eraseFromBakedTexture(interactiveObjectsLayerGeometry, dimensions);
-        animationManager.spawnBreak(
+        motionManager.spawnBreak(
             gameEngine,
             offset
         );
@@ -99,7 +99,7 @@ public class BrickBlockWithoutReward implements BrickBlock {
         } else {
             // Small Mario bounce: brick stays intact but visually bounces
             // Ported from dasm prg001.asm ObjNorm_BounceDU / Bouncer_PUpVel
-            animationManager.spawnBounce(gameEngine, offset);
+            motionManager.spawnBounce(gameEngine, offset);
         }
     }
 }

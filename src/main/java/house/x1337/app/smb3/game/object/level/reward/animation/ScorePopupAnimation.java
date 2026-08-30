@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.block.animation;
+package house.x1337.app.smb3.game.object.level.reward.animation;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.Score;
 import house.x1337.app.smb3.enumeration.resource.RewardImageResource;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
+import house.x1337.app.smb3.game.object.level.block.animation.PopAnimation;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;

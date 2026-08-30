@@ -7,7 +7,8 @@ import lombok.Getter;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public enum Score {
-    SCORE_100;
+    SCORE_100,
+    SCORE_1000;
 
     @Getter(lazy = true)
     private final Data data = initData();

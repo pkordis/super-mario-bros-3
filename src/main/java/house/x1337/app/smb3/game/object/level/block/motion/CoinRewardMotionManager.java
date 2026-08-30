@@ -5,7 +5,7 @@ import house.x1337.app.smb3.enumeration.Score;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
-import house.x1337.app.smb3.game.object.level.block.animation.ScorePopupAnimation;
+import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.Pending;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.RequiredArgsConstructor;
