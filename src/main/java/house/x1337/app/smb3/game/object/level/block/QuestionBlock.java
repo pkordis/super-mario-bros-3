@@ -5,7 +5,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.ItemType;
-import house.x1337.app.smb3.game.collision.CollisionGrid;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -59,7 +59,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
 
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
-        final CollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
+        final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
         final GameEngine gameEngine = levelScenePlayer.getGameEngine();
         final LevelSceneDimensions dimensions = gameEngine.getLevelScene().getDimensions();
         final Geometry interactiveObjectsLayerGeometry = gameEngine.getLayerGeometry(INTERACTIVE_OBJECTS);

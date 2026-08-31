@@ -11,7 +11,7 @@ import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
-import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.util.GameRenderer;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -69,8 +69,8 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
 
         spriteDimensions = new Dimensions(
             "SuperLeaf",
-            leafImage.getWidth() * PIXELS_TO_GAME_UNITS,
-            leafImage.getHeight() * PIXELS_TO_GAME_UNITS
+            leafImage.getDimensions().width() * PIXELS_TO_GAME_UNITS,
+            leafImage.getDimensions().height() * PIXELS_TO_GAME_UNITS
         );
         spriteGeometry = fromTexture(gameEngine.getAssetManager(), leafImage.asTexture(), spriteDimensions);
         spriteGeometry.getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
@@ -127,6 +127,11 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
      * @param levelScenePlayer the player that collected the leaf
      */
     public void onCollisionWith(final LevelScenePlayer levelScenePlayer) {
+        if (collected) {
+            // Already collected this tick (a second player) or lingering for its co-render frame —
+            // award and caption exactly once.
+            return;
+        }
         levelScenePlayer
             .getPlayerData()
             .addToScore(rewardScore.getData().getValue());
@@ -145,32 +150,12 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
     }
 
     /**
-     * @param player the player to test against
-     * @return {@code true} if the given player's hitbox overlaps the leaf this frame
+     * @return the leaf's collision box in sprite-pixel space (the raw sprite rectangle at its
+     *         current fluttering position)
      */
-    public boolean intersects(final LevelScenePlayer player) {
-        final PlayerPosition position = player.getPosition();
-        final double playerX = position.getX();
-        final double playerY = position.getY();
-
-        // Player hitbox in sprite-pixel space, derived from the collision probe
-        // extents in CollisionOffsets (X: 1..14, Y bottom: 32; top: 6 when large
-        // and standing, 16 when small or ducking).
-        final boolean largeStanding = player.isLarge() && !player.getRuntimeState().isDucking();
-        final double playerLeft = playerX + 1;
-        final double playerRight = playerX + 15;
-        final double playerTop = playerY + (largeStanding ? 6 : 16);
-        final double playerBottom = playerY + 32;
-
-        final double leafLeft = pixelX;
-        final double leafRight = pixelX + leafImage.getWidth();
-        final double leafTop = pixelY;
-        final double leafBottom = pixelY + leafImage.getHeight();
-
-        return leafRight > playerLeft
-            && leafLeft < playerRight
-            && leafBottom > playerTop
-            && leafTop < playerBottom;
+    @Override
+    public AxisAlignedBoundingBox getBounds() {
+        return AxisAlignedBoundingBox.ofSize(pixelX, pixelY, leafImage.getDimensions());
     }
 
     @Override

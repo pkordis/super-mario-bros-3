@@ -10,6 +10,7 @@ import house.x1337.app.smb3.enumeration.PlayerIdentityType;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.util.GameMath;
 
 import java.nio.ByteBuffer;
@@ -135,7 +136,7 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
                 buffer.put((byte) ((argb >> 24) & 0xFF)); // A
             }
         }
-        final Texture2D texture = toTexture(buffer, scaledWidth, scaledHeight);
+        final Texture2D texture = toTexture(buffer, new DimensionsPixels(scaledWidth, scaledHeight));
         final Geometry cachedGeometry = (Geometry) hudRoot.getChild("HudTexture");
         if (cachedGeometry != null) {
             cachedGeometry.getMaterial().setTexture("ColorMap", texture);

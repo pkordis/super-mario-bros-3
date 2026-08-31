@@ -13,6 +13,15 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 public interface MotionManager extends ImageResourceLoader {
     void update();
 
+    /**
+     * Called once per simulation tick <b>after</b> the engine's active-object collision pass has
+     * dispatched every {@code onCollisionWith}. Managers react here to collisions detected this
+     * tick — e.g. spawning a score caption for a reward that was just collected — so the reaction
+     * lands on the same frame the collision was detected. Default: no reaction.
+     */
+    default void postCollision() {
+    }
+
     @Singleton
     @RequiredArgsConstructor
     class Registry {

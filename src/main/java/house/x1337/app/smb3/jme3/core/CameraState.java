@@ -8,6 +8,7 @@ import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.function.DoubleSupplier;
 
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.round;
 
 @Slf4j
@@ -177,6 +179,39 @@ public class CameraState extends BaseAppState {
             [ SET ] :ClippingMax     >> ({}, {})""",
             columns, rows, minX, minY, maxX, maxY
         );
+    }
+
+    /**
+     * The region of the level currently worth simulating for dynamic objects — the visible camera
+     * frustum expanded by {@code marginPixels} on every side — expressed in sprite-pixel space.
+     * Objects whose bounds fall outside this window can skip their per-tick update and collision
+     * work, mirroring the ROM's bounded object-slot activation where off-screen objects lie dormant.
+     * The margin keeps objects live slightly beyond the edge so they are already moving when they
+     * scroll into view.
+     *
+     * <p>The camera lives in game-units with Y up; this converts its half-extents to sprite-pixel
+     * space (Y down, one tile = {@code TILE_SPRITE_SIZE} px) using the same
+     * {@code pixelY = (rows - gameY) * 16} mapping as {@code PlayerPosition.toTileUnitBased}. Level
+     * height comes from {@code pendingRows}, set by {@link #setLevelSceneBounds(int, int)}.
+     *
+     * @param marginPixels activation margin added to each edge, in sprite-pixels
+     * @return the activation window as an {@link AxisAlignedBoundingBox}, or an empty box at the origin before the
+     *         camera is initialized
+     */
+    public AxisAlignedBoundingBox getActiveObjectRegion(final int marginPixels) {
+        if (camera3D == null) {
+            return new AxisAlignedBoundingBox(0, 0, 0, 0);
+        }
+        final double halfWidthUnits = camera3D.getFrustumRight();
+        final double halfHeightUnits = camera3D.getFrustumTop();
+
+        final double leftPixels = (position.x - halfWidthUnits) * TILE_SPRITE_SIZE - marginPixels;
+        final double rightPixels = (position.x + halfWidthUnits) * TILE_SPRITE_SIZE + marginPixels;
+        // Y inverts: the top of the screen (largest game-unit Y) is the smallest sprite-pixel Y.
+        final double topPixels = (pendingRows - (position.y + halfHeightUnits)) * TILE_SPRITE_SIZE - marginPixels;
+        final double bottomPixels = (pendingRows - (position.y - halfHeightUnits)) * TILE_SPRITE_SIZE + marginPixels;
+
+        return new AxisAlignedBoundingBox(leftPixels, topPixels, rightPixels, bottomPixels);
     }
 
     private Camera initializeCamera(final Camera camera) {

@@ -28,7 +28,7 @@ import static java.lang.Math.floor;
 @Slf4j
 @Getter
 @RequiredArgsConstructor
-public final class CollisionGrid implements GameMath {
+public final class StaticEnvironmentCollisionGrid implements GameMath {
     private final LevelScenePlayer levelScenePlayer;
     private final LevelObject[][] objects;
     private final LevelSceneDimensions dimensions;
@@ -39,10 +39,7 @@ public final class CollisionGrid implements GameMath {
      * Returns {@code true} if a horizontal wall hit occurred this frame
      * (dasm prg008 Player_DetectSolids: wall hit detection at PRG008_B4F3).
      */
-    public boolean handleCollision(
-        final int initialHeightOffset,
-        final boolean lowClearance
-    ) {
+    public boolean handleCollision(final boolean lowClearance) {
         final PlayerPosition position = levelScenePlayer.getPosition();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final boolean playerIsMovingUp = position.getDY() < 0;

@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model;
 
 import com.jme3.texture.Texture;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +9,7 @@ import lombok.Singular;
 
 import java.util.List;
 import java.util.Set;
-import java.util.function.ToIntFunction;
+import java.util.function.Function;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -18,16 +19,13 @@ public class AnimationImageResource {
     @Singular
     private final List<ImageResource> imageResources;
     @Getter(lazy = true)
-    private final int width = validateConsistency(ImageResource::getWidth);
-    @Getter(lazy = true)
-    private final int height = validateConsistency(ImageResource::getHeight);
+    private final DimensionsPixels dimensionsPixels = validateConsistency(ImageResource::getDimensions);
 
-    private int validateConsistency(final ToIntFunction<ImageResource> assetExtractor) {
+    private DimensionsPixels validateConsistency(final Function<ImageResource, DimensionsPixels> assetExtractor) {
         assert imageResources != null;
-        final Set<Integer> sameValues = imageResources
+        final Set<DimensionsPixels> sameValues = imageResources
             .stream()
-            .mapToInt(assetExtractor)
-            .boxed()
+            .map(assetExtractor)
             .collect(toSet());
         if (sameValues.size() != 1) {
             throw new IllegalStateException("Not all images resources have the same dimensions");

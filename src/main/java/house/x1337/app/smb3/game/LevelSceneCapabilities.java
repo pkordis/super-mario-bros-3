@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
-import house.x1337.app.smb3.game.collision.CollisionGridCapabilities;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGridCapabilities;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static java.util.Comparator.comparingInt;
 
-public sealed interface LevelSceneCapabilities extends CollisionGridCapabilities permits LevelScene {
+public sealed interface LevelSceneCapabilities extends StaticEnvironmentCollisionGridCapabilities permits LevelScene {
     /**
      * Returns every environment layer ordered bottom-to-top by its
      * {@link LevelSceneLayerType#getOrder() order} (lowest first). The renderer draws them in this

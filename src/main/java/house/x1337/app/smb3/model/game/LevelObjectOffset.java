@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.model.game;
 
-import house.x1337.app.smb3.game.collision.CollisionGrid;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 
@@ -22,7 +22,7 @@ public record LevelObjectOffset(int x, int y) implements Offset {
         );
     }
 
-    public boolean isOutsideOf(final CollisionGrid collisionGrid) {
+    public boolean isOutsideOf(final StaticEnvironmentCollisionGrid collisionGrid) {
         final LevelSceneDimensions dimensions = collisionGrid.getDimensions();
         return y < 0 ||
             y >= dimensions.rows() ||

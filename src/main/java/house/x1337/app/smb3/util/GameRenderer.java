@@ -7,6 +7,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.model.game.Dimensions;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 
 import java.nio.ByteBuffer;
 
@@ -24,12 +25,11 @@ import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 public interface GameRenderer {
     default Texture2D toTexture(
         final ByteBuffer buffer,
-        final int width,
-        final int height
+        final DimensionsPixels dimensions
     ) {
         buffer.flip();
 
-        final Image image = new Image(RGBA8, width, height, buffer, Linear);
+        final Image image = new Image(RGBA8, dimensions.width(), dimensions.height(), buffer, Linear);
         final Texture2D texture = new Texture2D(image);
         texture.setMagFilter(Nearest);
         texture.setMinFilter(NearestNoMipMaps);
@@ -69,22 +69,21 @@ public interface GameRenderer {
 
     default Texture loadTexture(
         final int[] rgbData,
-        final int width,
-        final int height
+        final DimensionsPixels dimensions
     ) {
         final ByteBuffer buffer = createByteBuffer(rgbData.length * TILE_SCALE);
         // jme3 expects the ByteBuffer in bottom-to-top row order, whereas rgbData (e.g. from
         // BufferedImage#getRGB) is top-to-bottom, so emit source rows in reverse to avoid a
         // vertically flipped texture.
-        for (int y = height - 1; y >= 0; y--) {
-            for (int x = 0; x < width; x++) {
-                final int argb = rgbData[y * width + x];
+        for (int y = dimensions.height() - 1; y >= 0; y--) {
+            for (int x = 0; x < dimensions.width(); x++) {
+                final int argb = rgbData[y * dimensions.width() + x];
                 buffer.put((byte) ((argb >> 16) & 0xFF)); // R
                 buffer.put((byte) ((argb >> 8) & 0xFF));  // G
                 buffer.put((byte) (argb & 0xFF));         // B
                 buffer.put((byte) ((argb >> 24) & 0xFF)); // A
             }
         }
-        return toTexture(buffer, width, height);
+        return toTexture(buffer, dimensions);
     }
 }

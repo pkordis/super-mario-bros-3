@@ -7,16 +7,20 @@ import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
+import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -27,6 +31,7 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.BLACK;
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 import static house.x1337.app.smb3.GameConstants.SIMULATION_DT;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_HEIGHT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -40,6 +45,16 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
     private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
+
+    /**
+     * The single, scene-wide broadphase for dynamic {@link ActiveLevelObject}s. Owned here so all
+     * active-object managers share one grid: each clears nothing and simply inserts its live
+     * objects during its {@code update()} (the engine clears the grid once per tick beforehand),
+     * and {@link #resolveActiveObjectCollisions()} runs one collision pass over the union. Cell
+     * size is one tile.
+     */
+    private final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = new ActiveObjectGrid<>(TILE_SPRITE_SIZE);
+
     private final CameraState cameraState;
     private final PlayerData playerData;
 
@@ -68,6 +83,29 @@ public final class GameEngine extends GameEngineCapabilities {
      */
     public List<Player> getPlayers() {
         return List.of(player);
+    }
+
+    /**
+     * Runs the scene-wide player↔object collision pass for this tick. Each player's hitbox is
+     * computed once (hoisted out of the per-object loop), used to gather nearby objects from the
+     * shared broadphase, then narrowphase-tested; survivors get {@code onCollisionWith}. Managers
+     * react to the outcome in {@link MotionManager#postCollision()}.
+     *
+     * <p>Runs after every manager's {@code update()} has inserted its live objects, so the grid
+     * holds the union of all active objects before any query.
+     */
+    private void resolveActiveObjectCollisions() {
+        for (final Player candidate : getPlayers()) {
+            if (!(candidate instanceof final LevelScenePlayer levelScenePlayer)) {
+                continue;
+            }
+            final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
+            for (final ActiveLevelObject object : activeObjectGrid.query(playerBounds)) {
+                if (object.intersects(playerBounds)) {
+                    object.onCollisionWith(levelScenePlayer);
+                }
+            }
+        }
     }
 
     @Override
@@ -194,7 +232,16 @@ public final class GameEngine extends GameEngineCapabilities {
             simulationAccumulator -= SIMULATION_DT;
             player.updateFrame();
             playerData.getPlayerTimer().tick();
+
+            // Active-object tick, split into phases so a single scene-wide broadphase can serve
+            // every manager: (1) clear the shared grid; (2) each manager ticks its objects and
+            // inserts the live ones; (3) one collision pass over the union dispatches onCollisionWith;
+            // (4) managers react to this tick's collisions (e.g. spawn a score caption) on the same
+            // frame the collision was detected.
+            activeObjectGrid.clear();
             motionManagers.forEach(MotionManager::update);
+            resolveActiveObjectCollisions();
+            motionManagers.forEach(MotionManager::postCollision);
         }
 
         // Interpolate the player's visual position between the previous and

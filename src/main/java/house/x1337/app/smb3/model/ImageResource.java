@@ -2,6 +2,7 @@ package house.x1337.app.smb3.model;
 
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -22,8 +23,7 @@ import static lombok.AccessLevel.PRIVATE;
 public class ImageResource implements GameRenderer {
     private Supplier<int[]> rgbDataLazyLoader = this::getRgbData;
     private int[] rgbData;
-    private int width;
-    private int height;
+    private DimensionsPixels dimensions;
 
     @Getter(lazy = true)
     @Accessors(fluent = true)
@@ -37,7 +37,8 @@ public class ImageResource implements GameRenderer {
     }
 
     private Texture initTexture() {
-        return loadTexture(getRgbData(), width, height);
+        assert dimensions != null;
+        return loadTexture(getRgbData(), dimensions);
     }
 
     public static ImageResource fromData(
@@ -47,8 +48,7 @@ public class ImageResource implements GameRenderer {
     ) {
         final ImageResource imageResource = getBean(ImageResource.class);
         imageResource.setRgbData(rgbData);
-        imageResource.setWidth(width);
-        imageResource.setHeight(height);
+        imageResource.setDimensions(new DimensionsPixels(width, height));
         return imageResource;
     }
 
@@ -59,14 +59,13 @@ public class ImageResource implements GameRenderer {
     ) {
         final ImageResource imageResource = getBean(ImageResource.class);
         imageResource.setRgbDataLazyLoader(rgbDataLazyLoader);
-        imageResource.setWidth(width);
-        imageResource.setHeight(height);
+        imageResource.setDimensions(new DimensionsPixels(width, height));
         return imageResource;
     }
 
     public ImageResource copy() {
-        final int[] clonedPixels = new int[width * height];
+        final int[] clonedPixels = new int[dimensions.width() * dimensions.height()];
         System.arraycopy(rgbData, 0, clonedPixels, 0, clonedPixels.length);
-        return fromData(clonedPixels, width, height);
+        return fromData(clonedPixels, dimensions.width(), dimensions.height());
     }
 }

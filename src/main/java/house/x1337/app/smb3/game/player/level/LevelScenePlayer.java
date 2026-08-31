@@ -5,7 +5,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
-import house.x1337.app.smb3.game.collision.CollisionGrid;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.PlayerData;
@@ -15,6 +15,7 @@ import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,7 +48,7 @@ import static java.lang.Math.min;
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
-    private final CollisionGrid collisionGrid;
+    private final StaticEnvironmentCollisionGrid collisionGrid;
     private final PlayerRuntimeState runtimeState;
     private final PlayerPosition position;
     private final PlayerOrientation orientation;
@@ -75,6 +76,24 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         this.verticalScroll = getBean(LevelSceneVerticalScroll.class, getLevelScene());
         this.animationContext = contextForLevel(this);
         this.orientation = new PlayerOrientation(RIGHT, SUSTAINED);
+    }
+
+    /**
+     * The player's hitbox for collision against dynamic {@code ActiveLevelObject}s, in sprite-pixel
+     * space. Derived from the collision-probe extents in {@code CollisionOffsets}: X spans +1..+15;
+     * the bottom sits at +32; the top at +6 when large and standing, or +16 when small or ducking.
+     *
+     * <p>This is the "hoist" point for object collision — compute it <b>once per tick</b> and reuse
+     * it across every object test, rather than recomputing the player's state inside each object's
+     * overlap check.
+     *
+     * @return the player's object-collision box for the current tick
+     */
+    public AxisAlignedBoundingBox getObjectCollisionBounds() {
+        final boolean largeStanding = isLarge() && !runtimeState.isDucking();
+        final double x = position.getX();
+        final double y = position.getY();
+        return new AxisAlignedBoundingBox(x + 1, y + (largeStanding ? 6 : 16), x + 15, y + 32);
     }
 
     @Override
@@ -167,7 +186,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // horizontal probes may detect the ceiling block edge as a wall
         // and snap the player backward, causing a visible camera jolt.
         final boolean suppressWalls = lowClearance || runtimeState.getLowClearanceGrace() > 0;
-        final boolean hitSomething = collisionGrid.handleCollision(heightOffset, suppressWalls);
+        final boolean hitSomething = collisionGrid.handleCollision(suppressWalls);
 
         // Refine the logical state after physics + collision
         refinePlayerState(inputHandler, hitSomething, lowClearance);

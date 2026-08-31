@@ -27,8 +27,8 @@ import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
 import static house.x1337.app.smb3.enumeration.TileType.NULL;
 
-public interface CollisionGridCapabilities {
-    default CollisionGrid toCollisionGrid(final LevelScenePlayer levelScenePlayer) {
+public interface StaticEnvironmentCollisionGridCapabilities {
+    default StaticEnvironmentCollisionGrid toCollisionGrid(final LevelScenePlayer levelScenePlayer) {
         final LevelScene levelScene = (LevelScene) this;
         final int rows = levelScene.getDimensions().rows();
         final int columns = levelScene.getDimensions().columns();
@@ -95,7 +95,7 @@ public interface CollisionGridCapabilities {
             }
         }
 
-        return new CollisionGrid(
+        return new StaticEnvironmentCollisionGrid(
             levelScenePlayer,
             objects,
             dimensions,

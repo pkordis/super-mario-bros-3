@@ -13,6 +13,7 @@ import com.jme3.util.BufferUtils;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.GameRenderer;
 
@@ -98,7 +99,7 @@ public interface GameEngineRenderer extends Application, GameRenderer {
                 }
             }
         }
-        final Texture2D texture = toTexture(buffer, imageWidth, imageHeight);
+        final Texture2D texture = toTexture(buffer, new DimensionsPixels(imageWidth, imageHeight));
         final Material material = new Material(getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
         material.setTexture("ColorMap", texture);
         material.getAdditionalRenderState().setBlendMode(RenderState.BlendMode.Alpha);
