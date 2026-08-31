@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -44,5 +45,10 @@ public sealed interface LevelScenePlayerCapabilities
 
     default PlayerIdentity getIdentity() {
         return getPlayerData().getIdentity();
+    }
+
+
+    default StaticEnvironmentCollisionGrid getCollisionGrid() {
+        return getGameEngine().getCollisionGrid();
     }
 }

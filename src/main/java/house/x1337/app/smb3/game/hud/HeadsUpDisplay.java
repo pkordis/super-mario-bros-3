@@ -9,7 +9,6 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
-import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import jakarta.annotation.PostConstruct;
@@ -47,6 +46,7 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     private final GameEngine gameEngine;
     private final PlayerData playerData;
+    private final PlayerData.State playerDataSnapshot = new PlayerData.State(-1, -1, -1, -1, -1);
 
     @Value("classpath:/font/hud/hud_base.png")
     private ImageResource baseImage;
@@ -54,7 +54,6 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     private ViewPort hudViewPort;
     private Camera hudCamera;
     private Node hudRoot;
-    private PlayerTimer playerTimer;
 
     /** Tracks whether the HUD needs re-rendering (dirty flag). */
     private boolean dirty = true;
@@ -64,9 +63,6 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
 
     /** Snapshot of last rendered P-meter full state. */
     private boolean lastPMeterFull;
-
-    /** Snapshot of last displayed timer value for dirty detection. */
-    private int lastDisplayedTime = -1;
 
     /**
      * [P] flash tick counter. Decremented every frame when P-meter is full.
@@ -105,8 +101,6 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         hudViewPort.setClearFlags(true, true, true);
         hudRoot.updateGeometricState();
 
-        playerTimer = playerData.getPlayerTimer();
-
         log.info("HUD viewport initialized (bottom {}% of window)", (int) (HUD_VIEWPORT_BOTTOM * 100));
     }
 
@@ -139,15 +133,13 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
      * Sets the dirty flag if any value changed.
      */
     private void syncStateFromPlayer() {
-        final Player player = gameEngine.getPlayer();
+        final Player player = gameEngine.getAllPlayers().getFirst();
         if (player == null) {
             return;
         }
 
-        // Timer value is ticked from the simulation loop in GameEngine;
-        // here we just check if the displayed value has changed.
-        dirty |= (playerTimer.getTime() != lastDisplayedTime);
-        lastDisplayedTime = playerTimer.getTime();
+        dirty = !playerDataSnapshot.equals(playerData);
+        playerDataSnapshot.updateFrom(playerData);
 
         // P-meter: convert from playerPower (0–7) to display level
         if (player instanceof LevelScenePlayer levelPlayer) {
@@ -160,18 +152,18 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
             if (full) {
                 maxPowerTick = (maxPowerTick - 1) & 0xFF;
                 final boolean flashLit = (maxPowerTick & 0x08) == 0;
-                playerData.setPMeterFull(flashLit);
+                playerData.setPowerMeterFull(flashLit);
 
                 if (flashLit != lastPFlashLit) {
                     lastPFlashLit = flashLit;
                     dirty = true;
                 }
             } else {
-                playerData.setPMeterFull(false);
+                playerData.setPowerMeterFull(false);
             }
 
             if (power != lastPMeter || full != lastPMeterFull) {
-                playerData.setPMeter(power);
+                playerData.setPowerMeter(power);
                 lastPMeter = power;
                 lastPMeterFull = full;
                 dirty = true;

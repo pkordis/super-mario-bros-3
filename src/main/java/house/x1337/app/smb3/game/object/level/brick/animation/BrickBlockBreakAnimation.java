@@ -11,6 +11,7 @@ import lombok.Getter;
 
 import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_FRAGMENT;
 
 /**
  * Encapsulates the full lifecycle of a brick-break event: four flying fragments.
@@ -65,12 +66,6 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         8.0f / TILE_SPRITE_SIZE,
         16.0f / TILE_SPRITE_SIZE
     );
-
-    /**
-     * Z for fragments — in front of the player (FOREGROUND = 0.1) to overlay Mario,
-     * matching the NES where debris sprites render above the player sprite.
-     */
-    private static final float FRAGMENT_Z = 0.11f;
 
     /**
      * Flip period: the video shows a vertical-only flip alternating every 2 frames
@@ -247,7 +242,7 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         fragmentGeometries[idx].setLocalTranslation(
             (float) x + hShift,
             (float) y + vShift,
-            FRAGMENT_Z
+            Z_DEPTH_BRICK_BLOCK_FRAGMENT
         );
         fragmentGeometries[idx].setLocalScale(sx, sy, 1f);
     }

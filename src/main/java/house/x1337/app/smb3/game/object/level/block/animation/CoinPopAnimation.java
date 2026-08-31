@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.parabolic;
 import static house.x1337.app.smb3.model.game.Dimensions.halfTileWidth;
 import static house.x1337.app.smb3.model.game.WorldOffset.of;
@@ -70,7 +71,7 @@ public final class CoinPopAnimation implements PopAnimation {
         initialWorldOffset = of(
             offset.x() + COIN_DIMENSIONS.width() - COIN_DIMENSIONS.width() / 2,
             getLevelScene().getDimensions().rows() - 1 - offset.y() + COIN_DIMENSIONS.height(),
-            Z_DEPTH
+            Z_DEPTH_ITEM_REWARD
         );
 
         spriteGeometry = createAndAttachSprite(animationFrames.getFrame(currentTextureIndex), COIN_DIMENSIONS);

@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
 import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 /**
@@ -101,12 +102,6 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
      * The 4.4 fixed-point divisor is 16, so total divisor = 16 * 16 = 256.
      */
     private static final double FIXED_POINT_TO_GAME_UNITS = 1.0 / (16.0 * TILE_SPRITE_SIZE);
-
-    /**
-     * Z-depth for the bouncing sprite — in front of background tiles but behind
-     * the player sprite (FOREGROUND layer is at 0.1).
-     */
-    private static final float BOUNCE_Z = 0.05f;
 
     private static final Dimensions BOUNCING_BRICK_DIMENSIONS = new Dimensions(
         "BrickBounce",
@@ -348,7 +343,7 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
         spriteGeometry.setLocalTranslation(
             worldX,
             (float) (worldY + yOffset),
-            BOUNCE_Z
+            Z_DEPTH_BRICK_BLOCK_BOUNCE
         );
     }
 }

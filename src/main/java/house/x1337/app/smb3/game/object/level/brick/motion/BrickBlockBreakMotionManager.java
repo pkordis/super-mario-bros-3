@@ -85,4 +85,14 @@ public final class BrickBlockBreakMotionManager implements MotionManager {
         }
         activeBounces.add(new BrickBlockBounceAnimation(gameEngine, offset, brickBlockAnimator));
     }
+
+    @Override
+    public boolean isBlockBumpActiveAt(final Offset cell) {
+        for (final BrickBlockBounceAnimation bounce : activeBounces) {
+            if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

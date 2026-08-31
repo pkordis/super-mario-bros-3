@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
 import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 /**
@@ -68,12 +69,6 @@ public final class EmptyBlockBounceAnimation implements GameRenderer {
      * Total divisor = 16 (fixed-point) × 16 (TILE_SPRITE_SIZE) = 256.
      */
     private static final double FIXED_POINT_TO_GAME_UNITS = 1.0 / (16.0 * TILE_SPRITE_SIZE);
-
-    /**
-     * Z-depth for the bouncing sprite — in front of background tiles but behind
-     * the player sprite (FOREGROUND layer is at 0.1).
-     */
-    private static final float BOUNCE_Z = 0.05f;
 
     // -- Position fields ---------------------------------------------------
 
@@ -296,7 +291,7 @@ public final class EmptyBlockBounceAnimation implements GameRenderer {
         spriteGeometry.setLocalTranslation(
             worldX,
             (float) (worldY + yOffset),
-            BOUNCE_Z
+            Z_DEPTH_BRICK_BLOCK_BOUNCE
         );
     }
 }

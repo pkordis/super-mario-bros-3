@@ -129,6 +129,9 @@ public final class GameConstants {
     public static final ColorRGBA BLACK = new ColorRGBA(0, 0, 0, 0);
 
     public static final float Z_STEP_BETWEEN_LAYERS = 0.01f;
+    public static final float Z_DEPTH_BRICK_BLOCK_BOUNCE = 0.05f;
+    public static final float Z_DEPTH_ITEM_REWARD = 0.06f;
+    public static final float Z_DEPTH_BRICK_BLOCK_FRAGMENT = 0.11f;
 
     // -------------------------------------------------------------------------
     // SMB3 velocity constants (4.4 fixed-point / 16 → px/frame from the JS port)

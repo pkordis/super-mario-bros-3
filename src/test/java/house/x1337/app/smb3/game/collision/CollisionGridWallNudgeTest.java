@@ -44,10 +44,10 @@ class CollisionGridWallNudgeTest {
         // player must be nudged left by 1px even though DX == 0.
         final PlayerPosition position = positionAt(36, 32, 0, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute
-        final boolean hitWall = grid.handleCollision(false);
+        final boolean hitWall = grid.handleCollision(player, false);
 
         // Verify
         assertThat(hitWall).as("Touching the block edge registers as a wall hit").isTrue();
@@ -61,10 +61,10 @@ class CollisionGridWallNudgeTest {
         // Prepare
         final PlayerPosition position = positionAt(36, 32, 2.0, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute
-        grid.handleCollision(false);
+        grid.handleCollision(player, false);
 
         // Verify
         assertThat(position.getX()).as("Player is pushed off the wall").isCloseTo(35.0, within(TOLERANCE));
@@ -84,10 +84,10 @@ class CollisionGridWallNudgeTest {
         // camera left and right while held against a body.
         final PlayerPosition position = positionAt(34, 32, 2.0, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute
-        final boolean hitWall = grid.handleCollision(false);
+        final boolean hitWall = grid.handleCollision(player, false);
 
         // Verify
         assertThat(hitWall).as("Flush contact still registers as a wall hit").isTrue();
@@ -103,10 +103,10 @@ class CollisionGridWallNudgeTest {
         // is not "into" the wall, so velocity is preserved while still nudging.
         final PlayerPosition position = positionAt(36, 32, -1.5, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute
-        grid.handleCollision(false);
+        grid.handleCollision(player, false);
 
         // Verify
         assertThat(position.getX()).as("Player still slides 1px").isCloseTo(35.0, within(TOLERANCE));
@@ -121,13 +121,13 @@ class CollisionGridWallNudgeTest {
         // This is the post-emexit condition: DX == 0, resting against the wall.
         final PlayerPosition position = positionAt(34, 32, 0, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute & Verify
         // Multiple frames must not move the player nor lock its velocity — the
         // old full-snap-plus-setDX(0) approach froze the camera here.
         for (int frame = 0; frame < 3; frame++) {
-            grid.handleCollision(false);
+            grid.handleCollision(player, false);
             assertThat(position.getX()).as("Flush player must not be re-snapped").isCloseTo(34.0, within(TOLERANCE));
             assertThat(position.getDX()).as("Flush player velocity is untouched").isCloseTo(0.0, within(TOLERANCE));
         }
@@ -139,10 +139,10 @@ class CollisionGridWallNudgeTest {
         // Prepare
         final PlayerPosition position = positionAt(36, 32, 0, -2);
         final LevelScenePlayer player = largePlayerMovingUp(position);
-        final StaticEnvironmentCollisionGrid grid = gridFor(player, gridWithSolidColumn(3));
+        final StaticEnvironmentCollisionGrid grid = gridFor(gridWithSolidColumn(3));
 
         // Execute
-        final boolean hitWall = grid.handleCollision(true);
+        final boolean hitWall = grid.handleCollision(player, true);
 
         // Verify
         assertThat(hitWall).as("No wall hit while suppressed").isFalse();
@@ -168,8 +168,8 @@ class CollisionGridWallNudgeTest {
         return objects;
     }
 
-    private StaticEnvironmentCollisionGrid gridFor(final LevelScenePlayer player, final LevelObject[][] objects) {
-        return new StaticEnvironmentCollisionGrid(player, objects, new LevelSceneDimensions(8, 8), null);
+    private StaticEnvironmentCollisionGrid gridFor(final LevelObject[][] objects) {
+        return new StaticEnvironmentCollisionGrid(objects, new LevelSceneDimensions(8, 8), null);
     }
 
     private LevelScenePlayer largePlayerMovingUp(final PlayerPosition position) {

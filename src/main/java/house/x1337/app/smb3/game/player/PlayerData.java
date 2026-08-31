@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -20,9 +21,6 @@ public final class PlayerData {
     /** The player identity (Mario or Luigi). */
     private PlayerIdentity identity;
 
-    /** Current world number (1–9). */
-    private int world = 1;
-
     /**
      * Internal P-meter charge level used by the physics engine (0–7).
      * Mirrors {@code Player_Power} in the dasm (prg008).
@@ -33,13 +31,13 @@ public final class PlayerData {
      * Throttle counter for P-meter charge/drain rate limiting.
      * Decrements each frame; when zero the meter advances one step.
      */
-    private int playerPowerThrottle;
+    private int powerThrottle;
 
     /** P-meter display level (0 = empty, 7 = full). Bits 0–6 represent arrows. */
-    private int pMeter = 0;
+    private int powerMeter = 0;
 
     /** Whether the P-meter is at max (triggers [P] flash). */
-    private boolean pMeterFull = false;
+    private boolean powerMeterFull = false;
 
     /** Player score (0–9999999). */
     private int score = 0;
@@ -49,6 +47,9 @@ public final class PlayerData {
 
     /** Lives remaining (0–99). */
     private int lives = 4;
+
+    /** Current world number (1–9). */
+    private int world = 1;
 
     /** Level countdown timer (manages start/pause/clear and event publishing). */
     private final PlayerTimer playerTimer = new PlayerTimer();
@@ -69,7 +70,37 @@ public final class PlayerData {
         return playerTimer.isActive();
     }
 
+    public void addCoin() {
+        ++coins;
+    }
+
     public void addToScore(final Integer score) {
         this.score += score;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class State {
+        private int time;
+        private int score;
+        private int coins;
+        private int lives;
+        private int world;
+
+        public boolean equals(final PlayerData playerData) {
+            return playerData.score == this.score &&
+                playerData.coins == this.coins &&
+                playerData.lives == this.lives &&
+                playerData.world == this.world &&
+                playerData.getPlayerTimer().getTime() == this.time;
+        }
+
+        public void updateFrom(final PlayerData snapshot) {
+            score = snapshot.score;
+            coins = snapshot.coins;
+            lives = snapshot.lives;
+            world = snapshot.world;
+            time = snapshot.getPlayerTimer().getTime();
+        }
     }
 }

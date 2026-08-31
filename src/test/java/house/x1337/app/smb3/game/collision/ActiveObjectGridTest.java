@@ -5,6 +5,8 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -93,6 +95,30 @@ class ActiveObjectGridTest {
 
         private StubObject(final AxisAlignedBoundingBox bounds) {
             this.bounds = bounds;
+        }
+
+        @Override
+        public double getPixelX() {
+            throw doNotCall();
+        }
+
+        @Override
+        public double getPixelY() {
+            throw doNotCall();
+        }
+
+        @Override
+        public ImageResource getImageResource() {
+            throw doNotCall();
+        }
+
+        @Override
+        public Dimensions getSpriteDimensions() {
+            throw doNotCall();
+        }
+
+        private RuntimeException doNotCall() {
+            return new UnsupportedOperationException("This method should not be called");
         }
 
         @Override

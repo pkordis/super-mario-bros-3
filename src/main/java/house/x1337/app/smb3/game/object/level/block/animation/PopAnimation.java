@@ -10,6 +10,7 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.util.GameRenderer;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.model.game.WorldOffset.of;
 
 /**
@@ -27,8 +28,6 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
  * {@link #detach()}, and sprite positioning.
  */
 public interface PopAnimation extends GameEngineAware, GameRenderer {
-    float Z_DEPTH = 0.06f;
-
     Dimensions getDimensions();
     Geometry getSpriteGeometry();
 
@@ -41,7 +40,7 @@ public interface PopAnimation extends GameEngineAware, GameRenderer {
         return of(
             getInitialWorldOffset().x(),
             calculateWorldY(),
-            Z_DEPTH
+            Z_DEPTH_ITEM_REWARD
         );
     }
 

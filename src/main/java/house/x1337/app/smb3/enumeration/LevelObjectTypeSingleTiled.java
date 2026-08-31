@@ -8,6 +8,7 @@ import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithReward;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
+import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +25,8 @@ public enum LevelObjectTypeSingleTiled implements LevelObjectType {
     QUESTION_BLOCK("Question Block", QuestionBlock.class),
 
     // Rewards
-    SUPER_LEAF("Super Leaf", SuperLeaf.class);
+    SUPER_LEAF("Super Leaf", SuperLeaf.class),
+    SUPER_MUSHROOM("Super Mushroom", SuperMushroom.class);
 
     private final boolean singleTiled = true;
     private final String label;
