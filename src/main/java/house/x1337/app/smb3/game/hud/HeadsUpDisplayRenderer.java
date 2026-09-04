@@ -95,7 +95,7 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
 
         // --- Top sub-row: world number + P-meter + coins ---
         blitGlyph(clonedBaseImagePixels, digitGlyph(clampDigit(data.getWorld())), WORLD_NUM_X, TOP_Y);
-        renderPMeter(clonedBaseImagePixels, data.getPMeter(), data.isPMeterFull());
+        renderPMeter(clonedBaseImagePixels, data.getPowerMeter(), data.isPowerMeterFull());
         renderRightAligned(clonedBaseImagePixels, data.getCoins(), COIN_X, TOP_Y);
 
         // --- Bottom sub-row: player icon + lives + score + timer ---

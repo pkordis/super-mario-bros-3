@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
+import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelObjectOffset;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -16,6 +17,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Optional;
+
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
@@ -29,7 +32,6 @@ import static java.lang.Math.floor;
 @Getter
 @RequiredArgsConstructor
 public final class StaticEnvironmentCollisionGrid implements GameMath {
-    private final LevelScenePlayer levelScenePlayer;
     private final LevelObject[][] objects;
     private final LevelSceneDimensions dimensions;
     private final GameEngine gameEngine;
@@ -39,22 +41,29 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
      * Returns {@code true} if a horizontal wall hit occurred this frame
      * (dasm prg008 Player_DetectSolids: wall hit detection at PRG008_B4F3).
      */
-    public boolean handleCollision(final boolean lowClearance) {
+    public boolean handleCollision(
+        final LevelScenePlayer levelScenePlayer,
+        final boolean lowClearance
+    ) {
         final PlayerPosition position = levelScenePlayer.getPosition();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
 
-        final CollisionProbe probe = resolveProbe(playerIsMovingUp, playerIsLeftHalf);
+        final CollisionProbe probe = resolveProbe(
+            levelScenePlayer,
+            playerIsMovingUp,
+            playerIsLeftHalf
+        );
         final ProbeLocation tVert = probe.vertical();
         final ProbeLocation tHoriz = probe.horizontal();
 
-        final boolean solidVert = isSolidVert(tVert, playerIsMovingUp);
+        final boolean solidVert = isSolidVert(levelScenePlayer, tVert, playerIsMovingUp);
 
-        final boolean solidHoriz1 = collidesAtOffset(tHoriz.first());
-        final boolean solidHoriz2 = collidesAtOffset(tHoriz.second());
-        final boolean oneWayHoriz1 = isOneWayTileFromPlayer(tHoriz.first());
-        final boolean oneWayHoriz2 = isOneWayTileFromPlayer(tHoriz.second());
+        final boolean solidHoriz1 = collidesAtOffset(levelScenePlayer, tHoriz.first());
+        final boolean solidHoriz2 = collidesAtOffset(levelScenePlayer, tHoriz.second());
+        final boolean oneWayHoriz1 = isOneWayTileFromPlayer(levelScenePlayer, tHoriz.first());
+        final boolean oneWayHoriz2 = isOneWayTileFromPlayer(levelScenePlayer, tHoriz.second());
         final boolean solidHoriz = (solidHoriz1 && !oneWayHoriz1) || (solidHoriz2 && !oneWayHoriz2);
 
         // Horizontal collision — eject the player from a wall, or slide them
@@ -152,13 +161,16 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
             if (solidVert) {
                 // Head hitting objects
                 position.setDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
-                handleVerticalCollision(tVert);
+                handleVerticalCollision(levelScenePlayer, tVert);
             }
         }
         return hitWall;
     }
 
-    private void handleVerticalCollision(final ProbeLocation tVert) {
+    private void handleVerticalCollision(
+        final LevelScenePlayer levelScenePlayer,
+        final ProbeLocation tVert
+    ) {
         final LevelObjectOffset objectOffset = fromPlayerOffset(levelScenePlayer, tVert.first());
         if (objectOffset.isOutsideOf(this)) {
             return;
@@ -194,15 +206,16 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
     }
 
     private boolean isSolidVert(
+        final Player player,
         final ProbeLocation tVert,
         final boolean playerIsMovingUp
     ) {
-        final boolean solidVert1 = collidesAtOffset(tVert.first());
-        final boolean solidVert2 = collidesAtOffset(tVert.second());
+        final boolean solidVert1 = collidesAtOffset(player, tVert.first());
+        final boolean solidVert2 = collidesAtOffset(player, tVert.second());
         final boolean solidVert;
         if (playerIsMovingUp) {
-            final boolean oneWayVert1 = isOneWayTileFromPlayer(tVert.first());
-            final boolean oneWayVert2 = isOneWayTileFromPlayer(tVert.second());
+            final boolean oneWayVert1 = isOneWayTileFromPlayer(player, tVert.first());
+            final boolean oneWayVert2 = isOneWayTileFromPlayer(player, tVert.second());
             solidVert = (solidVert1 && !oneWayVert1) || (solidVert2 && !oneWayVert2);
         } else {
             solidVert = solidVert1 || solidVert2;
@@ -215,6 +228,7 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
     // -------------------------------------------------------------------------
 
     private CollisionProbe resolveProbe(
+        final LevelScenePlayer levelScenePlayer,
         final boolean movingUp,
         final boolean leftHalf
     ) {
@@ -224,30 +238,19 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
         return probes.resolve(movingUp, leftHalf);
     }
 
-    // -------------------------------------------------------------------------
-    // Object query helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * Checks whether the object at the given pixel offset from the player
-     * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
-     */
-    public boolean collidesAtOffset(final int dx, final int dy) {
-        return collidesAtOffset(Offset.of(dx, dy));
-    }
-
     /**
      * Checks whether the object at the given {@link Offset} from the player
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      */
-    public boolean collidesAtOffset(final Offset offset) {
-        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(levelScenePlayer, offset);
+    public boolean collidesAtOffset(
+        final Player player,
+        final Offset offset
+    ) {
+        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(player, offset);
         final int tx = levelObjectOffset.x();
         int ty = levelObjectOffset.y();
 
-        if (ty < 0) {
-            ty = 0;
-        } else if (ty >= dimensions.rows()) {
+        if (ty >= dimensions.rows()) {
             return true; // Below world = solid
         }
         if (tx < 0 || tx >= dimensions.columns()) {
@@ -261,21 +264,79 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
      * Checks whether the object at the given pixel offset from the player
      * position is a one-way platform.
      */
-    public boolean isOneWayTileFromPlayer(final int dx, final int dy) {
-        return isOneWayTileFromPlayer(Offset.of(dx, dy));
+    public boolean isOneWayTileFromPlayer(
+        final Player player,
+        final int dx,
+        final int dy
+    ) {
+        return isOneWayTileFromPlayer(player, Offset.of(dx, dy));
     }
 
     /**
      * Checks whether the object at the given {@link Offset} from the player
      * position is a one-way platform.
      */
-    public boolean isOneWayTileFromPlayer(final Offset offset) {
-        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(levelScenePlayer, offset);
+    public boolean isOneWayTileFromPlayer(
+        final Player player,
+        final Offset offset
+    ) {
+        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(player, offset);
 
         if (levelObjectOffset.isOutsideOf(this)) {
             return false;
         }
 
         return getLevelObjectAt(levelObjectOffset).isOneWayPlatform();
+    }
+
+    /**
+     * Queries the scene's static terrain: is the tile at {@code (column, row)} solid? Off the left
+     * or right edge, and below the world, count as solid so the mushroom cannot escape sideways or
+     * fall through the floor; above the world (negative row) is open sky.
+     */
+    public boolean isSolidTile(final int column, final int row) {
+        final int rows = gameEngine.getLevelScene().getDimensions().rows();
+        final int columns = gameEngine.getLevelScene().getDimensions().columns();
+        if (row < 0) {
+            return false;
+        }
+        if (row >= rows) {
+            return true;
+        }
+        if (column < 0 || column >= columns) {
+            return true;
+        }
+        return getLevelObjectAt(Offset.of(column, row)).isCollidable();
+    }
+
+    /**
+     * Finds the live {@link LevelScenePlayer} whose position is nearest to the given point, by
+     * squared Euclidean distance in sprite-pixel space. Active objects that must react to "the
+     * player" — e.g. a Super Mushroom choosing which way to roll away — use this instead of
+     * assuming a single player, so they behave correctly in multiplayer.
+     *
+     * @param x the reference point's X in sprite-pixel space
+     * @param y the reference point's Y in sprite-pixel space
+     * @return the closest level-scene player, or empty if there are none
+     */
+    public Optional<LevelScenePlayer> findClosestPlayerTo(
+        final double x,
+        final double y
+    ) {
+        LevelScenePlayer closest = null;
+        double closestDistanceSquared = Double.MAX_VALUE;
+        for (final Player player : gameEngine.getAllPlayers()) {
+            if (player instanceof final LevelScenePlayer levelScenePlayer) {
+                final PlayerPosition position = levelScenePlayer.getPosition();
+                final double dx = position.getX() - x;
+                final double dy = position.getY() - y;
+                final double distanceSquared = dx * dx + dy * dy;
+                if (distanceSquared < closestDistanceSquared) {
+                    closestDistanceSquared = distanceSquared;
+                    closest = levelScenePlayer;
+                }
+            }
+        }
+        return Optional.ofNullable(closest);
     }
 }

@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.RewardDispensingLevelObject;
 import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.QuestionBlockAnimator;
+import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -90,6 +91,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
 
     @Override
     public void onCoinDispensed(final LevelScenePlayer levelScenePlayer) {
+        final PlayerData playerData = levelScenePlayer.getPlayerData();
         coinRewardMotionManager
             .spawnCoinReward(
                 levelScenePlayer.getGameEngine(),
@@ -101,6 +103,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
                 // popping in the air
                 levelScenePlayer.getPlayerData().addToScore(score);
             });
+        playerData.addCoin();
     }
 
     private void bakeTileToTexture(

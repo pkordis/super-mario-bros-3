@@ -29,7 +29,7 @@ public interface LevelSceneTesterSessionFactory {
             getBean(MiddlePane.class, editorTabSystem),
             gameEngine
         );
-        gameEngine.setLevelScene(levelScene);
+        gameEngine.setupLevel(levelScene);
         return testerSession;
     }
 }

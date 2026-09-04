@@ -8,6 +8,7 @@ import com.jme3.system.AppSettings;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
@@ -15,17 +16,16 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
-import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.BLACK;
@@ -37,14 +37,15 @@ import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.PlayerIdentityType.MARIO;
-import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
+import static lombok.AccessLevel.PRIVATE;
 
 @Slf4j
 @Getter
 @Prototype
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
-    private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
+    private final List<? extends MotionManager<?>> motionManagers = getBean(MotionManager.Registry.class).getAll();
 
     /**
      * The single, scene-wide broadphase for dynamic {@link ActiveLevelObject}s. Owned here so all
@@ -57,13 +58,16 @@ public final class GameEngine extends GameEngineCapabilities {
 
     private final CameraState cameraState;
     private final PlayerData playerData;
+    private final List<Player> allPlayers = new ArrayList<>();
 
-    @Setter
     private LevelScene levelScene;
+    private StaticEnvironmentCollisionGrid collisionGrid;
     private GameContext gameContext = LEVEL_SCENE;
     private HeadsUpDisplay headsUpDisplay;
-    private Player player;
     private FrameCaptureState frameCaptureState;
+
+    @Getter(PRIVATE)
+    private Player playerOne;
 
     /**
      * Accumulates real elapsed time between render frames. When it exceeds
@@ -71,19 +75,6 @@ public final class GameEngine extends GameEngineCapabilities {
      * tick is consumed. This decouples game-logic rate (60 Hz) from render rate.
      */
     private double simulationAccumulator = 0.0;
-
-    /**
-     * All players currently active in the scene. Today a scene runs a single player, but
-     * callers must treat this as a collection so that planned multi-player levels need no
-     * change beyond this method. This is the one place the single-player assumption lives —
-     * world objects (e.g. {@code SuperLeaf}) resolve collisions against every player here
-     * rather than holding a hard-wired reference to one.
-     *
-     * @return an immutable view of the scene's players
-     */
-    public List<Player> getPlayers() {
-        return List.of(player);
-    }
 
     /**
      * Runs the scene-wide player↔object collision pass for this tick. Each player's hitbox is
@@ -95,16 +86,8 @@ public final class GameEngine extends GameEngineCapabilities {
      * holds the union of all active objects before any query.
      */
     private void resolveActiveObjectCollisions() {
-        for (final Player candidate : getPlayers()) {
-            if (!(candidate instanceof final LevelScenePlayer levelScenePlayer)) {
-                continue;
-            }
-            final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
-            for (final ActiveLevelObject object : activeObjectGrid.query(playerBounds)) {
-                if (object.intersects(playerBounds)) {
-                    object.onCollisionWith(levelScenePlayer);
-                }
-            }
+        if (gameContext == LEVEL_SCENE) {
+            activeObjectGrid.resolveActiveObjectCollisions(checkedCast(getAllPlayers()));
         }
     }
 
@@ -140,6 +123,24 @@ public final class GameEngine extends GameEngineCapabilities {
     @Override
     public void requestClose(final boolean esc) {
         stop();
+    }
+
+    /**
+     * Reports whether a solid block at the given cell is currently playing its hit-from-below bounce
+     * this tick. Active objects resting on a block poll this against the cell at their feet to know
+     * they were just bumped — the project's stand-in for the ROM's transient
+     * {@code TILEA_BLOCKBUMP_CLEAR} tile (dasm {@code Object_InteractWithWorld} @ PRG001_A97C).
+     *
+     * @param cell the tile cell to test
+     * @return {@code true} if any motion manager reports a live block-bump at {@code cell}
+     */
+    public boolean isBlockBumpActiveAt(final Offset cell) {
+        for (final MotionManager<?> motionManager : motionManagers) {
+            if (motionManager.isBlockBumpActiveAt(cell)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -182,15 +183,16 @@ public final class GameEngine extends GameEngineCapabilities {
 
         // Create and attach the players
         playerData.setIdentity(MARIO.identity());
-        player = PlayerFactory.spawn(
+        playerOne = PlayerFactory.spawn(
             playerData,
             onSpawn -> {
-                onSpawn.setMode(RACCOON);
+                onSpawn.setMode(SHRUNK);
                 onSpawn.renderPlayer();
                 onSpawn.updateInCameraState(cameraState);
             },
             this
         );
+        allPlayers.add(playerOne);
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
         playerData.getPlayerTimer().setInitialTime(300);
         playerData.getPlayerTimer().start();
@@ -230,7 +232,7 @@ public final class GameEngine extends GameEngineCapabilities {
         // are no-ops and it snapshots nothing, so the same path serves both.
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
-            player.updateFrame();
+            allPlayers.forEach(Player::updateFrame);
             playerData.getPlayerTimer().tick();
 
             // Active-object tick, split into phases so a single scene-wide broadphase can serve
@@ -248,8 +250,13 @@ public final class GameEngine extends GameEngineCapabilities {
         // current simulation states so that rendering at rates above 60 Hz
         // produces smooth, jitter-free movement.
         final double alpha = simulationAccumulator / SIMULATION_DT;
-        player.interpolateVisualPosition(alpha);
+        allPlayers.forEach(player -> player.interpolateVisualPosition(alpha));
 
         headsUpDisplay.update(timePerFrame);
+    }
+
+    public void setupLevel(final LevelScene levelScene) {
+        this.levelScene = levelScene;
+        this.collisionGrid = levelScene.toCollisionGrid(this);
     }
 }

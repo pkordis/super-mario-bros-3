@@ -4,15 +4,11 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.Score;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.WorldOffset;
-import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
-import house.x1337.app.smb3.util.GameRenderer;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -21,13 +17,14 @@ import org.springframework.beans.factory.annotation.Value;
 import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_LEAF;
-import static house.x1337.app.smb3.model.game.WorldOffset.of;
+import static house.x1337.app.smb3.enumeration.Score.SCORE_1000;
 
 @Getter
 @Prototype
 @RequiredArgsConstructor
-public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
+public final class SuperLeaf implements RewardLevelObject {
     private static final int INITIAL_Y_VELOCITY_FIXED_POINT = -32;
     private static final int SPAWN_Y_OFFSET_PIXELS = -14;
     private static final int X_VELOCITY_STEP_FIXED_POINT = 2;
@@ -35,15 +32,14 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
     private static final int[] FLUTTER_Y_VELOCITY_BASE_FIXED_POINT = {10, -10, 8};
     private static final int FLUTTER_Y_VELOCITY_BIAS_FIXED_POINT = 6;
     private static final double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / 16.0;
-    private static final float Z_DEPTH = 0.06f;
 
     private final LevelObjectType type = SUPER_LEAF;
 
     /** Points awarded (and captioned) when the leaf is collected — 1000, as in the ROM. */
-    private final Score rewardScore = Score.SCORE_1000;
+    private final Score rewardScore = SCORE_1000;
 
     @Value("classpath:/sprites/reward/leaf/leaf_normal.png")
-    private ImageResource leafImage;
+    private ImageResource imageResource;
 
     private final GameEngine gameEngine;
     private final Offset offset;
@@ -69,10 +65,10 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
 
         spriteDimensions = new Dimensions(
             "SuperLeaf",
-            leafImage.getDimensions().width() * PIXELS_TO_GAME_UNITS,
-            leafImage.getDimensions().height() * PIXELS_TO_GAME_UNITS
+            imageResource.getDimensions().width() * PIXELS_TO_GAME_UNITS,
+            imageResource.getDimensions().height() * PIXELS_TO_GAME_UNITS
         );
-        spriteGeometry = fromTexture(gameEngine.getAssetManager(), leafImage.asTexture(), spriteDimensions);
+        spriteGeometry = fromTexture(gameEngine.getAssetManager(), imageResource.asTexture(), spriteDimensions);
         spriteGeometry.getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
         gameEngine.getRootNode().attachChild(spriteGeometry);
         positionSprite();
@@ -126,6 +122,7 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
      *
      * @param levelScenePlayer the player that collected the leaf
      */
+    @Override
     public void onCollisionWith(final LevelScenePlayer levelScenePlayer) {
         if (collected) {
             // Already collected this tick (a second player) or lingering for its co-render frame —
@@ -136,26 +133,6 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
             .getPlayerData()
             .addToScore(rewardScore.getData().getValue());
         collected = true;
-    }
-
-    /**
-     * @return the leaf's current world position using the same top-edge convention as
-     *         {@code PopAnimation}, so the score caption pops from where the leaf was collected
-     */
-    public WorldOffset getCurrentWorldOffset() {
-        final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final float worldX = (float) (pixelX / TILE_SPRITE_SIZE);
-        final float topEdgeWorldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE) + spriteDimensions.height();
-        return of(worldX, topEdgeWorldY, Z_DEPTH);
-    }
-
-    /**
-     * @return the leaf's collision box in sprite-pixel space (the raw sprite rectangle at its
-     *         current fluttering position)
-     */
-    @Override
-    public AxisAlignedBoundingBox getBounds() {
-        return AxisAlignedBoundingBox.ofSize(pixelX, pixelY, leafImage.getDimensions());
     }
 
     @Override
@@ -182,10 +159,10 @@ public final class SuperLeaf implements ActiveLevelObject, GameRenderer {
             // Mirror the left-pointing art to point right — same negative-X-scale
             // flip (plus a width shift to keep it in place) used by player sprites.
             spriteGeometry.setLocalScale(-1f, 1f, 1f);
-            spriteGeometry.setLocalTranslation(worldX + width, worldY, Z_DEPTH);
+            spriteGeometry.setLocalTranslation(worldX + width, worldY, Z_DEPTH_ITEM_REWARD);
         } else {
             spriteGeometry.setLocalScale(1f, 1f, 1f);
-            spriteGeometry.setLocalTranslation(worldX, worldY, Z_DEPTH);
+            spriteGeometry.setLocalTranslation(worldX, worldY, Z_DEPTH_ITEM_REWARD);
         }
     }
 

@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("Aabb overlap in sprite-pixel space (Y-down, half-open edges)")
+@DisplayName("AxisAlignedBoundingBox overlap in sprite-pixel space (Y-down, half-open edges)")
 class AxisAlignedBoundingBoxTest {
 
     @Test

@@ -2,11 +2,11 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.SolidLevelObject;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
@@ -28,7 +28,7 @@ import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFOR
 import static house.x1337.app.smb3.enumeration.TileType.NULL;
 
 public interface StaticEnvironmentCollisionGridCapabilities {
-    default StaticEnvironmentCollisionGrid toCollisionGrid(final LevelScenePlayer levelScenePlayer) {
+    default StaticEnvironmentCollisionGrid toCollisionGrid(final GameEngine gameEngine) {
         final LevelScene levelScene = (LevelScene) this;
         final int rows = levelScene.getDimensions().rows();
         final int columns = levelScene.getDimensions().columns();
@@ -96,10 +96,9 @@ public interface StaticEnvironmentCollisionGridCapabilities {
         }
 
         return new StaticEnvironmentCollisionGrid(
-            levelScenePlayer,
             objects,
             dimensions,
-            levelScenePlayer.getGameEngine()
+            gameEngine
         );
     }
 }

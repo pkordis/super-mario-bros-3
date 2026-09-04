@@ -40,7 +40,7 @@ projectiles — the same four-phase handler contract. Map project concepts to it
 | `ObjKill_*` | `expired` flag + `detach()` | death/removal from scene graph |
 
 Object state lives in `Objects_X/Y/XVel/YVel/Var1/Var2/Timer/State` slots; velocities are 4.4
-fixed-point (`value/16` = px/frame). Always port constants/tables from dasm (see `AGENTS.md`
+fixed-point (`value/16` = px/frame). Always port constants/tables from dasm (see `../AGENTS.md`
 PRG index; items+enemies are `prg001`–`prg005`, shared object routines in `prg000`).
 
 ## Recommended future abstraction (extract only when the 2nd consumer arrives)
@@ -91,7 +91,57 @@ an ENTITY manager, not an animation manager — a generic `ActiveObjectManager` 
 - Dispensing: `RewardDispensingLevelObject.dispenseReward` switches on `getReward()` (`ItemType`);
   add a `case` + default `onXDispensed()` that calls `getBean(Manager).spawn(player, getOffset())`.
 
-## Style (`.editorconfig`)
+## Style (`../.editorconfig`)
 4-space indent, `final` everywhere, K&R braces, 120-col limit, `Math.clamp` over `min`/`max`
 combos, import groups (non-java/javax, javax, java, blank, static; alphabetical within group).
 Javadoc should cite dasm handler / line references (project norm).
+
+---
+
+## Second consumer landed: `SuperMushroom` — a world-colliding item (added 2026-09)
+
+`SuperMushroom` (`game/object/level/reward/SuperMushroom.java` + `SuperMushroomMotionManager`)
+is the predicted "genuinely different" second `ActiveLevelObject`: an item that **walks on
+tiles**, validating the interface against the leaf's "ignores tiles" behaviour. Built by
+mirroring the leaf's structure (entity + manager + `ActiveObjectGrid` broadphase + score popup
+co-render + dispensing switch case) but with the mushroom's own dasm motion.
+
+### dasm blueprint (prg001 `ObjInit_PUpMush` / `ObjNorm_PUpMush`; prg000 `Object_Move`)
+Two phases inside the single `tick()` (not `PopAnimation` — same reasoning as the leaf):
+
+1. **Rise = `PowerUp_DoRaise`.** `Objects_Timer` starts `$3d` (61f). While `>= $2d` it holds
+   still (the bumped block still hides it, ~16f). Below `$2d` it creeps up **1 px every 3
+   frames** (`Objects_Var1` cycles 2→0, `Objects_Y--` on underflow) — emerges ~one tile.
+   Un-collectable until `Objects_Timer2 = $10` elapses (`PowerUp_DoHitTest`).
+2. **Move = `ObjNorm_PUpMush` + `Object_InteractWithWorld`.** Gravity `OBJECT_FALLRATE = $03`/f
+   capped at `OBJECT_MAXFALL = $40` (4 px/f). Once grounded with `XVel == 0`,
+   `PowerUp_BounceXVel` kicks a constant `$10` (1 px/f) **away from the player** (direction from
+   `Mushroom_SetFall`: object left-of-player → rolls left, else right). Rests on solid floors;
+   `Object_AboutFace` reverses `XVel` at walls. All velocities 4.4 FP (`/16` = px/f).
+
+### World collision: reuse `StaticEnvironmentCollisionGrid`, don't reinvent
+The item resolves tiles against the SAME grid the player uses. The player-facing probe methods
+(`collidesAtOffset`, `handleCollision`) are **player-relative** (`fromPlayerOffset`) — do NOT use
+those for objects. Instead use the ABSOLUTE-coordinate accessor:
+`grid.getLevelObjectAt(Offset.of(col, row)).isCollidable()`. Fetch the grid lazily from any live
+`LevelScenePlayer` (`gameEngine.getPlayers()` → instanceof → `getCollisionGrid()`); all players
+index identical tiles. Treat out-of-columns / below-world as solid, above-world as open.
+Ground probe: solid tile under feet-center (`floor((y+16)/16)` at center column) → snap
+`pixelY = feetRow*16 - 16`, `yVel = 0`, `grounded = true`. Wall probe: solid tile at the
+leading edge (right edge `floor((x+15)/16)` when moving right, else `floor(x/16)`) at vertical
+mid-row → reverse `xVel`, don't advance into the wall this frame. This confirms the KB's
+prediction: **world collision is composed into the specific entity, NOT baked into a shared
+base** — `SuperLeaf` still ignores it. If/when a 3rd walker arrives, extract a `WorldCollision`
+mixin/helper (the ground+wall probe pair above) rather than a monolithic base class.
+
+### Manager difference vs. leaf
+Identical to `SuperLeafMotionManager` except the broadphase insert is gated on
+`mushroom.isCollectable()` (the `Objects_Timer2` window), so an emerging mushroom cannot be
+picked up. Sprite is symmetric 16×16 (`sprites/reward/mashroom/mushroom_normal.png`), so
+`positionSprite()` needs NO mirroring (dropped the leaf's negative-X-scale flip). Reward is
+`SCORE_1000` (`PUp_GeneralCollect` → `Score_PopUp #$09`), same as the leaf. Grow/Super-suit
+grant from `ObjHit_PUpMush` is still deferred (mirrors the leaf's deferred Raccoon grant).
+
+### Build/test note
+Maven wrapper on Windows/PowerShell must be invoked as `.\mvnw.cmd` (bare `mvnw.cmd` is not on
+PATH). `.\mvnw.cmd test` → 29 tests green after this change.

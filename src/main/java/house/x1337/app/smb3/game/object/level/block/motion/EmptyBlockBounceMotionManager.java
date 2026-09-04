@@ -49,4 +49,14 @@ public final class EmptyBlockBounceMotionManager implements MotionManager {
             emptyBlockTileResource
         ));
     }
+
+    @Override
+    public boolean isBlockBumpActiveAt(final Offset cell) {
+        for (final EmptyBlockBounceAnimation bounce : activeBounces) {
+            if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

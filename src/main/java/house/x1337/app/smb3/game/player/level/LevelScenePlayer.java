@@ -5,8 +5,8 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
-import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
@@ -48,7 +48,6 @@ import static java.lang.Math.min;
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
-    private final StaticEnvironmentCollisionGrid collisionGrid;
     private final PlayerRuntimeState runtimeState;
     private final PlayerPosition position;
     private final PlayerOrientation orientation;
@@ -72,7 +71,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         );
         this.position = initializePosition();
         this.runtimeState = getBean(PlayerRuntimeState.class);
-        this.collisionGrid = getLevelScene().toCollisionGrid(this);
         this.verticalScroll = getBean(LevelSceneVerticalScroll.class, getLevelScene());
         this.animationContext = contextForLevel(this);
         this.orientation = new PlayerOrientation(RIGHT, SUSTAINED);
@@ -122,6 +120,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateFrame() {
+        final StaticEnvironmentCollisionGrid collisionGrid = gameEngine.getCollisionGrid();
+
         // Capture the pre-tick position for render interpolation. Done here
         // (rather than in the engine loop) so the engine never dereferences a
         // player's position — MapPlayer, which has none, simply no-ops.
@@ -186,7 +186,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // horizontal probes may detect the ceiling block edge as a wall
         // and snap the player backward, causing a visible camera jolt.
         final boolean suppressWalls = lowClearance || runtimeState.getLowClearanceGrace() > 0;
-        final boolean hitSomething = collisionGrid.handleCollision(suppressWalls);
+        final boolean hitSomething = collisionGrid.handleCollision(this, suppressWalls);
 
         // Refine the logical state after physics + collision
         refinePlayerState(inputHandler, hitSomething, lowClearance);

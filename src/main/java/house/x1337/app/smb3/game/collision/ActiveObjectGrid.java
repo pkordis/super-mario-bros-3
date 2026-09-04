@@ -1,6 +1,8 @@
 package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.player.Player;
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 
 import java.util.ArrayList;
@@ -121,5 +123,16 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     private static long keyOf(final int cellX, final int cellY) {
         return (((long) cellX) << 32) | (cellY & 0xFFFFFFFFL);
+    }
+
+    public void resolveActiveObjectCollisions(final List<LevelScenePlayer> levelScenePlayers) {
+        for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
+            final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
+            for (final ActiveLevelObject object : query(playerBounds)) {
+                if (object.intersects(playerBounds)) {
+                    object.onCollisionWith(levelScenePlayer);
+                }
+            }
+        }
     }
 }

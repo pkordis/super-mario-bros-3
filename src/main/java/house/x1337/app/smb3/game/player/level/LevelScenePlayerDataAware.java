@@ -2,7 +2,6 @@ package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.input.PlayerInputHandler;
-import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
@@ -25,7 +24,7 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
                 runtimeState.setPlayerFlyTime(runtimeState.getPlayerFlyTime() - 1);
                 if (runtimeState.getPlayerFlyTime() <= 0) {
                     getPlayerData().setPlayerPower(0);
-                    getPlayerData().setPlayerPowerThrottle(0);
+                    getPlayerData().setPowerThrottle(0);
                 }
             }
         }
@@ -44,22 +43,22 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
 
         // P-meter update
         if (runtimeState.getPlayerFlyTime() <= 0) {
-            final int throttle = playerData.getPlayerPowerThrottle();
+            final int throttle = playerData.getPowerThrottle();
             if (throttle > 0) {
-                playerData.setPlayerPowerThrottle(throttle - 1);
+                playerData.setPowerThrottle(throttle - 1);
             } else {
                 final int power = playerData.getPlayerPower();
                 if (running) {
                     if (power < PMETER_LEVELS) {
                         playerData.setPlayerPower(power + 1);
-                        playerData.setPlayerPowerThrottle(PMETER_CHARGE_FRAMES);
+                        playerData.setPowerThrottle(PMETER_CHARGE_FRAMES);
                     } else {
-                        playerData.setPlayerPowerThrottle(PMETER_FULL_HOLD_FRAMES);
+                        playerData.setPowerThrottle(PMETER_FULL_HOLD_FRAMES);
                     }
                 } else {
                     if (power > 0) {
                         playerData.setPlayerPower(power - 1);
-                        playerData.setPlayerPowerThrottle(PMETER_DRAIN_FRAMES);
+                        playerData.setPowerThrottle(PMETER_DRAIN_FRAMES);
                     }
                 }
             }
