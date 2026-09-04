@@ -28,7 +28,7 @@ public record ShrunkAnimatorAssets(
             .builder()
             .quadWidth(QUAD_WIDTH)
             .quadHeight(QUAD_HEIGHT)
-            .tailOffset(0f)
+            .rightPadding(0f)
             .walkFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .runFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .build()

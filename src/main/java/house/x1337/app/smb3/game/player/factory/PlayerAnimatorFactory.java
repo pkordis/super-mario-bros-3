@@ -4,6 +4,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayerRenderer;
 import house.x1337.app.smb3.game.player.level.animator.EmptyAnimator;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
+import house.x1337.app.smb3.game.player.level.animator.NormalAnimator;
 import house.x1337.app.smb3.game.player.level.animator.RaccoonAnimator;
 import house.x1337.app.smb3.game.player.level.animator.ShrunkAnimator;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
@@ -19,6 +20,7 @@ public interface PlayerAnimatorFactory {
         return getBean(
             LevelScenePlayerAnimationContext.class,
             getBean(ShrunkAnimator.class, e, i),
+            getBean(NormalAnimator.class, e, i),
             getBean(RaccoonAnimator.class, e, i),
             getBean(EmptyAnimator.class, e, i)
         );

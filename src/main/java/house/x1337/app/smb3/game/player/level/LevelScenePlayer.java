@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.enumeration.PlayerMode.*;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
@@ -191,8 +191,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // Refine the logical state after physics + collision
         refinePlayerState(inputHandler, hitSomething, lowClearance);
 
-        if (getMode() == RACCOON) {
-            // Tail attack (raccoon B press on ground)
+        if (hasTail()) {
+            // Tail attack (raccoon/tanooki B press on ground). Big and small
+            // Mario are tailless, so they never trigger it.
             handleTailAttack(inputHandler);
         }
 
@@ -209,7 +210,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     private void handleSizeToggle() {
         if (inputHandler.consumePress(HANDLER_SIZE_TOGGLE)) {
-            setMode(getMode() == RACCOON ? PlayerMode.SHRUNK : RACCOON);
+            if (getMode() == SHRUNK) {
+                setMode(NORMAL);
+            } else if (getMode() == NORMAL) {
+                setMode(RACCOON);
+            } else {
+                setMode(SHRUNK);
+            }
         }
     }
 
