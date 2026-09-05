@@ -113,7 +113,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // a horizontal level (World 1-1 = Level_FreeVertScroll mode 0) rather
         // than scrolling on every jump. Called once, at spawn.
         cameraState.setTarget(node);
-        cameraState.setVerticalScrollProvider(verticalScroll::getCameraY);
+        cameraState.setVerticalScrollProvider(verticalScroll::getInterpolatedCameraY);
     }
 
     @Override
@@ -303,6 +303,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
                 (float) interpolatedPosition.getY() - 2,
                 getVisibility().getPlayerZ()
             );
+
+        // Advance the camera's vertical scroll with the same alpha so the Y axis
+        // interpolates in lockstep with the node (X follows the node directly).
+        verticalScroll.interpolate(alpha);
     }
 
     @Override
