@@ -65,6 +65,7 @@ public interface LevelScenePlayerRenderer
         if (this instanceof LevelScenePlayer levelScenePlayer) {
             final LevelScenePlayerAnimationContext animationContext = getAnimationContext();
             animationContext.updateActiveAnimator(levelScenePlayer);
+            animationContext.resetActiveAnimator();
             animationContext.update(levelScenePlayer);
         }
     }

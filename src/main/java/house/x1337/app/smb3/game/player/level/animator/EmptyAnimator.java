@@ -5,16 +5,15 @@ import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
-import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssetsMoving;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Getter
 @Prototype
 @RequiredArgsConstructor
-public class EmptyAnimator implements LevelScenePlayerAnimator<PlayerAnimatorAssets> {
-    @Getter
+public class EmptyAnimator implements LevelScenePlayerAnimator<PlayerAnimatorAssetsMoving> {
     private final GameEngine gameEngine;
-    @Getter
     private final PlayerIdentity identity;
 
     @Override
@@ -23,7 +22,7 @@ public class EmptyAnimator implements LevelScenePlayerAnimator<PlayerAnimatorAss
     }
 
     @Override
-    public void setAssets(final PlayerAnimatorAssets animatorAssets) {
+    public void setAssets(final PlayerAnimatorAssetsMoving animatorAssets) {
     }
 
     @Override

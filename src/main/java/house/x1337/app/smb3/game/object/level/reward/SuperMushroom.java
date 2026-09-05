@@ -12,8 +12,6 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.WorldOffset;
-import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +23,6 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_MUSHROOM;
 import static house.x1337.app.smb3.enumeration.Score.SCORE_1000;
-import static house.x1337.app.smb3.model.game.WorldOffset.of;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floor;
 import static java.lang.Math.min;
@@ -285,6 +282,10 @@ public final class SuperMushroom implements RewardLevelObject {
             .getPlayerData()
             .addToScore(rewardScore.getData().getValue());
         collected = true;
+        // dasm ObjHit_PUpMush: a small player grows into Super (mode SHRUNK →
+        // NORMAL) via the grow transition; a player who is already big just
+        // banks the points, so this no-ops for them.
+        levelScenePlayer.consume(this);
     }
 
     /**
@@ -300,6 +301,17 @@ public final class SuperMushroom implements RewardLevelObject {
     @Override
     public boolean isCollidable() {
         return false;
+    }
+
+    /**
+     * The mushroom disappears on contact (dasm {@code ObjHit_PUpMush} sets it
+     * {@code OBJSTATE_DEADEMPTY} immediately): it is detached the same tick it is
+     * collected, before the grow freeze begins, leaving only its rising "1000"
+     * caption on screen during the transition.
+     */
+    @Override
+    public boolean detachesOnCollect() {
+        return true;
     }
 
     private void positionSprite() {

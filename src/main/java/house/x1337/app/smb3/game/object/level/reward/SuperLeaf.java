@@ -133,6 +133,7 @@ public final class SuperLeaf implements RewardLevelObject {
             .getPlayerData()
             .addToScore(rewardScore.getData().getValue());
         collected = true;
+        levelScenePlayer.consume(this);
     }
 
     @Override

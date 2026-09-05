@@ -12,4 +12,15 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
     default boolean isCollectable() {
         return true;
     }
+
+    /**
+     * Whether this reward is removed the instant it is collected — the same tick
+     * its score caption spawns — instead of lingering one frame to share a
+     * rendered frame with that caption. The mushroom vanishes on contact, before
+     * the small→Super grow freeze begins the next tick, so it overrides this to
+     * {@code true}; the leaf keeps the default shared frame.
+     */
+    default boolean detachesOnCollect() {
+        return false;
+    }
 }

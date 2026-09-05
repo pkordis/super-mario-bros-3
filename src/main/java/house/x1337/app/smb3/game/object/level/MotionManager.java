@@ -43,6 +43,16 @@ public interface MotionManager<L extends LevelObject> extends ImageResourceLoade
         // Do nothing
     }
 
+    /**
+     * Called once per simulation tick <b>instead of</b> {@link #update()} while gameplay is halted
+     * (dasm {@code Player_HaltGame} — e.g. the small→Super grow freeze). Almost everything must stand
+     * still, so the default does nothing. Managers that own an animation the ROM keeps running
+     * through the freeze — the rising score caption — override this to advance only that animation.
+     */
+    default void updateWhileHalted() {
+        // Do nothing
+    }
+
     @Singleton
     @RequiredArgsConstructor
     class Registry implements CastCapable {

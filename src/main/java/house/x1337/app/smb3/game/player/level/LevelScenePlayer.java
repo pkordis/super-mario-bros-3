@@ -8,6 +8,7 @@ import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.reward.RewardLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.PlayerMode.*;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
@@ -28,6 +30,7 @@ import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.con
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_SIZE_TOGGLE;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.GROW_TRANSITION_TICKS;
 import static java.lang.Math.clamp;
 import static java.lang.Math.min;
 
@@ -120,6 +123,21 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateFrame() {
+        // The small→Super grow transition owns the tick: advance only the grow
+        // flicker (dasm prg029 PRG029_D224) and skip all physics/input.
+        if (runtimeState.isTransitioning()) {
+            tickModeTransition();
+            return;
+        }
+
+        // Another player is mid-transition and has halted gameplay (dasm
+        // Player_HaltGame): freeze this player in place. Snapshot so render
+        // interpolation holds steady rather than easing toward a stale target.
+        if (gameEngine.isGameplayHalted()) {
+            position.snapshotPrevious();
+            return;
+        }
+
         final StaticEnvironmentCollisionGrid collisionGrid = gameEngine.getCollisionGrid();
 
         // Capture the pre-tick position for render interpolation. Done here
@@ -217,6 +235,55 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             } else {
                 setMode(SHRUNK);
             }
+        }
+    }
+
+    @Override
+    public boolean isHaltingGameplay() {
+        return runtimeState.isTransitioning();
+    }
+
+    /**
+     * Begins the small→Super grow transition (dasm {@code ObjHit_PUpMush} @
+     * PRG001_A8AB: {@code Player_Grow = $2f}). Only a SHRUNK (small) player
+     * grows — a big/raccoon player collecting a mushroom scores points but does
+     * not transform, so this no-ops for them and while a grow is already in
+     * progress. The mode flip to NORMAL is deferred to {@link #tickModeTransition()}
+     * when the flicker completes. Motion state is neutralised so the grow frames
+     * render as a clean standing pose regardless of what the player was doing.
+     */
+    public void consume(final RewardLevelObject reward) {
+        if (getMode() == SHRUNK && !runtimeState.isGrowing()) {
+            grow();
+        }
+    }
+
+    private void grow() {
+        runtimeState.setGrowCounter(GROW_TRANSITION_TICKS);
+        runtimeState.standUp();
+        runtimeState.setTo(STILL);
+        runtimeState.setPlayerFlyTime(0);
+        runtimeState.setPlayerWagCount(0);
+        runtimeState.setPlayerTailAttackCountdown(0);
+        position.setDX(0);
+        position.setDY(0);
+    }
+
+    /**z
+     * Advances the grow transition by one frame: renders the current grow
+     * flicker frame (the animation context swaps between the SHRUNK and NORMAL
+     * stills per the {@code Player_GrowFrames} cadence), then decrements the
+     * counter (dasm {@code DEC Player_Grow}, prg029 PRG029_D251). When it hits
+     * zero the player becomes NORMAL and normal control resumes next tick. The
+     * position is snapshotted (unchanged) so render interpolation stays still.
+     */
+    private void tickModeTransition() {
+        position.snapshotPrevious();
+        advanceAnimation();
+        updateVisualPosition();
+        runtimeState.decrementGrow();
+        if (!runtimeState.isGrowing()) {
+            setMode(NORMAL);
         }
     }
 

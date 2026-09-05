@@ -26,14 +26,33 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
 
     @Override
     default void postCollision() {
-        // The engine's collision pass has just run; a leaf collected this tick is flagged but not
-        // yet removed (update() removes it next tick). Spawn its caption now so both render together
-        // for one frame. Each collected leaf is seen exactly once here — it is gone by the next tick.
-        for (final C instance : getActiveInstances()) {
-            if (instance.isCollected()) {
-                spawnScorePopupFor(instance);
+        // The engine's collision pass has just run. Spawn a caption for every reward collected this
+        // tick, then remove any that vanish on contact — the mushroom, whose grow freeze begins next
+        // tick, must be gone before it (detachesOnCollect). Rewards that keep the default (the leaf)
+        // linger one more rendered frame beside their caption and are removed by update() next tick.
+        final Iterator<C> iterator = getActiveInstances().iterator();
+        while (iterator.hasNext()) {
+            final C instance = iterator.next();
+            if (!instance.isCollected()) {
+                continue;
+            }
+            spawnScorePopupFor(instance);
+            if (instance.detachesOnCollect()) {
+                instance.detach();
+                iterator.remove();
             }
         }
+    }
+
+    /**
+     * While gameplay is halted (dasm {@code Player_HaltGame} — e.g. the small→Super grow freeze) the
+     * reward objects and the broadphase stand still; only the score-pop captions keep rising, which
+     * is exactly the "1000" floating up over a mushroom collected at the start of the grow. This is
+     * the sole object animation the ROM advances through the freeze.
+     */
+    @Override
+    default void updateWhileHalted() {
+        tickScorePopups();
     }
 
     private void spawnScorePopupFor(final C instance) {

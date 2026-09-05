@@ -53,14 +53,12 @@ import static java.lang.Math.abs;
  * <p>Shared timing, frame bookkeeping and quad rebuilding live in
  * {@link BaseLevelScenePlayerAnimator}.
  */
+@Getter
 @Prototype
 @RequiredArgsConstructor
 public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAnimatorAssets> {
-    @Getter
     private final PlayerMode playerMode = SHRUNK;
-    @Getter
     private final GameEngine gameEngine;
-    @Getter
     private final PlayerIdentity identity;
 
     @Override

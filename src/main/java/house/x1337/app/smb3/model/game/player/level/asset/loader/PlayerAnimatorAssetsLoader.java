@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.jme3.texture.Texture;
-import house.x1337.app.smb3.game.player.level.animator.BaseLevelScenePlayerAnimator;
+import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimator;
 import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssets;
 import house.x1337.app.smb3.util.converter.TextureJsonDeserializer;
 import lombok.NoArgsConstructor;
@@ -23,7 +23,7 @@ import static lombok.AccessLevel.PRIVATE;
 public final class PlayerAnimatorAssetsLoader {
     private static final ObjectMapper MAPPER = buildMapper();
 
-    public static <AA extends PlayerAnimatorAssets, A extends BaseLevelScenePlayerAnimator<AA>> AA load(
+    public static <AA extends PlayerAnimatorAssets, A extends LevelScenePlayerAnimator<AA>> AA load(
         final Class<AA> type,
         final A animator
     ) {

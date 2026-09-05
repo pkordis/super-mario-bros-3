@@ -91,6 +91,24 @@ public final class GameEngine extends GameEngineCapabilities {
         }
     }
 
+    /**
+     * @return whether any player is currently halting gameplay (dasm
+     *         {@code Player_HaltGame}, prg008 PRG008_A1B4). While halted the
+     *         countdown timer and the whole active-object pipeline are frozen,
+     *         and non-halting players freeze themselves in {@code updateFrame};
+     *         only the halting player's own transition (e.g. the grow flicker)
+     *         advances. Mirrors the ROM, where ~150 object/camera/timer sites
+     *         early-out on {@code Player_HaltGame}.
+     */
+    public boolean isGameplayHalted() {
+        for (final Player player : allPlayers) {
+            if (player.isHaltingGameplay()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void start() {
         final AppSettings settings = new AppSettings(true);
@@ -233,6 +251,21 @@ public final class GameEngine extends GameEngineCapabilities {
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
             allPlayers.forEach(Player::updateFrame);
+
+            // While any player is halting gameplay (dasm Player_HaltGame — e.g.
+            // the small→Super grow transition), freeze the countdown timer and
+            // the whole active-object pipeline EXCEPT the rising score captions,
+            // which keep animating (the "1000" over a mushroom collected at the
+            // start of the grow — the sole object the ROM advances through the
+            // freeze). The halting player advanced its own transition inside
+            // updateFrame above; every other player froze itself. The camera
+            // follows the (now-stationary) player node and the un-advanced
+            // vertical scroll, so it holds still too.
+            if (isGameplayHalted()) {
+                motionManagers.forEach(MotionManager::updateWhileHalted);
+                continue;
+            }
+
             playerData.getPlayerTimer().tick();
 
             // Active-object tick, split into phases so a single scene-wide broadphase can serve

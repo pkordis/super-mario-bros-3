@@ -24,6 +24,12 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 @Getter
 @Prototype
 public class PlayerRuntimeState {
+    /**
+     * Number of ticks the small→Super grow transition runs (dasm
+     * {@code ObjHit_PUpMush} @ PRG001_A8AB: {@code LDA #$2f; STA Player_Grow}).
+     */
+    public static final int GROW_TRANSITION_TICKS = 47;
+
     private PlayerMovement movement = STILL;
 
     /**
@@ -80,8 +86,36 @@ public class PlayerRuntimeState {
     @Setter
     private boolean running;
 
+    /**
+     * Remaining ticks of the small→Super grow transition (dasm
+     * {@code Player_Grow}, initialised to {@code $2f} by {@code ObjHit_PUpMush}
+     * @ PRG001_A8AB). While non-zero the player is "growing": it halts gameplay
+     * (dasm {@code Player_HaltGame = ... ORA Player_Grow}, prg008 PRG008_A1B4)
+     * and its draw routine plays the grow flicker (prg029 PRG029_D224). The
+     * counter is decremented once per frame and the size flip to NORMAL happens
+     * when it reaches zero.
+     */
+    @Setter
+    private int growCounter;
+
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;
+    }
+
+    public boolean isTransitioning() {
+        return isGrowing();
+    }
+
+    /** @return whether the small→Super grow transition is in progress. */
+    public boolean isGrowing() {
+        return growCounter > 0;
+    }
+
+    /** Advances the grow transition by one frame (dasm {@code DEC Player_Grow}). */
+    public void decrementGrow() {
+        if (growCounter > 0) {
+            growCounter--;
+        }
     }
 
     /**

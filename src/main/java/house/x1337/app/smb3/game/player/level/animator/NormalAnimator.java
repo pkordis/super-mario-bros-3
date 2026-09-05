@@ -44,14 +44,12 @@ import static java.lang.Math.abs;
  * {@link BaseLevelScenePlayerAnimator} and the animator specifications). Shared
  * timing, frame bookkeeping and quad rebuilding all live in the base.
  */
+@Getter
 @Prototype
 @RequiredArgsConstructor
 public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAnimatorAssets> {
-    @Getter
     private final PlayerMode playerMode = NORMAL;
-    @Getter
     private final GameEngine gameEngine;
-    @Getter
     private final PlayerIdentity identity;
 
     @Override
