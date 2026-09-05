@@ -114,19 +114,19 @@ public final class SuperLeaf implements RewardLevelObject {
     }
 
     /**
-     * Collects the leaf: awards {@link #rewardScore} to the collecting player and marks the leaf
-     * collected. The leaf is not removed immediately — its manager keeps it rendered for exactly
-     * one more frame alongside the freshly spawned score caption, matching the ROM where the leaf
-     * and the "1000" caption are both visible for a single frame before the leaf vanishes. (The
-     * ROM's {@code ObjHit_SuperLeaf} also grants the Raccoon suit; that is still deferred.)
+     * Collects the leaf: awards {@link #rewardScore} to the collecting player, marks the leaf
+     * collected, and — for a small player — starts the small→Super grow transition via
+     * {@link LevelScenePlayer#consume}. The leaf itself vanishes on contact
+     * ({@link #detachesOnCollect()}), the same tick it is collected and before any grow freeze
+     * begins, exactly like the mushroom. (The ROM's {@code ObjHit_SuperLeaf} also grants the
+     * Raccoon suit; that is still deferred.)
      *
      * @param levelScenePlayer the player that collected the leaf
      */
     @Override
     public void onCollisionWith(final LevelScenePlayer levelScenePlayer) {
         if (collected) {
-            // Already collected this tick (a second player) or lingering for its co-render frame —
-            // award and caption exactly once.
+            // Already collected this tick (a second player) — award and caption exactly once.
             return;
         }
         levelScenePlayer
@@ -139,6 +139,17 @@ public final class SuperLeaf implements RewardLevelObject {
     @Override
     public boolean isCollidable() {
         return false;
+    }
+
+    /**
+     * The leaf disappears on contact, the same tick it is collected — before the
+     * grow freeze a small player triggers next tick — leaving only its rising
+     * "1000" caption during the transition, mirroring the mushroom (dasm
+     * {@code ObjHit_SuperLeaf}, as {@code ObjHit_PUpMush} does for the mushroom).
+     */
+    @Override
+    public boolean detachesOnCollect() {
+        return true;
     }
 
     private void updateFacingAndPosition() {

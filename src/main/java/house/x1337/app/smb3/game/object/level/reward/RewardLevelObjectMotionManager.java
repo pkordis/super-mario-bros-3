@@ -27,9 +27,10 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
     @Override
     default void postCollision() {
         // The engine's collision pass has just run. Spawn a caption for every reward collected this
-        // tick, then remove any that vanish on contact — the mushroom, whose grow freeze begins next
-        // tick, must be gone before it (detachesOnCollect). Rewards that keep the default (the leaf)
-        // linger one more rendered frame beside their caption and are removed by update() next tick.
+        // tick, then remove any that vanish on contact (detachesOnCollect) — the mushroom and the
+        // leaf both do, so they are gone this tick, before the grow freeze a small player triggers
+        // begins next tick. Any reward that keeps the default lingers one more rendered frame beside
+        // its caption and is removed by update() next tick.
         final Iterator<C> iterator = getActiveInstances().iterator();
         while (iterator.hasNext()) {
             final C instance = iterator.next();
@@ -74,7 +75,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
         final List<C> activeInstances = getActiveInstances();
         // Advance existing score popups first. A caption spawned later this tick (in postCollision)
         // is therefore left un-ticked until the next tick, so it renders once at its spawn position
-        // — the single frame where the leaf and its "1000" caption are both visible.
+        // before it begins rising.
         tickScorePopups();
 
         if (activeInstances.isEmpty()) {
@@ -92,8 +93,8 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
         while (iterator.hasNext()) {
             final C instance = iterator.next();
 
-            // Collected last tick: the leaf has now shared its one rendered frame with the caption.
-            // Remove it; the caption carries on rising by itself.
+            // Fallback removal for a collected reward that did not vanish on contact
+            // (detachesOnCollect == false): drop it a tick later; its caption keeps rising.
             if (instance.isCollected()) {
                 instance.detach();
                 iterator.remove();
