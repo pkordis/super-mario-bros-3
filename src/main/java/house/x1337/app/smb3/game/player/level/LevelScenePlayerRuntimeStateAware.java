@@ -70,7 +70,7 @@ public interface LevelScenePlayerRuntimeStateAware
         final PlayerPosition position = getPosition();
 
         if (runtimeState.isInAir()) {
-            if (runtimeState.getPlayerFlyTime() > 0 && isLarge()) {
+            if (runtimeState.getPlayerFlyTime() > 0 && hasTail()) {
                 // dasm prg008: Player_FlyTime > 0 means the player is in
                 // powered flight mode (raccoon/tanooki). The animation system
                 // (Player_AnimTailWag) selects flying frames whenever FlyTime

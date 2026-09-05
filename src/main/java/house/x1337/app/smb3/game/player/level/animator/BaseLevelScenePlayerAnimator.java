@@ -1,23 +1,16 @@
 package house.x1337.app.smb3.game.player.level.animator;
 
-import com.jme3.material.Material;
-import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
-import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssetsMoving;
 import house.x1337.app.smb3.model.game.player.level.LevelScenePlayerAnimatorSpecifications;
 import lombok.Setter;
 
-import static com.jme3.material.RenderState.BlendMode.Alpha;
-import static com.jme3.material.RenderState.FaceCullMode.Off;
-import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
-import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static java.lang.Math.min;
 
 /**
@@ -35,7 +28,7 @@ import static java.lang.Math.min;
  *
  * @param <A> the concrete animator's asset bundle type
  */
-public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAssets>
+public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAssetsMoving>
     implements LevelScenePlayerAnimator<A> {
 
     /**
@@ -111,11 +104,12 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     ) {
         advanceWalkAnimation(absDx);
 
-        final int[] frameSequence = (movement == POWER_RUNNING)
+        final boolean powerRunning = movement == POWER_RUNNING;
+        final int[] frameSequence = powerRunning
             ? specifications.getRunFrameSequence() : specifications.getWalkFrameSequence();
         final int currentSpriteFrame = frameSequence[walkFrameIndex];
         if (frameChanged(movement, orientation, currentSpriteFrame)) {
-            final Texture texture = (movement == POWER_RUNNING)
+            final Texture texture = powerRunning
                 ? assets.runFrameTextures()[currentSpriteFrame]
                 : assets.walkFrameTextures()[currentSpriteFrame];
             rebuildWithTexture(node, texture, orientation);
@@ -136,39 +130,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         final Texture texture,
         final PlayerOrientationHorizontal orientation,
         final float quadWidth,
-        final float quadHeight,
-        final float tailOffset
-    ) {
-        node.detachAllChildren();
-
-        final Quad quad = new Quad(quadWidth, quadHeight);
-        final Geometry geometry = new Geometry("Player", quad);
-
-        final Material material = new Material(getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setTexture("ColorMap", texture);
-        material.getAdditionalRenderState().setBlendMode(Alpha);
-
-        geometry.setMaterial(material);
-        geometry.setQueueBucket(Translucent);
-
-        if (orientation == LEFT) {
-            geometry.setLocalTranslation(0, 0, 0);
-            geometry.setLocalScale(1, 1, 1);
-        } else {
-            material.getAdditionalRenderState().setFaceCullMode(Off);
-            geometry.setLocalScale(-1, 1, 1);
-            geometry.setLocalTranslation(quadWidth - tailOffset, 0, 0);
-        }
-
-        node.attachChild(geometry);
-    }
-
-    protected final void rebuildWithTexture(
-        final Node node,
-        final Texture texture,
-        final PlayerOrientationHorizontal orientation,
-        final float quadWidth,
-        final float tailOffset
+        final float rightPadding
     ) {
         rebuildWithTexture(
             node,
@@ -176,11 +138,12 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
             orientation,
             quadWidth,
             specifications.getQuadHeight(),
-            tailOffset
+            rightPadding
         );
     }
 
-    protected final void rebuildWithTexture(
+    @Override
+    public final void rebuildWithTexture(
         final Node node,
         final Texture texture,
         final PlayerOrientationHorizontal orientation
@@ -190,7 +153,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
             texture,
             orientation,
             specifications.getQuadWidth(),
-            specifications.getTailOffset()
+            specifications.getRightPadding()
         );
     }
 }

@@ -133,8 +133,9 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                     && runtimeState.getPlayerFlyTime() <= 0) {
                     runtimeState.setPlayerFlyTime(GameConstants.FLY_TIME);
                 }
-            } else if (isLarge()) {
-                // Mid-air A press: tail wag
+            } else if (hasTail()) {
+                // Mid-air A press: tail wag (raccoon/tanooki only; big Mario is
+                // tailless and small Mario cannot, so both skip this).
                 runtimeState.setPlayerWagCount(GameConstants.WAG_COUNT);
             }
         }
@@ -149,7 +150,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
             // Raccoon tail wag / flight effects on Y velocity
             if (runtimeState.getPlayerWagCount() > 0) {
                 runtimeState.setPlayerWagCount(runtimeState.getPlayerWagCount() - 1);
-                if (isLarge() && position.getDY() > GameConstants.PLAYER_FLY_YVEL) {
+                if (hasTail() && position.getDY() > GameConstants.PLAYER_FLY_YVEL) {
                     final int flyTime = runtimeState.getPlayerFlyTime();
                     if (flyTime > 0) {
                         if (flyTime >= 0x0f) {
@@ -168,7 +169,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
             // Raccoon air drag (dasm prg008 PRG008_B082): when flying or
             // wagging, apply 1 raw unit/frame deceleration toward walk speed.
             // This prevents maintaining launch speed indefinitely during flight.
-            if (isLarge() && (runtimeState.getPlayerFlyTime() > 0 || runtimeState.getPlayerWagCount() > 0)) {
+            if (hasTail() && (runtimeState.getPlayerFlyTime() > 0 || runtimeState.getPlayerWagCount() > 0)) {
                 final double dx = position.getDX();
                 final double absDx = abs(dx);
                 if (absDx > PLAYER_TOPWALKSPEED) {

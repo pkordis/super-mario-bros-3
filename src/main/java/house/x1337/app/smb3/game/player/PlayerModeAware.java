@@ -13,4 +13,8 @@ public interface PlayerModeAware {
     default boolean isLarge() {
         return getMode().isLarge();
     }
+
+    default boolean hasTail() {
+        return getMode().hasTail();
+    }
 }

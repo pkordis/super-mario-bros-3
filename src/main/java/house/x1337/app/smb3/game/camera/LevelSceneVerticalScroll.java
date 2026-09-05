@@ -57,6 +57,8 @@ public final class LevelSceneVerticalScroll {
     private final float bandLowOffset;
 
     private float cameraY;
+    private float previousCameraY;
+    private float interpolatedCameraY;
 
     public LevelSceneVerticalScroll(final LevelScene levelScene) {
         final int rows = levelScene.getDimensions().rows();
@@ -77,6 +79,8 @@ public final class LevelSceneVerticalScroll {
         this.bandHighOffset = halfViewHeight - BAND_TOP_FRACTION * viewHeight;
         this.bandLowOffset = halfViewHeight - BAND_BOTTOM_FRACTION * viewHeight;
         this.cameraY = minCameraY;
+        this.previousCameraY = minCameraY;
+        this.interpolatedCameraY = minCameraY;
     }
 
     /**
@@ -89,6 +93,14 @@ public final class LevelSceneVerticalScroll {
      * @return the new camera centre Y
      */
     public float update(final float playerCenter, final boolean freeScrollOverride) {
+        // Remember the pre-tick value so the render loop can interpolate the
+        // camera centre between ticks (see interpolate) — mirroring the way the
+        // player node's visual position is interpolated. Without this the camera
+        // Y would step once per simulation tick while the node moves smoothly
+        // every render frame, making the player jitter vertically whenever the
+        // camera actually scrolls (raccoon flight / falling).
+        previousCameraY = cameraY;
+
         // dasm PRG008_B246: scrolling stays locked at the bottom unless an
         // override is active OR the scroll has not yet eased back down to it.
         final boolean freeScrolling = freeScrollOverride || cameraY > minCameraY + EPSILON;
@@ -101,6 +113,20 @@ public final class LevelSceneVerticalScroll {
         float desiredY = getDesiredY(playerCenter);
         cameraY = clamp(desiredY, minCameraY, maxCameraY);
         return cameraY;
+    }
+
+    /**
+     * Interpolates the camera centre Y between the previous and current
+     * simulation ticks, in lockstep with the player node's visual interpolation.
+     * Called once per render frame with the same {@code alpha} the node uses, so
+     * both camera axes advance together and the view stays smooth above 60&nbsp;Hz.
+     *
+     * @param alpha fraction into the current tick, in {@code [0, 1]}
+     * @return the interpolated camera centre Y (game-units, Y-up)
+     */
+    public float interpolate(final double alpha) {
+        interpolatedCameraY = previousCameraY + (float) ((cameraY - previousCameraY) * alpha);
+        return interpolatedCameraY;
     }
 
     private float getDesiredY(float playerCenter) {

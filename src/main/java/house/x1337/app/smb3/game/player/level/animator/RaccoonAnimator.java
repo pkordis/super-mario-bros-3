@@ -54,29 +54,18 @@ import static java.lang.Math.min;
  * faces right, the geometry is horizontally flipped via a negative X-scale
  * on the local transform.
  */
+@Getter
 @Prototype
 @RequiredArgsConstructor
 public final class RaccoonAnimator
     extends BaseLevelScenePlayerAnimator<RaccoonAnimatorAssets>
     implements RaccoonDimensions {
-
     private static final float DUCK_TAIL_OFFSET = (DUCK_SPRITE_WIDTH_PX - BODY_WIDTH_PIXELS) * PIXELS_TO_GAME_UNITS;
     private static final int TAIL_WAG_ANIM_DURATION = 10;
-
-    /**
-     * Maps the tail-attack countdown step ({@code countdown >> 2}, range 0..4)
-     * onto the distinct sprite index, mirroring the walk/run frame-sequence
-     * tables. The whip oscillates neutral→swing→neutral→swing→neutral, so the
-     * base frame (index 0) is reused at steps 0/2/4 while the two swings sit at
-     * steps 1 and 3 (dasm Player_TailAttackFrames: $03,$04,$03,$05,$03).
-     */
     private static final int[] TAIL_ATTACK_FRAME_SEQUENCE = {0, 1, 0, 2, 0};
 
-    @Getter
     private final PlayerMode playerMode = RACCOON;
-    @Getter
     private final GameEngine gameEngine;
-    @Getter
     private final PlayerIdentity identity;
 
     // Animation state (walkAnimTicks / walkFrameIndex / last* live in the base)
