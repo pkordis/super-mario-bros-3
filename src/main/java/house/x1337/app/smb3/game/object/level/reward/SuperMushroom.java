@@ -285,7 +285,7 @@ public final class SuperMushroom implements RewardLevelObject {
         // dasm ObjHit_PUpMush: a small player grows into Super (mode SHRUNK →
         // NORMAL) via the grow transition; a player who is already big just
         // banks the points, so this no-ops for them.
-        levelScenePlayer.consume(this);
+        levelScenePlayer.onRewardConsumption(this);
     }
 
     /**

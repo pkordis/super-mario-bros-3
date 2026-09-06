@@ -116,7 +116,7 @@ public final class SuperLeaf implements RewardLevelObject {
     /**
      * Collects the leaf: awards {@link #rewardScore} to the collecting player, marks the leaf
      * collected, and — for a small player — starts the small→Super grow transition via
-     * {@link LevelScenePlayer#consume}. The leaf itself vanishes on contact
+     * {@link LevelScenePlayer#onRewardConsumption}. The leaf itself vanishes on contact
      * ({@link #detachesOnCollect()}), the same tick it is collected and before any grow freeze
      * begins, exactly like the mushroom. (The ROM's {@code ObjHit_SuperLeaf} also grants the
      * Raccoon suit; that is still deferred.)
@@ -133,7 +133,7 @@ public final class SuperLeaf implements RewardLevelObject {
             .getPlayerData()
             .addToScore(rewardScore.getData().getValue());
         collected = true;
-        levelScenePlayer.consume(this);
+        levelScenePlayer.onRewardConsumption(this);
     }
 
     @Override

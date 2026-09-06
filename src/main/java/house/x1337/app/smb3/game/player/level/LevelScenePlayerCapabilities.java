@@ -1,21 +1,27 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.LevelScene;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
+import house.x1337.app.smb3.game.player.RewardConsumingPlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 
 public sealed interface LevelScenePlayerCapabilities
     extends
         LevelScenePlayerRenderer,
         LevelScenePlayerActionCapable,
-        LevelScenePlayerActionEventListener
+        LevelScenePlayerActionEventListener,
+        RewardConsumingPlayer
     permits
         LevelScenePlayer {
+    void onTransitionComplete(PlayerMode newPlayerMode);
     LevelSceneVerticalScroll getVerticalScroll();
 
     default PlayerPosition initializePosition() {
@@ -47,8 +53,25 @@ public sealed interface LevelScenePlayerCapabilities
         return getPlayerData().getIdentity();
     }
 
-
     default StaticEnvironmentCollisionGrid getCollisionGrid() {
         return getGameEngine().getCollisionGrid();
+    }
+
+    default void tickModeTransition() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        getPosition().snapshotPrevious();
+        advanceAnimation();
+        updateVisualPosition();
+        if (runtimeState.isPoofing()) {
+            runtimeState.decrementPoof();
+            if (!runtimeState.isPoofing()) {
+                onTransitionComplete(RACCOON);
+            }
+            return;
+        }
+        runtimeState.decrementGrow();
+        if (!runtimeState.isGrowing()) {
+            onTransitionComplete(NORMAL);
+        }
     }
 }

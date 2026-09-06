@@ -28,7 +28,13 @@ public class PlayerRuntimeState {
      * Number of ticks the small→Super grow transition runs (dasm
      * {@code ObjHit_PUpMush} @ PRG001_A8AB: {@code LDA #$2f; STA Player_Grow}).
      */
-    public static final int GROW_TRANSITION_TICKS = 47;
+    public static final int NORMAL_TRANSITION_TICKS = 47;
+
+    /**
+     * Number of ticks the large→Raccoon "poof" suit-change runs (dasm
+     * {@code ObjHit_SuperLeaf} @ PRG001_AC40: {@code LDA #$17; STA Player_SuitLost}).
+     */
+    public static final int RACCOON_TRANSITION_TICKS = 23;
 
     private PlayerMovement movement = STILL;
 
@@ -98,12 +104,24 @@ public class PlayerRuntimeState {
     @Setter
     private int growCounter;
 
+    /**
+     * Remaining ticks of the large→Raccoon "poof" suit-change (dasm
+     * {@code Player_SuitLost}, initialised to {@code $17} by {@code ObjHit_SuperLeaf}
+     * @ PRG001_AC40). While non-zero the player is "poofing": it halts gameplay
+     * (dasm {@code Player_HaltGame = ... ORA Player_SuitLost}, prg008 PRG008_A1B4)
+     * and its draw routine plays the poof cloud (prg029 {@code Player_SuitLost_DoPoof})
+     * in place of the player sprite. The counter is decremented once per frame and
+     * the suit flip to RACCOON happens when it reaches zero.
+     */
+    @Setter
+    private int poofCounter;
+
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;
     }
 
     public boolean isTransitioning() {
-        return isGrowing();
+        return isGrowing() || isPoofing();
     }
 
     /** @return whether the small→Super grow transition is in progress. */
@@ -115,6 +133,18 @@ public class PlayerRuntimeState {
     public void decrementGrow() {
         if (growCounter > 0) {
             growCounter--;
+        }
+    }
+
+    /** @return whether the large→Raccoon poof transition is in progress. */
+    public boolean isPoofing() {
+        return poofCounter > 0;
+    }
+
+    /** Advances the poof transition by one frame (dasm {@code DEC Player_SuitLost}). */
+    public void decrementPoof() {
+        if (poofCounter > 0) {
+            poofCounter--;
         }
     }
 

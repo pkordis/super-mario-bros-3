@@ -16,9 +16,9 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
     /**
      * Whether this reward is removed the instant it is collected — the same tick
      * its score caption spawns — instead of lingering one frame to share a
-     * rendered frame with that caption. The mushroom vanishes on contact, before
-     * the small→Super grow freeze begins the next tick, so it overrides this to
-     * {@code true}; the leaf keeps the default shared frame.
+     * rendered frame with that caption. Both the mushroom and the leaf vanish on
+     * contact, before the suit-change freeze begins the next tick, so they
+     * override this to {@code true}; the default keeps the shared frame.
      */
     default boolean detachesOnCollect() {
         return false;

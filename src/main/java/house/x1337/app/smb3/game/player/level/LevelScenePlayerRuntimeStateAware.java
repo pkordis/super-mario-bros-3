@@ -19,6 +19,8 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.RACCOON_TRANSITION_TICKS;
 import static java.lang.Math.abs;
 
 public interface LevelScenePlayerRuntimeStateAware
@@ -134,5 +136,33 @@ public interface LevelScenePlayerRuntimeStateAware
         }
         // Pressing opposite direction from current movement
         return (dx > 0 && inputLeft) || (dx < 0 && inputRight);
+    }
+
+    /** Begins the small→Super grow transition (dasm {@code Player_Grow = $2f}). */
+    default void turnToNormal() {
+        getRuntimeState().setGrowCounter(NORMAL_TRANSITION_TICKS);
+        neutraliseMotionForTransition();
+    }
+
+    /** Begins the large→Raccoon poof transition (dasm {@code Player_SuitLost = $17}). */
+    default void turnToRaccoon() {
+        getRuntimeState().setPoofCounter(RACCOON_TRANSITION_TICKS);
+        neutraliseMotionForTransition();
+    }
+
+    /**
+     * Neutralises motion so the transition frames render as a clean standing pose
+     * regardless of what the player was doing when the powerup was collected.
+     */
+    private void neutraliseMotionForTransition() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        final PlayerPosition position = getPosition();
+        runtimeState.standUp();
+        runtimeState.setTo(STILL);
+        runtimeState.setPlayerFlyTime(0);
+        runtimeState.setPlayerWagCount(0);
+        runtimeState.setPlayerTailAttackCountdown(0);
+        position.setDX(0);
+        position.setDY(0);
     }
 }
