@@ -103,7 +103,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
 
             final boolean active = activeRegion.intersects(instance.getBounds());
             if (active) {
-                instance.tick();
+                instance.motionUpdate();
             }
 
             if (instance.isExpired()) {

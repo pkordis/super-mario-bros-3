@@ -76,7 +76,10 @@ public interface StaticEnvironmentCollisionGridCapabilities {
                     continue;
                 }
 
-                objects[row][col] = record.toLevelObject(Offset.of(col, row));
+                objects[row][col] = record.toLevelObject(
+                    gameEngine,
+                    Offset.of(col, row)
+                );
                 objects[row][col].configure(new LevelObjectData(record.getData()));
             }
         }

@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.object.level.block.QuestionBlock;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithReward;
 import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
+import house.x1337.app.smb3.game.object.level.reward.Coin;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
 import lombok.Getter;
@@ -25,6 +26,7 @@ public enum LevelObjectTypeSingleTiled implements LevelObjectType {
     QUESTION_BLOCK("Question Block", QuestionBlock.class),
 
     // Rewards
+    COIN_FLIPPING("Coin", Coin.class),
     SUPER_LEAF("Super Leaf", SuperLeaf.class),
     SUPER_MUSHROOM("Super Mushroom", SuperMushroom.class);
 

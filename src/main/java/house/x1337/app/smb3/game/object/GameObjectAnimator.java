@@ -16,7 +16,7 @@ import java.util.Map;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface GameObjectAnimator<A extends AnimatableLevelObject> extends MotionManager {
+public interface GameObjectAnimator<A extends AnimatableLevelObject> extends MotionManager<A> {
     void add(A animatableLevelObject);
     void reset();
     void registerLevel(

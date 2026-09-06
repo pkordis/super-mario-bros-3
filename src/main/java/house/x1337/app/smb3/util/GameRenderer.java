@@ -21,7 +21,6 @@ import static com.jme3.texture.image.ColorSpace.Linear;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 
-// TODO: check if it could extend the GameEngineAware
 public interface GameRenderer {
     default Texture2D toTexture(
         final ByteBuffer buffer,

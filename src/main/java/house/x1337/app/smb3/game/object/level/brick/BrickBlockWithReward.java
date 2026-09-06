@@ -20,6 +20,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_
 public class BrickBlockWithReward implements BrickBlock {
     private final LevelObjectType type = BRICK_BLOCK_WITH_REWARD;
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
+    private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
 

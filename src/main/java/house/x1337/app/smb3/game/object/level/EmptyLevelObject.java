@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.object.level;
 
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
@@ -37,6 +38,7 @@ public final class EmptyLevelObject implements LevelObject {
     }
 
     @Override
-    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+    public GameEngine getGameEngine() {
+        return null;
     }
 }

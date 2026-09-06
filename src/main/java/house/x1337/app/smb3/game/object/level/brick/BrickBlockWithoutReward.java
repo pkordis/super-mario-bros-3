@@ -64,6 +64,7 @@ public class BrickBlockWithoutReward implements BrickBlock {
     private final BrickBlockBreakMotionManager motionManager = getBean(BrickBlockBreakMotionManager.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final LevelObjectType type = BRICK_BLOCK_NO_REWARD;
+    private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
 

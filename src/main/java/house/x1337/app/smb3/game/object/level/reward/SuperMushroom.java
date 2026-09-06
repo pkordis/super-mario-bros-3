@@ -120,7 +120,7 @@ public final class SuperMushroom implements RewardLevelObject {
         positionSprite();
     }
 
-    public void tick() {
+    public void motionUpdate() {
         if (expired) {
             return;
         }

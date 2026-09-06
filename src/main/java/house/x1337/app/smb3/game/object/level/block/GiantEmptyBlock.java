@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.object.level.block;
 
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -13,6 +14,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.EMPTY_B
 @RequiredArgsConstructor
 public class GiantEmptyBlock implements LevelObject {
     private final LevelObjectType type = EMPTY_BLOCK;
+    private final GameEngine gameEngine;
     private final Offset offset;
 
     @Override

@@ -30,6 +30,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
 public class EmptyBlock implements LevelObject {
     private final EmptyBlockBounceMotionManager motionManager = getBean(EmptyBlockBounceMotionManager.class);
     private final LevelObjectType type = EMPTY_BLOCK;
+    private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
 

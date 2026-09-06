@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.model.AnimationImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import lombok.Getter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -15,8 +16,10 @@ import java.util.List;
 import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static lombok.AccessLevel.PROTECTED;
 
 public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObject> implements GameObjectAnimator<A> {
+    @Getter(PROTECTED)
     private final List<A> animatableLevelObjects = new ArrayList<>();
     private final Set<Offset> pausedOffsets = new HashSet<>();
     private Geometry interactiveObjectsLayerGeometry;

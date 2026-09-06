@@ -109,7 +109,7 @@ stacked: even pattern = top tile, odd pattern = bottom tile).**
 | File               | Pattern | Top local | Bot local | Shape                          | Attribute          |
 |--------------------|---------|-----------|-----------|--------------------------------|--------------------|
 | `frame_0.png`      | $49     | 8 ($48)   | 9 ($49)   | Full front-facing coin         | SPR_PAL3           |
-| `frame_1.png`      | $4F     | 14 ($4E)  | 15 ($4F)  | Coin angling away              | SPR_PAL3           |
+| `frame_0.png`      | $4F     | 14 ($4E)  | 15 ($4F)  | Coin angling away              | SPR_PAL3           |
 | `frame_2.png`      | $4D     | 12 ($4C)  | 13 ($4D)  | Thin vertical sliver (edge-on) | SPR_PAL3           |
 | `frame_3.png`| $4F     | 14 ($4E)  | 15 ($4F)  | Coin returning (frame_1 H-flipped) | SPR_PAL3 + H-FLIP |
 

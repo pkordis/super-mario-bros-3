@@ -2,6 +2,7 @@ package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.model.ImageResource;
@@ -25,7 +26,10 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
      * @throws IllegalArgumentException if the type string cannot be resolved to either enum.
      * @throws IllegalStateException if the resolved type's instance class cannot be instantiated.
      */
-    default LevelObject toLevelObject(final Offset offset) {
+    default LevelObject toLevelObject(
+        final GameEngine gameEngine,
+        final Offset offset
+    ) {
         final LevelObjectRecord record = (LevelObjectRecord) this;
         final LevelObjectType type = resolveLevelObjectType(record.getType());
         if (type.isSingleTiled()) {
@@ -38,11 +42,12 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
             }
             return getBean(
                 type.getInstanceType(),
+                gameEngine,
                 imageResource,
                 offset
             );
         }
-        return getBean(type.getInstanceType(), offset);
+        return getBean(type.getInstanceType(), gameEngine, offset);
     }
 
     @NonNull

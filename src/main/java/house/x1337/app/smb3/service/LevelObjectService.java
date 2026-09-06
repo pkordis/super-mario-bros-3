@@ -2,6 +2,7 @@ package house.x1337.app.smb3.service;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
@@ -96,10 +97,13 @@ public class LevelObjectService {
         return Optional.of(matchedId);
     }
 
-    public EmptyBlock createEmptyBlock(final Offset offset) {
+    public EmptyBlock createEmptyBlock(
+        final GameEngine gameEngine,
+        final Offset offset
+    ) {
         final Optional<Integer> emptyBlockId = getLevelObjectIdOfType(EMPTY_BLOCK);
         return (EmptyBlock) cache
             .get(emptyBlockId.orElseThrow())
-            .toLevelObject(offset);
+            .toLevelObject(gameEngine, offset);
     }
 }

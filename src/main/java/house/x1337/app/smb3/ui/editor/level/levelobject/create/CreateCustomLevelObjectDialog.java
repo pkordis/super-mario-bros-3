@@ -147,6 +147,7 @@ public final class CreateCustomLevelObjectDialog extends JDialog {
 
         final CreateCustomLevelObjectWindow editorWindow = getBean(
             CreateCustomLevelObjectWindow.class,
+            parentFrame,
             originalArgbData
         );
         editorWindow.setVisible(true);

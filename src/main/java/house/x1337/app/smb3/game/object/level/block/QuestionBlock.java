@@ -41,6 +41,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
     private final CoinRewardMotionManager coinRewardMotionManager = getBean(CoinRewardMotionManager.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
     private final LevelObjectType type = QUESTION_BLOCK;
+    private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
     private ItemType reward;
@@ -70,7 +71,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
         eraseFromBakedTexture(interactiveObjectsLayerGeometry, dimensions);
 
         // Step 2: Place a fresh EmptyBlock at the same position in the collision grid.
-        final EmptyBlock emptyBlock = levelObjectService.createEmptyBlock(offset);
+        final EmptyBlock emptyBlock = levelObjectService.createEmptyBlock(gameEngine, offset);
         collisionGrid.placeLevelObjectAt(offset, emptyBlock);
 
         // Step 3: Bake the empty block tile directly into the texture.
