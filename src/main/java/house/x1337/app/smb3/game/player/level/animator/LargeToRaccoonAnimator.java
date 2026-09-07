@@ -2,7 +2,6 @@ package house.x1337.app.smb3.game.player.level.animator;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
-import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
@@ -11,6 +10,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets.POOF_FRAMES;
 import static java.lang.Math.clamp;
 
@@ -26,7 +26,6 @@ public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<La
 
     private int lastFrameIndex = -1;
     private LargeToRaccoonAnimatorAssets assets;
-    private PlayerOrientationHorizontal lastOrientation;
 
     @Override
     public String getFramesParentContext() {
@@ -37,7 +36,6 @@ public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<La
     @Override
     public void resetState() {
         lastFrameIndex = -1;
-        lastOrientation = null;
     }
 
     @Override
@@ -45,13 +43,11 @@ public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<La
         final int poofCounter = levelScenePlayer.getRuntimeState().getPoofCounter();
         final int step = clamp(poofCounter >> POOF_FRAME_SHIFT, 0, POOF_FRAMES.length - 1);
         final int frameIndex = POOF_FRAMES[step];
-        final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
 
-        if (frameIndex == lastFrameIndex && orientation == lastOrientation) {
+        if (frameIndex == lastFrameIndex) {
             return;
         }
         lastFrameIndex = frameIndex;
-        lastOrientation = orientation;
-        rebuildWithTexture(levelScenePlayer.getNode(), assets.poof()[frameIndex], orientation);
+        rebuildWithTexture(levelScenePlayer.getNode(), assets.poof()[frameIndex], LEFT);
     }
 }
