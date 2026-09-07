@@ -63,4 +63,9 @@ public class EmptyBlock implements LevelObject {
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
         // Bounce already played (or about to play); this block never bounces again.
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // A spent block does not react to the tail attack.
+    }
 }

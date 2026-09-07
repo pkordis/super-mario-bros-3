@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.object.level.brick;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.Score;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_BLOCK_NO_REWARD;
+import static house.x1337.app.smb3.enumeration.Score.SCORE_10;
 import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 /**
@@ -64,13 +66,18 @@ public class BrickBlockWithoutReward implements BrickBlock {
     private final BrickBlockBreakMotionManager motionManager = getBean(BrickBlockBreakMotionManager.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final LevelObjectType type = BRICK_BLOCK_NO_REWARD;
+    private final Score scoreReward = SCORE_10;
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
 
-    public void triggerBreak(final GameEngine gameEngine) {
+    private void triggerBreak(final LevelScenePlayer levelScenePlayer) {
         final LevelSceneDimensions dimensions = gameEngine.getLevelScene().getDimensions();
         final Geometry interactiveObjectsLayerGeometry = gameEngine.getLayerGeometry(INTERACTIVE_OBJECTS);
+        final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
+
+        // Remove from collision grid so further probes treat it as empty
+        collisionGrid.removeLevelObjectAt(offset);
 
         brickBlockAnimator.unregisterAt(offset);
         eraseFromBakedTexture(interactiveObjectsLayerGeometry, dimensions);
@@ -78,6 +85,9 @@ public class BrickBlockWithoutReward implements BrickBlock {
             gameEngine,
             offset
         );
+        levelScenePlayer
+            .getPlayerData()
+            .addToScore(scoreReward.getData().getValue());
     }
 
     /**
@@ -90,17 +100,18 @@ public class BrickBlockWithoutReward implements BrickBlock {
      */
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
-        final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
-        final GameEngine gameEngine = levelScenePlayer.getGameEngine();
         if (levelScenePlayer.isLarge()) {
-            // Remove from collision grid so further probes treat it as empty
-            collisionGrid.removeLevelObjectAt(offset);
             // Erase tile visually and spawn the four flying fragments
-            triggerBreak(gameEngine);
+            triggerBreak(levelScenePlayer);
         } else {
             // Small Mario bounce: brick stays intact but visually bounces
             // Ported from dasm prg001.asm ObjNorm_BounceDU / Bouncer_PUpVel
             motionManager.spawnBounce(gameEngine, offset);
         }
+    }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        triggerBreak(levelScenePlayer);
     }
 }

@@ -9,6 +9,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Slf4j
 public enum Score {
+    SCORE_10,
     SCORE_50,
     SCORE_100,
     SCORE_1000;

@@ -41,4 +41,9 @@ public final class EmptyLevelObject implements LevelObject {
     public GameEngine getGameEngine() {
         return null;
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // The empty sentinel occupies unfilled cells and never reacts to the tail attack.
+    }
 }

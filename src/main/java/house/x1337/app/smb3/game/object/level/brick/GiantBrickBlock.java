@@ -21,4 +21,9 @@ public class GiantBrickBlock implements LevelObject {
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
 
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // Giant brick blocks do not respond to the tail attack.
+    }
 }

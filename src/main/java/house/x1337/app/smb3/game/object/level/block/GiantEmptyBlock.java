@@ -21,4 +21,9 @@ public class GiantEmptyBlock implements LevelObject {
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
 
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // A spent giant block does not react to the tail attack.
+    }
 }

@@ -131,6 +131,10 @@ class ActiveObjectGridTest {
         }
 
         @Override
+        public void onTailAttack(final LevelScenePlayer player) {
+        }
+
+        @Override
         public Geometry getSpriteGeometry() {
             return null;
         }

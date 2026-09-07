@@ -59,8 +59,7 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
         );
     }
 
-    @Override
-    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+    private void hit(final LevelScenePlayer levelScenePlayer) {
         final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
         final GameEngine gameEngine = levelScenePlayer.getGameEngine();
         final LevelSceneDimensions dimensions = gameEngine.getLevelScene().getDimensions();
@@ -88,6 +87,17 @@ public class QuestionBlock implements AnimatableLevelObject, RewardDispensingLev
 
         // Step 5: Dispense the reward based on configured type
         dispenseReward(levelScenePlayer);
+    }
+
+
+    @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+        hit(levelScenePlayer);
+    }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        hit(levelScenePlayer);
     }
 
     @Override

@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,12 @@ import static house.x1337.app.smb3.enumeration.Score.SCORE_1000;
 public final class SuperLeaf implements RewardLevelObject {
     private static final int INITIAL_Y_VELOCITY_FIXED_POINT = -32;
     private static final int SPAWN_Y_OFFSET_PIXELS = -14;
+    private static final int COLLECT_PROTECTION_FRAMES = 16;
+    // Collection hitbox, inset from the sprite per dasm Object_BoundBox entry 1 (OAT_BOUNDBOX01,
+    // used by OBJ_POWERUP_SUPERLEAF): left +1, width 13 — ObjectObject_Intersect reads byte[1] as a
+    // width added to the left edge, so the right edge sits 2px in from the 16px sprite.
+    private static final int HITBOX_LEFT_INSET = 1;
+    private static final int HITBOX_WIDTH = 13;
     private static final int X_VELOCITY_STEP_FIXED_POINT = 2;
     private static final int X_VELOCITY_LIMIT_FIXED_POINT = 32;
     private static final int[] FLUTTER_Y_VELOCITY_BASE_FIXED_POINT = {10, -10, 8};
@@ -56,12 +63,14 @@ public final class SuperLeaf implements RewardLevelObject {
     private int oscillationDirectionCounter;
     private int xVelocityFixedPoint;
     private int yVelocityFixedPoint;
+    private int collectProtectionTimer;
 
     @PostConstruct
     void init() {
         pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
         pixelY = (double) offset.y() * TILE_SPRITE_SIZE + SPAWN_Y_OFFSET_PIXELS;
         yVelocityFixedPoint = INITIAL_Y_VELOCITY_FIXED_POINT;
+        collectProtectionTimer = COLLECT_PROTECTION_FRAMES;
 
         spriteDimensions = new Dimensions(
             "SuperLeaf",
@@ -77,6 +86,10 @@ public final class SuperLeaf implements RewardLevelObject {
     public void motionUpdate() {
         if (expired) {
             return;
+        }
+
+        if (collectProtectionTimer > 0) {
+            collectProtectionTimer--;
         }
 
         if (rising) {
@@ -139,6 +152,45 @@ public final class SuperLeaf implements RewardLevelObject {
     @Override
     public boolean isCollidable() {
         return false;
+    }
+
+    /**
+     * @return {@code true} once the spawn collect-protection window has elapsed. While the leaf is
+     *         still emerging it cannot be picked up (dasm {@code ObjInit_SuperLeaf} sets
+     *         {@code Objects_Timer2 = $10}; {@code Player_HitEnemy} skips the hit response while it is
+     *         nonzero), so its manager keeps it out of the collision broadphase until then. Without
+     *         this, a leaf dispensed while the player is flush against the block is collected on its
+     *         first frame — the original requires the player to move or jump to reach it.
+     */
+    @Override
+    public boolean isCollectable() {
+        return collectProtectionTimer == 0;
+    }
+
+    /**
+     * The leaf's collection hitbox is inset from its sprite, per dasm {@code Object_BoundBox} entry 1
+     * ({@code OAT_BOUNDBOX01}, used by {@code OBJ_POWERUP_SUPERLEAF}): left {@code +1}, width 13, so
+     * the box spans {@code [pixelX+1, pixelX+14]} — the right edge sits 2px in from the 16px sprite.
+     * The default full-sprite box let a leaf swinging back over its spawn column be grabbed by a
+     * player standing flush against the dispensing block; this inset restores the clearance the
+     * original relies on (the ROM's box is {@code Object_CalcBoundBox} / {@code ObjectObject_Intersect}).
+     * The vertical extent is left at the sprite height — the reported issue and the ROM's inset are
+     * horizontal, and the engine's leaf art (16×14) is already cropped vertically.
+     */
+    @Override
+    public AxisAlignedBoundingBox getBounds() {
+        final double left = pixelX + HITBOX_LEFT_INSET;
+        return new AxisAlignedBoundingBox(
+            left,
+            pixelY,
+            left + HITBOX_WIDTH,
+            pixelY + imageResource.getDimensions().height()
+        );
+    }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // The leaf reward is collected by contact and does not respond to the tail attack.
     }
 
     /**

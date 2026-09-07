@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelObjectOffset;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.collision.CollisionProbe;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.collision.ProbeLocation;
@@ -178,6 +179,42 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
         final LevelObject hitObject = getLevelObjectAt(objectOffset);
         if (levelScenePlayer.getOrientation().getVertical() == UP) {
             hitObject.onCollisionFromBelow(levelScenePlayer);
+        }
+    }
+
+    /**
+     * Dispatches {@link LevelObject#onTailAttack} to every static tile the player's tail hitbox
+     * overlaps (dasm prg008 {@code Player_TailAttack_HitBlocks}). Each candidate tile cell is
+     * confirmed with a precise box overlap before firing, and the shared empty sentinel is skipped
+     * so only real blocks/bricks react.
+     *
+     * @param levelScenePlayer the striking player
+     * @param tailBounds       the player's tail hitbox for this tick, in sprite-pixel space
+     */
+    public void resolveTailAttack(
+        final LevelScenePlayer levelScenePlayer,
+        final AxisAlignedBoundingBox tailBounds
+    ) {
+        final int minColumn = (int) floor(tailBounds.left() / TILE_SPRITE_SIZE);
+        final int maxColumn = (int) floor(tailBounds.right() / TILE_SPRITE_SIZE);
+        final int minRow = (int) floor(tailBounds.top() / TILE_SPRITE_SIZE);
+        final int maxRow = (int) floor(tailBounds.bottom() / TILE_SPRITE_SIZE);
+        for (int row = minRow; row <= maxRow; row++) {
+            for (int column = minColumn; column <= maxColumn; column++) {
+                final LevelObject object = getLevelObjectAt(Offset.of(column, row));
+                if (object == EMPTY_LEVEL_OBJECT) {
+                    continue;
+                }
+                final AxisAlignedBoundingBox tileBounds = new AxisAlignedBoundingBox(
+                    (double) column * TILE_SPRITE_SIZE,
+                    (double) row * TILE_SPRITE_SIZE,
+                    (double) (column + 1) * TILE_SPRITE_SIZE,
+                    (double) (row + 1) * TILE_SPRITE_SIZE
+                );
+                if (tileBounds.intersects(tailBounds)) {
+                    object.onTailAttack(levelScenePlayer);
+                }
+            }
         }
     }
 

@@ -24,7 +24,7 @@ public class BrickBlockWithReward implements BrickBlock {
     private final ImageResource imageResource;
     private final Offset offset;
 
-    public void triggerReward(final GameEngine gameEngine) {
+    private void triggerReward() {
     }
 
     /**
@@ -38,11 +38,15 @@ public class BrickBlockWithReward implements BrickBlock {
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
         final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
-        final GameEngine gameEngine = levelScenePlayer.getGameEngine();
         if (levelScenePlayer.isLarge()) {
 
         } else {
 
         }
+    }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        triggerReward();
     }
 }

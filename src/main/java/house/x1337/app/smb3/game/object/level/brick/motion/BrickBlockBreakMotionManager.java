@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.object.level.brick.motion;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.object.level.brick.BrickBlock;
 import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockAnimator;
 import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockBounceAnimation;
 import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockBreakAnimation;
@@ -15,7 +16,7 @@ import java.util.List;
 
 @Singleton
 @RequiredArgsConstructor
-public final class BrickBlockBreakMotionManager implements MotionManager {
+public final class BrickBlockBreakMotionManager implements MotionManager<BrickBlock> {
     private final List<BrickBlockBreakAnimation> activeBreaks = new ArrayList<>();
     private final List<BrickBlockBounceAnimation> activeBounces = new ArrayList<>();
     private final BrickBlockAnimator brickBlockAnimator;

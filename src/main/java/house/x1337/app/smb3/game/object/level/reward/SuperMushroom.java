@@ -303,6 +303,11 @@ public final class SuperMushroom implements RewardLevelObject {
         return false;
     }
 
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // The mushroom reward is collected by contact and does not respond to the tail attack.
+    }
+
     /**
      * The mushroom disappears on contact (dasm {@code ObjHit_PUpMush} sets it
      * {@code OBJSTATE_DEADEMPTY} immediately): it is detached the same tick it is

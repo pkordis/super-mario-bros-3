@@ -135,4 +135,21 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
             }
         }
     }
+
+    /**
+     * Dispatches {@link house.x1337.app.smb3.game.object.level.LevelObject#onTailAttack} to every
+     * active object whose bounds the player's tail hitbox intersects. The broadphase narrows the
+     * candidate set; each survivor is confirmed with a precise {@code intersects} narrowphase, exactly
+     * as {@link #resolveActiveObjectCollisions(List)} does for body collisions.
+     *
+     * @param levelScenePlayer the striking player
+     * @param tailBounds       the player's tail hitbox for this tick
+     */
+    public void resolveTailAttack(final LevelScenePlayer levelScenePlayer, final AxisAlignedBoundingBox tailBounds) {
+        for (final ActiveLevelObject object : query(tailBounds)) {
+            if (object.intersects(tailBounds)) {
+                object.onTailAttack(levelScenePlayer);
+            }
+        }
+    }
 }

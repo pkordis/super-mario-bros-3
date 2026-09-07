@@ -91,4 +91,9 @@ public final class Coin implements AnimatableLevelObject, RewardLevelObject {
             pixelY + (double) imageDimensions.height() / TILE_SCALE
         );
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // A coin is collected by contact, not struck by the tail attack.
+    }
 }

@@ -50,6 +50,17 @@ import static java.lang.Math.min;
 @Slf4j
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
+    // Raccoon tail-attack hitbox, in sprite-pixel space (dasm prg000 Object_RespondToTailAttack /
+    // Player_TailAttackXOff): offset to the side the player faces, 10 wide, 15 tall, covering the
+    // lower body. The swing "kicks" (registers a hit) only on the two countdown frames $0C and $09.
+    private static final double TAIL_ATTACK_X_OFFSET_RIGHT = 17;
+    private static final double TAIL_ATTACK_X_OFFSET_LEFT = -10;
+    private static final double TAIL_ATTACK_WIDTH = 10;
+    private static final double TAIL_ATTACK_Y_OFFSET = 16;
+    private static final double TAIL_ATTACK_HEIGHT = 15;
+    private static final int TAIL_ATTACK_STRIKE_FRAME_EARLY = 12;
+    private static final int TAIL_ATTACK_STRIKE_FRAME_LATE = 9;
+
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
     private final PlayerRuntimeState runtimeState;
@@ -82,8 +93,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     /**
      * The player's hitbox for collision against dynamic {@code ActiveLevelObject}s, in sprite-pixel
-     * space. Derived from the collision-probe extents in {@code CollisionOffsets}: X spans +1..+15;
-     * the bottom sits at +32; the top at +6 when large and standing, or +16 when small or ducking.
+     * space. Horizontally it matches the solid-collision stop offsets (X spans +2..+14 large, +3..+13
+     * small/ducking) so it never pokes past where the body rests against a wall; the bottom sits at
+     * +32; the top at +6 when large and standing, or +16 when small or ducking.
      *
      * <p>This is the "hoist" point for object collision — compute it <b>once per tick</b> and reuse
      * it across every object test, rather than recomputing the player's state inside each object's
@@ -95,7 +107,50 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         final boolean largeStanding = isLarge() && !runtimeState.isDucking();
         final double x = position.getX();
         final double y = position.getY();
-        return new AxisAlignedBoundingBox(x + 1, y + (largeStanding ? 6 : 16), x + 15, y + 32);
+        // Horizontal edges match the solid-collision stop offsets (large 2..14, small/ducking 3..13)
+        // rather than the sprite-flush 1..15. The old box overreached the wall stop by 1px on each
+        // side, so a player resting flush against a block still overlapped an item sitting in the
+        // adjacent column by ~1px — collecting it without moving. Aligning to where the body actually
+        // stops removes that phantom pixel (matches the ROM's tight Player_BoundBox: it collides only
+        // on real overlap, not when the edges merely touch).
+        final double left = x + (isLarge() ? 2 : 3);
+        final double right = x + (isLarge() ? 14 : 13);
+        return new AxisAlignedBoundingBox(left, y + (largeStanding ? 6 : 16), right, y + 32);
+    }
+
+    /**
+     * Whether the tail swing is on one of its two "kick" frames this tick — the only frames on which
+     * it registers a hit (dasm prg000 {@code Object_RespondToTailAttack}: counter {@code == $0C} or
+     * {@code == $09}). Guarded by {@link #hasTail()} so a countdown left over after losing the suit
+     * cannot strike.
+     *
+     * @return {@code true} if the tail hitbox should be tested against objects this tick
+     */
+    public boolean isTailAttackStriking() {
+        if (!hasTail()) {
+            return false;
+        }
+        final int countdown = runtimeState.getPlayerTailAttackCountdown();
+        return countdown == TAIL_ATTACK_STRIKE_FRAME_EARLY || countdown == TAIL_ATTACK_STRIKE_FRAME_LATE;
+    }
+
+    /**
+     * The tail attack's hitbox for this tick, in sprite-pixel space (dasm prg000
+     * {@code Object_RespondToTailAttack}, offsets from {@code Player_TailAttackXOff}). It sits on the
+     * side the player faces — just past the right edge ({@code +17}) when facing right, or just left
+     * ({@code −10}) when facing left — is 10 wide and 15 tall, and covers the lower body ({@code +16}
+     * below the sprite top). Only meaningful while {@link #isTailAttackStriking()}.
+     *
+     * @return the tail hitbox for the current tick
+     */
+    public AxisAlignedBoundingBox getTailAttackBounds() {
+        final double x = position.getX();
+        final double y = position.getY();
+        final double left = x + (orientation.getHorizontal() == RIGHT
+            ? TAIL_ATTACK_X_OFFSET_RIGHT
+            : TAIL_ATTACK_X_OFFSET_LEFT);
+        final double top = y + TAIL_ATTACK_Y_OFFSET;
+        return new AxisAlignedBoundingBox(left, top, left + TAIL_ATTACK_WIDTH, top + TAIL_ATTACK_HEIGHT);
     }
 
     @Override
@@ -246,12 +301,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void onRewardConsumption(final RewardLevelObject reward) {
+        final PlayerMode mode = getMode();
         if (runtimeState.isTransitioning()) {
             return;
         }
-        if (getMode() == SHRUNK) {
+        if (mode == SHRUNK) {
             turnToNormal();
-        } else if (reward instanceof SuperLeaf) {
+        } else if (reward instanceof SuperLeaf && mode != RACCOON) {
             turnToRaccoon();
         }
     }

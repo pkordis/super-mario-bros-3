@@ -29,4 +29,9 @@ public final class SolidLevelObject implements LevelObject {
     public boolean isOneWayPlatform() {
         return tile.getType().getCategory() == ONE_WAY_PLATFORM;
     }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // Solid terrain (ground, pipes) is inert to the tail attack.
+    }
 }
