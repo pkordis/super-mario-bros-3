@@ -1,12 +1,12 @@
-package house.x1337.app.smb3.game.object.level.brick.motion;
+package house.x1337.app.smb3.game.object.level.block.motion;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
-import house.x1337.app.smb3.game.object.level.brick.BrickBlock;
-import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockAnimator;
-import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockBounceAnimation;
-import house.x1337.app.smb3.game.object.level.brick.animation.BrickBlockBreakAnimation;
+import house.x1337.app.smb3.game.object.level.block.Block;
+import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockAnimator;
+import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBounceAnimation;
+import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBreakAnimation;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.RequiredArgsConstructor;
 
@@ -16,7 +16,7 @@ import java.util.List;
 
 @Singleton
 @RequiredArgsConstructor
-public final class BrickBlockBreakMotionManager implements MotionManager<BrickBlock> {
+public final class BrickBlockBreakMotionManager implements MotionManager<Block> {
     private final List<BrickBlockBreakAnimation> activeBreaks = new ArrayList<>();
     private final List<BrickBlockBounceAnimation> activeBounces = new ArrayList<>();
     private final BrickBlockAnimator brickBlockAnimator;

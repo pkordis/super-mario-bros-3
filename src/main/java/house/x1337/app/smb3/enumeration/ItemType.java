@@ -1,6 +1,8 @@
 package house.x1337.app.smb3.enumeration;
 
-public enum ItemType {
+import house.x1337.app.smb3.util.EnumValuesMatcher;
+
+public enum ItemType implements EnumValuesMatcher<ItemType> {
     ANCHOR,
     COIN_MULTIPLE,
     COIN_SINGLE,

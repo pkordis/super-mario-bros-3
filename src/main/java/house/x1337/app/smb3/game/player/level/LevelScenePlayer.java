@@ -28,6 +28,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+import static house.x1337.app.smb3.enumeration.Reward.ONE_UP;
 import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
@@ -305,10 +306,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         if (runtimeState.isTransitioning()) {
             return;
         }
-        if (mode == SHRUNK) {
-            turnToNormal();
-        } else if (reward instanceof SuperLeaf && mode != RACCOON) {
-            turnToRaccoon();
+        if (reward.getRewardType() != ONE_UP) {
+            if (mode == SHRUNK) {
+                turnToNormal();
+            } else if (reward instanceof SuperLeaf && mode != RACCOON) {
+                turnToRaccoon();
+            }
         }
     }
 

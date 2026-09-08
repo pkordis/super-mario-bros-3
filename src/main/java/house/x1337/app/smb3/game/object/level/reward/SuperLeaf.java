@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level.reward;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -20,7 +20,7 @@ import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_LEAF;
-import static house.x1337.app.smb3.enumeration.Score.SCORE_1000;
+import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
 
 @Getter
 @Prototype
@@ -43,7 +43,7 @@ public final class SuperLeaf implements RewardLevelObject {
     private final LevelObjectType type = SUPER_LEAF;
 
     /** Points awarded (and captioned) when the leaf is collected — 1000, as in the ROM. */
-    private final Score rewardScore = SCORE_1000;
+    private final Reward rewardType = SCORE_1000;
 
     @Value("classpath:/sprites/reward/leaf/leaf_normal.png")
     private ImageResource imageResource;
@@ -127,7 +127,7 @@ public final class SuperLeaf implements RewardLevelObject {
     }
 
     /**
-     * Collects the leaf: awards {@link #rewardScore} to the collecting player, marks the leaf
+     * Collects the leaf: awards {@link #rewardType} to the collecting player, marks the leaf
      * collected, and — for a small player — starts the small→Super grow transition via
      * {@link LevelScenePlayer#onRewardConsumption}. The leaf itself vanishes on contact
      * ({@link #detachesOnCollect()}), the same tick it is collected and before any grow freeze
@@ -144,7 +144,7 @@ public final class SuperLeaf implements RewardLevelObject {
         }
         levelScenePlayer
             .getPlayerData()
-            .addToScore(rewardScore.getData().getValue());
+            .addPoints(rewardType.getData().getPoints());
         collected = true;
         levelScenePlayer.onRewardConsumption(this);
     }

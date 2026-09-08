@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.brick.animation;
+package house.x1337.app.smb3.game.object.level.block.animation;
 
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;

@@ -1,12 +1,20 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.enumeration.ItemType;
+import house.x1337.app.smb3.enumeration.SuperMushroomType;
+import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
+import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
 import house.x1337.app.smb3.game.object.level.reward.motion.SuperLeafMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.motion.SuperMushroomMotionManager;
+import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
+import static house.x1337.app.smb3.enumeration.ItemType.ONE_UP_MUSHROOM;
+import static house.x1337.app.smb3.enumeration.SuperMushroomType.GROWING_CAPABLE;
+import static house.x1337.app.smb3.enumeration.SuperMushroomType.LIFE_AWARDING_GREEN;
+import static org.slf4j.LoggerFactory.getLogger;
 
 public interface RewardDispensingLevelObject extends LevelObject {
     ItemType getReward();
@@ -17,8 +25,8 @@ public interface RewardDispensingLevelObject extends LevelObject {
         // dasm GBCtl_LeafBlock (prg002.asm @ PRG002_A39C): a leaf block dispenses the Super Leaf
         // ($1E) only when the player is NOT small; a small (SHRUNK) player is upgraded to a Super
         // Mushroom ($0D) instead. Check this first and override the configured reward.
-        if (levelScenePlayer.isSmall() && getReward() != COIN_SINGLE) {
-            onSuperMushroomDispensed(levelScenePlayer);
+        if (levelScenePlayer.isSmall() && getReward().isNoneOf(COIN_SINGLE, ONE_UP_MUSHROOM)) {
+            onSuperMushroomDispensed(levelScenePlayer, GROWING_CAPABLE);
             return;
         }
 
@@ -30,18 +38,40 @@ public interface RewardDispensingLevelObject extends LevelObject {
                 onSuperLeafDispensed(levelScenePlayer);
                 break;
             case SUPER_MUSHROOM:
-                onSuperMushroomDispensed(levelScenePlayer);
+                onSuperMushroomDispensed(levelScenePlayer, GROWING_CAPABLE);
                 break;
+            case ONE_UP_MUSHROOM:
+                onSuperMushroomDispensed(levelScenePlayer, LIFE_AWARDING_GREEN);
             default:
+                getLogger(getClass()).warn("Unhandled Reward Type: {}", getReward());
                 break;
         }
     }
 
     default void onSuperLeafDispensed(final LevelScenePlayer levelScenePlayer) {
-        getBean(SuperLeafMotionManager.class).spawn(levelScenePlayer.getGameEngine(), getOffset());
+        final SuperLeaf superLeaf = getBean(
+            SuperLeaf.class,
+            levelScenePlayer.getGameEngine(),
+            getOffset()
+        );
+        getBean(SuperLeafMotionManager.class).spawn(superLeaf);
     }
 
-    default void onSuperMushroomDispensed(final LevelScenePlayer levelScenePlayer) {
-        getBean(SuperMushroomMotionManager.class).spawn(levelScenePlayer.getGameEngine(), getOffset());
+    default void onSuperMushroomDispensed(
+        final LevelScenePlayer levelScenePlayer,
+        final SuperMushroomType superMushroomType
+    ) {
+        final LevelObjectType levelObjectType = superMushroomType.asLevelObjectType();
+        final LevelObject levelObject = getBean(
+            levelObjectType.getInstanceType(),
+            levelScenePlayer.getGameEngine(),
+            getOffset()
+        );
+        if (levelObject instanceof SuperMushroom superMushroom) {
+            superMushroom.configure((SuperMushroomVariantData) levelObjectType.getVariantData());
+            getBean(SuperMushroomMotionManager.class).spawn(superMushroom);
+        } else {
+            throw new IllegalStateException("The mushroom dispensed must be an instance of SuperMushroom");
+        }
     }
 }

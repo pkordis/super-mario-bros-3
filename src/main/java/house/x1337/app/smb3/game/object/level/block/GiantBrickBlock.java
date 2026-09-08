@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.brick;
+package house.x1337.app.smb3.game.object.level.block;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;

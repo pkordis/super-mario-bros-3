@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.object;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
+import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.util.CastCapable;
@@ -23,7 +24,7 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Mot
         Geometry interactiveObjectsLayerGeometry,
         LevelSceneDimensions dimensions
     );
-    List<Class<? extends A>> getSupportedTypes();
+    List<LevelObjectType> getSupportedTypes();
 
     @Singleton
     @RequiredArgsConstructor
@@ -32,7 +33,7 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Mot
         @Getter(lazy = true)
         private final List<? extends GameObjectAnimator<?>> all = findAll();
         @Getter(lazy = true)
-        private final Map<Class<? extends AnimatableLevelObject>, GameObjectAnimator<AnimatableLevelObject>> allMapped =
+        private final Map<LevelObjectType, GameObjectAnimator<AnimatableLevelObject>> allMapped =
             findAllMapped();
 
         public void resetAll() {
@@ -52,19 +53,18 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Mot
                 .toList();
         }
 
-        private Map<Class<? extends AnimatableLevelObject>, GameObjectAnimator<AnimatableLevelObject>> findAllMapped() {
-            final Map<Class<? extends AnimatableLevelObject>, GameObjectAnimator<AnimatableLevelObject>> map =
-                new HashMap<>();
+        private Map<LevelObjectType, GameObjectAnimator<AnimatableLevelObject>> findAllMapped() {
+            final Map<LevelObjectType, GameObjectAnimator<AnimatableLevelObject>> map = new HashMap<>();
             for (final GameObjectAnimator<?> animator : getAll()) {
-                for (final Class<?> supportedType : animator.getSupportedTypes()) {
-                    map.put(checkedCast(supportedType), checkedCast(animator));
+                for (final LevelObjectType supportedType : animator.getSupportedTypes()) {
+                    map.put(supportedType, checkedCast(animator));
                 }
             }
             return map;
         }
 
         public GameObjectAnimator<AnimatableLevelObject> findSuitableAnimator(
-            final Class<? extends AnimatableLevelObject> animatableObjectType
+            final LevelObjectType animatableObjectType
         ) {
             final GameObjectAnimator<AnimatableLevelObject> animator = getAllMapped().get(animatableObjectType);
             if (animator == null) {

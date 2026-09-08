@@ -5,7 +5,6 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.motion.EmptyBlockBounceMotionManager;
-import house.x1337.app.smb3.game.object.level.brick.BrickBlockWithoutReward;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Offset;
@@ -19,7 +18,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
  * A spent (used) solid block that replaced a question block once the latter was hit.
  *
  * <p>On its very first collision from below it plays the same 10-frame bounce animation
- * as a {@link BrickBlockWithoutReward} hit by small Mario (dasm {@code prg001.asm
+ * as a {@link Block} brick hit by small Mario (dasm {@code prg001.asm
  * ObjNorm_BounceDU / Bouncer_PUpVel}). That one-shot bounce is self-contained inside
  * {@link EmptyBlockBounceMotionManager} and uses the correct empty-block sprite.
  * After it fires, any subsequent hit from below is silently ignored.
@@ -42,9 +41,9 @@ public class EmptyBlock implements LevelObject {
 
     /**
      * Triggers the one-shot bounce animation, identical in physics to a
-     * {@link BrickBlockWithoutReward} hit by small Mario.
+     * {@link Block} brick hit by small Mario.
      *
-     * <p>Called by {@link house.x1337.app.smb3.game.object.level.block.QuestionBlock}
+     * <p>Called by {@link Block}
      * immediately after it places this block in the collision grid, so the bounce
      * fires regardless of the player's size at the moment of the original hit.
      *

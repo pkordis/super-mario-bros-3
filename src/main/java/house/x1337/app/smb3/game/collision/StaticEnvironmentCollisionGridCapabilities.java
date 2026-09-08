@@ -92,7 +92,7 @@ public interface StaticEnvironmentCollisionGridCapabilities {
             for (int col = 0; col < columns; col++) {
                 if (objects[row][col] instanceof final AnimatableLevelObject animatableLevelObject) {
                     final GameObjectAnimator<AnimatableLevelObject> animator = gameObjectAnimatorRegistry
-                        .findSuitableAnimator(animatableLevelObject.getClass());
+                        .findSuitableAnimator(animatableLevelObject.getType());
                     animator.add(animatableLevelObject);
                 }
             }

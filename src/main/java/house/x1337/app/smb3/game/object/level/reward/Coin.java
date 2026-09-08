@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level.reward;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -23,7 +23,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_FLIPPING;
-import static house.x1337.app.smb3.enumeration.Score.SCORE_50;
+import static house.x1337.app.smb3.enumeration.Reward.SCORE_50;
 import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 @Getter
@@ -32,7 +32,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
 public final class Coin implements AnimatableLevelObject, RewardLevelObject {
     private final CoinAnimator coinAnimator = getBean(CoinAnimator.class);
     private final LevelObjectType type = COIN_FLIPPING;
-    private final Score rewardScore = SCORE_50;
+    private final Reward rewardType = SCORE_50;
     private final boolean collidable = false;
     private final Geometry spriteGeometry = null; // Not individually attached
     private final GameEngine gameEngine;
@@ -66,7 +66,7 @@ public final class Coin implements AnimatableLevelObject, RewardLevelObject {
 
         final PlayerData playerData = player.getPlayerData();
         playerData.addCoin();
-        playerData.addToScore(rewardScore.getData().getValue());
+        playerData.addPoints(rewardType.getData().getPoints());
 
         coinAnimator.unregisterAt(offset);
         eraseFromBakedTexture(

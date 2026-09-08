@@ -11,10 +11,14 @@ public class EnumeratedImageResource<E extends EnumeratedImageResourceType> {
     private final Map<E, ImageResource> imageResources;
 
     public Texture getTextureFor(final E type) {
-        return imageResources.get(type).asTexture();
+        return select(type).asTexture();
     }
 
     public int[] getRgbDataFor(final E type) {
-        return imageResources.get(type).getRgbData();
+        return select(type).getRgbData();
+    }
+
+    public final ImageResource select(final E type) {
+        return imageResources.get(type);
     }
 }

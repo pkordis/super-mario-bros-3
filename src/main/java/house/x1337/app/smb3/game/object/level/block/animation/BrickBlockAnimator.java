@@ -10,14 +10,18 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
-import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.QUESTION_BLOCK;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_BLOCK_NO_REWARD;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.BRICK_BLOCK_WITH_REWARD;
 
 @Getter
 @Singleton
-public final class QuestionBlockAnimator extends GameObjectAnimatorSingleTiled<Block> {
-    private final List<LevelObjectType> supportedTypes = List.of(QUESTION_BLOCK);
+public final class BrickBlockAnimator extends GameObjectAnimatorSingleTiled<Block> {
+    private final List<LevelObjectType> supportedTypes = List.of(
+        BRICK_BLOCK_NO_REWARD,
+        BRICK_BLOCK_WITH_REWARD
+    );
     private final int ticksPerFrame = 8;
 
-    @Value("classpath:/sprites/object/block/question/frame_{0,3}.png")
+    @Value("classpath:/sprites/object/brick/plain/frame_{0,3}.png")
     private AnimationImageResource animationFrames;
 }

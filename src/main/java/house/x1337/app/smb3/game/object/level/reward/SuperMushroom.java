@@ -4,16 +4,19 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.VertexBuffer;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
+import house.x1337.app.smb3.enumeration.resource.SuperMushroomImageResource;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.variant.ConfigurableVariant;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
-import jakarta.annotation.PostConstruct;
-import lombok.Getter;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -21,8 +24,6 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
-import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_MUSHROOM;
-import static house.x1337.app.smb3.enumeration.Score.SCORE_1000;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floor;
 import static java.lang.Math.min;
@@ -58,10 +59,10 @@ import static java.lang.Math.min;
  * reference to it. ({@code ObjHit_PUpMush} also grows the player / grants the Super suit; that suit
  * change is still deferred, exactly as the leaf's Raccoon grant is.)
  */
-@Getter
+@Data
 @Prototype
 @RequiredArgsConstructor
-public final class SuperMushroom implements RewardLevelObject {
+public final class SuperMushroom implements RewardLevelObject, ConfigurableVariant<SuperMushroomVariantData> {
     private static final int RISE_TIMER_INITIAL = 61;
     private static final int RISE_MOVEMENT_THRESHOLD = 45;
     private static final int RISE_PIXEL_INTERVAL_FRAMES = 3;
@@ -72,14 +73,15 @@ public final class SuperMushroom implements RewardLevelObject {
     private static final int BLOCK_BUMP_YVEL = -48;
     private static final int SPRITE_SIZE_PIXELS = TILE_SPRITE_SIZE;
 
-    private final LevelObjectType type = SUPER_MUSHROOM;
-    private final Score rewardScore = SCORE_1000;
-
-    @Value("classpath:/sprites/reward/mashroom/mushroom_normal.png")
-    private ImageResource imageResource;
+    @Value("house.x1337.app.smb3.enumeration.resource.SuperMushroomImageResource")
+    private EnumeratedImageResource<SuperMushroomImageResource> rewardImages;
 
     private final GameEngine gameEngine;
     private final Offset offset;
+
+    private LevelObjectType type;
+    private SuperMushroomImageResource imageResourceType;
+    private Reward rewardType;
 
     private Dimensions spriteDimensions;
     private Geometry spriteGeometry;
@@ -97,8 +99,10 @@ public final class SuperMushroom implements RewardLevelObject {
     private int xVelocityFixedPoint;
     private int yVelocityFixedPoint;
 
-    @PostConstruct
-    void init() {
+    @Override
+    public void configure(final SuperMushroomVariantData variantData) {
+        variantData.applyTo(this);
+
         // Emerge from the top of the block cell (top-left aligned); the creep moves it up from here.
         pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
         pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
@@ -107,6 +111,7 @@ public final class SuperMushroom implements RewardLevelObject {
         // dasm Mushroom_SetFall: the mushroom rolls AWAY from the player once it lands.
         fallDirectionRight = pixelX >= closestPlayerCenterX() - SPRITE_SIZE_PIXELS / 2.0;
 
+        final ImageResource imageResource = getImageResource();
         spriteDimensions = new Dimensions(
             "SuperMushroom",
             imageResource.getDimensions().width() * PIXELS_TO_GAME_UNITS,
@@ -265,8 +270,13 @@ public final class SuperMushroom implements RewardLevelObject {
         }
     }
 
+    @Override
+    public ImageResource getImageResource() {
+        return rewardImages.select(imageResourceType);
+    }
+
     /**
-     * Collects the mushroom: awards {@link #rewardScore} once and flags it collected. Like the
+     * Collects the mushroom: awards {@link #rewardType} once and flags it collected. Like the
      * leaf, it lingers one more rendered frame (its manager removes it next tick) so it shares a
      * single frame with the freshly spawned "1000" caption. ({@code ObjHit_PUpMush} also grows the
      * player; that suit change is still deferred.)
@@ -280,7 +290,7 @@ public final class SuperMushroom implements RewardLevelObject {
         }
         levelScenePlayer
             .getPlayerData()
-            .addToScore(rewardScore.getData().getValue());
+            .add(rewardType.getData());
         collected = true;
         // dasm ObjHit_PUpMush: a small player grows into Super (mode SHRUNK →
         // NORMAL) via the grow transition; a player who is already big just

@@ -55,7 +55,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
     }
 
     public void add(final A object) {
-        if (getSupportedTypes().stream().anyMatch(type -> type == object.getClass())) {
+        if (getSupportedTypes().contains(object.getType())) {
             animatableLevelObjects.add(object);
         }
     }

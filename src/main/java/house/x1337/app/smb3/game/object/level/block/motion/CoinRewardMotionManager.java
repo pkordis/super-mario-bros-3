@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.object.level.block.motion;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
@@ -83,7 +83,7 @@ public final class CoinRewardMotionManager implements MotionManager {
             coinPopAnimation.getOffset(),
             coinPopAnimation.getCurrentWorldOffset().plus(SCORE_X_OFFSET_FROM_COIN, 0, 0)
         );
-        completion.complete(scorePopupAnimation.getScoreData().getValue());
+        completion.complete(scorePopupAnimation.getRewardData().getPoints());
         activeScores.add(scorePopupAnimation);
 
         // TODO: Award 100 points to player score
@@ -92,14 +92,14 @@ public final class CoinRewardMotionManager implements MotionManager {
 
     public CompletableFuture<Integer> spawnCoinReward(
         final GameEngine gameEngine,
-        final Score score,
+        final Reward reward,
         final Offset offset
     ) {
         // Spawn coin animation
         final CoinPopAnimation coinPopAnimation = getBean(
             CoinPopAnimation.class,
             gameEngine,
-            score.getData(),
+            reward.getData(),
             offset
         );
         final CompletableFuture<Integer> completion = new CompletableFuture<>();

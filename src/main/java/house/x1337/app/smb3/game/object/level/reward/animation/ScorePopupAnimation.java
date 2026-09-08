@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level.reward.animation;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.resource.RewardImageResource;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
@@ -40,7 +40,7 @@ public final class ScorePopupAnimation implements PopAnimation {
     private EnumeratedImageResource<RewardImageResource> rewardImages;
 
     private final GameEngine gameEngine;
-    private final Score.Data scoreData;
+    private final Reward.Data rewardData;
     private final Offset offset;
     private final WorldOffset initialWorldOffset;
 
@@ -54,7 +54,7 @@ public final class ScorePopupAnimation implements PopAnimation {
     @PostConstruct
     void init() {
         this.spriteGeometry = createAndAttachSprite(
-            rewardImages.getTextureFor(scoreData.getImageResource()),
+            rewardImages.getTextureFor(rewardData.getImageResource()),
             SCORE_CAPTION_DIMENSIONS
         );
         positionSprite();

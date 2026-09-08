@@ -5,7 +5,6 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 
 import java.util.Iterator;
@@ -60,7 +59,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
         getActiveScorePopups().add(getBean(
             ScorePopupAnimation.class,
             instance.getGameEngine(),
-            instance.getRewardScore().getData(),
+            instance.getRewardType().getData(),
             instance.getOffset(),
             instance.getCurrentWorldOffset().plus(0f, getScoreCaptionYOffsetAboveInstance(), 0f)
         ));
@@ -138,10 +137,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
         }
     }
 
-    default void spawn(
-        final GameEngine gameEngine,
-        final Offset offset
-    ) {
-        getActiveInstances().add(getBean(getType(), gameEngine, offset));
+    default void spawn(final C newLevelObject) {
+        getActiveInstances().add(newLevelObject);
     }
 }

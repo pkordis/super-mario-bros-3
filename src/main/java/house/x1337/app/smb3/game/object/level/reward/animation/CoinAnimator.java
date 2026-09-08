@@ -2,12 +2,15 @@ package house.x1337.app.smb3.game.object.level.reward.animation;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
+import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.reward.Coin;
 import house.x1337.app.smb3.model.AnimationImageResource;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
+
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_FLIPPING;
 
 /**
  * Paints the flipping-coin animation into the interactive-objects layer and, because a {@link Coin}
@@ -20,7 +23,7 @@ import java.util.List;
 @Getter
 @Singleton
 public final class CoinAnimator extends GameObjectAnimatorSingleTiled<Coin> {
-    private final List<Class<? extends Coin>> supportedTypes = List.of(Coin.class);
+    private final List<LevelObjectType> supportedTypes = List.of(COIN_FLIPPING);
     private final int ticksPerFrame = 8;
 
     @Value("classpath:/sprites/object/coin/flipping/frame_{0,3}.png")

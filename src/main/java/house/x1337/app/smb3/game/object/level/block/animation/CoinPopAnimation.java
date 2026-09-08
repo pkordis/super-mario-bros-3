@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level.block.animation;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
 import house.x1337.app.smb3.model.AnimationImageResource;
@@ -54,7 +54,7 @@ public final class CoinPopAnimation implements PopAnimation {
     private AnimationImageResource animationFrames;
 
     private final GameEngine gameEngine;
-    private final Score.Data scoreData;
+    private final Reward.Data scoreData;
     private final Offset offset;
 
     @Setter

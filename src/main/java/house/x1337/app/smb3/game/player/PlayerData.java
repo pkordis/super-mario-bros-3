@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -74,8 +75,17 @@ public final class PlayerData {
         ++coins;
     }
 
-    public void addToScore(final Integer score) {
+    public void addPoints(final Integer score) {
         this.score += score;
+    }
+
+    public void addLives(final Integer lives) {
+        this.lives += lives;
+    }
+
+    public void add(final Reward.Data data) {
+        addPoints(data.getPoints());
+        addLives(data.getLives());
     }
 
     @Data

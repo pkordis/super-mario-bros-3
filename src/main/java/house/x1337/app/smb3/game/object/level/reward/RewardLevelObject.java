@@ -1,11 +1,11 @@
 package house.x1337.app.smb3.game.object.level.reward;
 
-import house.x1337.app.smb3.enumeration.Score;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.util.GameRenderer;
 
 public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
-    Score getRewardScore();
+    Reward getRewardType();
     boolean isCollected();
     boolean isExpired();
 

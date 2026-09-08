@@ -8,6 +8,7 @@ import org.dizitart.no2.repository.annotations.Entity;
 import org.dizitart.no2.repository.annotations.Id;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 
 @Entity(
@@ -22,5 +23,5 @@ public final class LevelObjectRecord implements Serializable, LevelObjectRecordC
     private int id;
     private String type;
     private String description;
-    private Map<String, Object> data;
+    private Map<String, Object> data = new HashMap<>();
 }

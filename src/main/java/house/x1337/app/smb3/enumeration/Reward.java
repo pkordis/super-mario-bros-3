@@ -8,7 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Slf4j
-public enum Score {
+public enum Reward {
+    ONE_UP,
     SCORE_10,
     SCORE_50,
     SCORE_100,
@@ -18,21 +19,29 @@ public enum Score {
     private final Data data = initData();
 
     private Data initData() {
-        final Data scoreData = getBean(Data.class);
+        final Data rewardData = getBean(Data.class);
         try {
-            scoreData.imageResource = RewardImageResource.valueOf(this.name());
+            rewardData.imageResource = RewardImageResource.valueOf(this.name());
         } catch (final IllegalArgumentException e) {
             log.warn("No image found for reward's score: {}", this.name());
         }
-        scoreData.value = Integer.parseInt(this.name().replace("SCORE_", ""));
-        return scoreData;
+        try {
+            rewardData.points = Integer.parseInt(this.name().replace("SCORE_", ""));
+            rewardData.lives = 0;
+        } catch (final NumberFormatException e) {
+            rewardData.points = 0;
+            if ("ONE_UP".equalsIgnoreCase(this.name())) {
+                rewardData.lives = 1;
+            }
+        }
+        return rewardData;
     }
 
     @Getter
     @Prototype
     public static class Data {
         private RewardImageResource imageResource;
-        private int value;
-
+        private int points;
+        private int lives;
     }
 }
