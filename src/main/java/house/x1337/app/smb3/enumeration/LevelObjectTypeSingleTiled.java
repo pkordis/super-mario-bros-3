@@ -7,6 +7,8 @@ import house.x1337.app.smb3.game.object.level.variant.LevelObjectVariantsAware;
 import house.x1337.app.smb3.game.object.level.SolidLevelObject;
 import house.x1337.app.smb3.game.object.level.block.Block;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
+import house.x1337.app.smb3.game.object.level.block.PressedSwitchBlock;
+import house.x1337.app.smb3.game.object.level.block.SwitchBlock;
 import house.x1337.app.smb3.game.object.level.reward.Coin;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
@@ -22,8 +24,12 @@ public enum LevelObjectTypeSingleTiled implements LevelObjectType, LevelObjectVa
     // Blocks
     BRICK_BLOCK_NO_REWARD("Brick Block (breakable - no reward)", Block.class, V_NONE),
     BRICK_BLOCK_WITH_REWARD("Brick Block with Reward (non-breakable)", Block.class, V_NONE),
+    BRICK_SWITCH_BLOCK_SPAWNER("Switch Block Spawner - Brick (spawns the P)", Block.class, V_NONE),
     EMPTY_BLOCK("Empty Block (solid/used)", EmptyBlock.class, V_NONE),
+    PRESSED_SWITCH_BLOCK("Switch Block - pressed (spent)", PressedSwitchBlock.class, V_NONE),
     QUESTION_BLOCK("Question Block", Block.class, V_NONE),
+    QUESTION_SWITCH_BLOCK_SPAWNER("Switch Block Spawner - Question (spawns the P)", Block.class, V_NONE),
+    SWITCH_BLOCK("Switch Block (P)", SwitchBlock.class, V_NONE),
 
     // Rewards
     COIN_FLIPPING("Coin", Coin.class, V_NONE),

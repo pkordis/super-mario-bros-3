@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game;
+package house.x1337.app.smb3.game.level.scene;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGridCapabilities;
@@ -13,14 +13,20 @@ import java.util.stream.Stream;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static java.util.Comparator.comparingInt;
 
-public sealed interface LevelSceneCapabilities extends StaticEnvironmentCollisionGridCapabilities permits LevelScene {
-    /**
-     * Returns every environment layer ordered bottom-to-top by its
-     * {@link LevelSceneLayerType#getOrder() order} (lowest first). The renderer draws them in this
-     * sequence so a higher-order layer is painted over the ones beneath it, with transparent pixels
-     * letting the lower layers show through. Layer visibility is intentionally ignored — when a scene
-     * is rendered, every layer is always stacked.
-     */
+public sealed interface LevelSceneCapabilities
+    extends
+        LevelSceneMotionCapabilities,
+        StaticEnvironmentCollisionGridCapabilities
+    permits
+        LevelScene {
+    default void tick() {
+        getLevelSceneVibration().tick();
+    }
+
+    default void reset() {
+        getLevelSceneVibration().reset();
+    }
+
     default List<LevelScene.LevelSceneLayer> getLayersBottomToTop() {
         return Stream.of(
                 getAirLayer(),
@@ -36,7 +42,17 @@ public sealed interface LevelSceneCapabilities extends StaticEnvironmentCollisio
     }
 
     default Tile[][] getTilesOfConsolidatedLayers() {
-        final List<LevelScene.LevelSceneLayer> layers = getLayersBottomToTop();
+        return consolidate(getLayersBottomToTop());
+    }
+
+    default Tile[][] getTilesOfLayersBelow(final LevelSceneLayerType type) {
+        return consolidate(getLayersBottomToTop()
+            .stream()
+            .filter(layer -> layer.getType().getOrder() < type.getOrder())
+            .toList());
+    }
+
+    private Tile[][] consolidate(final List<LevelScene.LevelSceneLayer> layers) {
         final int rows = getDimensions().rows();
         final int columns = getDimensions().columns();
         final Tile[][] composite = new Tile[rows][columns];

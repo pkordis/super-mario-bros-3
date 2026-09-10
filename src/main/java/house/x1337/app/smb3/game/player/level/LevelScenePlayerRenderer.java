@@ -7,7 +7,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerRuntimeStateAware;
 import house.x1337.app.smb3.game.player.Player;
@@ -22,7 +22,7 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
-import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
+import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
 
 public interface LevelScenePlayerRenderer
     extends

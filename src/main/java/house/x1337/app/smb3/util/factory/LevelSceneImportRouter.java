@@ -3,7 +3,7 @@ package house.x1337.app.smb3.util.factory;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
-import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 import java.util.ArrayList;

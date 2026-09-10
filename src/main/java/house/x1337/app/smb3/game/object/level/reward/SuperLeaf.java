@@ -188,11 +188,6 @@ public final class SuperLeaf implements RewardLevelObject {
         );
     }
 
-    @Override
-    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
-        // The leaf reward is collected by contact and does not respond to the tail attack.
-    }
-
     /**
      * The leaf disappears on contact, the same tick it is collected — before the
      * grow freeze a small player triggers next tick — leaving only its rising

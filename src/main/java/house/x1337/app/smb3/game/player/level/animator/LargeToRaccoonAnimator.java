@@ -4,6 +4,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.effect.PoofSequence;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets;
 import lombok.Data;
@@ -11,14 +12,13 @@ import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
-import static house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets.POOF_FRAMES;
-import static java.lang.Math.clamp;
+import static house.x1337.app.smb3.model.game.effect.PoofSequence.POOF_FRAMES_CONTEXT;
 
 @Data
 @Prototype
 @RequiredArgsConstructor
 public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<LargeToRaccoonAnimatorAssets> {
-    private static final int POOF_FRAME_SHIFT = 2;
+    private final PoofSequence poofSequence = PoofSequence.wrapping();
 
     private final PlayerMode playerMode = RACCOON;
     private final GameEngine gameEngine;
@@ -27,10 +27,15 @@ public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<La
     private int lastFrameIndex = -1;
     private LargeToRaccoonAnimatorAssets assets;
 
+    /**
+     * The poof art is player-independent and shared with the switch-block puff, so it is loaded from the
+     * common effect path rather than from under {@code sprites/player/...}.
+     *
+     * @return the shared poof frame directory
+     */
     @Override
     public String getFramesParentContext() {
-        return "sprites/player/%s/level/large_to_raccoon/"
-            .formatted(getIdentity().getAnimationFramesPath());
+        return POOF_FRAMES_CONTEXT;
     }
 
     @Override
@@ -41,8 +46,7 @@ public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<La
     @Override
     public void update(final LevelScenePlayer levelScenePlayer) {
         final int poofCounter = levelScenePlayer.getRuntimeState().getPoofCounter();
-        final int step = clamp(poofCounter >> POOF_FRAME_SHIFT, 0, POOF_FRAMES.length - 1);
-        final int frameIndex = POOF_FRAMES[step];
+        final int frameIndex = poofSequence.frameIndexFor(poofCounter);
 
         if (frameIndex == lastFrameIndex) {
             return;

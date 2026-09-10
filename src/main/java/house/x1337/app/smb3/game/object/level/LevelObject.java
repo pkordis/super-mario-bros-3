@@ -12,20 +12,19 @@ public interface LevelObject extends GameObject {
     Offset getOffset();
     LevelObjectType getType();
 
-    /**
-     * Reacts to being struck by the raccoon/tanooki tail attack (dasm prg000
-     * {@code Object_RespondToTailAttack}). Invoked once per tick for each object whose bounds
-     * the player's tail hitbox intersects, on the two "kick" frames of the swing.
-     *
-     * <p>Intentionally has <b>no</b> default implementation: every {@link LevelObject} must state
-     * its own response (even if that is to do nothing). This is the project's stand-in for the
-     * ROM's per-object {@code OA3_TAILATKIMMUNE} attribute — immunity is expressed by an empty body.
-     *
-     * @param levelScenePlayer the player whose tail struck this object
-     */
-    void onTailAttack(LevelScenePlayer levelScenePlayer);
+    default void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        // Do nothing by default
+    }
 
-    default void onCollisionFromBelow(LevelScenePlayer levelScenePlayer) {
+    default void onCollisionFromBelow(final LevelScenePlayer leveelScenePlayer) {
+        // Do nothing by default
+    }
+
+    default void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
+        // Do nothing by default
+    }
+
+    default void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
         // Do nothing by default
     }
 

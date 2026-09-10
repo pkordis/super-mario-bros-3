@@ -1,9 +1,11 @@
 package house.x1337.app.smb3.game.collision;
 
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelObjectOffset;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
@@ -14,7 +16,7 @@ import house.x1337.app.smb3.model.game.collision.ProbeLocation;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.util.GameMath;
-import lombok.Getter;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,13 +31,28 @@ import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_P
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
 
+@Data
 @Slf4j
-@Getter
+@Prototype
 @RequiredArgsConstructor
 public final class StaticEnvironmentCollisionGrid implements GameMath {
-    private final LevelObject[][] objects;
-    private final LevelSceneDimensions dimensions;
     private final GameEngine gameEngine;
+    private final PowerSwitchTimeWindow powerSwitchTimeWindow;
+
+    private LevelObject[][] objects;
+    private LevelObject[][] underlayObjects;
+    private LevelSceneDimensions dimensions;
+
+    public void tick() {
+        if (powerSwitchTimeWindow.isActive()) {
+            for (final Player player : gameEngine.getAllPlayers()) {
+                if (player instanceof final LevelScenePlayer levelScenePlayer) {
+                    resolvePlayerOverlaps(levelScenePlayer, levelScenePlayer.getObjectCollisionBounds());
+                }
+            }
+        }
+        powerSwitchTimeWindow.tick();
+    }
 
     /**
      * Handles Player's collision against solid tiles (wall and ground).
@@ -152,6 +169,7 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
                     runtimeState.stop();
                     position.setDY(0);
                 }
+                handleStandingOnObjects(levelScenePlayer, tVert);
             } else if (!runtimeState.isInAir()) {
                 // Walked off ledge
                 position.setDY(0);
@@ -183,36 +201,100 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
     }
 
     /**
-     * Dispatches {@link LevelObject#onTailAttack} to every static tile the player's tail hitbox
-     * overlaps (dasm prg008 {@code Player_TailAttack_HitBlocks}). Each candidate tile cell is
-     * confirmed with a precise box overlap before firing, and the shared empty sentinel is skipped
-     * so only real blocks/bricks react.
+     * Dispatches {@link LevelObject#onCollisionFromAbove} to the tile(s) the player is resting on.
+     *
+     * <p>Unlike the upward case, the downward {@link ProbeLocation} holds two <em>distinct</em> points
+     * — the left and right foot ({@code $04,$20} and {@code $0B,$20} large; {@code $04,$20} and
+     * {@code $0B,$20} small, see {@code CollisionOffsets}) — where the upward probe repeats a single
+     * point. Both are dispatched so a tile is stomped whichever foot is over it, matching the ROM,
+     * where the press test sits inside the tile detection that runs for each probe. When both feet
+     * resolve to the same cell it is dispatched once.
+     *
+     * @param levelScenePlayer the player standing on the terrain
+     * @param tVert            this frame's vertical probe pair (the feet, while descending/grounded)
+     */
+    private void handleStandingOnObjects(
+        final LevelScenePlayer levelScenePlayer,
+        final ProbeLocation tVert
+    ) {
+        final LevelObjectOffset leftFoot = fromPlayerOffset(levelScenePlayer, tVert.first());
+        final LevelObjectOffset rightFoot = fromPlayerOffset(levelScenePlayer, tVert.second());
+        dispatchStandingOn(levelScenePlayer, leftFoot);
+        if (rightFoot.x() != leftFoot.x() || rightFoot.y() != leftFoot.y()) {
+            dispatchStandingOn(levelScenePlayer, rightFoot);
+        }
+    }
+
+    private void dispatchStandingOn(
+        final LevelScenePlayer levelScenePlayer,
+        final LevelObjectOffset objectOffset
+    ) {
+        if (objectOffset.isOutsideOf(this)) {
+            return;
+        }
+        getLevelObjectAt(objectOffset).onCollisionFromAbove(levelScenePlayer);
+    }
+
+    /**
+     * Dispatches {@link LevelObject#onTailAttack} to the <b>single</b> tile containing the tail's probe
+     * point (dasm prg008 {@code Player_TailAttack_HitBlocks}, which loads the
+     * {@code Player_TailAttack_Offsets} pair and calls {@code Player_GetTileAndSlope} — one tile lookup,
+     * stored into the tail's {@code Level_Tile_Whack} slot and passed to {@code Level_DoBumpBlocks}).
+     *
+     * <p>This used to sweep every cell overlapped by the tail's <em>object</em> hitbox
+     * ({@link LevelScenePlayer#getTailAttackBounds()}). That box is 15px tall, so it straddled two tile
+     * rows whenever the player was not tile-aligned, and the tail would break a brick a whole row above
+     * the real strike point. The object box remains correct for {@code ActiveObjectGrid}, where the ROM
+     * genuinely does a box overlap; only the terrain test is a point.
      *
      * @param levelScenePlayer the striking player
-     * @param tailBounds       the player's tail hitbox for this tick, in sprite-pixel space
+     * @param probeX           the probe point's X, in sprite-pixel space
+     * @param probeY           the probe point's Y, in sprite-pixel space
      */
     public void resolveTailAttack(
         final LevelScenePlayer levelScenePlayer,
-        final AxisAlignedBoundingBox tailBounds
+        final double probeX,
+        final double probeY
     ) {
-        final int minColumn = (int) floor(tailBounds.left() / TILE_SPRITE_SIZE);
-        final int maxColumn = (int) floor(tailBounds.right() / TILE_SPRITE_SIZE);
-        final int minRow = (int) floor(tailBounds.top() / TILE_SPRITE_SIZE);
-        final int maxRow = (int) floor(tailBounds.bottom() / TILE_SPRITE_SIZE);
-        for (int row = minRow; row <= maxRow; row++) {
-            for (int column = minColumn; column <= maxColumn; column++) {
+        final Offset probedCell = Offset.of(
+            (int) floor(probeX / TILE_SPRITE_SIZE),
+            (int) floor(probeY / TILE_SPRITE_SIZE)
+        );
+        final LevelObject object = getLevelObjectAt(probedCell);
+        if (object != EMPTY_LEVEL_OBJECT) {
+            object.onTailAttack(levelScenePlayer);
+        }
+    }
+
+
+    /**
+     * Dispatches {@link LevelObject#onPlayerOverlap} to every tile the player's body overlaps, solid or
+     * not — the counterpart to the directional probes, and the path by which pass-through tiles act on
+     * contact (a P-Switch-substituted brick collected as a coin).
+     *
+     * <p>The ROM tests its four discrete tile detects ({@code Level_Tile_GndL/GndR} and the head pair)
+     * in {@code Player_DoSpecialTiles} (dasm {@code prg008.asm PRG008_B604}); for a player one or two
+     * tiles tall those probes cover the same cells this box sweep does, and a box is cheaper to keep
+     * correct than a second probe table.
+     *
+     * @param levelScenePlayer the player to test
+     * @param bounds           the player's hitbox in sprite-pixel space
+     */
+    public void resolvePlayerOverlaps(
+        final LevelScenePlayer levelScenePlayer,
+        final AxisAlignedBoundingBox bounds
+    ) {
+        // Half-open edges: the right/bottom edge belongs to the next cell, so step back one pixel.
+        final int firstColumn = (int) floor(bounds.left() / TILE_SPRITE_SIZE);
+        final int lastColumn = (int) floor((bounds.right() - 1) / TILE_SPRITE_SIZE);
+        final int firstRow = (int) floor(bounds.top() / TILE_SPRITE_SIZE);
+        final int lastRow = (int) floor((bounds.bottom() - 1) / TILE_SPRITE_SIZE);
+
+        for (int row = firstRow; row <= lastRow; row++) {
+            for (int column = firstColumn; column <= lastColumn; column++) {
                 final LevelObject object = getLevelObjectAt(Offset.of(column, row));
-                if (object == EMPTY_LEVEL_OBJECT) {
-                    continue;
-                }
-                final AxisAlignedBoundingBox tileBounds = new AxisAlignedBoundingBox(
-                    (double) column * TILE_SPRITE_SIZE,
-                    (double) row * TILE_SPRITE_SIZE,
-                    (double) (column + 1) * TILE_SPRITE_SIZE,
-                    (double) (row + 1) * TILE_SPRITE_SIZE
-                );
-                if (tileBounds.intersects(tailBounds)) {
-                    object.onTailAttack(levelScenePlayer);
+                if (object != EMPTY_LEVEL_OBJECT) {
+                    object.onPlayerOverlap(levelScenePlayer);
                 }
             }
         }
@@ -228,7 +310,7 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
 
     public void removeLevelObjectAt(final Offset offset) {
         try {
-            objects[offset.y()][offset.x()] = EMPTY_LEVEL_OBJECT;
+            objects[offset.y()][offset.x()] = underlayObjects[offset.y()][offset.x()];
         } catch (final ArrayIndexOutOfBoundsException e) {
             log.error("removeLevelObjectAt error", e);
         }

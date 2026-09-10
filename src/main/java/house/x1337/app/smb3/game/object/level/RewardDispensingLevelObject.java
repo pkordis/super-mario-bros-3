@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.ItemType.ONE_UP_MUSHROOM;
+import static house.x1337.app.smb3.enumeration.ItemType.SWITCH_BLOCK;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.GROWING_CAPABLE;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.LIFE_AWARDING_GREEN;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -21,11 +22,15 @@ public interface RewardDispensingLevelObject extends LevelObject {
 
     void onCoinDispensed(LevelScenePlayer levelScenePlayer);
 
+    /**
+     * Dispenses a P-Switch. Implemented by the block that holds it, because the switch is placed
+     * into a neighbouring grid cell rather than spawned as a moving object
+     * (dasm {@code prg008.asm LATP_PSwitch}).
+     */
+    void onSwitchBlockDispensed(LevelScenePlayer levelScenePlayer);
+
     default void dispenseReward(final LevelScenePlayer levelScenePlayer) {
-        // dasm GBCtl_LeafBlock (prg002.asm @ PRG002_A39C): a leaf block dispenses the Super Leaf
-        // ($1E) only when the player is NOT small; a small (SHRUNK) player is upgraded to a Super
-        // Mushroom ($0D) instead. Check this first and override the configured reward.
-        if (levelScenePlayer.isSmall() && getReward().isNoneOf(COIN_SINGLE, ONE_UP_MUSHROOM)) {
+        if (levelScenePlayer.isSmall() && getReward().isNoneOf(COIN_SINGLE, ONE_UP_MUSHROOM, SWITCH_BLOCK)) {
             onSuperMushroomDispensed(levelScenePlayer, GROWING_CAPABLE);
             return;
         }
@@ -42,6 +47,10 @@ public interface RewardDispensingLevelObject extends LevelObject {
                 break;
             case ONE_UP_MUSHROOM:
                 onSuperMushroomDispensed(levelScenePlayer, LIFE_AWARDING_GREEN);
+                break;
+            case SWITCH_BLOCK:
+                onSwitchBlockDispensed(levelScenePlayer);
+                break;
             default:
                 getLogger(getClass()).warn("Unhandled Reward Type: {}", getReward());
                 break;

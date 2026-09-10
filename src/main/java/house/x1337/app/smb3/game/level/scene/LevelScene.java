@@ -1,7 +1,8 @@
-package house.x1337.app.smb3.game;
+package house.x1337.app.smb3.game.level.scene;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.AllArgsConstructor;
@@ -11,12 +12,16 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+
 @Data
 @Builder
 @Prototype
 @NoArgsConstructor
 @AllArgsConstructor
 public final class LevelScene implements LevelSceneCapabilities {
+    private final LevelSceneVibration levelSceneVibration = getBean(LevelSceneVibration.class);
+
     @Builder.Default
     private String id = UUID.randomUUID().toString();
     private String title;

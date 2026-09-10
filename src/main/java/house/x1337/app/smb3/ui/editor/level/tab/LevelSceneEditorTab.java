@@ -3,7 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
-import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;

@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -168,8 +169,24 @@ class CollisionGridWallNudgeTest {
         return objects;
     }
 
+    /** An 8x8 grid of empty cells, used as the (unpopulated) underlay. */
+    private LevelObject[][] emptyGrid() {
+        final LevelObject[][] objects = new LevelObject[8][8];
+        for (final LevelObject[] row : objects) {
+            Arrays.fill(row, EMPTY_LEVEL_OBJECT);
+        }
+        return objects;
+    }
+
     private StaticEnvironmentCollisionGrid gridFor(final LevelObject[][] objects) {
-        return new StaticEnvironmentCollisionGrid(objects, new LevelSceneDimensions(8, 8), null);
+        final StaticEnvironmentCollisionGrid collisionGrid = new StaticEnvironmentCollisionGrid(
+            null,
+            new PowerSwitchTimeWindow()
+        );
+        collisionGrid.setObjects(objects);
+        collisionGrid.setUnderlayObjects(emptyGrid());
+        collisionGrid.setDimensions(new LevelSceneDimensions(8, 8));
+        return collisionGrid;
     }
 
     private LevelScenePlayer largePlayerMovingUp(final PlayerPosition position) {

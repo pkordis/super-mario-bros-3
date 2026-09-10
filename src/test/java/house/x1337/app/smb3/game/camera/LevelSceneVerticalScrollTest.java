@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.game.camera;
 
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

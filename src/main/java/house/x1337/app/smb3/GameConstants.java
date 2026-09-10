@@ -129,6 +129,10 @@ public final class GameConstants {
     public static final ColorRGBA BLACK = new ColorRGBA(0, 0, 0, 0);
 
     public static final float Z_STEP_BETWEEN_LAYERS = 0.01f;
+    // The poof cloud sits between the baked interactive-objects layer (order 4 -> 0.04, where the
+    // switch block is painted) and the block bounce (0.05), so it covers the switch block it spawns
+    // with while still passing behind the empty block bouncing out of the spawner.
+    public static final float Z_DEPTH_POOF = 0.045f;
     public static final float Z_DEPTH_BRICK_BLOCK_BOUNCE = 0.05f;
     public static final float Z_DEPTH_ITEM_REWARD = 0.06f;
     public static final float Z_DEPTH_BRICK_BLOCK_FRAGMENT = 0.11f;

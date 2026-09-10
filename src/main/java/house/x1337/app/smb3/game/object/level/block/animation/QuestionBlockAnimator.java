@@ -11,11 +11,15 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.QUESTION_BLOCK;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.QUESTION_SWITCH_BLOCK_SPAWNER;
 
 @Getter
 @Singleton
 public final class QuestionBlockAnimator extends GameObjectAnimatorSingleTiled<Block> {
-    private final List<LevelObjectType> supportedTypes = List.of(QUESTION_BLOCK);
+    private final List<LevelObjectType> supportedTypes = List.of(
+        QUESTION_BLOCK,
+        QUESTION_SWITCH_BLOCK_SPAWNER
+    );
     private final int ticksPerFrame = 8;
 
     @Value("classpath:/sprites/object/block/question/frame_{0,3}.png")

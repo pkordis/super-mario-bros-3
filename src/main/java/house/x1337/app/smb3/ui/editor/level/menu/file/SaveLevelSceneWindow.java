@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.menu.file;
 
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;

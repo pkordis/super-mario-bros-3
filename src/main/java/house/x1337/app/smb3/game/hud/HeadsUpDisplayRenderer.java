@@ -104,7 +104,7 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
         renderLives(clonedBaseImagePixels, data.getLives());
         renderDigits(clonedBaseImagePixels, data.getScore(), SCORE_DIGITS, SCORE_X);
 
-        if (data.haveTimerActive()) {
+        if (data.hasTimerActive()) {
             renderDigits(clonedBaseImagePixels, data.getTimer(), TIMER_DIGITS, TIMER_X);
         }
 

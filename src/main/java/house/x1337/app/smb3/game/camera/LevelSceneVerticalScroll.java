@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.camera;
 
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import lombok.Getter;
 
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;

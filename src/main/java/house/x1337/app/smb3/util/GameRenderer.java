@@ -19,9 +19,10 @@ import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
 import static com.jme3.texture.image.ColorSpace.Linear;
 import static com.jme3.util.BufferUtils.createByteBuffer;
-import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 
 public interface GameRenderer {
+    int RGBA_BYTES_PER_PIXEL = 4;
+
     default Texture2D toTexture(
         final ByteBuffer buffer,
         final DimensionsPixels dimensions
@@ -70,11 +71,20 @@ public interface GameRenderer {
         final int[] rgbData,
         final DimensionsPixels dimensions
     ) {
-        final ByteBuffer buffer = createByteBuffer(rgbData.length * TILE_SCALE);
+        return loadTexture(rgbData, dimensions, false);
+    }
+
+    default Texture loadTexture(
+        final int[] rgbData,
+        final DimensionsPixels dimensions,
+        final boolean flipVertically
+    ) {
+        final ByteBuffer buffer = createByteBuffer(rgbData.length * RGBA_BYTES_PER_PIXEL);
         // jme3 expects the ByteBuffer in bottom-to-top row order, whereas rgbData (e.g. from
         // BufferedImage#getRGB) is top-to-bottom, so emit source rows in reverse to avoid a
-        // vertically flipped texture.
-        for (int y = dimensions.height() - 1; y >= 0; y--) {
+        // vertically flipped texture. A mirrored texture is therefore the source order as-is.
+        for (int row = 0; row < dimensions.height(); row++) {
+            final int y = flipVertically ? row : dimensions.height() - 1 - row;
             for (int x = 0; x < dimensions.width(); x++) {
                 final int argb = rgbData[y * dimensions.width() + x];
                 buffer.put((byte) ((argb >> 16) & 0xFF)); // R

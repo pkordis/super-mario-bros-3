@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
-import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 /**
  * Animates a brick block bouncing in place when hit from below by small Mario.
@@ -56,6 +56,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
  * <h3>Sound — {@code SND_PLAYERBUMP}</h3>
  * <p>A "bump" sound is queued when the block is hit.
  */
+// TODO: abstract
 @Getter
 public final class BrickBlockBounceAnimation implements GameRenderer {
 

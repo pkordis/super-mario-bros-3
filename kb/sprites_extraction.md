@@ -271,3 +271,93 @@ index 5 in the score table = 100 pts.
    (index 0 is unused/empty). A stored value of `$05` → index 5 → 100 pts.
    A stored value with bit 7 set (`$85`) is the same score with the bit used
    as a flag elsewhere; mask with `$7F` before indexing.
+
+---
+
+## 8. Animated **background** tiles (PPU $0800) — the shimmer cycle
+
+Section 3 covers the *sprite* pattern table. Animated background tiles (coins, question
+blocks, bricks, the P-Switch) work differently and are worth knowing before extracting
+any tile that appears to shimmer.
+
+### The mechanism
+
+`PatTable_BankSel` is 6 bytes; each sets the VROM at one PPU window
+(`smb3.asm:2021`). Index `[1]` is PPU **$0800** — commented "second half BG, typ
+animated". One global cycle drives every animated BG tile
+(`prg030.asm PRG030_8E4F`, "REGULAR LEVEL ANIMATIONS"):
+
+```
+LDA <Counter_1
+AND #$18
+LSR A / LSR A / LSR A     ; X = (Counter_1 & $18) >> 3  -> 0..3, changes every 8 ticks
+TAX
+LDA PT2_Anim,X
+STA PatTable_BankSel+1
+```
+
+with `PT2_Anim: .byte $60, $62, $64, $66` (`prg030.asm:423`).
+
+So: **4 phases × 8 ticks = a 32-tick loop**, shared and phase-locked across all animated
+BG tiles. This is why the question block, brick and coin animators in this project all use
+4 frames at 8 ticks per frame.
+
+Overrides to be aware of:
+- `Level_Tileset == 5` (pipe/plant infestation) uses `PlantInfest_PatTablePerACnt` instead.
+- `Level_Tileset == 7` (Toad House) and `== 10` (Airship) have their own paths.
+- While `Level_PSwitchCnt != 0` the bank is forced to `$3E` (`PRG030_8E24`) — all BG tile
+  animation **freezes** for the P-Switch's duration.
+
+### Resolving a BG pattern number to a chr file
+
+The $0800 window is **2 KB = two 1 KB banks = 128 patterns ($80–$FF)**:
+
+| Pattern range | chr file            | Local tile index |
+|---------------|---------------------|------------------|
+| `$80`–`$BF`   | `chr<page>`         | `pattern - $80`  |
+| `$C0`–`$FF`   | `chr<page + 1>`     | `pattern - $C0`  |
+
+where `page` is the `PT2_Anim` entry for the phase (`$60`/`$62`/`$64`/`$66` = 96/98/100/102).
+Example: the P-Switch's `$E0` in phase 0 is `chr097` tile `$20`.
+
+### Counting how many frames a tile *actually* has
+
+Do not assume 4. Extract the tile's patterns from all four banks and compare bytes — two
+phases can hold identical CHR:
+
+- question block, brick, coin → 4 distinct frames, 25% each
+- **P-Switch** → banks `$62` and `$66` are identical ⇒ 3 distinct frames, cycle
+  **A-B-C-B** (middle frame 50%, outer two 25%)
+- **pressed P-Switch** → identical in all four ⇒ static
+
+When a frame repeats, ship the duplicate as a real asset file (e.g. `frame_3` = `frame_1`)
+so a plain linear cycle reproduces the ROM timing with no animator changes. That mirrors
+what the ROM itself does with duplicated CHR.
+
+### Trap: two different metatile orderings
+
+A 16×16 metatile's four 8×8 patterns are listed in **different orders** by different
+tables. Getting this wrong yields scrambled art that looks like garbage:
+
+| Table | Order |
+|-------|-------|
+| per-tileset `Tile_Layout_TS*` | column-major — TL, BL, TR, BR |
+| `OneTile_ChangeToPatterns` (`prg029.asm:2553`) | **row-major** — TL, TR, BL, BR |
+
+The proof for the row-major reading is entry `$09` (`CHNGTILE_PSWITCHSTOMP`) =
+`$FF,$FF,$E6,$E7`: `$FF` is the blank pattern, so row-major gives a blank **top row** with
+art on the bottom — a switch flattened to the floor. Column-major would blank the left
+half, which is not a pressed switch.
+
+### Deriving real colours for a BG tile
+
+CHR gives only palette indices 0–3. To emit correctly coloured PNGs without hunting down
+the palette, match against an existing correct asset: for each of the 4 indices, collect
+the colours at those pixel positions in the known-good PNG. If the mapping is a consistent
+bijection across all 256 pixels, it is an exact match and yields the palette for free.
+This is how `sprites/object/block/switch/*` and `sprites/effect/poof/*` were produced
+(index `0` → transparent, `1` → black, `2` → `#CFF1FF`, `3` → `#68BAFF`).
+
+Note that index `0` is the NES **backdrop** colour, not necessarily "nothing" — in the
+P-Switch's frame A the "P" glyph itself is drawn in index 0, so it renders as a hole
+showing the background layer. Mapping index 0 to transparent reproduces that faithfully.

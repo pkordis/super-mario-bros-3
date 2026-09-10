@@ -17,12 +17,11 @@ import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,14 +47,6 @@ import static lombok.AccessLevel.PRIVATE;
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
     private final List<? extends MotionManager<?>> motionManagers = getBean(MotionManager.Registry.class).getAll();
-
-    /**
-     * The single, scene-wide broad-phase for dynamic {@link ActiveLevelObject}s. Owned here so all
-     * active-object managers share one grid: each clears nothing and simply inserts its live
-     * objects during its {@code update()} (the engine clears the grid once per tick beforehand),
-     * and {@link #resolveActiveObjectCollisions()} runs one collision pass over the union. Cell
-     * size is one tile.
-     */
     private final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = new ActiveObjectGrid<>(TILE_SPRITE_SIZE);
 
     private final CameraState cameraState;
@@ -94,12 +85,17 @@ public final class GameEngine extends GameEngineCapabilities {
     }
 
     /**
-     * Runs the scene-wide tail-attack pass for this tick. For every player whose tail is on a "kick"
-     * frame ({@link LevelScenePlayer#isTailAttackStriking()}), its tail hitbox is tested against both
-     * the dynamic broadphase and the static terrain, and each overlapping object receives
-     * {@code onTailAttack}. This mirrors the ROM's split handling — objects via
-     * {@code Object_RespondToTailAttack} (prg000), blocks via {@code Player_TailAttack_HitBlocks}
-     * (prg008). Runs after the broadphase is populated, so it sees this tick's live objects.
+     * Runs the scene-wide tail-attack pass for this tick, mirroring the ROM's two <em>separate</em>
+     * tail tests rather than sharing one hitbox between them:
+     *
+     * <ul>
+     *   <li><b>Objects</b> — {@code Object_RespondToTailAttack} (prg000): a 10x15 box beside the
+     *       player, tested on countdown frames {@code $0C} and {@code $09}.</li>
+     *   <li><b>Blocks</b> — {@code Player_TailAttack_HitBlocks} (prg008): a single probe point
+     *       resolving to one tile, tested on countdown frame {@code $09} only.</li>
+     * </ul>
+     *
+     * <p>Runs after the broadphase is populated, so it sees this tick's live objects.
      */
     private void resolveTailAttacks() {
         if (gameContext != LEVEL_SCENE) {
@@ -108,9 +104,14 @@ public final class GameEngine extends GameEngineCapabilities {
         final List<LevelScenePlayer> levelScenePlayers = checkedCast(getAllPlayers());
         for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
             if (levelScenePlayer.isTailAttackStriking()) {
-                final AxisAlignedBoundingBox tailBounds = levelScenePlayer.getTailAttackBounds();
-                activeObjectGrid.resolveTailAttack(levelScenePlayer, tailBounds);
-                collisionGrid.resolveTailAttack(levelScenePlayer, tailBounds);
+                activeObjectGrid.resolveTailAttack(levelScenePlayer, levelScenePlayer.getTailAttackBounds());
+            }
+            if (levelScenePlayer.isTailAttackStrikingBlocks()) {
+                collisionGrid.resolveTailAttack(
+                    levelScenePlayer,
+                    levelScenePlayer.getTailAttackBlockProbeX(),
+                    levelScenePlayer.getTailAttackBlockProbeY()
+                );
             }
         }
     }
@@ -302,6 +303,11 @@ public final class GameEngine extends GameEngineCapabilities {
             resolveActiveObjectCollisions();
             resolveTailAttacks();
             motionManagers.forEach(MotionManager::postCollision);
+
+            if (gameContext == LEVEL_SCENE) {
+                levelScene.tick();
+                collisionGrid.tick();
+            }
         }
 
         // Interpolate the player's visual position between the previous and
@@ -316,5 +322,6 @@ public final class GameEngine extends GameEngineCapabilities {
     public void setupLevel(final LevelScene levelScene) {
         this.levelScene = levelScene;
         this.collisionGrid = levelScene.toCollisionGrid(this);
+        levelScene.reset();
     }
 }

@@ -1,8 +1,8 @@
 package house.x1337.app.smb3.ui.editor.level.browse;
 
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.game.LevelScene;
-import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 

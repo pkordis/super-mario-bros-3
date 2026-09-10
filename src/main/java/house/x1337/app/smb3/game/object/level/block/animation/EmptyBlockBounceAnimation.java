@@ -23,7 +23,7 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
-import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
 /**
  * Animates a spent (used) block bouncing in place when hit from below.
@@ -39,6 +39,7 @@ import static house.x1337.app.smb3.game.LevelSceneCapabilities.LevelSceneLayerCa
  * .byte $00, -$40, -$40, -$30, -$20, -$10, $00, $10, $20, $30, $40
  * }</pre>
  */
+// TODO: abstract
 @Getter
 public final class EmptyBlockBounceAnimation implements GameRenderer {
 

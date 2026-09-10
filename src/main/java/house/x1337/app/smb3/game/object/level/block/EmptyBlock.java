@@ -5,7 +5,6 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.motion.EmptyBlockBounceMotionManager;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
@@ -52,19 +51,5 @@ public class EmptyBlock implements LevelObject {
     public void triggerBounce(final GameEngine gameEngine) {
         motionManager.spawnBounce(gameEngine, offset);
         bounced = true;
-    }
-
-    /**
-     * Subsequent collisions from below are ignored — the one-shot bounce
-     * (triggered once via {@link #triggerBounce}) never repeats.
-     */
-    @Override
-    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
-        // Bounce already played (or about to play); this block never bounces again.
-    }
-
-    @Override
-    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
-        // A spent block does not react to the tail attack.
     }
 }

@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.enumeration.PlayerMode;
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.player.RewardConsumingPlayer;

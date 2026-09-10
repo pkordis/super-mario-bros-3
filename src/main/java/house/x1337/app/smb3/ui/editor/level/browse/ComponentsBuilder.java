@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.ui.editor.level.browse;
 
-import house.x1337.app.smb3.game.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.ui.editor.level.browse.core.LevelScenesTableOwner;
 
 import javax.swing.JButton;

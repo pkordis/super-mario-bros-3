@@ -7,17 +7,20 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.DoubleSupplier;
 
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static java.lang.Math.round;
 
 @Slf4j
@@ -25,13 +28,17 @@ import static java.lang.Math.round;
 @Prototype
 @RequiredArgsConstructor
 public class CameraState extends BaseAppState {
+    private final DoubleSupplier vibrationProvider = getBean(LevelSceneVibration.class)::getCameraOffsetUnits;
     private final Target<Spatial> target = new Target<>();
     private final Clipping clipping = new Clipping();
     private final Vector3f position = new Vector3f();
+    private final Vector3f shakenPosition = new Vector3f();
     private Camera camera3D;
     private int pendingColumns;
     private int pendingRows;
     private float lastAspect;
+
+    @Setter
     private DoubleSupplier verticalScrollProvider;
 
     @Override
@@ -97,26 +104,21 @@ public class CameraState extends BaseAppState {
             round(positionVector.y / pixelSize) * pixelSize,
             FRUSTUM
         );
-        camera3D.setLocation(position);
+
+        // The screen shake is applied here, OUTSIDE the level-bounds clamp above and after the
+        // pixel snap, because the ROM writes it to Vert_Scroll_Off - the raw per-frame scroll
+        // offset, downstream of Player_DoScrolling and its limits (dasm prg008 Player_DoVibration).
+        // Folding it into the vertical-scroll provider instead would let clipping.clamp swallow it
+        // in a horizontal level, whose view is pinned to the bottom of the clamp range. The offset
+        // is a whole number of NES pixels, so it keeps the snapped position pixel-exact. It is
+        // deliberately kept out of `position`, so the active-object region and anything else reading
+        // the camera's logical location do not jitter with it.
+        final float vibrationOffset = (float) vibrationProvider.getAsDouble();
+        camera3D.setLocation(shakenPosition.set(position.x, position.y + vibrationOffset, position.z));
     }
 
     public void setTarget(final Spatial spatial) {
         target.setValue(spatial);
-    }
-
-    /**
-     * Installs an optional provider for the camera's vertical position. When
-     * set, the camera's Y is taken from the provider each frame instead of the
-     * target node's Y (X still follows the target). This lets level scenes drive
-     * vertical scrolling from a {@code LevelVerticalScroll} model — locking the
-     * view to the bottom unless the player is flying/climbing — while the world
-     * map keeps following the target node on both axes by leaving it {@code null}.
-     *
-     * @param verticalScrollProvider supplier of the camera centre Y in
-     *                               game-units, or {@code null} to follow the target
-     */
-    public void setVerticalScrollProvider(final DoubleSupplier verticalScrollProvider) {
-        this.verticalScrollProvider = verticalScrollProvider;
     }
 
     /**

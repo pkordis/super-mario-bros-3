@@ -112,6 +112,17 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
         return pausedOffsets.contains(offset);
     }
 
+    protected int[] getFramePixels(final int frameIndex) {
+        return getAnimationFrames().getFrameRgbData(frameIndex);
+    }
+
+    protected void repaintCurrentFrame() {
+        if (interactiveObjectsLayerGeometry == null || animatableLevelObjects.isEmpty()) {
+            return;
+        }
+        paintFrame(currentFrame);
+    }
+
     private void paintFrame(final int frameIdx) {
         final Texture2D texture = (Texture2D) interactiveObjectsLayerGeometry
             .getMaterial()
@@ -119,7 +130,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
             .getTextureValue();
         final Image image = texture.getImage();
         final ByteBuffer buffer = image.getData(0);
-        final int[] pixels = getAnimationFrames().getFrameRgbData(frameIdx);
+        final int[] pixels = getFramePixels(frameIdx);
         final int imageWidth = dimensions.columns() * TILE_SPRITE_SIZE;
 
         for (final A animatableObjects : animatableLevelObjects) {

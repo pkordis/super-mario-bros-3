@@ -1,8 +1,7 @@
 package house.x1337.app.smb3.util.converter;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
-import house.x1337.app.smb3.game.LevelScene;
-import house.x1337.app.smb3.game.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord.LevelSceneLayerData;
 import house.x1337.app.smb3.model.ui.tile.Tile;

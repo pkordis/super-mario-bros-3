@@ -1,7 +1,6 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.Builder;
@@ -28,10 +27,5 @@ public final class SolidLevelObject implements LevelObject {
     @Override
     public boolean isOneWayPlatform() {
         return tile.getType().getCategory() == ONE_WAY_PLATFORM;
-    }
-
-    @Override
-    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
-        // Solid terrain (ground, pipes) is inert to the tail attack.
     }
 }

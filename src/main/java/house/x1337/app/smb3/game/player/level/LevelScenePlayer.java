@@ -51,9 +51,10 @@ import static java.lang.Math.min;
 @Slf4j
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
-    // Raccoon tail-attack hitbox, in sprite-pixel space (dasm prg000 Object_RespondToTailAttack /
-    // Player_TailAttackXOff): offset to the side the player faces, 10 wide, 15 tall, covering the
-    // lower body. The swing "kicks" (registers a hit) only on the two countdown frames $0C and $09.
+    // Raccoon tail-attack hitbox for dynamic objects, in sprite-pixel space (dasm prg000
+    // Object_RespondToTailAttack / Player_TailAttackXOff): offset to the side the player faces, 10 wide,
+    // 15 tall, covering the lower body. The swing "kicks" (registers a hit) only on the two countdown
+    // frames $0C and $09.
     private static final double TAIL_ATTACK_X_OFFSET_RIGHT = 17;
     private static final double TAIL_ATTACK_X_OFFSET_LEFT = -10;
     private static final double TAIL_ATTACK_WIDTH = 10;
@@ -61,6 +62,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private static final double TAIL_ATTACK_HEIGHT = 15;
     private static final int TAIL_ATTACK_STRIKE_FRAME_EARLY = 12;
     private static final int TAIL_ATTACK_STRIKE_FRAME_LATE = 9;
+
+    // Tail attack against static blocks is NOT the box above: the ROM probes a single point and looks up
+    // the one tile containing it (dasm prg008 Player_TailAttack_HitBlocks -> Player_GetTileAndSlope, with
+    // the offsets from Player_TailAttack_Offsets: Y = 28, X = -6 facing left / +21 facing right). It also
+    // fires on one frame only, $09 -- not on $0C like the object test.
+    private static final double TAIL_ATTACK_BLOCK_PROBE_X_RIGHT = 21;
+    private static final double TAIL_ATTACK_BLOCK_PROBE_X_LEFT = -6;
+    private static final double TAIL_ATTACK_BLOCK_PROBE_Y = 28;
 
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
@@ -152,6 +161,48 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             : TAIL_ATTACK_X_OFFSET_LEFT);
         final double top = y + TAIL_ATTACK_Y_OFFSET;
         return new AxisAlignedBoundingBox(left, top, left + TAIL_ATTACK_WIDTH, top + TAIL_ATTACK_HEIGHT);
+    }
+
+    /**
+     * Whether the tail swing is on the single frame that strikes <em>blocks</em> (dasm prg008
+     * {@code Player_TailAttack_HitBlocks}: {@code CMP #$09 / BNE}). Deliberately narrower than
+     * {@link #isTailAttackStriking()}, which also fires on {@code $0C} for objects — the ROM's block
+     * routine never runs on that frame.
+     *
+     * @return {@code true} if the tail should be tested against static blocks this tick
+     */
+    public boolean isTailAttackStrikingBlocks() {
+        return hasTail() && runtimeState.getPlayerTailAttackCountdown() == TAIL_ATTACK_STRIKE_FRAME_LATE;
+    }
+
+    /**
+     * X of the tail's block-probe point, in sprite-pixel space. See
+     * {@link #getTailAttackBlockProbeY()} for why this is a point rather than a box.
+     *
+     * @return the probe X, {@code +21} of the sprite left edge facing right, {@code -6} facing left
+     */
+    public double getTailAttackBlockProbeX() {
+        return position.getX() + (orientation.getHorizontal() == RIGHT
+            ? TAIL_ATTACK_BLOCK_PROBE_X_RIGHT
+            : TAIL_ATTACK_BLOCK_PROBE_X_LEFT);
+    }
+
+    /**
+     * Y of the tail's block-probe point, in sprite-pixel space: {@code +28} below the sprite top, i.e.
+     * down at the feet.
+     *
+     * <p>The ROM tests blocks with a <b>single point</b>, not with {@link #getTailAttackBounds()}: it
+     * loads the {@code Player_TailAttack_Offsets} pair into the tile-probe inputs and calls
+     * {@code Player_GetTileAndSlope}, which resolves exactly one tile (dasm prg008
+     * {@code Player_TailAttack_HitBlocks}). Reusing the 15-tall object box here would span two tile rows
+     * whenever the player is not tile-aligned — notably while their head is pressed against a ceiling,
+     * where the 6px head padding shifts the sprite top up and drags the box's top edge into the row
+     * above — and would break bricks level with the player's chest, which the original never does.
+     *
+     * @return the probe Y
+     */
+    public double getTailAttackBlockProbeY() {
+        return position.getY() + TAIL_ATTACK_BLOCK_PROBE_Y;
     }
 
     @Override
