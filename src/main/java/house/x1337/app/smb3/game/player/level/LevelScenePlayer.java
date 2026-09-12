@@ -205,6 +205,26 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         return position.getY() + TAIL_ATTACK_BLOCK_PROBE_Y;
     }
 
+    /**
+     * Resolves this tick's tail strike against <b>static blocks</b> (dasm prg008
+     * {@code Player_TailAttack_HitBlocks}): a single probe point resolving to one tile, tested on
+     * countdown frame {@code $09} only.
+     *
+     * <p>Called from {@link #updateFrame()} once the swing counter has advanced and collision has
+     * settled this tick's position, which the probe is derived from — the ROM likewise resolves blocks
+     * inside the player routine, and the terrain grid is tile-aligned and rebuilt only when the level
+     * mutates, so it is valid at any point in the tick.
+     *
+     * <p>The object half is deliberately not resolved here: the ROM runs it in the object loop, so it
+     * is driven from {@code ActiveObjectGrid.resolveActiveObjectCollisions} once every object has moved
+     * this tick, consulting {@link #isTailAttackStriking()} and {@link #getTailAttackBounds()}.
+     */
+    private void resolveTailAttackAgainstBlocks() {
+        if (isTailAttackStrikingBlocks()) {
+            getCollisionGrid().resolveTailAttack(this, getTailAttackBlockProbeX(), getTailAttackBlockProbeY());
+        }
+    }
+
     @Override
     public void setMode(final PlayerMode playerMode) {
         this.mode = playerMode;
@@ -321,6 +341,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             // Tail attack (raccoon/tanooki B press on ground). Big and small
             // Mario are tailless, so they never trigger it.
             handleTailAttack(inputHandler);
+
+            // Resolve the swing against terrain in the same breath as advancing it, now that
+            // collision has settled this tick's position. Objects are struck later, from the
+            // broadphase pass, mirroring the ROM's split between the player and object routines.
+            resolveTailAttackAgainstBlocks();
         }
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)

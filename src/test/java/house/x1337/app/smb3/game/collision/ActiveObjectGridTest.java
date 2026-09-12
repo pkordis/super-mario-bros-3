@@ -13,8 +13,14 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @DisplayName("ActiveObjectGrid uniform-grid broadphase")
 class ActiveObjectGridTest {
@@ -89,9 +95,80 @@ class ActiveObjectGridTest {
         assertThatThrownBy(() -> new ActiveObjectGrid<>(-1)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    @DisplayName("the collision pass strikes an object the tail overlaps, on a strike frame")
+    void collisionPassResolvesTheTailStrike() {
+        // Prepare — an object beside the player, outside its body box but inside the tail box.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = new ActiveObjectGrid<>(CELL);
+        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
+        grid.insert(enemy);
+        final LevelScenePlayer player = strikingPlayer(true, AxisAlignedBoundingBox.ofSize(17, 0, dimensions));
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify — struck by the tail, untouched by the body
+        assertThat(enemy.tailAttackCount).as("tail strikes dispatched").isEqualTo(1);
+        assertThat(enemy.collisionCount).as("body collisions dispatched").isZero();
+    }
+
+    @Test
+    @DisplayName("no strike is dispatched on a non-strike frame, even while the tail overlaps")
+    void noStrikeOutsideTheStrikeFrames() {
+        // Prepare — same overlap, but the player reports it is not on a kick frame ($0C / $09).
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = new ActiveObjectGrid<>(CELL);
+        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
+        grid.insert(enemy);
+        final LevelScenePlayer player = strikingPlayer(false, AxisAlignedBoundingBox.ofSize(17, 0, dimensions));
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify — the hitbox is never even asked for
+        assertThat(enemy.tailAttackCount).isZero();
+        verify(player, never()).getTailAttackBounds();
+    }
+
+    @Test
+    @DisplayName("only objects inserted this tick can be struck — a cleared grid strikes nothing")
+    void aClearedGridStrikesNothing() {
+        // Pins the timing guarantee the pass exists to provide: the tail resolves against the grid as
+        // the motion managers left it this tick (dasm prg000 @ PRG000_C9B6 — each object is tested
+        // right after it moves), so an object the managers retired is unreachable.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = new ActiveObjectGrid<>(CELL);
+        final StubObject retired = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
+        grid.insert(retired);
+        final LevelScenePlayer player = strikingPlayer(true, AxisAlignedBoundingBox.ofSize(17, 0, dimensions));
+
+        // Execute — the manager pass dropped it, so this tick's grid no longer holds it
+        grid.clear();
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(retired.tailAttackCount).isZero();
+    }
+
+    /**
+     * A player double that reports the given swing state and tail hitbox, and a body box far from
+     * everything so only the tail can register.
+     */
+    private static LevelScenePlayer strikingPlayer(final boolean striking, final AxisAlignedBoundingBox tail) {
+        final LevelScenePlayer player = mock(LevelScenePlayer.class);
+        when(player.getObjectCollisionBounds())
+            .thenReturn(AxisAlignedBoundingBox.ofSize(-1000, -1000, new DimensionsPixels(16, 16)));
+        when(player.isTailAttackStriking()).thenReturn(striking);
+        when(player.getTailAttackBounds()).thenReturn(tail);
+        return player;
+    }
+
     /** Minimal {@link ActiveLevelObject} double — only {@code getBounds()} and identity matter here. */
     private static final class StubObject implements ActiveLevelObject {
         private final AxisAlignedBoundingBox bounds;
+        private int collisionCount;
+        private int tailAttackCount;
 
         private StubObject(final AxisAlignedBoundingBox bounds) {
             this.bounds = bounds;
@@ -128,10 +205,12 @@ class ActiveObjectGridTest {
 
         @Override
         public void onCollisionWith(final LevelScenePlayer player) {
+            collisionCount++;
         }
 
         @Override
         public void onTailAttack(final LevelScenePlayer player) {
+            tailAttackCount++;
         }
 
         @Override

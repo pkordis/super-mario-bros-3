@@ -1,7 +1,6 @@
 package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
-import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 
@@ -125,6 +124,25 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         return (((long) cellX) << 32) | (cellY & 0xFFFFFFFFL);
     }
 
+    /**
+     * The per-player pass over this tick's live objects: body collisions first, then the tail strike.
+     *
+     * <p>The tail is resolved here, and not from the player's own update, because the ROM resolves it
+     * in the object loop — each object runs {@code Object_DoStateAction} and is handed straight to
+     * {@code Object_HitByTailOrBouncer} in the same iteration (dasm prg000 @ PRG000_C9B6, inside the
+     * {@code DEX / BPL PRG000_C975} loop). Running it at this point is the equivalent guarantee: every
+     * object has already moved and been re-inserted this tick, so no strike is ever decided against a
+     * stale position or against an entry a manager has since retired. Driving it from the player's
+     * update instead would read the grid as the managers left it on the previous tick — enough to miss
+     * an enemy that has just stepped into the box, or strike one that has just stepped out.
+     *
+     * <p>The swing state read from the player is nonetheless this tick's: its counter advanced during
+     * {@code updateFrame}, which the engine runs before this pass, exactly as the ROM's player routine
+     * precedes its object loop. The player owns every tail semantic — which frames strike, and where
+     * the box sits; this class only picks the moment and dispatches.
+     *
+     * @param levelScenePlayers the players to test
+     */
     public void resolveActiveObjectCollisions(final List<LevelScenePlayer> levelScenePlayers) {
         for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
             final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
@@ -132,6 +150,9 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                 if (object.intersects(playerBounds)) {
                     object.onCollisionWith(levelScenePlayer);
                 }
+            }
+            if (levelScenePlayer.isTailAttackStriking()) {
+                resolveTailAttack(levelScenePlayer, levelScenePlayer.getTailAttackBounds());
             }
         }
     }

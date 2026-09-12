@@ -3,7 +3,6 @@ package house.x1337.app.smb3.game.player.level;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
-import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.player.RewardConsumingPlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -51,10 +50,6 @@ public sealed interface LevelScenePlayerCapabilities
 
     default PlayerIdentity getIdentity() {
         return getPlayerData().getIdentity();
-    }
-
-    default StaticEnvironmentCollisionGrid getCollisionGrid() {
-        return getGameEngine().getCollisionGrid();
     }
 
     default void tickModeTransition() {

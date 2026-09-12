@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Pins {@link LevelSceneVerticalScroll} against the SMB3 {@code Level_FreeVertScroll}
@@ -32,10 +34,14 @@ class LevelSceneVerticalScrollTest {
      * Builds a scroll model for a level of the given tile height. The model
      * derives its half-view from {@code FRUSTUM} (= {@link #HALF_VIEW}) and its
      * bounds from the level dimensions.
+     *
+     * <p>The scene is a mock because the row count is the only thing the scroll model reads from it,
+     * while constructing a real {@link LevelScene} resolves the {@code LevelSceneVibration} singleton
+     * out of the Spring container — a dependency this unit test has no reason to bootstrap.
      */
     private static LevelSceneVerticalScroll scrollForRows(final int rows) {
-        final LevelScene levelScene = new LevelScene();
-        levelScene.setDimensions(new LevelSceneDimensions(100, rows));
+        final LevelScene levelScene = mock(LevelScene.class);
+        when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(100, rows));
         return new LevelSceneVerticalScroll(levelScene);
     }
 

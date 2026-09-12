@@ -16,7 +16,6 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -68,53 +67,6 @@ public final class GameEngine extends GameEngineCapabilities {
      * tick is consumed. This decouples game-logic rate (60 Hz) from render rate.
      */
     private double simulationAccumulator = 0.0;
-
-    /**
-     * Runs the scene-wide player↔object collision pass for this tick. Each player's hitbox is
-     * computed once (hoisted out of the per-object loop), used to gather nearby objects from the
-     * shared broadphase, then narrowphase-tested; survivors get {@code onCollisionWith}. Managers
-     * react to the outcome in {@link MotionManager#postCollision()}.
-     *
-     * <p>Runs after every manager's {@code update()} has inserted its live objects, so the grid
-     * holds the union of all active objects before any query.
-     */
-    private void resolveActiveObjectCollisions() {
-        if (gameContext == LEVEL_SCENE) {
-            activeObjectGrid.resolveActiveObjectCollisions(checkedCast(getAllPlayers()));
-        }
-    }
-
-    /**
-     * Runs the scene-wide tail-attack pass for this tick, mirroring the ROM's two <em>separate</em>
-     * tail tests rather than sharing one hitbox between them:
-     *
-     * <ul>
-     *   <li><b>Objects</b> — {@code Object_RespondToTailAttack} (prg000): a 10x15 box beside the
-     *       player, tested on countdown frames {@code $0C} and {@code $09}.</li>
-     *   <li><b>Blocks</b> — {@code Player_TailAttack_HitBlocks} (prg008): a single probe point
-     *       resolving to one tile, tested on countdown frame {@code $09} only.</li>
-     * </ul>
-     *
-     * <p>Runs after the broadphase is populated, so it sees this tick's live objects.
-     */
-    private void resolveTailAttacks() {
-        if (gameContext != LEVEL_SCENE) {
-            return;
-        }
-        final List<LevelScenePlayer> levelScenePlayers = checkedCast(getAllPlayers());
-        for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
-            if (levelScenePlayer.isTailAttackStriking()) {
-                activeObjectGrid.resolveTailAttack(levelScenePlayer, levelScenePlayer.getTailAttackBounds());
-            }
-            if (levelScenePlayer.isTailAttackStrikingBlocks()) {
-                collisionGrid.resolveTailAttack(
-                    levelScenePlayer,
-                    levelScenePlayer.getTailAttackBlockProbeX(),
-                    levelScenePlayer.getTailAttackBlockProbeY()
-                );
-            }
-        }
-    }
 
     /**
      * @return whether any player is currently halting gameplay (dasm
@@ -277,34 +229,32 @@ public final class GameEngine extends GameEngineCapabilities {
             simulationAccumulator -= SIMULATION_DT;
             allPlayers.forEach(Player::updateFrame);
 
-            // While any player is halting gameplay (dasm Player_HaltGame — e.g.
-            // the small→Super grow transition), freeze the countdown timer and
-            // the whole active-object pipeline EXCEPT the rising score captions,
-            // which keep animating (the "1000" over a mushroom collected at the
-            // start of the grow — the sole object the ROM advances through the
-            // freeze). The halting player advanced its own transition inside
-            // updateFrame above; every other player froze itself. The camera
-            // follows the (now-stationary) player node and the un-advanced
-            // vertical scroll, so it holds still too.
-            if (isGameplayHalted()) {
-                motionManagers.forEach(MotionManager::updateWhileHalted);
-                continue;
-            }
-
-            playerData.getPlayerTimer().tick();
-
-            // Active-object tick, split into phases so a single scene-wide broadphase can serve
-            // every manager: (1) clear the shared grid; (2) each manager ticks its objects and
-            // inserts the live ones; (3) one collision pass over the union dispatches onCollisionWith;
-            // (4) managers react to this tick's collisions (e.g. spawn a score caption) on the same
-            // frame the collision was detected.
-            activeObjectGrid.clear();
-            motionManagers.forEach(MotionManager::update);
-            resolveActiveObjectCollisions();
-            resolveTailAttacks();
-            motionManagers.forEach(MotionManager::postCollision);
-
             if (gameContext == LEVEL_SCENE) {
+                // While any player is halting gameplay (dasm Player_HaltGame — e.g.
+                // the small→Super grow transition), freeze the countdown timer and
+                // the whole active-object pipeline EXCEPT the rising score captions,
+                // which keep animating (the "1000" over a mushroom collected at the
+                // start of the grow — the sole object the ROM advances through the
+                // freeze). The halting player advanced its own transition inside
+                // updateFrame above; every other player froze itself. The camera
+                // follows the (now-stationary) player node and the un-advanced
+                // vertical scroll, so it holds still too.
+                if (isGameplayHalted()) {
+                    motionManagers.forEach(MotionManager::updateWhileHalted);
+                    continue;
+                }
+
+                playerData.getPlayerTimer().tick();
+
+                // Active-object tick, split into phases so a single scene-wide broadphase can serve
+                // every manager: (1) clear the shared grid; (2) each manager ticks its objects and
+                // inserts the live ones; (3) one collision pass over the union dispatches onCollisionWith;
+                // (4) managers react to this tick's collisions (e.g. spawn a score caption) on the same
+                // frame the collision was detected.
+                activeObjectGrid.clear();
+                motionManagers.forEach(MotionManager::update);
+                activeObjectGrid.resolveActiveObjectCollisions(checkedCast(getAllPlayers()));
+                motionManagers.forEach(MotionManager::postCollision);
                 levelScene.tick();
                 collisionGrid.tick();
             }
