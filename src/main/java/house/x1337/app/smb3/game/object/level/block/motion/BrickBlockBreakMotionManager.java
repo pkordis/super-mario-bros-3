@@ -2,24 +2,21 @@ package house.x1337.app.smb3.game.object.level.block.motion;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.Block;
-import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBounceAnimation;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBreakAnimation;
 import house.x1337.app.smb3.model.game.Offset;
-import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 @Singleton
-@RequiredArgsConstructor
 public final class BrickBlockBreakMotionManager implements MotionManager<Block> {
     private final List<BrickBlockBreakAnimation> activeBreaks = new ArrayList<>();
     private final List<BrickBlockBounceAnimation> activeBounces = new ArrayList<>();
-    private final BrickBlockAnimator brickBlockAnimator;
 
     @Override
     public void update() {
@@ -46,12 +43,6 @@ public final class BrickBlockBreakMotionManager implements MotionManager<Block> 
         }
     }
 
-    /**
-     * Spawns a brick-break animation (four flying fragments) for large Mario.
-     *
-     * @param gameEngine the game engine
-     * @param offset     the tile offset where the brick was hit
-     */
     public void spawnBreak(
         final GameEngine gameEngine,
         final Offset offset
@@ -64,19 +55,10 @@ public final class BrickBlockBreakMotionManager implements MotionManager<Block> 
         activeBreaks.add(new BrickBlockBreakAnimation(gameEngine, offset));
     }
 
-    /**
-     * Spawns a brick-bounce animation (10-frame Y displacement) for small Mario.
-     *
-     * <p>Ported from dasm {@code prg001.asm ObjNorm_BounceDU}: when small Mario hits a brick
-     * from below, the brick bounces in place using the {@code Bouncer_PUpVel} velocity table
-     * over 10 frames, then returns to rest. The brick is not destroyed.
-     *
-     * @param gameEngine the game engine
-     * @param offset     the tile offset where the brick was hit
-     */
     public void spawnBounce(
         final GameEngine gameEngine,
-        final Offset offset
+        final Offset offset,
+        final GameObjectAnimatorSingleTiled<?> animator
     ) {
         // Don't spawn if a bounce is already active at this tile
         for (final BrickBlockBounceAnimation existing : activeBounces) {
@@ -84,7 +66,7 @@ public final class BrickBlockBreakMotionManager implements MotionManager<Block> 
                 return;
             }
         }
-        activeBounces.add(new BrickBlockBounceAnimation(gameEngine, offset, brickBlockAnimator));
+        activeBounces.add(new BrickBlockBounceAnimation(gameEngine, offset, animator));
     }
 
     @Override

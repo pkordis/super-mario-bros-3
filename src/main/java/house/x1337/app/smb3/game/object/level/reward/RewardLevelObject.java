@@ -8,6 +8,7 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
     Reward getRewardType();
     boolean isCollected();
     boolean isExpired();
+    void setExpired(boolean expired);
 
     default void motionUpdate() {
         // No motion by default

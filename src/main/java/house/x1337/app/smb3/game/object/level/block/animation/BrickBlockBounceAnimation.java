@@ -6,11 +6,13 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.nio.ByteBuffer;
 
@@ -147,13 +149,14 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
     /**
      * Flag indicating the animation has completed (bumpPos reached 0).
      */
+    @Setter
     private boolean expired;
 
     // -- Baked texture state (for hiding/restoring the tile) ---------------
 
     private final Geometry interactiveLayerGeometry;
     private final LevelSceneDimensions dimensions;
-    private final BrickBlockAnimator brickBlockAnimator;
+    private final GameObjectAnimatorSingleTiled<?> animator;
 
     /**
      * Saved RGBA pixels from the baked texture, to be restored on completion.
@@ -172,7 +175,7 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
     public BrickBlockBounceAnimation(
         final GameEngine gameEngine,
         final Offset offset,
-        final BrickBlockAnimator brickBlockAnimator
+        final GameObjectAnimatorSingleTiled<?> animator
     ) {
         this.offset = offset;
         this.worldX = offset.x();
@@ -186,10 +189,10 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
         // Store references for texture manipulation
         this.interactiveLayerGeometry = gameEngine.getLayerGeometry(INTERACTIVE_OBJECTS);
         this.dimensions = gameEngine.getLevelScene().getDimensions();
-        this.brickBlockAnimator = brickBlockAnimator;
+        this.animator = animator;
 
         // Pause shimmer animation for this brick during bounce
-        brickBlockAnimator.pauseAt(offset);
+        animator.pauseAt(offset);
 
         // Save the original tile pixels and erase from baked texture
         this.savedPixels = new byte[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE * 4];
@@ -242,10 +245,6 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
         }
     }
 
-    public boolean isExpired() {
-        return expired;
-    }
-
     /**
      * Detaches the bounce sprite from the scene graph and restores the original
      * tile pixels to the baked texture.
@@ -255,7 +254,7 @@ public final class BrickBlockBounceAnimation implements GameRenderer {
         rootNode.detachChild(spriteGeometry);
         restoreTilePixels();
         // Resume shimmer animation for this brick
-        brickBlockAnimator.resumeAt(offset);
+        animator.resumeAt(offset);
     }
 
     /**

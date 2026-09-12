@@ -7,7 +7,6 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.BlockType;
 import house.x1337.app.smb3.enumeration.ItemType;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
-import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
@@ -17,7 +16,6 @@ import house.x1337.app.smb3.game.object.level.RewardDispensingLevelObject;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.animation.QuestionBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.animation.SwitchBlockAnimator;
-import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockBreakMotionManager;
 import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
 import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
 import house.x1337.app.smb3.game.player.PlayerData;
@@ -41,7 +39,6 @@ import static house.x1337.app.smb3.enumeration.BlockType.BRICK_SWITCH_BLOCK_SPAW
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_BLOCK;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_SPAWNER;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
-import static house.x1337.app.smb3.enumeration.Reward.SCORE_10;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
 
@@ -75,15 +72,12 @@ import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.Level
 @Getter
 @Prototype
 @RequiredArgsConstructor
-public class Block implements AnimatableLevelObject, RewardDispensingLevelObject {
+public class Block implements AnimatableLevelObject, BreakableBrickCapabilities, RewardDispensingLevelObject {
     private final QuestionBlockAnimator questionBlockAnimator = getBean(QuestionBlockAnimator.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
     private final CoinRewardMotionManager coinRewardMotionManager = getBean(CoinRewardMotionManager.class);
-    private final BrickBlockBreakMotionManager brickBlockBreakMotionManager =
-        getBean(BrickBlockBreakMotionManager.class);
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
-    private final Reward breakReward = SCORE_10;
 
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
@@ -118,12 +112,8 @@ public class Block implements AnimatableLevelObject, RewardDispensingLevelObject
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
         if (hasReward()) {
             hit(levelScenePlayer);
-        } else if (levelScenePlayer.isLarge()) {
-            // Large Mario shatters the brick into four flying fragments.
-            triggerBreak(levelScenePlayer);
         } else {
-            // Small Mario cannot break it — the brick bounces in place and stays solid.
-            brickBlockBreakMotionManager.spawnBounce(gameEngine, offset);
+            hitBrickFromBelow(levelScenePlayer);
         }
     }
 
@@ -135,7 +125,7 @@ public class Block implements AnimatableLevelObject, RewardDispensingLevelObject
         if (hasReward()) {
             hit(levelScenePlayer);
         } else {
-            triggerBreak(levelScenePlayer);
+            smashBrick(levelScenePlayer);
         }
     }
 
@@ -223,25 +213,10 @@ public class Block implements AnimatableLevelObject, RewardDispensingLevelObject
 
     /**
      * Breakable-brick hit by large Mario: remove from the collision grid, stop the shimmer, erase the
-     * tile, spawn the four flying fragments, and award {@link #breakReward}. Ported from dasm
-     * {@code prg008.asm LATP_Brick} / {@code prg007.asm BrickBusts_DrawAndUpdate}.
+     * tile, spawn the four flying fragments, and award 10 points. Ported from dasm
+     * {@code prg008.asm LATP_Brick} / {@code prg007.asm BrickBusts_DrawAndUpdate}, and shared with the
+     * P-Switch-substituted coin via {@link BreakableBrickCapabilities}.
      */
-    private void triggerBreak(final LevelScenePlayer levelScenePlayer) {
-        final LevelSceneDimensions dimensions = gameEngine.getLevelScene().getDimensions();
-        final Geometry interactiveObjectsLayerGeometry = gameEngine.getLayerGeometry(INTERACTIVE_OBJECTS);
-        final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
-
-        // Remove from collision grid so further probes treat it as empty.
-        collisionGrid.removeLevelObjectAt(offset);
-
-        getAnimator().unregisterAt(offset);
-        eraseFromBakedTexture(interactiveObjectsLayerGeometry, dimensions);
-        brickBlockBreakMotionManager.spawnBreak(gameEngine, offset);
-        levelScenePlayer
-            .getPlayerData()
-            .addPoints(breakReward.getData().getPoints());
-    }
-
     @Override
     public void onCoinDispensed(final LevelScenePlayer levelScenePlayer) {
         final PlayerData playerData = levelScenePlayer.getPlayerData();
@@ -327,7 +302,15 @@ public class Block implements AnimatableLevelObject, RewardDispensingLevelObject
         return !hasReward() && powerSwitchTimeWindow.isActive();
     }
 
-    private GameObjectAnimatorSingleTiled<Block> getAnimator() {
+    /**
+     * The animator wearing this flavour's look: the shimmering "?" for the question-block family, the
+     * plain brick for everything else. Exposed because {@link BreakableBrickCapabilities} has to retire this tile
+     * from whichever animator paints it.
+     *
+     * @return the animator this block is registered with
+     */
+    @Override
+    public GameObjectAnimatorSingleTiled<Block> getAnimator() {
         return blockType.isAnyOf(QUESTION_BLOCK, QUESTION_SWITCH_BLOCK_SPAWNER)
             ? questionBlockAnimator
             : brickBlockAnimator;

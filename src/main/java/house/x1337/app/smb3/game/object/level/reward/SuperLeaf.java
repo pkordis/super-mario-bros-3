@@ -13,6 +13,7 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 
 import static com.jme3.material.RenderState.FaceCullMode.Off;
@@ -54,6 +55,7 @@ public final class SuperLeaf implements RewardLevelObject {
     private Dimensions spriteDimensions;
     private Geometry spriteGeometry;
 
+    @Setter
     private boolean expired;
     private boolean collected;
     private boolean facingRight;
@@ -122,7 +124,7 @@ public final class SuperLeaf implements RewardLevelObject {
         updateFacingAndPosition();
 
         if (hasFallenOffLevel()) {
-            expired = true;
+            setExpired(true);
         }
     }
 

@@ -6,9 +6,11 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.block.BreakableBrickCapabilities;
 import house.x1337.app.smb3.game.object.level.reward.animation.CoinAnimator;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -17,6 +19,7 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
@@ -29,11 +32,11 @@ import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.Level
 @Getter
 @Prototype
 @RequiredArgsConstructor
-public final class Coin implements AnimatableLevelObject, RewardLevelObject {
-    private final CoinAnimator coinAnimator = getBean(CoinAnimator.class);
+public final class Coin implements AnimatableLevelObject, BreakableBrickCapabilities, RewardLevelObject {
+    private final CoinAnimator animator = getBean(CoinAnimator.class);
+    private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
     private final LevelObjectType type = COIN_FLIPPING;
     private final Reward rewardType = SCORE_50;
-    private final boolean collidable = false;
     private final Geometry spriteGeometry = null; // Not individually attached
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
@@ -41,6 +44,7 @@ public final class Coin implements AnimatableLevelObject, RewardLevelObject {
 
     private Dimensions spriteDimensions;
 
+    @Setter
     private boolean expired;
     private double pixelX;
     private double pixelY;
@@ -59,16 +63,16 @@ public final class Coin implements AnimatableLevelObject, RewardLevelObject {
 
     @Override
     public void onCollisionWith(final LevelScenePlayer player) {
-        if (expired) {
+        if (expired || isBrickSubstituted()) {
             return;
         }
-        expired = true;
+        setExpired(true);
 
         final PlayerData playerData = player.getPlayerData();
         playerData.addCoin();
         playerData.addPoints(rewardType.getData().getPoints());
 
-        coinAnimator.unregisterAt(offset);
+        animator.unregisterAt(offset);
         eraseFromBakedTexture(
             gameEngine.getLayerGeometry(INTERACTIVE_OBJECTS),
             gameEngine.getLevelScene().getDimensions()
@@ -93,7 +97,31 @@ public final class Coin implements AnimatableLevelObject, RewardLevelObject {
     }
 
     @Override
+    public boolean isCollidable() {
+        return isBrickSubstituted();
+    }
+
+    @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+        if (!isBrickSubstituted()) {
+            return;
+        }
+        hitBrickFromBelow(levelScenePlayer);
+    }
+
+    @Override
     public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
-        // A coin is collected by contact, not struck by the tail attack.
+        if (!isBrickSubstituted()) {
+            // A coin is collected by contact, not struck by the tail attack.
+            return;
+        }
+        smashBrick(levelScenePlayer);
+    }
+
+    /**
+     * @return {@code true} while this coin reads as a brick — open window, and not already spent
+     */
+    private boolean isBrickSubstituted() {
+        return !expired && powerSwitchTimeWindow.isActive();
     }
 }

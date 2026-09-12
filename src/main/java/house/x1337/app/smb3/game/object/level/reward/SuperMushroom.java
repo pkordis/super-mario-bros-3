@@ -198,7 +198,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         positionSprite();
 
         if (hasFallenOffLevel()) {
-            expired = true;
+            setExpired(true);
         }
     }
 
