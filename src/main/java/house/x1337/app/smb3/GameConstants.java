@@ -41,6 +41,8 @@ public final class GameConstants {
     public static final float TILE_SIZE_GAME_UNITS = 1.0f;
 
 
+    public static final double FIXED_POINT_TO_GAME_UNITS = TILE_SIZE_GAME_UNITS / (TILE_SPRITE_SIZE * TILE_SPRITE_SIZE);
+
     public static final float PIXELS_TO_GAME_UNITS = TILE_SIZE_GAME_UNITS / TILE_SPRITE_SIZE;
 
     /**

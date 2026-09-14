@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.object.level.block;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
-import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockBreakMotionManager;
+import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.RewardLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 
@@ -36,14 +36,14 @@ public interface BreakableBrickCapabilities extends AnimatableLevelObject, GameE
                 .getLevelScene()
                 .getDimensions()
         );
-        getBean(BrickBlockBreakMotionManager.class).spawnBreak(getGameEngine(), getOffset());
+        getBean(BrickBlockMotionManager.class).spawnBreak(getGameEngine(), getOffset());
         levelScenePlayer
             .getPlayerData()
             .addPoints(SCORE_10.getData().getPoints());
     }
 
     default void bumpBrick() {
-        getBean(BrickBlockBreakMotionManager.class)
+        getBean(BrickBlockMotionManager.class)
             .spawnBounce(getGameEngine(), getOffset(), getAnimator());
     }
 }

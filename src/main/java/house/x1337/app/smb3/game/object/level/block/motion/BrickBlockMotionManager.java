@@ -14,7 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 
 @Singleton
-public final class BrickBlockBreakMotionManager implements MotionManager<Block> {
+public final class BrickBlockMotionManager implements MotionManager<Block> {
     private final List<BrickBlockBreakAnimation> activeBreaks = new ArrayList<>();
     private final List<BrickBlockBounceAnimation> activeBounces = new ArrayList<>();
 
@@ -66,7 +66,7 @@ public final class BrickBlockBreakMotionManager implements MotionManager<Block> 
                 return;
             }
         }
-        activeBounces.add(new BrickBlockBounceAnimation(gameEngine, offset, animator));
+        activeBounces.add(new BrickBlockBounceAnimation(gameEngine, animator, offset));
     }
 
     @Override

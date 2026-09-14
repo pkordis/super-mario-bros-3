@@ -5,7 +5,7 @@ import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.block.animation.SwitchBlockAnimator;
+import house.x1337.app.smb3.game.object.level.block.animator.SwitchBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.Offset;

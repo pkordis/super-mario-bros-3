@@ -25,6 +25,14 @@ public record Dimensions(
         );
     }
 
+    public static Dimensions fullTile(final String name) {
+        return new Dimensions(
+            name,
+            TILE_SIZE_GAME_UNITS,
+            TILE_SIZE_GAME_UNITS
+        );
+    }
+
     public Quad toQuad() {
         return new Quad(width, height);
     }

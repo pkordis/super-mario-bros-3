@@ -5,9 +5,11 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
+import house.x1337.app.smb3.game.object.level.reward.Coin;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.Pending;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
@@ -18,27 +20,9 @@ import java.util.concurrent.CompletableFuture;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-/**
- * Manages coin pop and score popup animations spawned when hitting ? blocks.
- *
- * <p>When a ? block containing a single coin is hit from below, two coordinated
- * animations play in sequence:
- * <ol>
- *   <li>A coin pops up and arcs back down (38 ticks), ending 15 px above its spawn point</li>
- *   <li>When the coin expires, a "100" score popup spawns at its final position
- *       and rises for 48 ticks</li>
- * </ol>
- *
- * <h2>Reference: dasm prg007.asm</h2>
- * <ul>
- *   <li>Coin: {@code CoinPUps_DrawAndUpdate} (lines 2764-2850)</li>
- *   <li>Score spawn: {@code PRG007_AE28} — spawns score when coin YVel == 5</li>
- *   <li>Score: {@code Scores_GiveAndDraw} (lines 2110-2400)</li>
- * </ul>
- */
 @Singleton
 @RequiredArgsConstructor
-public final class CoinRewardMotionManager implements MotionManager {
+public final class CoinRewardMotionManager implements MotionManager<Coin> {
     public static final float SCORE_X_OFFSET_FROM_COIN = -4.0f / TILE_SPRITE_SIZE;
 
     private final List<Pending<CoinPopAnimation, Integer>> activeCoins = new ArrayList<>();
@@ -79,15 +63,14 @@ public final class CoinRewardMotionManager implements MotionManager {
         final ScorePopupAnimation scorePopupAnimation = getBean(
             ScorePopupAnimation.class,
             coinPopAnimation.getGameEngine(),
-            coinPopAnimation.getScoreData(),
-            coinPopAnimation.getOffset(),
-            coinPopAnimation.getCurrentWorldOffset().plus(SCORE_X_OFFSET_FROM_COIN, 0, 0)
+            coinPopAnimation.getRewardData(),
+            coinPopAnimation.getOffset()
         );
+        final WorldOffset worldOffset = coinPopAnimation.getCurrentWorldOffset().plus(SCORE_X_OFFSET_FROM_COIN, 0, 0);
+        scorePopupAnimation.setWorldOffset(worldOffset);
+        scorePopupAnimation.start();
         completion.complete(scorePopupAnimation.getRewardData().getPoints());
         activeScores.add(scorePopupAnimation);
-
-        // TODO: Award 100 points to player score
-        // TODO: Increment player coin counter
     }
 
     public CompletableFuture<Integer> spawnCoinReward(
@@ -102,10 +85,10 @@ public final class CoinRewardMotionManager implements MotionManager {
             reward.getData(),
             offset
         );
+        coinPopAnimation.setWorldOffset(null);
+        coinPopAnimation.start();
         final CompletableFuture<Integer> completion = new CompletableFuture<>();
         activeCoins.add(new Pending<>(coinPopAnimation, completion));
-
-        // TODO: Play coin sound (SND_LEVELCOIN)
 
         return completion;
     }

@@ -15,9 +15,9 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends MotionManager<C> {
-    float DEFAULT_SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
-    float DEFAULT_SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
-    float DEFAULT_SCORE_CAPTION_ABOVE_INSTANCE_LIFT = DEFAULT_SCORE_CAPTION_HEIGHT + DEFAULT_SCORE_CAPTION_INITIAL_DIP;
+    float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
+    float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
+    float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
 
     List<C> getActiveInstances();
     List<ScorePopupAnimation> getActiveScorePopups();
@@ -56,17 +56,15 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
     }
 
     private void spawnScorePopupFor(final C instance) {
-        getActiveScorePopups().add(getBean(
+        final ScorePopupAnimation animation = getBean(
             ScorePopupAnimation.class,
             instance.getGameEngine(),
             instance.getRewardType().getData(),
-            instance.getOffset(),
-            instance.getCurrentWorldOffset().plus(0f, getScoreCaptionYOffsetAboveInstance(), 0f)
-        ));
-    }
-
-    default float getScoreCaptionYOffsetAboveInstance() {
-        return DEFAULT_SCORE_CAPTION_ABOVE_INSTANCE_LIFT;
+            instance.getOffset()
+        );
+        animation.setWorldOffset(instance.getCurrentWorldOffset().plus(0f, SCORE_CAPTION_ABOVE_INSTANCE_LIFT, 0f));
+        animation.start();
+        getActiveScorePopups().add(animation);
     }
 
     @Override

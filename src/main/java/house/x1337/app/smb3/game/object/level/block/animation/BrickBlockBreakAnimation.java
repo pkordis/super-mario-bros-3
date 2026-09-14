@@ -6,6 +6,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Getter;
 
@@ -13,84 +14,25 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_FRAGMENT;
 
-/**
- * Encapsulates the full lifecycle of a brick-break event: four flying fragments.
- *
- * <p>Coordinate convention: positions in game-units (1 game-unit = 1 tile).
- * jme3 Y increases upward; tile row 0 = top of level.
- */
+// TODO: abstract
 @Getter
 public final class BrickBlockBreakAnimation implements GameRenderer {
-
-    // -- Physics constants measured from video capture (smb3.avi, 60 FPS) --
-
-    /**
-     * Initial upward Y velocity for the upper pair in jme3 game-units/frame.
-     * jme3 Y increases upward, so positive = moving up.
-     * Video measured: upper pair rises ~53 NES pixels over ~23 frames ≈ 5 px/frame initial.
-     * 5 sprite-pixels / TILE_SPRITE_SIZE = 5/16 game-units/frame.
-     */
     private static final double UPPER_INIT_Y_VEL = 5.0 / TILE_SPRITE_SIZE;
-
-    /**
-     * Initial upward Y velocity for the lower pair.
-     * Video measured: lower pair rises only ~10 NES pixels, ~2 px/frame initial.
-     */
     private static final double LOWER_INIT_Y_VEL = 2.0 / TILE_SPRITE_SIZE;
-
-    /**
-     * Gravity deceleration per frame in jme3 (positive = upward axis).
-     * In jme3 upward-Y space, gravity reduces Y velocity each frame.
-     * Applied every GRAVITY_INTERVAL frames (dasm: every 4 frames).
-     * Video: upper pair decelerates from +5 to 0 over ~20 frames → ~0.25 px/frame².
-     * Approximated as 1 NES sprite-pixel per GRAVITY_INTERVAL frames = 1/(16*4) gu/frame.
-     */
     private static final double GRAVITY_STEP = -1.0 / TILE_SPRITE_SIZE;
-
-    /**
-     * Gravity applied every 4 frames (dasm: {@code Counter_1 AND #$03 == 0}).
-     */
     private static final int GRAVITY_INTERVAL = 4;
-
-    /**
-     * X separation grows by 1 sprite-pixel per frame.
-     * Video: fragments spread ~2 px/frame total → 1 px each side per frame.
-     */
     private static final double ONE_PIXEL = 1.0 / TILE_SPRITE_SIZE;
-
-    /**
-     * Fragment sprite: 8 sprite-pixels wide × 16 tall.
-     */
     private static final Dimensions FRAGMENT_DIMENSIONS = new Dimensions(
         "BrickFragment",
         8.0f / TILE_SPRITE_SIZE,
         16.0f / TILE_SPRITE_SIZE
     );
-
-    /**
-     * Flip period: the video shows a vertical-only flip alternating every 2 frames
-     * (orientation A for frames 0-1, orientation B for frames 2-3, repeat).
-     * Period = 4 ticks total (2 per orientation).
-     */
     private static final int FLIP_PERIOD = 4;
-
     private static final String FRAGMENT_ASSET = "sprites/object/brick/plain/fragment.png";
-
-    // -- Position fields ---------------------------------------------------
-
     private final Offset offset;
 
-    /**
-     * Bottom-left world X of the tile: {@code offset.x()} (1 tile = 1 game-unit).
-     */
-    private final float worldX;
 
-    /**
-     * Bottom-left world Y of the tile.
-     * jme3 Y increases upward; tile row 0 is the top of the level.
-     * {@code worldY = dimensions.rows() − 1 − offset.y()}.
-     */
-    private final float worldY;
+    private final WorldOffset worldOffset;
 
     // -- State -------------------------------------------------------------
 
@@ -133,15 +75,18 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         final Offset offset
     ) {
         this.offset = offset;
-        this.worldX = offset.x();
-        this.worldY = gameEngine.getLevelScene().getDimensions().rows() - 1 - offset.y();
+        this.worldOffset = WorldOffset.of(
+            offset.x(),
+            gameEngine.getLevelScene().getDimensions().rows() - 1 - offset.y(),
+            0
+        );
         this.rootNode = gameEngine.getRootNode();
 
         // All 4 fragments spawn at the same Y: top edge of the tile.
         // worldY = bottom edge of tile = dimensions.rows() - 1 - offset.y().
         // Top edge = worldY + 1.
-        upperPairY = worldY + 1.0;
-        lowerPairY = worldY + 1.0;
+        upperPairY = worldOffset.y() + 1.0;
+        lowerPairY = worldOffset.y() + 1.0;
 
         upperYVel = UPPER_INIT_Y_VEL;
         lowerYVel = LOWER_INIT_Y_VEL;
@@ -201,8 +146,8 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
     private void positionAllFragments() {
         // Left pieces move left; right pieces start at the right half (+ 0.5 tile)
         // and move further right.
-        final double leftX = worldX - xDist;
-        final double rightX = worldX + 0.5 + xDist;
+        final double leftX = worldOffset.x() - xDist;
+        final double rightX = worldOffset.x() + 0.5 + xDist;
 
         // Flip: video shows a vertical-only flip alternating every 2 ticks.
         // All fragments are in sync. vFlip = true for ticks 2-3, 6-7, 10-11, …
@@ -256,7 +201,7 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         }
         // Fragment is gone once it falls below world Y = 0 (bottom of level)
         // or climbs more than 20 tiles above its spawn tile (sanity cap).
-        if (y < 0.0 || y > worldY + 20.0) {
+        if (y < 0.0 || y > worldOffset.y() + 20.0) {
             hiddenMask |= (1 << idx);
             rootNode.detachChild(fragmentGeometries[idx]);
         }

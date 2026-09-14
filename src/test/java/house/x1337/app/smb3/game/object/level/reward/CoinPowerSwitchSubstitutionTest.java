@@ -11,7 +11,7 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
-import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockBreakMotionManager;
+import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.animation.CoinAnimator;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -62,7 +62,7 @@ class CoinPowerSwitchSubstitutionTest {
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private PowerSwitchTimeWindow powerSwitchTimeWindow;
     private CoinAnimator coinAnimator;
-    private BrickBlockBreakMotionManager brickBlockBreakMotionManager;
+    private BrickBlockMotionManager brickBlockMotionManager;
     private GameEngine gameEngine;
     private StaticEnvironmentCollisionGrid collisionGrid;
 
@@ -70,7 +70,7 @@ class CoinPowerSwitchSubstitutionTest {
     void prepare() {
         powerSwitchTimeWindow = new PowerSwitchTimeWindow();
         coinAnimator = mock(CoinAnimator.class);
-        brickBlockBreakMotionManager = mock(BrickBlockBreakMotionManager.class);
+        brickBlockMotionManager = mock(BrickBlockMotionManager.class);
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
         gameEngine = gameEngineMock();
 
@@ -82,8 +82,8 @@ class CoinPowerSwitchSubstitutionTest {
             .when(() -> StaticBeanFactory.getBean(CoinAnimator.class))
             .thenReturn(coinAnimator);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(BrickBlockBreakMotionManager.class))
-            .thenReturn(brickBlockBreakMotionManager);
+            .when(() -> StaticBeanFactory.getBean(BrickBlockMotionManager.class))
+            .thenReturn(brickBlockMotionManager);
         // Reward resolves its point value through a prototype bean the first time it is asked.
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(Reward.Data.class))
@@ -139,8 +139,8 @@ class CoinPowerSwitchSubstitutionTest {
         coin.onCollisionFromBelow(player);
 
         // Verify
-        verify(brickBlockBreakMotionManager).spawnBounce(gameEngine, COIN_OFFSET, coinAnimator);
-        verify(brickBlockBreakMotionManager, never()).spawnBreak(any(), any());
+        verify(brickBlockMotionManager).spawnBounce(gameEngine, COIN_OFFSET, coinAnimator);
+        verify(brickBlockMotionManager, never()).spawnBreak(any(), any());
         assertTrue(coin.isCollidable(), "a bounced brick stays solid");
     }
 
@@ -157,7 +157,7 @@ class CoinPowerSwitchSubstitutionTest {
         coin.onCollisionFromBelow(player);
 
         // Verify
-        verify(brickBlockBreakMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
+        verify(brickBlockMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
         verify(coinAnimator).unregisterAt(COIN_OFFSET);
         verify(collisionGrid).removeLevelObjectAt(COIN_OFFSET);
         // LATP_Brick: STA Score_Earned with $01, i.e. 10 points.
@@ -182,7 +182,7 @@ class CoinPowerSwitchSubstitutionTest {
         coin.onTailAttack(player);
 
         // Verify
-        verifyNoInteractions(brickBlockBreakMotionManager);
+        verifyNoInteractions(brickBlockMotionManager);
         verifyNoInteractions(coinAnimator);
         assertFalse(coin.isCollected());
     }
@@ -199,7 +199,7 @@ class CoinPowerSwitchSubstitutionTest {
         coin.onTailAttack(player);
 
         // Verify - dasm prg008.asm:5233, CPX #$04 / BEQ PRG008_B84E busts before the suit test.
-        verify(brickBlockBreakMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
+        verify(brickBlockMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
         assertTrue(coin.isCollected());
     }
 
