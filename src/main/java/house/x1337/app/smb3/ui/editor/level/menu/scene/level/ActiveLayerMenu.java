@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.menu.scene.level;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import jakarta.annotation.PostConstruct;
@@ -24,6 +25,7 @@ import static java.util.Comparator.comparingInt;
 @RequiredArgsConstructor
 public class ActiveLayerMenu extends JMenu {
     private final LevelSceneEditorTabSystem tabSystem;
+    private final EnemiesPalettePanel enemiesPalettePanel;
     private final ButtonGroup buttonGroup = new ButtonGroup();
     private final Map<LevelSceneLayerType, JRadioButtonMenuItem> radioButtons =
         new EnumMap<>(LevelSceneLayerType.class);
@@ -78,6 +80,7 @@ public class ActiveLayerMenu extends JMenu {
                 break;
             }
         }
+        enemiesPalettePanel.syncEnabledState();
     }
 
     private void syncFromActiveTab() {

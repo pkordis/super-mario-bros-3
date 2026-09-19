@@ -14,15 +14,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins {@link StaticEnvironmentCollisionGrid#removeLevelObjectAt} against the layer-consolidation trap.
- *
- * <p>The grid is built from layers flattened into one array, so an interactive tile (a brick) overwrites
- * anything sharing its cell (a walkable decoration). Retiring the brick — broken, or collected as a coin
- * during a P-Switch — must expose the decoration again rather than leaving a hole, because the renderer
- * keeps drawing it: layers are separate geometries, so it was never painted over. Before the underlay view
- * existed, the player fell through a panel they could plainly see.
- */
 class CollisionGridUnderlayRestoreTest {
 
     @Test

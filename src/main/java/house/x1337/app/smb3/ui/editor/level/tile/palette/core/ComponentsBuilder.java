@@ -23,7 +23,12 @@ import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
 
 public interface ComponentsBuilder {
     default JLabel buildGroupHeader(final TileType type) {
-        final JLabel header = new JLabel(type.getLabel());
+        return buildGroupHeader(type.getLabel());
+    }
+
+    /** The palette's section header, used for tile-type groups and for enemy names alike. */
+    default JLabel buildGroupHeader(final String label) {
+        final JLabel header = new JLabel(label);
         header.setFont(header.getFont().deriveFont(BOLD, 11f));
         header.setForeground(UIManager.getColor("Label.disabledForeground"));
         header.setAlignmentX(LEFT_ALIGNMENT);

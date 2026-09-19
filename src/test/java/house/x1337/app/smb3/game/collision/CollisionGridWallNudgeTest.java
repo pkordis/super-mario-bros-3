@@ -18,19 +18,6 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the horizontal wall/corner ejection in {@link StaticEnvironmentCollisionGrid#handleCollision}
- * against the SMB3 disassembly (prg008 Player_DetectSolids @ PRG008_B4F3) and its
- * JS reference port (smb3dasm/index.html "eject player from wall").
- *
- * <p>The original nudges the player 1px/frame toward tile alignment whenever an
- * in-front probe detects a solid tile — regardless of horizontal velocity. This is
- * what lets the player slide off the corner of a block they jump into at its very
- * edge (a straight-up jump has DX == 0). Velocity is halted only when the player is
- * actually pushing into the wall. When the facing edge is already tile-aligned no
- * correction runs at all, which is what keeps a flush, stationary player (the frame
- * after an emexit ends) from being re-snapped and frozen.
- */
 class CollisionGridWallNudgeTest {
 
     private static final double TOLERANCE = 1e-9;

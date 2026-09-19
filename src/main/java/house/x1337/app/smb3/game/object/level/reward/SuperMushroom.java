@@ -246,7 +246,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         }
         final int centerColumn = (int) floor((pixelX + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
         final int feetRow = (int) floor((pixelY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
-        if (!gameEngine.isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
+        if (!getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
             return;
         }
         yVelocityFixedPoint = BLOCK_BUMP_YVEL;

@@ -31,10 +31,20 @@ public class StaticBeanFactory implements CastCapable {
         if (SINGLETONS_CACHE.containsKey(clazz)) {
             return INSTANCE.checkedCast(SINGLETONS_CACHE.get(clazz));
         }
-        final T instance = INSTANCE.beanFactory.getBean(clazz, args);
+        final T instance = resolve(clazz, args);
         if (clazz.getAnnotation(Singleton.class) != null) {
             SINGLETONS_CACHE.put(clazz, instance);
         }
         return instance;
+    }
+
+    private static <T> T resolve(
+        final Class<T> clazz,
+        final Object... args
+    ) {
+        if (args == null || args.length == 0) {
+            return INSTANCE.beanFactory.getBean(clazz);
+        }
+        return INSTANCE.beanFactory.getBean(clazz, args);
     }
 }

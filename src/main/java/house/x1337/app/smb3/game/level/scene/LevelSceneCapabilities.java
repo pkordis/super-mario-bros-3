@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.level.scene;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.game.collision.ActiveObjectGridCapabilities;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGridCapabilities;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -15,6 +16,7 @@ import static java.util.Comparator.comparingInt;
 
 public sealed interface LevelSceneCapabilities
     extends
+        ActiveObjectGridCapabilities,
         LevelSceneMotionCapabilities,
         StaticEnvironmentCollisionGridCapabilities
     permits

@@ -1,7 +1,6 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.util.CastCapable;
 import house.x1337.app.smb3.util.loader.ImageResourceLoader;
 import lombok.Getter;
@@ -14,24 +13,6 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface MotionManager<L extends LevelObject> extends ImageResourceLoader {
     void update();
-
-    /**
-     * Reports whether this manager is currently animating a block-bump (the one-shot bounce a solid
-     * block plays when hit from below) at the given tile cell.
-     *
-     * <p>This is the project's analogue of the ROM's transient {@code TILEA_BLOCKBUMP_CLEAR} tile
-     * (dasm {@code prg008.asm Level_DoBumpBlocks}): rather than the bounce animation pushing objects
-     * that rest on it, the bumped cell simply publishes this transient state and any active object
-     * standing on it polls the tile at its own feet — see
-     * {@code SuperMushroom} / {@code Object_InteractWithWorld} @ PRG001_A97C. Only the block-bounce
-     * managers override this; everything else reports {@code false}.
-     *
-     * @param cell the tile cell to test
-     * @return {@code true} if a bump is live at {@code cell} this tick
-     */
-    default boolean isBlockBumpActiveAt(final Offset cell) {
-        return false;
-    }
 
     /**
      * Called once per simulation tick <b>after</b> the engine's active-object collision pass has
@@ -50,6 +31,17 @@ public interface MotionManager<L extends LevelObject> extends ImageResourceLoade
      * through the freeze — the rising score caption — override this to advance only that animation.
      */
     default void updateWhileHalted() {
+        // Do nothing
+    }
+
+    /**
+     * Drops whatever state belongs to one level. Managers whose population is spawned during play (the
+     * reward items) empty themselves as their objects are collected or expire and need nothing here;
+     * managers that are handed the objects a level was <em>authored</em> with — the enemies — must clear
+     * them, or a manager singleton carries the previous level's population into the next scene.
+     * Default: nothing to drop.
+     */
+    default void reset() {
         // Do nothing
     }
 

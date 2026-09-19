@@ -3,7 +3,6 @@ package house.x1337.app.smb3.game.object.level;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -29,14 +28,14 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
 public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     double getPixelX();
     double getPixelY();
-    ImageResource getImageResource();
     Dimensions getSpriteDimensions();
-
-    default AxisAlignedBoundingBox getBounds() {
-        return AxisAlignedBoundingBox.ofSize(getPixelX(), getPixelY(), getImageResource().getDimensions());
-    }
+    AxisAlignedBoundingBox getBounds();
     Geometry getSpriteGeometry();
     void onCollisionWith(LevelScenePlayer player);
+
+    default boolean resolvesDirectionalPlayerCollision() {
+        return false;
+    }
 
     default boolean intersects(final AxisAlignedBoundingBox playerBounds) {
         return getBounds().intersects(playerBounds);

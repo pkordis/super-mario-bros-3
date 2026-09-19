@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.ui.editor.level.tile.palette.core;
 
-import house.x1337.app.smb3.annotation.Singleton;
+import house.x1337.app.smb3.annotation.Prototype;
 
 import javax.swing.JPanel;
 import javax.swing.Scrollable;
@@ -12,8 +12,12 @@ import java.awt.Rectangle;
  * width. This prevents horizontal scrolling and ensures child panels using
  * {@link WrapLayout} reflow correctly when the viewport is resized in either
  * direction.
+ *
+ * <p>Deliberately a prototype: it is a container, and a container has exactly one parent. Each palette
+ * needs its own — a shared instance would be re-parented into whichever scroll pane was built last,
+ * silently emptying the others.
  */
-@Singleton
+@Prototype
 public final class ScrollableFlowPanel extends JPanel implements Scrollable {
     @Override
     public Dimension getPreferredScrollableViewportSize() {

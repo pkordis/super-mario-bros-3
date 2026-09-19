@@ -2,7 +2,9 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.level.LevelObject;
+import house.x1337.app.smb3.game.object.level.block.motion.BlockMotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
@@ -35,7 +37,7 @@ import static java.lang.Math.floor;
 @Slf4j
 @Prototype
 @RequiredArgsConstructor
-public final class StaticEnvironmentCollisionGrid implements GameMath {
+public final class StaticEnvironmentCollisionGrid implements GameEngineAware, GameMath {
     private final GameEngine gameEngine;
     private final PowerSwitchTimeWindow powerSwitchTimeWindow;
 
@@ -457,5 +459,14 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
             }
         }
         return Optional.ofNullable(closest);
+    }
+
+    public boolean isBlockBumpActiveAt(final Offset cellOffset) {
+        for (final BlockMotionManager<?> blockMotionManager : getMotionManagers(BlockMotionManager.class)) {
+            if (blockMotionManager.isBlockBumpActiveAt(cellOffset)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

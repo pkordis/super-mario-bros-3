@@ -2,6 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.menu;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.ui.editor.level.menu.levelobject.CreateCustomLevelObjectMenuItem;
+import house.x1337.app.smb3.ui.editor.level.menu.levelobject.CreateEnemyFromImageMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.levelobject.EditInteractiveSingleTiledMenuItem;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -13,11 +14,14 @@ import javax.swing.JMenu;
 public class LevelObjectsMenu extends JMenu {
     private final EditInteractiveSingleTiledMenuItem editInteractiveSingleTiledMenuItem;
     private final CreateCustomLevelObjectMenuItem createCustomLevelObjectMenuItem;
+    private final CreateEnemyFromImageMenuItem createEnemyFromImageMenuItem;
 
     @PostConstruct
     void init() {
         setText("Level Objects");
         add(buildEditInteractiveMenu());
+        addSeparator();
+        add(buildEnemiesMenu());
         addSeparator();
         add(createCustomLevelObjectMenuItem);
     }
@@ -25,6 +29,12 @@ public class LevelObjectsMenu extends JMenu {
     private JMenu buildEditInteractiveMenu() {
         final JMenu submenu = new JMenu("Edit Interactive");
         submenu.add(editInteractiveSingleTiledMenuItem);
+        return submenu;
+    }
+
+    private JMenu buildEnemiesMenu() {
+        final JMenu submenu = new JMenu("Enemies");
+        submenu.add(createEnemyFromImageMenuItem);
         return submenu;
     }
 }

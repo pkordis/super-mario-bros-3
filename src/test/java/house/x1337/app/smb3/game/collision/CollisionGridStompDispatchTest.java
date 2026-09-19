@@ -21,19 +21,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the {@code onCollisionFromAbove} ("stomp") dispatch in
- * {@link StaticEnvironmentCollisionGrid#handleCollision}.
- *
- * <p>The ROM's press test (dasm prg008 {@code PRG008_B623}) runs {@code CPX #$02 / BGS} to explicitly
- * <b>reject</b> tile detections that came from the player's head probes, leaving only the feet/body
- * probes able to trigger it. These tests hold us to the same split: landing on a tile notifies it from
- * above, head-butting a tile from below does not.
- *
- * <p>Probe geometry comes from {@code CollisionOffsets.LARGE_PROBES}: descending, the vertical probe
- * pair is the two feet at {@code ($04,$20)} and {@code ($0B,$20)}; rising, it is the single head point
- * at {@code ($08,$06)} repeated.
- */
 class CollisionGridStompDispatchTest {
 
     private static final int TILE = 16;

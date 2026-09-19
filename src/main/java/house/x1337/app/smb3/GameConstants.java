@@ -137,6 +137,10 @@ public final class GameConstants {
     public static final float Z_DEPTH_POOF = 0.045f;
     public static final float Z_DEPTH_BRICK_BLOCK_BOUNCE = 0.05f;
     public static final float Z_DEPTH_ITEM_REWARD = 0.06f;
+    // Enemies sit just in front of the reward items and just behind the player (PlayerVisibility
+    // FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
+    // still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.
+    public static final float Z_DEPTH_ENEMY = 0.07f;
     public static final float Z_DEPTH_BRICK_BLOCK_FRAGMENT = 0.11f;
 
     // -------------------------------------------------------------------------

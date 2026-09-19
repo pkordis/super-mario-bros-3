@@ -43,18 +43,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the coin half of the P-Switch substitution: while the window is open a {@link Coin} is a solid,
- * breakable brick rather than a collectable coin — the mirror of a breakable brick becoming a coin.
- *
- * <p>{@code PSwitch_SubstTileAndAttr} (dasm {@code prg000.asm:1599}) is bidirectional and swaps the tile
- * as it is read, so every consequence tested here follows from the substituted read: the solid attribute
- * {@code $03} instead of the coin's {@code $00}, the bump-block scan landing on {@code LATP_Brick}
- * because the fetched tile is now {@code TILEA_BRICK} ($67 = {@code TILEA_QBLOCKFLOWER} + 7), and the
- * coin branch of {@code Player_DoSpecialTiles} no longer matching {@code TILEA_COIN}.
- */
 class CoinPowerSwitchSubstitutionTest {
-
     private static final int COLUMNS = 8;
     private static final int ROWS = 8;
     private static final Offset COIN_OFFSET = Offset.of(2, 3);

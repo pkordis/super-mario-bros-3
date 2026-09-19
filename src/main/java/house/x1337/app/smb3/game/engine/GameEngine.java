@@ -20,7 +20,6 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
-import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.BLACK;
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 import static house.x1337.app.smb3.GameConstants.SIMULATION_DT;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_HEIGHT;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -46,7 +44,6 @@ import static lombok.AccessLevel.PRIVATE;
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
     private final List<? extends MotionManager<?>> motionManagers = getBean(MotionManager.Registry.class).getAll();
-    private final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = new ActiveObjectGrid<>(TILE_SPRITE_SIZE);
 
     private final CameraState cameraState;
     private final PlayerData playerData;
@@ -54,6 +51,8 @@ public final class GameEngine extends GameEngineCapabilities {
 
     private LevelScene levelScene;
     private StaticEnvironmentCollisionGrid collisionGrid;
+    private ActiveObjectGrid<ActiveLevelObject> activeObjectGrid;
+
     private GameContext gameContext = LEVEL_SCENE;
     private HeadsUpDisplay headsUpDisplay;
     private FrameCaptureState frameCaptureState;
@@ -118,24 +117,6 @@ public final class GameEngine extends GameEngineCapabilities {
     @Override
     public void requestClose(final boolean esc) {
         stop();
-    }
-
-    /**
-     * Reports whether a solid block at the given cell is currently playing its hit-from-below bounce
-     * this tick. Active objects resting on a block poll this against the cell at their feet to know
-     * they were just bumped — the project's stand-in for the ROM's transient
-     * {@code TILEA_BLOCKBUMP_CLEAR} tile (dasm {@code Object_InteractWithWorld} @ PRG001_A97C).
-     *
-     * @param cell the tile cell to test
-     * @return {@code true} if any motion manager reports a live block-bump at {@code cell}
-     */
-    public boolean isBlockBumpActiveAt(final Offset cell) {
-        for (final MotionManager<?> motionManager : motionManagers) {
-            if (motionManager.isBlockBumpActiveAt(cell)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override
@@ -272,6 +253,8 @@ public final class GameEngine extends GameEngineCapabilities {
     public void setupLevel(final LevelScene levelScene) {
         this.levelScene = levelScene;
         this.collisionGrid = levelScene.toCollisionGrid(this);
+        this.activeObjectGrid = levelScene.toActiveObjectGrid(this);
+        activeObjectGrid.spawnPlacedEnemies();
         levelScene.reset();
     }
 }

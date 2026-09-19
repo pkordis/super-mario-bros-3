@@ -15,23 +15,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the raccoon tail attack against static terrain to the SMB3 disassembly
- * (prg008 {@code Player_TailAttack_HitBlocks}).
- *
- * <p>The ROM does <b>not</b> sweep a box across the terrain. It loads the
- * {@code Player_TailAttack_Offsets} pair (Y = 28; X = -6 facing left, +21 facing right) into the tile
- * probe inputs and calls {@code Player_GetTileAndSlope}, which resolves exactly <b>one</b> tile. Only
- * that tile is written to the tail's {@code Level_Tile_Whack} slot and passed to
- * {@code Level_DoBumpBlocks}.
- *
- * <p>The regression these tests guard: the terrain test used to reuse the tail's <em>object</em>
- * hitbox ({@code Object_RespondToTailAttack}: 10 wide, 15 tall at +16). Being 15px tall, that box
- * straddled two tile rows whenever the player was not tile-aligned. The worst case is a player whose
- * head is pressed against a ceiling: the 6px head padding puts the sprite top 6px above the row
- * boundary, dragging the box's top edge into the row above, so the tail broke a brick level with the
- * player's chest — something the original never does.
- */
 class CollisionGridTailAttackTest {
 
     /** Sprite-pixel Y offset of the tail's terrain probe (dasm {@code Player_TailAttack_Offsets}). */

@@ -8,10 +8,6 @@ import static house.x1337.app.smb3.game.motion.pop.PopMotions.deceleratingRise;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.parabolic;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Pins the derived {@link PopMotion} functions against the hand-traced frame tables they
- * replaced, so the animations keep rendering at the offsets the project has always used.
- */
 class PopMotionTest {
 
     /** Offsets previously baked into {@code CoinPopAnimation.VERTICAL_OFFSETS}. */

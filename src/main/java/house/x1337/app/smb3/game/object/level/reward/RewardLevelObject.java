@@ -2,6 +2,8 @@ package house.x1337.app.smb3.game.object.level.reward;
 
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.util.GameRenderer;
 
 public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
@@ -9,6 +11,16 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
     boolean isCollected();
     boolean isExpired();
     void setExpired(boolean expired);
+    ImageResource getImageResource();
+
+    @Override
+    default AxisAlignedBoundingBox getBounds() {
+        return AxisAlignedBoundingBox.ofSize(
+            getPixelX(),
+            getPixelY(),
+            getImageResource().getDimensions()
+        );
+    }
 
     default void motionUpdate() {
         // No motion by default

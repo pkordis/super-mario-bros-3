@@ -1,8 +1,11 @@
 package house.x1337.app.smb3.game.collision;
 
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,10 +15,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.floor;
+import static java.lang.Math.min;
 
 /**
- * A uniform-grid (spatial-hash) broadphase for dynamic {@link ActiveLevelObject}s, in sprite-pixel
+ * A uniform-grid (spatial-hash) broad-phase for dynamic {@link ActiveLevelObject}s, in sprite-pixel
  * space. It buckets objects into fixed-size square cells so a collision query only tests objects in
  * the handful of cells overlapping a region, instead of every object in the scene.
  *
@@ -23,7 +28,7 @@ import static java.lang.Math.floor;
  * couple of players, so testing every object against them is linear. The quadratic cost appears
  * with <b>object-vs-object</b> interactions (e.g. a shell bowling through a row of enemies) once
  * there are hundreds of active objects. A uniform grid is the natural fit for a tile-based world:
- * cells align to the tile lattice and rebucketing is O(objects). This class serves both cases —
+ * cells align to the tile lattice and re-bucketing is O(objects). This class serves both cases —
  * {@link #query(AxisAlignedBoundingBox)} returns the candidates near any box, which a player hitbox or another
  * object's (expanded) box can use alike.
  *
@@ -36,20 +41,13 @@ import static java.lang.Math.floor;
  *
  * @param <T> the concrete active-object type this grid indexes
  */
+@Prototype
+@RequiredArgsConstructor
 public final class ActiveObjectGrid<T extends ActiveLevelObject> {
-    private final Map<Long, List<T>> cellsByKey = new HashMap<>();
-    private final int cellSize;
+    private static final double DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS = 6.0;
 
-    /**
-     * @param cellSize edge length of each square cell, in sprite-pixels. A tile (16) is a sensible
-     *                 default; larger cells mean fewer buckets but more candidates per query.
-     */
-    public ActiveObjectGrid(final int cellSize) {
-        if (cellSize <= 0) {
-            throw new IllegalArgumentException("cellSize must be positive, was " + cellSize);
-        }
-        this.cellSize = cellSize;
-    }
+    private final Map<Long, List<T>> cellsByKey = new HashMap<>();
+    private final EnemySpawner enemySpawner;
 
     /**
      * Empties every bucket. Call once at the start of each tick before re-inserting.
@@ -112,8 +110,20 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         return candidates;
     }
 
+    /**
+     * Spawns the enemies that were placed in the level by the author. This is a one-time call at
+     * level load time.
+     */
+    public void spawnPlacedEnemies() {
+        enemySpawner.spawn();
+    }
+
+    /**
+     * Converts a sprite-pixel coordinate to the index of the cell it falls in. The grid is infinite
+     * in all directions, so negative coordinates yield negative indices.
+     */
     private int cellIndex(final double coordinate) {
-        return (int) floor(coordinate / cellSize);
+        return (int) floor(coordinate / TILE_SPRITE_SIZE);
     }
 
     /**
@@ -147,13 +157,82 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
             final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
             for (final ActiveLevelObject object : query(playerBounds)) {
-                if (object.intersects(playerBounds)) {
-                    object.onCollisionWith(levelScenePlayer);
+                if (!object.intersects(playerBounds)) {
+                    continue;
+                }
+                object.onCollisionWith(levelScenePlayer);
+                if (object.resolvesDirectionalPlayerCollision()) {
+                    dispatchDirectionalPlayerCollision(object, levelScenePlayer, playerBounds);
                 }
             }
             if (levelScenePlayer.isTailAttackStriking()) {
                 resolveTailAttack(levelScenePlayer, levelScenePlayer.getTailAttackBounds());
             }
+        }
+    }
+
+    /**
+     * Resolves which side of an {@link ActiveLevelObject} the player struck and dispatches the matching
+     * directional {@link house.x1337.app.smb3.game.object.level.LevelObject} method — the active-object
+     * mirror of {@code StaticEnvironmentCollisionGrid}'s terrain dispatch, for the objects that opt in
+     * via {@link ActiveLevelObject#resolvesDirectionalPlayerCollision()} (the enemies).
+     *
+     * <p>The side is the box's <b>least-overlapping axis</b> (the minimum-translation direction), so a
+     * collision counts as vertical only while the player is more overlapped along X than Y — i.e. it is
+     * genuinely on top of / underneath the object, not merely brushing a top corner while running into
+     * the side. That axis then splits by which edge is shallower and by the player's vertical motion:
+     *
+     * <ul>
+     *   <li><b>From above</b> ({@code onCollisionFromAbove}) — a stomp: a vertical hit whose shallow edge
+     *       is the object's top, the player descending ({@code DY >= 0}), and the feet already
+     *       {@value #DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS}px into that top. The overlap gate is the fix for
+     *       the stomp firing on the first grazing frame: it waits until the player has genuinely sunk
+     *       onto the object, so a small — but real — overlap is required, uniformly for every enemy.</li>
+     *   <li><b>From below</b> ({@code onCollisionFromBelow}) — a vertical hit whose shallow edge is the
+     *       object's bottom while the player is rising ({@code DY < 0}).</li>
+     *   <li><b>Overlap</b> ({@code onPlayerOverlap}) — a side hit (X is the shallower axis).</li>
+     * </ul>
+     *
+     * <p>A vertical hit that is not yet {@value #DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS}px deep, or whose
+     * direction disagrees with the player's motion, dispatches nothing this tick and waits for the next.
+     *
+     * @param object       the object the player is overlapping this tick
+     * @param player       the colliding player
+     * @param playerBounds the player's object-collision hitbox for this tick
+     */
+    private void dispatchDirectionalPlayerCollision(
+        final ActiveLevelObject object,
+        final LevelScenePlayer player,
+        final AxisAlignedBoundingBox playerBounds
+    ) {
+        final AxisAlignedBoundingBox objectBounds = object.getBounds();
+
+        // Per-edge overlap depths (all positive: the boxes already intersect).
+        final double topPenetration = playerBounds.bottom() - objectBounds.top();
+        final double bottomPenetration = objectBounds.bottom() - playerBounds.top();
+        final double leftPenetration = playerBounds.right() - objectBounds.left();
+        final double rightPenetration = objectBounds.right() - playerBounds.left();
+        final double verticalPenetration = min(topPenetration, bottomPenetration);
+        final double horizontalPenetration = min(leftPenetration, rightPenetration);
+
+        // Shallower along X than Y: a side hit, whichever way the player is moving.
+        if (horizontalPenetration < verticalPenetration) {
+            object.onPlayerOverlap(player);
+            return;
+        }
+
+        final boolean playerDescending = player.getPosition().getDY() >= 0;
+        if (topPenetration <= bottomPenetration) {
+            // The player's lower part is the leading edge — a landing on the object's top. Only a
+            // descending player that has already overlapped by the minimum counts; otherwise wait.
+            if (playerDescending && topPenetration >= DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS) {
+                object.onCollisionFromAbove(player);
+            }
+            return;
+        }
+        // The player's upper part is the leading edge — rising into the object's underside.
+        if (!playerDescending && bottomPenetration >= DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS) {
+            object.onCollisionFromBelow(player);
         }
     }
 

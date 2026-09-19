@@ -1,7 +1,6 @@
 package house.x1337.app.smb3.ui.editor.level.levelobject.create;
 
 import house.x1337.app.smb3.annotation.Prototype;
-import jakarta.annotation.PostConstruct;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -17,11 +16,6 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.awt.Cursor.CROSSHAIR_CURSOR;
 import static java.awt.Cursor.getPredefinedCursor;
 
-/**
- * Tile editor panel for creating custom level objects.
- * Allows the user to click on pixels to set them transparent (flood fill).
- * Based on {@link house.x1337.app.smb3.ui.editor.level.tile.review.NewTileProcessingPanel}.
- */
 @Prototype
 public final class CustomLevelObjectTileEditorPanel extends JPanel {
     private static final int PIXEL_SCALE = 10;
@@ -31,14 +25,10 @@ public final class CustomLevelObjectTileEditorPanel extends JPanel {
     private static final Color GRID_COLOR = new Color(0, 0, 0, 60);
 
     private final Dimension panelSize = new Dimension(PANEL_SIZE, PANEL_SIZE);
-    private final int[] workingPixels;
+    private int[] workingPixels;
 
-    public CustomLevelObjectTileEditorPanel(final int[] originalArgbData) {
+    public void render(int[] originalArgbData) {
         this.workingPixels = originalArgbData.clone();
-    }
-
-    @PostConstruct
-    void init() {
         setPreferredSize(panelSize);
         setMinimumSize(panelSize);
         setMaximumSize(panelSize);

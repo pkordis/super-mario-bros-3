@@ -9,20 +9,7 @@ import java.util.List;
 import static house.x1337.app.smb3.model.game.effect.PoofSequence.ONE_SHOT_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Pins the shared poof frame policy to the two ROM routines it models.
- *
- * <p>Both index the same table, {@code .byte $47, $45, $43, $41}, which the shared sprite set stores in
- * that order ({@code frame_0} = $47 small dust … {@code frame_3} = $41 big puff):
- *
- * <ul>
- *   <li>prg007 {@code SObj_Poof} — {@code SpecialObj_Data} seeded at $20, {@code DEC} per tick, index
- *       {@code data >> 3}.</li>
- *   <li>prg029 {@code Player_SuitLost_DoPoof} — index {@code (Player_SuitLost & $0C) >> 2}.</li>
- * </ul>
- */
 class PoofSequenceTest {
-
     @Test
     @DisplayName("Switch-block puff plays 4 frames of 8 ticks, descending, over 32 ticks")
     void oneShotPlaysDescendingEightTickFrames() {

@@ -85,7 +85,6 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
             .getCameraState()
             .getActiveObjectRegion(getActivationMarginPixels());
         final ActiveObjectGrid<ActiveLevelObject> broadPhase = gameEngine.getActiveObjectGrid();
-
         final Iterator<C> iterator = activeInstances.iterator();
         while (iterator.hasNext()) {
             final C instance = iterator.next();

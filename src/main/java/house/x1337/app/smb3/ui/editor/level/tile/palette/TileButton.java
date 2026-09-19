@@ -12,8 +12,8 @@ import java.awt.Insets;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.model.ui.tile.Tile.THUMB_SIZE;
-import static javax.swing.BorderFactory.createLineBorder;
 import static java.awt.Color.GRAY;
+import static javax.swing.BorderFactory.createLineBorder;
 
 @Getter
 @Prototype
@@ -32,19 +32,23 @@ public class TileButton extends JToggleButton {
         button.setMargin(new Insets(0, 0, 0, 0));
         button.setBorder(createLineBorder(GRAY, 1));
         button.addActionListener(e -> {
-            final JToggleButton selectedButton = selectedTileService.getSelectedTileButton();
             if (button.isSelected()) {
-                if (selectedButton != null && selectedButton != button) {
-                    selectedButton.setSelected(false);
-                    selectedButton.setBorder(createLineBorder(GRAY, 1));
-                }
-                selectedTileService.setSelectedTileButton(button);
-                button.setBorder(createLineBorder(GRAY.brighter(), 1));
+                selectedTileService.select(button);
             } else {
-                button.setBorder(createLineBorder(GRAY, 1));
+                selectedTileService.clearSelection();
             }
         });
         return button;
+    }
+
+    /**
+     * Reflects this button's selection state, both in the toggle and in its border. Called by
+     * {@link SelectedTileService} so that selecting anything else — another tile, or an enemy — visibly
+     * releases this one.
+     */
+    public void markSelected(final boolean selected) {
+        setSelected(selected);
+        setBorder(createLineBorder(selected ? GRAY.brighter() : GRAY, 1));
     }
 
     public TileButton withTooltip(final String tooltip) {

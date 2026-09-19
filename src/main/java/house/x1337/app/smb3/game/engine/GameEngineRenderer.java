@@ -11,7 +11,9 @@ import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.BufferUtils;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
+import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -42,7 +44,8 @@ public interface GameEngineRenderer extends Application, GameRenderer {
             gameEngine.getRootNode().attachChild(layerGeometry);
         }
 
-        final List<? extends GameObjectAnimator<?>> animators = getBean(GameObjectAnimator.Registry.class).getAll();
+        final List<GameObjectAnimator<AnimatableLevelObject>> animators = getBean(Animator.Registry.class)
+            .getTileBoundAnimators();
         final Geometry interactiveObjectlayerGeometry = getLayerGeometry(INTERACTIVE_OBJECTS);
         gameEngine
             .enqueue(() -> animators.forEach(animator ->
