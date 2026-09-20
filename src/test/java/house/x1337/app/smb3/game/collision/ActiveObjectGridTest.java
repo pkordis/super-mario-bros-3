@@ -14,6 +14,7 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -240,6 +241,123 @@ class ActiveObjectGridTest {
         assertThat(reward.overlapCount).isZero();
     }
 
+    @Test
+    @DisplayName("two bouncing objects overlapping side-on are each told to turn from the other")
+    void sideOverlapBumpsBothBouncers() {
+        // Prepare — boxes [0,16] and [10,26] on the same row: 6px of X overlap against a full 16px of Y,
+        // so X is the shallower axis and they met left-to-right.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject left = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        final StubObject right = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).bouncing();
+        grid.insert(left);
+        grid.insert(right);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify — symmetric: each is handed the other, so both can turn away
+        assertThat(left.bumpedFrom).containsExactly(right);
+        assertThat(right.bumpedFrom).containsExactly(left);
+    }
+
+    @Test
+    @DisplayName("a bouncing object landing on another's head is not a side bump")
+    void verticalOverlapDoesNotBump() {
+        // Prepare — same column, 6px of Y overlap against a full 16px of X: Y is the shallower axis, so
+        // they met top-to-bottom. Only left/right contact turns a walker around.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject upper = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        final StubObject lower = new StubObject(AxisAlignedBoundingBox.ofSize(0, 10, dimensions)).bouncing();
+        grid.insert(upper);
+        grid.insert(lower);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(upper.bumpedFrom).isEmpty();
+        assertThat(lower.bumpedFrom).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a bouncing object is unaffected by one that does not bounce")
+    void nonBouncingNeighbourIsIgnored() {
+        // Prepare — a walker overlapping a reward-like object side-on. The ROM checks the attribute flag
+        // before turning anything, so a coin must not steer an enemy.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject walker = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        final StubObject reward = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions));
+        grid.insert(walker);
+        grid.insert(reward);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(walker.bumpedFrom).as("the reward does not steer the walker").isEmpty();
+        assertThat(reward.bumpedFrom).as("and is never dispatched to itself").isEmpty();
+    }
+
+    @Test
+    @DisplayName("bouncing objects that merely share an edge, or stand apart, do not bump")
+    void touchingOrSeparatedBouncersDoNotBump() {
+        // Prepare — [0,16] and [16,32] share exactly one edge, which the half-open convention excludes.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject flush = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        final StubObject adjacent = new StubObject(AxisAlignedBoundingBox.ofSize(16, 0, dimensions)).bouncing();
+        final StubObject distant = new StubObject(AxisAlignedBoundingBox.ofSize(400, 0, dimensions)).bouncing();
+        grid.insert(flush);
+        grid.insert(adjacent);
+        grid.insert(distant);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(flush.bumpedFrom).isEmpty();
+        assertThat(adjacent.bumpedFrom).isEmpty();
+        assertThat(distant.bumpedFrom).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a lone bouncing object is never bumped by itself")
+    void aBouncerNeverBumpsItself() {
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject lonely = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        grid.insert(lonely);
+
+        grid.resolveObjectToObjectBumps();
+
+        assertThat(lonely.bumpedFrom).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a crowd of three in a row bumps each neighbour it actually overlaps")
+    void middleBouncerSeesBothNeighbours() {
+        // Prepare — [0,16], [10,26], [20,36]: the middle overlaps both ends, the ends only the middle.
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject first = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing();
+        final StubObject middle = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).bouncing();
+        final StubObject last = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions)).bouncing();
+        grid.insert(first);
+        grid.insert(middle);
+        grid.insert(last);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(middle.bumpedFrom).containsExactlyInAnyOrder(first, last);
+        assertThat(first.bumpedFrom).containsExactly(middle);
+        assertThat(last.bumpedFrom).containsExactly(middle);
+    }
+
     /**
      * A grid under test. The cell size is the tile constant now, so the only collaborator is the enemy
      * spawner, which nothing here exercises (it is only reached via {@code spawnPlacedEnemies}).
@@ -279,6 +397,8 @@ class ActiveObjectGridTest {
     private static final class StubObject implements ActiveLevelObject {
         private final AxisAlignedBoundingBox bounds;
         private final boolean directional;
+        private final List<ActiveLevelObject> bumpedFrom = new ArrayList<>();
+        private boolean bouncing;
         private int collisionCount;
         private int tailAttackCount;
         private int fromAboveCount;
@@ -292,6 +412,22 @@ class ActiveObjectGridTest {
         private StubObject(final AxisAlignedBoundingBox bounds, final boolean directional) {
             this.bounds = bounds;
             this.directional = directional;
+        }
+
+        /** Opts this stub into object-to-object bumping, as a Goomba does. */
+        private StubObject bouncing() {
+            bouncing = true;
+            return this;
+        }
+
+        @Override
+        public boolean bouncesOffOtherObjects() {
+            return bouncing;
+        }
+
+        @Override
+        public void onSideCollisionWith(final ActiveLevelObject other) {
+            bumpedFrom.add(other);
         }
 
         @Override

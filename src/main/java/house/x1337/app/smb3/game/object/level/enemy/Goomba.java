@@ -4,12 +4,14 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public final class Goomba implements EnemyLevelObject {
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GoombaMode mode = NORMAL;
+    private final boolean bouncesOffOtherObjects = true;
 
     private final GameEngine gameEngine;
     private final Offset offset;
@@ -86,6 +89,13 @@ public final class Goomba implements EnemyLevelObject {
     @Override
     public void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
         setExpired(true);
+    }
+
+    @Override
+    public void onSideCollisionWith(final ActiveLevelObject other) {
+        final AxisAlignedBoundingBox otherBounds = other.getBounds();
+        final double otherCenterX = (otherBounds.left() + otherBounds.right()) / 2.0;
+        facingRight = otherCenterX < pixelX + SPRITE_SIZE_PIXELS / 2.0;
     }
 
     void faceClosestPlayer() {

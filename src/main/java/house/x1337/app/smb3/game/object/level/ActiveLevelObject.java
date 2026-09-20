@@ -37,6 +37,14 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         return false;
     }
 
+    default boolean bouncesOffOtherObjects() {
+        return false;
+    }
+
+    default void onSideCollisionWith(final ActiveLevelObject other) {
+        // Do nothing
+    }
+
     default boolean intersects(final AxisAlignedBoundingBox playerBounds) {
         return getBounds().intersects(playerBounds);
     }

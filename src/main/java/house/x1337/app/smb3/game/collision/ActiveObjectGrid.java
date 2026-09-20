@@ -50,10 +50,18 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     private final EnemySpawner enemySpawner;
 
     /**
+     * This tick's {@link ActiveLevelObject#bouncesOffOtherObjects() bouncing} objects, in insertion
+     * order — the candidate set for {@link #resolveObjectToObjectBumps()}. Kept alongside the buckets so
+     * that pass iterates only the handful of objects that can bump, rather than walking every cell.
+     */
+    private final List<T> bouncingObjects = new ArrayList<>();
+
+    /**
      * Empties every bucket. Call once at the start of each tick before re-inserting.
      */
     public void clear() {
         cellsByKey.clear();
+        bouncingObjects.clear();
     }
 
     /**
@@ -73,6 +81,9 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                     .computeIfAbsent(keyOf(cellX, cellY), ignored -> new ArrayList<>())
                     .add(object);
             }
+        }
+        if (object.bouncesOffOtherObjects()) {
+            bouncingObjects.add(object);
         }
     }
 
@@ -132,6 +143,67 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     private static long keyOf(final int cellX, final int cellY) {
         return (((long) cellX) << 32) | (cellY & 0xFFFFFFFFL);
+    }
+
+    /**
+     * Turns every pair of overlapping {@link ActiveLevelObject#bouncesOffOtherObjects() bouncing}
+     * objects away from each other, but only where they meet <b>side-on</b> — the ROM's
+     * {@code Object_BumpOffOthers} (dasm prg000 @ PRG000_CC2B), which is what stops a row of walking
+     * enemies from drifting through one another.
+     *
+     * <p>Run as its own phase, after every manager has moved and re-inserted its objects and before the
+     * player pass. It cannot be folded into the walk itself: an enemy deciding mid-move whether a
+     * neighbour blocks it would be querying a half-filled grid, seeing only the objects whose managers
+     * happened to run first and missing the rest entirely. That is the same reason the tail strike is
+     * resolved from here.
+     *
+     * <p>Consequently the bump is detected just <em>after</em> the overlap rather than instead of it, so
+     * the two objects interpenetrate briefly — at a walking pace of half a pixel per tick, by under a
+     * pixel — and separate on the following tick. The ROM behaves the same way: {@code Object_Move} has
+     * already run, and {@code Object_BumpOffOthers} only rewrites the facing bit, never the position.
+     *
+     * <p>Each object is resolved against every neighbour independently and told to face <em>away</em>
+     * from it, so the outcome does not depend on iteration order and a pair that spawns already
+     * overlapping still separates instead of flipping in lockstep.
+     */
+    public void resolveObjectToObjectBumps() {
+        for (final T object : bouncingObjects) {
+            final AxisAlignedBoundingBox bounds = object.getBounds();
+            for (final T other : query(bounds)) {
+                if (other == object || !other.bouncesOffOtherObjects()) {
+                    continue;
+                }
+                final AxisAlignedBoundingBox otherBounds = other.getBounds();
+                if (bounds.intersects(otherBounds) && isSideContact(bounds, otherBounds)) {
+                    object.onSideCollisionWith(other);
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether two overlapping boxes meet on a vertical face rather than a horizontal one, by the same
+     * <b>least-overlapping-axis</b> rule {@link #dispatchDirectionalPlayerCollision} uses: the shallower
+     * axis is the one they actually came together along.
+     *
+     * <p>This is what confines the bump to left/right contact. Two enemies walking into each other share
+     * a full 16px of height, so X is far shallower and it counts as a side hit; one landing on another's
+     * head overlaps almost fully in X and barely in Y, so it does not.
+     *
+     * @param bounds      the object being resolved
+     * @param otherBounds the neighbour it overlaps
+     * @return {@code true} if the contact is left/right rather than above/below
+     */
+    private static boolean isSideContact(
+        final AxisAlignedBoundingBox bounds,
+        final AxisAlignedBoundingBox otherBounds
+    ) {
+        // Per-edge overlap depths (all positive: the boxes already intersect).
+        final double topPenetration = bounds.bottom() - otherBounds.top();
+        final double bottomPenetration = otherBounds.bottom() - bounds.top();
+        final double leftPenetration = bounds.right() - otherBounds.left();
+        final double rightPenetration = otherBounds.right() - bounds.left();
+        return min(leftPenetration, rightPenetration) < min(topPenetration, bottomPenetration);
     }
 
     /**
