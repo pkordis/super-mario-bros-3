@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ public class EnemyTilesAssembler {
     private static final int MAX_ICON_WIDTH = 168;
     private static final int MAX_PIXEL_SCALE = 3;
 
-    public BufferedImage assemble(final Enemy enemy) {
+    public BufferedImage assemble(final EnemyStamp enemy) {
         if (!enemy.isWellFormed()) {
             log.warn("Enemy {} cannot be assembled: {}", enemy.getId(), enemy);
             return new BufferedImage(TILE_SPRITE_SIZE, TILE_SPRITE_SIZE, TYPE_INT_ARGB);
@@ -53,7 +53,7 @@ public class EnemyTilesAssembler {
         return image;
     }
 
-    public ImageIcon toIcon(final Enemy enemy) {
+    public ImageIcon toIcon(final EnemyStamp enemy) {
         final BufferedImage assembled = assemble(enemy);
         final int scale = clamp(MAX_ICON_WIDTH / assembled.getWidth(), 1, MAX_PIXEL_SCALE);
         final int width = assembled.getWidth() * scale;

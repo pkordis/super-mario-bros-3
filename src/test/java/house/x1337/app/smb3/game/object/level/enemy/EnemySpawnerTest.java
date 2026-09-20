@@ -7,9 +7,9 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.service.EnemyService;
+import house.x1337.app.smb3.service.EnemyStampService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +51,7 @@ class EnemySpawnerTest {
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private Animator.Registry animatorRegistry;
-    private EnemyService enemyService;
+    private EnemyStampService enemyStampService;
     private GameEngine gameEngine;
     private StubGoombaMotionManager goombaMotionManager;
     private Tile[][] tiles;
@@ -59,7 +59,7 @@ class EnemySpawnerTest {
 
     @BeforeEach
     void prepare() {
-        enemyService = mock(EnemyService.class);
+        enemyStampService = mock(EnemyStampService.class);
         gameEngine = mock(GameEngine.class);
         animatorRegistry = mock(Animator.Registry.class);
         goombaMotionManager = new StubGoombaMotionManager();
@@ -79,8 +79,8 @@ class EnemySpawnerTest {
             .when(() -> StaticBeanFactory.getBean(Animator.Registry.class))
             .thenReturn(animatorRegistry);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(EnemyService.class))
-            .thenReturn(enemyService);
+            .when(() -> StaticBeanFactory.getBean(EnemyStampService.class))
+            .thenReturn(enemyStampService);
         enemySpawner = new EnemySpawner(gameEngine);
     }
 
@@ -94,8 +94,8 @@ class EnemySpawnerTest {
     void spawnsAGoombaFromItsRenderingStarterTile() {
         // Prepare - a Goomba anchor tile painted on the NPC layer
         tiles[PLACED_ROW][PLACED_COLUMN] = enemyPartTile(ANCHOR_TILE_ID);
-        when(enemyService.findByRenderingStarterTileId(ANCHOR_TILE_ID))
-            .thenReturn(Optional.of(Enemy.builder().id("goomba-1").enemyType(GOOMBA).build()));
+        when(enemyStampService.findByRenderingStarterTileId(ANCHOR_TILE_ID))
+            .thenReturn(Optional.of(EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA).build()));
         final Goomba goomba = mock(Goomba.class);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, Offset.of(PLACED_COLUMN, PLACED_ROW)))
@@ -113,8 +113,8 @@ class EnemySpawnerTest {
     void anEnemyTileThatAnchorsNoEnemySpawnsNothing() {
         // Prepare - an enemy-category tile the editor left unclassified: no record anchors it
         tiles[0][0] = enemyPartTile(99);
-        when(enemyService.findByRenderingStarterTileId(99)).thenReturn(Optional.empty());
-        when(enemyService.isEnemyPartTile(99)).thenReturn(false);
+        when(enemyStampService.findByRenderingStarterTileId(99)).thenReturn(Optional.empty());
+        when(enemyStampService.isEnemyPartTile(99)).thenReturn(false);
 
         // Execute
         enemySpawner.spawn();

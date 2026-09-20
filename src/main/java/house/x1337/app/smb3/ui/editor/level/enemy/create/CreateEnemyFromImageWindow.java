@@ -2,8 +2,8 @@ package house.x1337.app.smb3.ui.editor.level.enemy.create;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
-import house.x1337.app.smb3.service.EnemyService;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.service.TileService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -46,7 +46,7 @@ import static javax.swing.JOptionPane.showMessageDialog;
 @Prototype
 public final class CreateEnemyFromImageWindow extends JDialog {
     private final TileService tileService = getBean(TileService.class);
-    private final EnemyService enemyService = getBean(EnemyService.class);
+    private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
 
     private int[][][] partPixels;
     private EnemyTilesGridPanel gridPanel;
@@ -141,18 +141,18 @@ public final class CreateEnemyFromImageWindow extends JDialog {
         final int columns = partPixels[0].length;
         final int[] tileIds = tileService.createEnemyPartTiles(flattenParts(), description);
 
-        final Enemy enemy = Enemy
+        final EnemyStamp enemy = EnemyStamp
             .builder()
             .id(UUID.randomUUID().toString())
             .description(description)
             .enemyType(enemyType)
-            .tiles(enemyService.toTileGrid(tileIds, rows, columns))
+            .tiles(enemyStampService.toTileGrid(tileIds, rows, columns))
             .renderingStarterRow(gridPanel.getRenderingStarterRow())
             .renderingStarterColumn(gridPanel.getRenderingStarterColumn())
             .updatedAt(currentTimeMillis())
             .build();
 
-        enemyService.upsert(enemy);
+        enemyStampService.upsert(enemy);
         publishPartsToPalette(tileIds);
         getBean(EnemiesPalettePanel.class).addEnemy(enemy);
 

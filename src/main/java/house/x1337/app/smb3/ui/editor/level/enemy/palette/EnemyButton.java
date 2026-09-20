@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.ui.service.SelectedTileService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +18,9 @@ import static javax.swing.BorderFactory.createLineBorder;
 @RequiredArgsConstructor
 public class EnemyButton extends JToggleButton {
     private final EnemyTilesAssembler enemyTilesAssembler = getBean(EnemyTilesAssembler.class);
-    private final Enemy enemy;
+    private final EnemyStamp enemy;
 
-    public static EnemyButton fromEnemy(final Enemy enemy) {
+    public static EnemyButton fromEnemy(final EnemyStamp enemy) {
         final EnemyButton button = getBean(EnemyButton.class, enemy);
         final SelectedTileService selectedTileService = getBean(SelectedTileService.class);
         button.setIcon(button.enemyTilesAssembler.toIcon(enemy));
@@ -42,7 +42,7 @@ public class EnemyButton extends JToggleButton {
         setBorder(createLineBorder(selected ? GRAY.brighter() : GRAY, 1));
     }
 
-    private static String buildTooltip(final Enemy enemy) {
+    private static String buildTooltip(final EnemyStamp enemy) {
         return "%s — %d x %d tiles, anchored at row %d, column %d".formatted(
             enemy.getEnemyType().getLabel(),
             enemy.getColumns(),

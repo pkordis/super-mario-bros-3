@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.enumeration.TileType;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * back into the picture they were imported as, and stamping puts the rendering-starter part on the
  * clicked cell with every other part at its stored offset.
  *
- * <p>No {@code TileService} in sight: an {@link Enemy} already carries its parts as resolved tiles, so
+ * <p>No {@code TileService} in sight: an {@link EnemyStamp} already carries its parts as resolved tiles, so
  * neither the assembler nor the stamper performs a lookup. Resolving stored ids is
  * {@code EnemyConverter}'s job.
  */
@@ -51,7 +51,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("The parts are assembled into one image, each part at its own cell")
     void partsAssembleIntoOneImage() {
         // Prepare - a 2x2 enemy, red on the left column and blue on the right
-        final Enemy enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
+        final EnemyStamp enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
 
         // Execute
         final BufferedImage assembled = assembler.assemble(enemy);
@@ -71,7 +71,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("A part whose tile was gone leaves a transparent hole rather than failing the assembly")
     void missingPartLeavesHole() {
         // Prepare - the top-right part could not be resolved, so the converter left NULL_TILE there
-        final Enemy enemy = enemy(topLeft, NULL_TILE, bottomLeft, bottomRight);
+        final EnemyStamp enemy = enemy(topLeft, NULL_TILE, bottomLeft, bottomRight);
 
         // Execute
         final BufferedImage assembled = assembler.assemble(enemy);
@@ -85,7 +85,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("Stamping puts the rendering starter on the clicked cell and the rest around it")
     void stampAnchorsOnTheClickedCell() {
         // Prepare - a 2x2 enemy anchored bottom-left, clicked at column 1, row 3 of a 4x4 layer
-        final Enemy enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
+        final EnemyStamp enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute
@@ -104,7 +104,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("Parts falling outside the scene are clipped, not wrapped")
     void stampClipsAtTheEdges() {
         // Prepare - the same enemy clicked on the top-left cell, so its upper row falls off the scene
-        final Enemy enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
+        final EnemyStamp enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute
@@ -121,7 +121,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("A malformed enemy is drawn as one blank part and stamps nothing")
     void malformedEnemyIsTolerated() {
         // Prepare - an enemy that lost its grid, as a hand-edited or outdated document might
-        final Enemy broken = Enemy.builder().id("broken").enemyType(GOOMBA).build();
+        final EnemyStamp broken = EnemyStamp.builder().id("broken").enemyType(GOOMBA).build();
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute & Verify - an image is produced, never a zero-sized one, and nothing is written
@@ -138,13 +138,13 @@ class EnemyPaletteStampingTest {
     // -------------------------------------------------------------------------
 
     /** A 2x2 enemy anchored on its lower-left part, built from already-resolved tiles. */
-    private static Enemy enemy(
+    private static EnemyStamp enemy(
         final Tile topLeft,
         final Tile topRight,
         final Tile bottomLeft,
         final Tile bottomRight
     ) {
-        return Enemy
+        return EnemyStamp
             .builder()
             .id("enemy-1")
             .enemyType(GOOMBA)

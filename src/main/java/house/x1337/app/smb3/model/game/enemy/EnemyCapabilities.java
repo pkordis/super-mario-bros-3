@@ -3,23 +3,23 @@ package house.x1337.app.smb3.model.game.enemy;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 /**
- * An {@link Enemy}'s behaviour — the enemy counterpart of {@code TileCapabilities}.
+ * An {@link EnemyStamp}'s behaviour — the enemy counterpart of {@code TileCapabilities}.
  *
  * <p>Conversion to and from the stored {@code EnemyRecord} is deliberately <b>not</b> here: rebuilding
  * an enemy's {@code Tile[][]} from stored ids needs a {@code TilesProvider}, which a model object has no
  * business holding. That lives in {@code EnemyConverter}, as {@code LevelSceneConverter} does for a
  * level scene.
  */
-public sealed interface EnemyCapabilities permits Enemy {
+public sealed interface EnemyCapabilities permits EnemyStamp {
     /** @return how many rows of parts this enemy is — the grid's own shape, never a stored field */
     default int getRows() {
-        final Tile[][] tiles = ((Enemy) this).getTiles();
+        final Tile[][] tiles = ((EnemyStamp) this).getTiles();
         return tiles == null ? 0 : tiles.length;
     }
 
     /** @return how many columns of parts this enemy is */
     default int getColumns() {
-        final Tile[][] tiles = ((Enemy) this).getTiles();
+        final Tile[][] tiles = ((EnemyStamp) this).getTiles();
         return (tiles == null || tiles.length == 0 || tiles[0] == null) ? 0 : tiles[0].length;
     }
 
@@ -29,7 +29,7 @@ public sealed interface EnemyCapabilities permits Enemy {
      * @return the part at that cell of the enemy's grid
      */
     default Tile tileAt(final int row, final int column) {
-        return ((Enemy) this).getTiles()[row][column];
+        return ((EnemyStamp) this).getTiles()[row][column];
     }
 
     /**
@@ -37,7 +37,7 @@ public sealed interface EnemyCapabilities permits Enemy {
      *         level
      */
     default Tile renderingStarterTile() {
-        final Enemy enemy = (Enemy) this;
+        final EnemyStamp enemy = (EnemyStamp) this;
         return tileAt(enemy.getRenderingStarterRow(), enemy.getRenderingStarterColumn());
     }
 
@@ -54,7 +54,7 @@ public sealed interface EnemyCapabilities permits Enemy {
      * @return {@code true} if any of this enemy's parts is that tile — its anchor or any other cell
      */
     default boolean containsTile(final int tileId) {
-        for (final Tile[] row : ((Enemy) this).getTiles()) {
+        for (final Tile[] row : ((EnemyStamp) this).getTiles()) {
             for (final Tile part : row) {
                 if (part != null && part.getId() == tileId) {
                     return true;
@@ -73,7 +73,7 @@ public sealed interface EnemyCapabilities permits Enemy {
      * lost fields, and one unusable document must not be able to stop the editor from opening.
      */
     default boolean isWellFormed() {
-        final Enemy enemy = (Enemy) this;
+        final EnemyStamp enemy = (EnemyStamp) this;
         if (enemy.getEnemyType() == null || getRows() == 0 || getColumns() == 0) {
             return false;
         }
@@ -92,7 +92,7 @@ public sealed interface EnemyCapabilities permits Enemy {
      * @return what the author called this enemy, falling back to the kind of enemy it is
      */
     default String getName() {
-        final Enemy enemy = (Enemy) this;
+        final EnemyStamp enemy = (EnemyStamp) this;
         final String description = enemy.getDescription();
         if (description != null && !description.isBlank()) {
             return description;

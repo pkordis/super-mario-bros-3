@@ -9,9 +9,9 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.service.EnemyService;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.util.CastCapable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 @RequiredArgsConstructor
 public final class EnemySpawner implements GameEngineAware, CastCapable {
     private final Animator.Registry animatorRegistry = getBean(Animator.Registry.class);
-    private final EnemyService enemyService = getBean(EnemyService.class);
+    private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
     private final GameEngine gameEngine;
 
     public void spawn() {
@@ -53,8 +53,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      * {@code ENEMY_PART} tiles, anchored by the enemy's <em>rendering-starter</em> tile
      * ({@code EnemyStamper}); this is the runtime half of that placement, so it keys on the same anchor.
      *
-     * <p>The anchor tile identifies the {@link Enemy} through
-     * {@link EnemyService#findByRenderingStarterTileId(int)}, and the record's {@code EnemyType} names
+     * <p>The anchor tile identifies the {@link EnemyStamp} through
+     * {@link EnemyStampService#findByRenderingStarterTileId(int)}, and the record's {@code EnemyType} names
      * the runtime {@link LevelObjectType} to instantiate ({@code EnemyType.GOOMBA} →
      * {@code LevelObjectTypeMultiTiled.GOOMBA} → {@code Goomba}). The instance is built exactly as
      * {@code LevelObjectRecordCapabilities#toLevelObject} builds a multi-tiled object — {@code gameEngine}
@@ -71,9 +71,9 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         if (!tile.isRenderable()) {
             return;
         }
-        final Optional<Enemy> enemy = enemyService.findByRenderingStarterTileId(tile.getId());
+        final Optional<EnemyStamp> enemy = enemyStampService.findByRenderingStarterTileId(tile.getId());
         if (enemy.isEmpty()) {
-            warnAboutUnclassifiedEnemyTile(enemyService, tile, row, column);
+            warnAboutUnclassifiedEnemyTile(enemyStampService, tile, row, column);
             return;
         }
 
@@ -90,7 +90,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      * layer and spawned from its anchor, so it is expected to resolve to nothing here.
      */
     private void warnAboutUnclassifiedEnemyTile(
-        final EnemyService enemyService,
+        final EnemyStampService enemyStampService,
         final Tile tile,
         final int row,
         final int column
@@ -98,7 +98,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         if (tile.getType() == null || tile.getType().getCategory() != ENEMY) {
             return;
         }
-        if (enemyService.isEnemyPartTile(tile.getId())) {
+        if (enemyStampService.isEnemyPartTile(tile.getId())) {
             return;
         }
         log.warn(

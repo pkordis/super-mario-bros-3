@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.util.converter;
 
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.extractor.TilesExtractor;
@@ -8,7 +8,7 @@ import house.x1337.app.smb3.util.extractor.TilesExtractor;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 
 /**
- * Converts an enemy between its domain shape ({@link Enemy}, holding resolved {@link Tile}s) and its
+ * Converts an enemy between its domain shape ({@link EnemyStamp}, holding resolved {@link Tile}s) and its
  * stored shape ({@link EnemyRecord}, holding a flat {@code int[]} of tile ids plus the grid's
  * dimensions) — the enemy counterpart of {@link LevelSceneLayerConverter}.
  *
@@ -23,8 +23,8 @@ public interface EnemyConverter extends TilesExtractor {
      * id the tiles collection no longer holds becomes {@code NULL_TILE} rather than {@code null}, so the
      * grid never has gaps — the same tolerance {@code toLevelSceneLayer} applies to a level's layers.
      */
-    default Enemy toEnemy(final EnemyRecord record) {
-        return Enemy.builder()
+    default EnemyStamp toEnemy(final EnemyRecord record) {
+        return EnemyStamp.builder()
             .id(record.getId())
             .description(record.getDescription())
             .enemyType(record.getEnemyType())
@@ -39,7 +39,7 @@ public interface EnemyConverter extends TilesExtractor {
      * Flattens an enemy back into the document it is stored as. {@code rows} and {@code columns} are read
      * off the grid, which is the only place they exist on the domain model.
      */
-    default EnemyRecord toEnemyRecord(final Enemy enemy) {
+    default EnemyRecord toEnemyRecord(final EnemyStamp enemy) {
         return EnemyRecord.builder()
             .id(enemy.getId())
             .description(enemy.getDescription())
@@ -56,7 +56,7 @@ public interface EnemyConverter extends TilesExtractor {
     /**
      * Resolves a flat, row-major run of tile ids into a {@code rows x columns} grid of tiles. Also used
      * when an enemy is first created, to turn the ids the freshly imported parts were stored under into
-     * the grid the new {@link Enemy} carries.
+     * the grid the new {@link EnemyStamp} carries.
      *
      * @param tileIds row-major ids, {@code tileIds[row * columns + column]}; may be {@code null}
      * @param rows    how many rows the grid has

@@ -15,7 +15,7 @@ import java.util.UUID;
 @Prototype
 @NoArgsConstructor
 @AllArgsConstructor
-public final class Enemy implements EnemyCapabilities {
+public final class EnemyStamp implements EnemyCapabilities {
     @Builder.Default
     private String id = UUID.randomUUID().toString();
     private String description;

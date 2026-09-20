@@ -2,8 +2,8 @@ package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
-import house.x1337.app.smb3.service.EnemyService;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
@@ -42,7 +42,7 @@ import static javax.swing.UIManager.getColor;
 @Singleton
 @RequiredArgsConstructor
 public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
-    private final EnemyService enemyService;
+    private final EnemyStampService enemyStampService;
     private final SelectedTileService selectedTileService;
     private final LevelSceneEditorTabSystem tabSystem;
     private final EnemyTilesAssembler enemyTilesAssembler;
@@ -66,7 +66,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         hintLabel.setMaximumSize(new Dimension(MAX_VALUE, 40));
         enemiesPanel.add(hintLabel);
 
-        enemyService.findAll().forEach(this::addEnemy);
+        enemyStampService.findAll().forEach(this::addEnemy);
 
         // The active layer can change with the tab, and a new tab starts on Air.
         tabSystem.addChangeListener(event -> syncEnabledState());
@@ -78,7 +78,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
      * palette is first built and straight after an enemy is created, so a new enemy is placeable without
      * restarting the editor.
      */
-    public void addEnemy(final Enemy enemy) {
+    public void addEnemy(final EnemyStamp enemy) {
         if (!enemy.isWellFormed()) {
             // One unusable document must not stop the editor from opening.
             log.warn("Skipping enemy {} in the palette: it is not well formed ({}).", enemy.getId(), enemy);

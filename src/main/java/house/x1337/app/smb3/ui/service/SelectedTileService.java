@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.service;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyButton;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TileButton;
@@ -52,7 +52,7 @@ public class SelectedTileService {
         return selectedTileButton == null ? null : selectedTileButton.getTile();
     }
 
-    public Enemy getSelectedEnemy() {
+    public EnemyStamp getSelectedEnemy() {
         return selectedEnemyButton == null ? null : selectedEnemyButton.getEnemy();
     }
 

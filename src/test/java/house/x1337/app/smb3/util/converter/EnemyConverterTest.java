@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.util.converter;
 
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.provider.TilesProvider;
@@ -17,7 +17,7 @@ import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the enemy's domain/persistence mapping: an {@link Enemy} carries resolved {@link Tile}s, an
+ * Pins the enemy's domain/persistence mapping: an {@link EnemyStamp} carries resolved {@link Tile}s, an
  * {@link EnemyRecord} carries a flat row-major {@code int[]} of ids plus the grid's dimensions, and the
  * two convert both ways through a {@link TilesProvider} — the same asymmetry
  * {@code LevelSceneLayerConverter} handles for a level's layers.
@@ -45,7 +45,7 @@ class EnemyConverterTest {
         final EnemyRecord record = record(2, 3, new int[] {1, 2, 3, 11, 12, 13}, 1, 0);
 
         // Execute
-        final Enemy enemy = converter.toEnemy(record);
+        final EnemyStamp enemy = converter.toEnemy(record);
 
         // Verify - shape comes from rows/columns, and each cell is the resolved tile
         assertThat(enemy.getRows()).isEqualTo(2);
@@ -64,7 +64,7 @@ class EnemyConverterTest {
         final EnemyRecord record = record(1, 2, new int[] {1, 999}, 0, 0);
 
         // Execute
-        final Enemy enemy = converter.toEnemy(record);
+        final EnemyStamp enemy = converter.toEnemy(record);
 
         // Verify
         assertThat(enemy.tileAt(0, 0)).isSameAs(tilesById.get(1));
@@ -74,7 +74,7 @@ class EnemyConverterTest {
     @Test
     @DisplayName("A record with fewer ids than cells is still resolved into a full grid")
     void shortIdRunIsPadded() {
-        final Enemy enemy = converter.toEnemy(record(2, 2, new int[] {1, 2}, 0, 0));
+        final EnemyStamp enemy = converter.toEnemy(record(2, 2, new int[] {1, 2}, 0, 0));
 
         assertThat(enemy.getRows()).isEqualTo(2);
         assertThat(enemy.getColumns()).isEqualTo(2);

@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.RequiredArgsConstructor;
 
@@ -12,7 +12,7 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 public class EnemyLevelSceneGridStamper {
     public int stamp(
         final Tile[][] layerTiles,
-        final Enemy enemy,
+        final EnemyStamp enemy,
         final int column,
         final int row
     ) {

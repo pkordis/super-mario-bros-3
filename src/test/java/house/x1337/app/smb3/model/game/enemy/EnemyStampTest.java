@@ -8,21 +8,21 @@ import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the {@link Enemy} domain model's behaviour: the grid addressing, the anchor lookup, the derived
+ * Pins the {@link EnemyStamp} domain model's behavior: the grid addressing, the anchor lookup, the derived
  * extent and the well-formedness guard. An enemy holds resolved {@link Tile}s, so none of this needs a
  * tile lookup — conversion from stored ids is {@code EnemyConverter}'s job and is tested separately.
  */
-class EnemyTest {
+class EnemyStampTest {
     @Test
     @DisplayName("Rows and columns are the grid's own shape, not stored fields")
     void extentIsDerivedFromTheGrid() {
-        final Enemy enemy = enemy(2, 3, 1, 0);
+        final EnemyStamp enemy = enemy(2, 3, 1, 0);
 
         assertThat(enemy.getRows()).isEqualTo(2);
         assertThat(enemy.getColumns()).isEqualTo(3);
 
         // A damaged document with no grid reports no extent rather than throwing.
-        final Enemy empty = Enemy.builder().enemyType(GOOMBA).build();
+        final EnemyStamp empty = EnemyStamp.builder().enemyType(GOOMBA).build();
         assertThat(empty.getRows()).isZero();
         assertThat(empty.getColumns()).isZero();
     }
@@ -31,7 +31,7 @@ class EnemyTest {
     @DisplayName("Parts are addressed by row and column, and the rendering starter resolves to its own tile")
     void gridIsAddressedByRowAndColumn() {
         // Prepare - a 2-row, 3-column enemy anchored bottom-left; ids encode the cell as (row+1)*10 + column
-        final Enemy enemy = enemy(2, 3, 1, 0);
+        final EnemyStamp enemy = enemy(2, 3, 1, 0);
 
         // Execute & Verify
         assertThat(enemy.tileAt(0, 0).getId()).isEqualTo(10);
@@ -49,7 +49,7 @@ class EnemyTest {
     @Test
     @DisplayName("An enemy knows whether a tile is one of its parts")
     void containsItsOwnParts() {
-        final Enemy enemy = enemy(2, 3, 1, 0);
+        final EnemyStamp enemy = enemy(2, 3, 1, 0);
 
         assertThat(enemy.containsTile(10)).as("its first part").isTrue();
         assertThat(enemy.containsTile(22)).as("its last part").isTrue();
@@ -61,7 +61,7 @@ class EnemyTest {
     void wellFormednessGuardsDamagedDocuments() {
         assertThat(enemy(2, 3, 1, 0).isWellFormed()).isTrue();
 
-        assertThat(Enemy.builder().enemyType(GOOMBA).build().isWellFormed())
+        assertThat(EnemyStamp.builder().enemyType(GOOMBA).build().isWellFormed())
             .as("no grid at all")
             .isFalse();
         assertThat(enemy(2, 3, 2, 0).isWellFormed())
@@ -72,7 +72,7 @@ class EnemyTest {
             .isFalse();
 
         // A ragged grid, as a hand-edited document might produce.
-        final Enemy ragged = enemy(2, 3, 0, 0);
+        final EnemyStamp ragged = enemy(2, 3, 0, 0);
         ragged.getTiles()[1] = new Tile[] {tile(20)};
         assertThat(ragged.isWellFormed()).as("rows of differing length").isFalse();
     }
@@ -80,7 +80,7 @@ class EnemyTest {
     @Test
     @DisplayName("An enemy is named by its description, falling back to the kind of enemy it is")
     void nameFallsBackToTheEnemyType() {
-        final Enemy described = enemy(1, 1, 0, 0);
+        final EnemyStamp described = enemy(1, 1, 0, 0);
         described.setDescription("Angry Goomba");
         assertThat(described.getName()).isEqualTo("Angry Goomba");
 
@@ -94,7 +94,7 @@ class EnemyTest {
     // -------------------------------------------------------------------------
 
     /** An enemy whose part at {@code [r][c]} is a tile with id {@code (r + 1) * 10 + c}. */
-    private static Enemy enemy(
+    private static EnemyStamp enemy(
         final int rows,
         final int columns,
         final int starterRow,
@@ -106,7 +106,7 @@ class EnemyTest {
                 tiles[row][column] = tile((row + 1) * 10 + column);
             }
         }
-        return Enemy
+        return EnemyStamp
             .builder()
             .id("enemy-1")
             .enemyType(GOOMBA)

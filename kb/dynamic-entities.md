@@ -396,7 +396,7 @@ de-duplication, ENEMY_PART typing, row-major grid, lower-left default anchor) an
 halves of enemy placement were disconnected:
 
 - **Editor side:** an enemy is authored as a grid of `ENEMY_PART` tiles (`EnemyRecord`,
-  `EnemyService`, `EnemyLevelSceneGridStamper`), anchored on its **rendering-starter** tile. Placing it
+  `EnemyStampService`, `EnemyLevelSceneGridStamper`), anchored on its **rendering-starter** tile. Placing it
   stamps those tiles onto the `NON_PLAYABLE_CHARACTERS` layer.
 - **Runtime side:** `EnemySpawner` (called from `GameEngine.setupLevel` →
   `ActiveObjectGrid.spawnPlacedEnemies`) scans that layer and must turn each placement into a
@@ -535,7 +535,7 @@ the collision-grid build's registration — that refers to the tile-bound `GameO
 
 ---
 
-## `Enemy` vs `EnemyRecord` — domain/persistence split (added 2026-09)
+## `EnemyStamp` vs `EnemyRecord` — domain/persistence split (added 2026-09)
 
 `EnemyRecord` used to be passed all the way up into the editor UI and the runtime spawner, with its
 behaviour (`isWellFormed`, `tileIdAt`, `renderingStarterTileId`) living on the persistence entity. Now it
@@ -543,7 +543,7 @@ follows the project's existing `Tile`/`TileRecord` shape:
 
 | | type | package | holds |
 |---|---|---|---|
-| domain | **`Enemy`** — `@Data @Builder @Prototype @NoArgsConstructor @AllArgsConstructor` | `model.game.enemy` | `Tile[][] tiles` — **resolved tiles**, not ids |
+| domain | **`EnemyStamp`** — `@Data @Builder @Prototype @NoArgsConstructor @AllArgsConstructor` | `model.game.enemy` | `Tile[][] tiles` — **resolved tiles**, not ids |
 | behaviour | **`EnemyCapabilities`** (`sealed … permits Enemy`) | `model.game.enemy` | `getRows`/`getColumns` (derived), `tileAt`, `renderingStarterTile(Id)`, `containsTile`, `isWellFormed`, `getName` |
 | persistence | **`EnemyRecord`** — `@Entity("enemies")`, `Serializable`, `@Id` | `model.repository` | `int[] tileIds` + `rows`/`columns`, no behaviour |
 | conversion | **`EnemyConverter extends TilesExtractor`** | `util.converter` | `toEnemy`, `toEnemyRecord`, `toTileGrid` |
@@ -552,7 +552,7 @@ follows the project's existing `Tile`/`TileRecord` shape:
 
 ### Tiles, not tile ids (revised 2026-09)
 
-`Enemy` holds `Tile[][]`, exactly as `LevelScene.LevelSceneLayer` holds `Tile[][]` while its stored
+`EnemyStamp` holds `Tile[][]`, exactly as `LevelScene.LevelSceneLayer` holds `Tile[][]` while its stored
 `LevelSceneLayerData` holds a flat `int[] tileIds`. `rows`/`columns` are **not stored on the domain
 model** — they are the grid's own shape, derived in `EnemyCapabilities`, so they cannot desync.
 
@@ -562,7 +562,7 @@ Conversion is asymmetric, which is why it is a converter rather than a method on
   filling unknown/short ids with `NULL_TILE` exactly as `toLevelSceneLayer` does.
 
 `EnemyService implements EnemyConverter` and overrides `getTilesProvider()` to return `TileService` —
-identical to `LevelSceneService`. `CreateEnemyFromImageWindow` calls `enemyService.toTileGrid(...)` to turn
+identical to `LevelSceneService`. `CreateEnemyFromImageWindow` calls `enemyStampService.toTileGrid(...)` to turn
 the ids from `TileService.createEnemyPartTiles` into the new enemy's grid.
 
 **What this deleted:** `EnemyTilesAssembler.resolveTiles` and its `TileService` dependency (the enemy
@@ -575,7 +575,7 @@ provider. `EnemyService.isEnemyPartTile` is now `enemy.containsTile(tileId)` ins
 A test provider that registers a stub under id `0` will have it returned instead of `NULL_TILE`, and
 `isSameAs(NULL_TILE)` fails. `EnemyConverterTest` deliberately starts its ids at 1.
 
-**`EnemyService` is the conversion boundary** (same role as `TileService` / `LevelSceneService`): it
+**`EnemyStampService` is the conversion boundary** (same role as `TileService` / `LevelSceneService`): it
 caches `Map<String, Enemy>`, converts on the way in (`toEnemy(record)`) and back down on save
 (`toEnemyRecord(enemy)`). `EnemyRecord` is now confined to: the repository interface + its Mongo/Nitrite
 implementations, the two DB configs, and `EnemyConverter`. Nothing in `ui.*`, `game.*` or the service API
@@ -588,5 +588,5 @@ the description-or-type-label fallback is domain behaviour.
 Tests: `EnemyRecordTest` was split into `model/game/enemy/EnemyTest` (grid addressing, derived extent,
 well-formedness incl. a ragged grid, naming, `containsTile`),
 `util/converter/EnemyConverterTest` (id→tile resolution, `NULL_TILE` fill, short-id padding, **record →
-`Enemy` → record round-trip**) and `ui/editor/level/enemy/create/EnemyTilesGridPanelTest` (the anchor
+`EnemyStamp` → record round-trip**) and `ui/editor/level/enemy/create/EnemyTilesGridPanelTest` (the anchor
 default), which had been conflated in one class. Suite: 113 tests green.

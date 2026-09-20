@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.service;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.repository.EnemyRepository;
 import house.x1337.app.smb3.util.converter.EnemyConverter;
 import house.x1337.app.smb3.util.provider.TilesProvider;
@@ -19,21 +19,21 @@ import static java.util.Comparator.comparing;
 @Slf4j
 @Singleton
 @RequiredArgsConstructor
-public class EnemyService implements EnemyConverter {
-    private final Map<String, Enemy> cache = new HashMap<>();
+public class EnemyStampService implements EnemyConverter {
+    private final Map<String, EnemyStamp> cache = new HashMap<>();
     private final EnemyRepository enemyRepository;
     private final TileService tileService;
 
     @PostConstruct
     public void initCache() {
         enemyRepository.findAll().forEach(record -> {
-            final Enemy enemy = toEnemy(record);
+            final EnemyStamp enemy = toEnemy(record);
             cache.put(enemy.getId(), enemy);
         });
         log.info("Enemy cache initialised with {} entries.", cache.size());
     }
 
-    public void upsert(final Enemy enemy) {
+    public void upsert(final EnemyStamp enemy) {
         enemyRepository.upsert(toEnemyRecord(enemy));
         cache.put(enemy.getId(), enemy);
         log.info(
@@ -47,25 +47,25 @@ public class EnemyService implements EnemyConverter {
         );
     }
 
-    public Optional<Enemy> findById(final String id) {
+    public Optional<EnemyStamp> findById(final String id) {
         return Optional.ofNullable(cache.get(id));
     }
 
-    public List<Enemy> findAll() {
+    public List<EnemyStamp> findAll() {
         return cache
             .values()
             .stream()
-            .sorted(comparing(EnemyService::sortKeyOf))
+            .sorted(comparing(EnemyStampService::sortKeyOf))
             .toList();
     }
 
-    private static String sortKeyOf(final Enemy enemy) {
+    private static String sortKeyOf(final EnemyStamp enemy) {
         final String type = enemy.getEnemyType() != null ? enemy.getEnemyType().name() : "";
         final String id = enemy.getId() != null ? enemy.getId() : "";
         return type + id;
     }
 
-    public Optional<Enemy> findByRenderingStarterTileId(final int tileId) {
+    public Optional<EnemyStamp> findByRenderingStarterTileId(final int tileId) {
         return cache
             .values()
             .stream()
@@ -77,7 +77,7 @@ public class EnemyService implements EnemyConverter {
         return cache
             .values()
             .stream()
-            .filter(Enemy::isWellFormed)
+            .filter(EnemyStamp::isWellFormed)
             .anyMatch(enemy -> enemy.containsTile(tileId));
     }
 

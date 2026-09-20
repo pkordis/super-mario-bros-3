@@ -4,7 +4,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
-import house.x1337.app.smb3.model.game.enemy.Enemy;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
@@ -170,7 +170,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         if (row < 0 || row >= rows || col < 0 || col >= columns) {
             return;
         }
-        final Enemy selectedEnemy = selectedTileService.getSelectedEnemy();
+        final EnemyStamp selectedEnemy = selectedTileService.getSelectedEnemy();
         if (selectedEnemy != null) {
             stampEnemy(selectedEnemy, col, row);
             return;
@@ -209,7 +209,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
      * {@link EnemyLevelSceneGridStamper}). Refuses to write anywhere but the NPC layer — the palette already disables
      * itself off that layer, and this keeps that true even if an enemy is armed by some other path.
      */
-    private void stampEnemy(final Enemy enemy, final int col, final int row) {
+    private void stampEnemy(final EnemyStamp enemy, final int col, final int row) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return;
         }
@@ -219,7 +219,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
 
     public void updateStatus(final int col, final int row) {
         final String pos = (col >= 0 && row >= 0) ? "  |  col=" + col + "  row=" + row : "";
-        final Enemy selectedEnemy = selectedTileService.getSelectedEnemy();
+        final EnemyStamp selectedEnemy = selectedTileService.getSelectedEnemy();
         if (selectedEnemy != null) {
             statusLabel.setText(
                 "Enemy: " + selectedEnemy.getEnemyType().getLabel()
