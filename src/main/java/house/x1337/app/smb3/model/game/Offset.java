@@ -21,6 +21,10 @@ public interface Offset {
         return of(round(x), round(y));
     }
 
+    static Offset of(final double x, final double y) {
+        return of(round(x), round(y));
+    }
+
     record GenericOffset(int x, int y) implements Offset {
     }
 }

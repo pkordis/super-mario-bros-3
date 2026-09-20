@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.model.game;
 
+import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 
 @Prototype
@@ -7,6 +8,10 @@ public interface WorldOffset {
     float x();
     float y();
     float z();
+
+    default void applyTo(final Geometry spriteGeometry) {
+        spriteGeometry.setLocalTranslation(x(), y(), z());
+    }
 
     default WorldOffset plus(final float dx, final float dy, final float dz) {
         return of(

@@ -43,7 +43,7 @@ import static lombok.AccessLevel.PRIVATE;
 @Prototype
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
-    private final List<? extends MotionManager<?>> motionManagers = getBean(MotionManager.Registry.class).getAll();
+    private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
 
     private final CameraState cameraState;
     private final PlayerData playerData;

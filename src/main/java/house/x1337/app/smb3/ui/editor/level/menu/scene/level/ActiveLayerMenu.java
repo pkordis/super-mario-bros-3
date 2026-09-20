@@ -6,6 +6,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +20,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static java.util.Comparator.comparingInt;
 
 @Singleton
@@ -40,7 +42,7 @@ public class ActiveLayerMenu extends JMenu {
 
         for (final LevelSceneLayerType type : sorted) {
             final JRadioButtonMenuItem item = new JRadioButtonMenuItem(type.getLabel());
-            item.addActionListener(e -> setActiveLayer(type));
+            item.addActionListener(e -> activate(type));
             buttonGroup.add(item);
             radioButtons.put(type, item);
             add(item);
@@ -65,7 +67,18 @@ public class ActiveLayerMenu extends JMenu {
         });
     }
 
-    private void setActiveLayer(final LevelSceneLayerType type) {
+    /**
+     * Makes {@code type} the active layer, wherever the request came from — this menu, or the Tiles
+     * palette when a tile belonging to another layer is picked.
+     *
+     * <p>The single entry point for activation, so the three things that must move together always do:
+     * the tab's active layer, this menu's selected radio item, and both palettes' enabled state. The tile
+     * palette is resolved lazily because it calls back in here, and constructor-injecting both ways would
+     * be a cycle.
+     *
+     * @param type the layer to activate; ignored when the active scene has no such layer
+     */
+    public void activate(final LevelSceneLayerType type) {
         final LevelSceneEditorTab tab = tabSystem.getActiveTab();
         if (tab == null) {
             return;
@@ -80,7 +93,9 @@ public class ActiveLayerMenu extends JMenu {
                 break;
             }
         }
+        syncFromActiveTab();
         enemiesPalettePanel.syncEnabledState();
+        getBean(TilePalettePanel.class).syncEnabledState();
     }
 
     private void syncFromActiveTab() {

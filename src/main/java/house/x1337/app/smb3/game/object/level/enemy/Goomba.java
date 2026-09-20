@@ -7,7 +7,9 @@ import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -26,7 +28,10 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.LEFT;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.strikeFrom;
 import static java.lang.Math.floor;
 import static java.lang.Math.min;
 
@@ -38,16 +43,8 @@ public final class Goomba implements EnemyLevelObject {
     private static final int GRAVITY_FIXED_POINT = 3;
     private static final int MAX_FALL_FIXED_POINT = 64;
     private static final int TICKS_PER_WALK_FRAME = 8;
-
-    /**
-     * Frames a stomped Goomba stays flattened on screen before it vanishes.
-     *
-     * <p>{@code ObjState_Shelled} loads {@code Objects_Timer3 = $10} on the way into the squashed state
-     * (dasm prg000 @ PRG000_CAFB). That timer is throttled only above {@code $60} — below it, the object
-     * loop's {@code BLT} shortcut decrements it on <em>every</em> tick (@ PRG000_C997) — so {@code $10}
-     * is 16 frames, not 16 of some slower beat.
-     */
-    private static final int SQUISH_TICKS = 0x10;
+    private static final int SQUISH_TICKS = 16;
+    private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
     private static final double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / TILE_SPRITE_SIZE;
     private static final int SPRITE_SIZE_PIXELS = TILE_SPRITE_SIZE;
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(SPRITE_SIZE_PIXELS, SPRITE_SIZE_PIXELS);
@@ -74,6 +71,7 @@ public final class Goomba implements EnemyLevelObject {
     private boolean grounded;
     private boolean squished;
     private int squishTicksRemaining;
+    private EnemyKnockMotion whamMotion; // Non-null once tail-struck: the death throw that carries it off the level
     private double pixelX;
     private double pixelY;
     private int xVelocityFixedPoint;
@@ -105,19 +103,6 @@ public final class Goomba implements EnemyLevelObject {
         positionSprite();
     }
 
-    /**
-     * Stomped: stop walking, wear the flattened sprite for {@link #SQUISH_TICKS} frames, bounce the
-     * player, and leave a 100-point caption behind (the manager spawns that in {@code postCollision}).
-     *
-     * <p>Mirrors the ROM's chain: {@code Player_HitEnemy} @ PRG000_D2B4 sets the player's bounce, then
-     * the Goomba's {@code OA3_SQUASH} attribute routes it through {@code ObjState_Shelled} — which loads
-     * {@code Objects_Timer3 = $10} — into {@code ObjState_Squashed}, where it lingers until the timer
-     * runs out and it becomes dead/empty.
-     *
-     * <p>Guarded against a second stomp: the ROM's equivalent guard is that {@code ObjState_Squashed}
-     * never reaches the collision routine at all, which here is {@link #isHittable()} keeping the Goomba
-     * out of the broadphase. Re-entering would restart the timer and hand out a second bounce and score.
-     */
     @Override
     public void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
         if (squished) {
@@ -132,18 +117,33 @@ public final class Goomba implements EnemyLevelObject {
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
     }
 
-    /**
-     * A flattened Goomba is intangible: it neither hurts the player nor can be stomped, kicked or
-     * tail-struck again, and live Goombas walk straight through it.
-     *
-     * <p>The ROM needs no flag for this — {@code ObjState_Squashed} simply never calls
-     * {@code Player_HitEnemy}, and {@code Object_BumpOffOthers} skips any object whose state is not
-     * {@code OBJSTATE_NORMAL}. Dropping out of the broadphase is the equivalent, and covers every one of
-     * those interactions in one place.
-     */
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        if (squished || whamMotion != null) {
+            return;
+        }
+        final double playerX = levelScenePlayer.getPosition().getX();
+        final boolean playerOnTheLeft = playerX + SPRITE_SIZE_PIXELS / 2.0 < pixelX + SPRITE_SIZE_PIXELS / 2.0;
+        whamMotion = strikeFrom(playerOnTheLeft ? LEFT : RIGHT);
+        pendingScoreReward = SCORE_100;
+
+        // Put the flash on the side the Goomba is actually on, so it always lands between the two rather
+        // than off the player's far shoulder. Keying off which side was struck rather than off the
+        // player's facing keeps it right even when the two disagree - the tail sweeps through a full arc,
+        // so a Goomba can legitimately be clipped behind a player who is already turning away.
+        final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
+        getBean(TailAttackFlashMotionManager.class).spawn(
+            gameEngine,
+            Offset.of(
+                playerX + tailSideOffset,
+                levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
+            )
+        );
+    }
+
     @Override
     public boolean isHittable() {
-        return !squished;
+        return !squished && whamMotion == null;
     }
 
     @Override
@@ -168,6 +168,11 @@ public final class Goomba implements EnemyLevelObject {
             return;
         }
 
+        if (whamMotion != null) {
+            tickDeathByTailAttack();
+            return;
+        }
+
         if (squished) {
             tickSquish();
             return;
@@ -187,15 +192,6 @@ public final class Goomba implements EnemyLevelObject {
         }
     }
 
-    /**
-     * Runs down the squish timer, expiring the Goomba when it reaches zero — the ROM's
-     * {@code ObjState_Squashed}, which falls through to {@code Object_SetDeadEmpty}.
-     *
-     * <p>It still moves vertically, because that state calls {@code Object_Move} and
-     * {@code Object_HitGround}: a Goomba stomped in mid-air drops and settles flat on the floor rather
-     * than hanging where it was hit. Horizontal motion stays halted, and the walk cycle stops advancing
-     * since the flattened frame replaces it.
-     */
     private void tickSquish() {
         moveVertically();
         applyGravity();
@@ -203,6 +199,17 @@ public final class Goomba implements EnemyLevelObject {
 
         squishTicksRemaining--;
         if (squishTicksRemaining <= 0 || hasFallenOffLevel()) {
+            setExpired(true);
+        }
+    }
+
+    private void tickDeathByTailAttack() {
+        whamMotion.advance();
+        pixelX += whamMotion.getStepX();
+        pixelY += whamMotion.getStepY();
+        positionSprite();
+
+        if (hasFallenOffLevel()) {
             setExpired(true);
         }
     }
@@ -253,7 +260,15 @@ public final class Goomba implements EnemyLevelObject {
         // are mathematically flush with the tile top but rasterise a pixel high, leaving a seam above
         // the surface. Purely visual - the collision maths above is untouched.
         final float worldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE) - 1f / TILE_SPRITE_SIZE;
-        spriteGeometry.setLocalTranslation(worldX, worldY, Z_DEPTH_ENEMY);
+
+        // A tail-struck Goomba is drawn inverted (Objects_FlipBits |= SPR_VFLIP). The quad's origin is
+        // its bottom-left corner, so a negative Y scale mirrors it about that edge and hangs it below the
+        // anchor; lifting the translation by one quad height puts it back over the same ground. Enemy
+        // sprites already render with face culling off, which is what a negative scale needs.
+        final boolean upsideDown = whamMotion != null && whamMotion.isUpsideDown();
+        final float quadHeight = getSpriteDimensions().height();
+        spriteGeometry.setLocalScale(1f, upsideDown ? -1f : 1f, 1f);
+        spriteGeometry.setLocalTranslation(worldX, upsideDown ? worldY + quadHeight : worldY, Z_DEPTH_ENEMY);
     }
 
     private boolean isWallAhead(final double proposedX) {

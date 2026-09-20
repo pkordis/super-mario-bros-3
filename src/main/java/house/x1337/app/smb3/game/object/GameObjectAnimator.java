@@ -16,7 +16,7 @@ import java.util.List;
  * <p>Discovery, per-family reset and the {@link LevelObjectType} lookup all live in
  * {@code Animator.Registry}.
  */
-public interface GameObjectAnimator<A extends AnimatableLevelObject> extends MotionManager<A>, Animator {
+public interface GameObjectAnimator<A extends AnimatableLevelObject> extends MotionManager, Animator {
     void add(A animatableLevelObject);
     List<LevelObjectType> getSupportedTypes();
 

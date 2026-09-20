@@ -14,7 +14,7 @@ import lombok.Data;
 import java.nio.ByteBuffer;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 
 @Data
 public abstract class GameObjectAnimationSingleTiled implements GameRenderer {

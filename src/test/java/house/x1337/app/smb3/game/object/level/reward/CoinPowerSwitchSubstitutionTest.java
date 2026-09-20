@@ -8,6 +8,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.Reward;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
@@ -30,7 +31,7 @@ import static com.jme3.texture.Image.Format.RGBA8;
 import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,6 +62,9 @@ class CoinPowerSwitchSubstitutionTest {
         coinAnimator = mock(CoinAnimator.class);
         brickBlockMotionManager = mock(BrickBlockMotionManager.class);
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
+        // A substituted coin is painted into the interactive-objects layer, which is the layer whose baked
+        // texture smashBrick has to erase.
+        when(collisionGrid.getSourceLayerAt(COIN_OFFSET)).thenReturn(LevelSceneLayerType.INTERACTIVE_OBJECTS);
         gameEngine = gameEngineMock();
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);

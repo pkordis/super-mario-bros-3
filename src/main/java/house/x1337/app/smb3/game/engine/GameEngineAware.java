@@ -33,11 +33,11 @@ public interface GameEngineAware {
         return getGameEngine().getActiveObjectGrid();
     }
 
-    default List<? extends MotionManager<?>> getMotionManagers() {
+    default List<? extends MotionManager> getMotionManagers() {
         return getGameEngine().getMotionManagers();
     }
 
-    default <M extends MotionManager<?>> List<? extends M> getMotionManagers(final Class<M> type) {
+    default <M extends MotionManager> List<? extends M> getMotionManagers(final Class<M> type) {
         return getMotionManagers()
             .stream()
             .filter(type::isInstance)

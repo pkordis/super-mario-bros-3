@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.ConsolidatedLayers;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
@@ -27,7 +28,6 @@ import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.DUMMY_SOLID_OBJECT;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
@@ -51,17 +51,16 @@ public interface StaticEnvironmentCollisionGridCapabilities {
         final int rows = levelScene.getDimensions().rows();
         final int columns = levelScene.getDimensions().columns();
         final LevelSceneDimensions dimensions = new LevelSceneDimensions(columns, rows);
-        final Tile[][] tiles = levelScene.getTilesOfLayersBelow(NON_PLAYABLE_CHARACTERS);
-
-        // What each cell looks like without the interactive-objects layer. Consolidation is lossy - an
-        // interactive tile overwrites whatever shares its cell - so this second view is what a cell falls
-        // back to when its interactive tile is retired (brick broken, coin collected). Without it the
-        // walkable decoration under a brick would vanish from collision the moment the brick did, while
-        // still being drawn, and the player would fall through it.
-        final Tile[][] underlayTiles = levelScene.getTilesOfLayersBelow(INTERACTIVE_OBJECTS);
+        // One pass over the terrain layers, keeping both what each cell shows and what it falls back to
+        // when that tile is retired. The fallback is per cell - whatever sits below that cell's own winning
+        // layer - so a brick painted into the static environment falls back to the sky behind it rather
+        // than to another copy of itself.
+        final ConsolidatedLayers consolidated = levelScene.consolidateBelow(NON_PLAYABLE_CHARACTERS);
+        final Tile[][] tiles = consolidated.surface();
+        final Tile[][] underlayTiles = consolidated.underlay();
 
         // Collect all non-NULL_TILE ids so we can bulk-fetch their records. Both views contribute: a tile
-        // covered by an interactive one appears only in the underlay.
+        // covered by another appears only in the underlay.
         final Set<Integer> nonNullIds = new HashSet<>();
         for (final Tile[][] view : new Tile[][][] {tiles, underlayTiles}) {
             for (final Tile[] row : view) {
@@ -107,6 +106,8 @@ public interface StaticEnvironmentCollisionGridCapabilities {
         );
         collisionGrid.setObjects(objects);
         collisionGrid.setUnderlayObjects(underlayObjects);
+        collisionGrid.setSurfaceLayers(consolidated.surfaceLayers());
+        collisionGrid.setUnderlayLayers(consolidated.underlayLayers());
         collisionGrid.setDimensions(dimensions);
         return collisionGrid;
     }

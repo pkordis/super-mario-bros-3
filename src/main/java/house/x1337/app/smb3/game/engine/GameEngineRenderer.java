@@ -10,6 +10,7 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.BufferUtils;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
@@ -24,7 +25,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 
 public interface GameEngineRenderer extends Application, GameRenderer {
     default void renderLevelTiles(final Node cameraTarget) {
@@ -57,14 +58,14 @@ public interface GameEngineRenderer extends Application, GameRenderer {
         );
     }
 
-    default Geometry getLayerGeometry(final String layerName) {
+    default Geometry getLayerGeometry(final LevelSceneLayerType layer) {
         final GameEngine gameEngine = (GameEngine) this;
         final Node rootNode = gameEngine.getRootNode();
-        final Spatial spatial = rootNode.getChild(layerName);
+        final Spatial spatial = rootNode.getChild(layer.getLayerName());
         if (spatial instanceof Geometry geometry) {
             return geometry;
         }
-        throw new IllegalStateException("No geometry found for layer: " + layerName);
+        throw new IllegalStateException("No geometry found for layer: " + layer.getLayerName());
     }
 
     /**

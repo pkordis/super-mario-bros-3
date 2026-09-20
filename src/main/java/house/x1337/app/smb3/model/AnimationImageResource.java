@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model;
 
 import com.jme3.texture.Texture;
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import java.util.function.Function;
 import static java.util.stream.Collectors.toSet;
 
 @Builder
+@Prototype
 @RequiredArgsConstructor
 public class AnimationImageResource {
     @Singular

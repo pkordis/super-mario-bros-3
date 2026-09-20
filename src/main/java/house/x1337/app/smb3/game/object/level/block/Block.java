@@ -40,7 +40,7 @@ import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_BLOCK;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_SPAWNER;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 
 /**
  * A single-tile block, parameterized by its {@link LevelObjectType} into the flavours the ROM

@@ -11,7 +11,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface MotionManager<L extends LevelObject> extends ImageResourceLoader {
+public interface MotionManager extends ImageResourceLoader {
     void update();
 
     /**
@@ -50,16 +50,16 @@ public interface MotionManager<L extends LevelObject> extends ImageResourceLoade
     class Registry implements CastCapable {
         private final ListableBeanFactory beanFactory;
         @Getter(lazy = true)
-        private final List<? extends MotionManager<?>> all = findAll();
+        private final List<? extends MotionManager> all = findAll();
 
-        private List<? extends MotionManager<?>> findAll() {
+        private List<? extends MotionManager> findAll() {
             final ListableBeanFactory beanFactory = getBean(MotionManager.Registry.class).beanFactory;
             assert beanFactory != null;
             return beanFactory
                 .getBeansOfType(MotionManager.class)
                 .values()
                 .stream()
-                .map(this::<MotionManager<?>>checkedCast)
+                .map(this::<MotionManager>checkedCast)
                 .toList();
         }
     }

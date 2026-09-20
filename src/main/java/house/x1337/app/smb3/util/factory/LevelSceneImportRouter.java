@@ -19,8 +19,8 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 /**
  * Distributes the flat {@code Tile[][]} grid produced by a PNG import across the level-scene layers.
  *
- * <p>Each tile is routed to the layer named by its {@link TileType#getTypicalLevelSceneLayerOwningType()
- * typical owning layer}. Tiles that are not yet classified ({@code type == null}) or whose type has no
+ * <p>Each tile is routed to the layer named by its {@link TileType#getLevelSceneLayerOwningType()
+ * owning layer}. Tiles that are not yet classified ({@code type == null}) or whose type has no
  * owning layer (virtual tiles) are left out, so they can be routed later — "as the user goes" — once a
  * type is assigned and {@link #route} is re-run against the same grid.
  *
@@ -54,7 +54,7 @@ public final class LevelSceneImportRouter {
                 if (type == null) {
                     continue;
                 }
-                final LevelSceneLayerType owningLayer = type.getTypicalLevelSceneLayerOwningType();
+                final LevelSceneLayerType owningLayer = type.getLevelSceneLayerOwningType();
                 if (owningLayer == null) {
                     continue;
                 }

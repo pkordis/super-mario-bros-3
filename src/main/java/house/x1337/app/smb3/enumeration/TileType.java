@@ -52,7 +52,7 @@ public enum TileType {
 
     private final String label;
     private final Category category;
-    private final LevelSceneLayerType typicalLevelSceneLayerOwningType;
+    private final LevelSceneLayerType levelSceneLayerOwningType;
 
     public enum Category {
         COLLIDING,
@@ -60,6 +60,21 @@ public enum TileType {
         NON_COLLIDING,
         ONE_WAY_PLATFORM,
         VIRTUAL
+    }
+
+    /**
+     * Whether a tile of this type may be painted while {@code activeLayer} is the active one.
+     *
+     * <p>A tile belongs to exactly one layer, and painting it anywhere else is the authoring mistake this
+     * guards: brick blocks dropped into the static-environment layer, for instance, are terrain rather
+     * than interactive objects. A virtual type owns no layer — it marks the scene instead of painting into
+     * it — so it is always available.
+     *
+     * @param activeLayer the layer currently being edited, may be {@code null} when no scene is open
+     * @return {@code true} when this type is free to paint
+     */
+    public boolean isPaintableOn(final LevelSceneLayerType activeLayer) {
+        return levelSceneLayerOwningType == null || levelSceneLayerOwningType == activeLayer;
     }
 
     public static TileType fromLabel(final String label) {

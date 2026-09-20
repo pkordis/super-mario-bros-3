@@ -5,7 +5,6 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
-import house.x1337.app.smb3.game.object.level.reward.Coin;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.Pending;
 import house.x1337.app.smb3.model.game.Offset;
@@ -22,7 +21,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Singleton
 @RequiredArgsConstructor
-public final class CoinRewardMotionManager implements MotionManager<Coin> {
+public final class CoinRewardMotionManager implements MotionManager {
     public static final float SCORE_X_OFFSET_FROM_COIN = -4.0f / TILE_SPRITE_SIZE;
 
     private final List<Pending<CoinPopAnimation, Integer>> activeCoins = new ArrayList<>();
