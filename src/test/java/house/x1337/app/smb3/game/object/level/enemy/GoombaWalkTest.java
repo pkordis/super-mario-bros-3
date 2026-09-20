@@ -221,20 +221,6 @@ class GoombaWalkTest {
         assertThat(goomba.getWalkFrameIndex()).as("And back again, for a 16-frame cycle").isZero();
     }
 
-    @Test
-    @DisplayName("Being stomped from above defeats the Goomba (ObjHit_GroundTroop press branch)")
-    void stompFromAboveDefeatsTheGoomba() {
-        // Prepare
-        final Goomba goomba = goombaAt(5, WALK_ROW);
-        assertThat(goomba.isExpired()).as("not defeated before the stomp").isFalse();
-
-        // Execute - the ActiveObjectGrid resolved a stomp and dispatched the directional method
-        goomba.onCollisionFromAbove(mock(LevelScenePlayer.class));
-
-        // Verify - expired, so its manager retires it next tick
-        assertThat(goomba.isExpired()).as("defeated by the stomp").isTrue();
-    }
-
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------

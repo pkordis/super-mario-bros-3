@@ -110,8 +110,8 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         final int currentSpriteFrame = frameSequence[walkFrameIndex];
         if (frameChanged(movement, orientation, currentSpriteFrame)) {
             final Texture texture = powerRunning
-                ? assets.runFrameTextures()[currentSpriteFrame]
-                : assets.walkFrameTextures()[currentSpriteFrame];
+                ? assets.run()[currentSpriteFrame]
+                : assets.walk()[currentSpriteFrame];
             rebuildWithTexture(node, texture, orientation);
             markRendered(movement, orientation, currentSpriteFrame);
         }

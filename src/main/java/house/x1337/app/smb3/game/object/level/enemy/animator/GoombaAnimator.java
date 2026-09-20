@@ -19,12 +19,19 @@ public final class GoombaAnimator implements EnemyAnimator<GoombaAnimatorAssets,
     private final Class<GoombaAnimatorAssets> assetsType = GoombaAnimatorAssets.class;
     private final Map<EnemyMode, GoombaAnimatorAssets> assetsByMode = new HashMap<>();
 
+    /**
+     * The Goomba's sprite for this tick: the flattened frame once stomped, otherwise the current step of
+     * the walk cycle (dasm {@code ObjState_Squashed} substitutes frame 3 for the whole squish).
+     */
     @Override
     public Texture frameTexture(final Goomba goomba) {
-        return assetsFor(goomba).walkFrameTextures()[goomba.getWalkFrameIndex()];
+        final GoombaAnimatorAssets assets = assetsFor(goomba);
+        return goomba.isSquished()
+            ? assets.squished()
+            : assets.walk()[goomba.getWalkFrameIndex()];
     }
 
     public int walkFrameCount(final Goomba goomba) {
-        return assetsFor(goomba).walkFrameTextures().length;
+        return assetsFor(goomba).walk().length;
     }
 }

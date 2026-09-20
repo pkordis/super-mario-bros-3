@@ -317,7 +317,7 @@ wrong). They follow the player's arrangement, because an enemy has modes the way
 
 ```
 sprites/enemy/<enemy>/<mode>/assets.json      # e.g. sprites/enemy/goomba/normal/
-{ "walkFrameTextures": ["goomba_left.png", "goomba_right.png"] }
+{ "walk": ["goomba_left.png", "goomba_right.png"] }
 ```
 
 - **Folder = mode.** Modes are declared **per enemy** (`GoombaMode`) behind the shared `EnemyMode`
@@ -325,7 +325,7 @@ sprites/enemy/<enemy>/<mode>/assets.json      # e.g. sprites/enemy/goomba/normal
   object ID while sharing the handlers: Goomba `$72`, Paragoomba `$73`, para-with-Micros `$74`, giant
   `$7C` — all four enter `ObjInit_GroundTroop`. So a winged Goomba is **a new mode constant + a new
   sprite folder**, not a new entity class. `EnemyLevelObject.getMode()` selects the folder.
-- **JSON key = action.** `walkFrameTextures` now; `flyFrameTextures` / `squashedTexture` when those
+- **JSON key = action.** `walk` now; `flyFrameTextures` / `squashedTexture` when those
   land. A record component per action, named to match the key — no loader changes either way.
 - **Parsing is shared.** `PlayerAnimatorAssetsLoader` was generalised into
   `model/game/asset/loader/AnimatorAssetsLoader` (+ the `AnimatorAssets` marker that both

@@ -10,19 +10,19 @@ import house.x1337.app.smb3.model.game.player.level.dimension.NormalDimensions;
 /**
  * Asset bundle for "normal" (big) Mario. It is the raccoon ground set with the
  * tail textures removed (still, skid, duck, jump, and the 3-frame walk/run
- * cycles), plus a small-Mario-style {@code fastJumpTexture} for the airborne
+ * cycles), plus a small-Mario-style {@code fastJump} for the airborne
  * frames — big Mario mirrors SHRUNK in the air (a single jump/fall frame, or
  * the "fast" frame while the full-P launch boost is active) and RACCOON on the
  * ground.
  */
 public record NormalAnimatorAssets(
-    Texture stillTexture,
-    Texture skidTexture,
-    Texture duckTexture,
-    Texture jumpTexture,
-    Texture fastJumpTexture,
-    Texture[] walkFrameTextures,
-    Texture[] runFrameTextures
+    Texture still,
+    Texture skid,
+    Texture duck,
+    Texture jump,
+    Texture fastJump,
+    Texture[] walk,
+    Texture[] run
 ) implements PlayerAnimatorAssetsMoving, NormalDimensions {
     private static final int[] WALK_OR_RUN_FRAME_SEQUENCE = {0, 1, 2, 1};
 

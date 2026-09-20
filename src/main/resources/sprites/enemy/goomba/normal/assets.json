@@ -1,6 +1,7 @@
 {
-  "walkFrameTextures": [
+  "walk": [
     "goomba_left.png",
     "goomba_right.png"
-  ]
+  ],
+  "squished": "goomba_squished.png"
 }

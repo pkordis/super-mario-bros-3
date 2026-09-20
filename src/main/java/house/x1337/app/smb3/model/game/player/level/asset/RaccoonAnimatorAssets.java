@@ -8,16 +8,16 @@ import house.x1337.app.smb3.model.game.player.level.asset.loader.PlayerAnimatorA
 import house.x1337.app.smb3.model.game.player.level.dimension.RaccoonDimensions;
 
 public record RaccoonAnimatorAssets(
-    Texture stillTexture,
-    Texture skidTexture,
-    Texture duckTexture,
-    Texture jumpTexture,
-    Texture[] tailFallTextures,
-    Texture[] tailFlyTextures,
-    Texture[] tailAttackTextures,
-    Texture[] tailAttackInAirTextures,
-    Texture[] walkFrameTextures,
-    Texture[] runFrameTextures
+    Texture still,
+    Texture skid,
+    Texture duck,
+    Texture jump,
+    Texture[] tailFall,
+    Texture[] tailFly,
+    Texture[] tailAttack,
+    Texture[] tailAttackInAir,
+    Texture[] walk,
+    Texture[] run
 ) implements PlayerAnimatorAssetsMoving, RaccoonDimensions {
     private static final int[] WALK_OR_RUN_FRAME_SEQUENCE = {0, 1, 2, 1};
 
@@ -38,11 +38,11 @@ public record RaccoonAnimatorAssets(
         );
     }
 
-    public Texture tailFlyTexture(final int tailFrame) {
-        return tailFlyTextures[tailFrame];
+    public Texture tailFly(final int tailFrame) {
+        return tailFly[tailFrame];
     }
 
-    public Texture tailFallTexture(final int tailFrame) {
-        return tailFallTextures[tailFrame];
+    public Texture tailFall(final int tailFrame) {
+        return tailFall[tailFrame];
     }
 }

@@ -98,8 +98,8 @@ public final class RaccoonAnimator
             // like the walk/run frame tables. Ground and air sequences differ
             // only in their base frame.
             final Texture[] attackTextures = runtimeState.isInAir()
-                ? assets.tailAttackInAirTextures()
-                : assets.tailAttackTextures();
+                ? assets.tailAttackInAir()
+                : assets.tailAttack();
             final Texture texture = attackTextures[TAIL_ATTACK_FRAME_SEQUENCE[clampedFrame]];
             final float quadWidth = tailAttackFrameWidth(clampedFrame);
             final float tailOffset = tailAttackFrameTailOffset(clampedFrame);
@@ -147,7 +147,7 @@ public final class RaccoonAnimator
             if (lastRenderedState != DUCKING || lastOrientation != orientationHorizontal) {
                 rebuildWithTexture(
                     node,
-                    assets.duckTexture(),
+                    assets.duck(),
                     orientationHorizontal,
                     DUCK_QUAD_WIDTH,
                     DUCK_TAIL_OFFSET
@@ -160,7 +160,7 @@ public final class RaccoonAnimator
         }
 
         if (movement == STILL) {
-            renderStill(node, orientationHorizontal, assets.stillTexture());
+            renderStill(node, orientationHorizontal, assets.still());
             return;
         }
 
@@ -173,7 +173,7 @@ public final class RaccoonAnimator
             if (lastRenderedState != SKIDDING || lastOrientation != orientationHorizontal) {
                 rebuildWithTexture(
                     node,
-                    assets.skidTexture(),
+                    assets.skid(),
                     orientationHorizontal,
                     SKID_QUAD_WIDTH,
                     0f
@@ -207,11 +207,11 @@ public final class RaccoonAnimator
 
             if (flying) {
                 // Fly control: 3 distinct frames (PF_TAILWAGFLY_BASE +2/+1/+0)
-                texture = assets.tailFlyTexture(tailFrame);
+                texture = assets.tailFly(tailFrame);
             } else {
                 // Fall control: 3 distinct frames (PF_TAILWAGFALL +2/+1/+0),
                 // frame-indexed by TailCount>>2 → up / middle / down.
-                texture = assets.tailFallTexture(tailFrame);
+                texture = assets.tailFall(tailFrame);
             }
 
             if (lastRenderedState != movement
@@ -236,7 +236,7 @@ public final class RaccoonAnimator
             // into the fly row). When rising (DY < 0) → fly_2 (wings up),
             // when free falling/at apex (DY >= 0) → fly_3 (wings spread).
             final int flyFrame = (position.getDY() < 0) ? 1 : 2;
-            final Texture texture = assets.tailFlyTexture(flyFrame);
+            final Texture texture = assets.tailFly(flyFrame);
 
             if (lastRenderedState != FLYING
                     || lastWalkFrame != flyFrame
@@ -262,7 +262,7 @@ public final class RaccoonAnimator
             // row in Player_TailWagFlyFrames when WagCount = 0).
             if (lastRenderedState != FALLING || lastOrientation != orientationHorizontal
                     || lastWalkFrame != -1) {
-                rebuildWithTexture(node, assets.tailFallTexture(0), orientationHorizontal);
+                rebuildWithTexture(node, assets.tailFall(0), orientationHorizontal);
                 lastRenderedState = FALLING;
                 lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;
@@ -273,7 +273,7 @@ public final class RaccoonAnimator
         if (movement == JUMPING) {
             // Jumping without wag - dedicated jump frame.
             if (lastRenderedState != JUMPING || lastOrientation != orientationHorizontal) {
-                rebuildWithTexture(node, assets.jumpTexture(), orientationHorizontal);
+                rebuildWithTexture(node, assets.jump(), orientationHorizontal);
                 lastRenderedState = JUMPING;
                 lastOrientation = orientationHorizontal;
                 lastWalkFrame = -1;

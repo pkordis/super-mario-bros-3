@@ -77,7 +77,7 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         // -----------------------------------------------------------------------
 
         if (movement == STILL) {
-            renderStill(node, orientation, assets.stillTexture());
+            renderStill(node, orientation, assets.still());
             return;
         }
 
@@ -85,7 +85,7 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
             walkAnimTicks = 0;
             walkFrameIndex = 0;
             if (frameChanged(SKIDDING, orientation, -1)) {
-                rebuildWithTexture(node, assets.skidTexture(), orientation);
+                rebuildWithTexture(node, assets.skid(), orientation);
                 markRendered(SKIDDING, orientation, -1);
             }
             return;
@@ -101,7 +101,7 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
             // PowerUp_Ability bit 0, which is 0 for small. So flyTime here
             // acts only as a visual cue — the faster-looking jump frame —
             // without altering physics. This precisely mirrors the dasm.
-            final Texture airTexture = (flyTime > 0) ? assets.fastJumpTexture() : assets.jumpTexture();
+            final Texture airTexture = (flyTime > 0) ? assets.fastJump() : assets.jump();
             final int airFrame = (flyTime > 0) ? 1 : 0;
             if (frameChanged(movement, orientation, airFrame)) {
                 rebuildWithTexture(node, airTexture, orientation);

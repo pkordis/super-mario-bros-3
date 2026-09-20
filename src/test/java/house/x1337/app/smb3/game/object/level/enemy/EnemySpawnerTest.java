@@ -5,6 +5,7 @@ import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
+import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
@@ -146,10 +147,16 @@ class EnemySpawnerTest {
     /** A manager owning {@link Goomba}, holding whatever the spawner hands it. */
     private static final class StubGoombaMotionManager implements EnemyMotionManager<Goomba> {
         private final List<Goomba> activeInstances = new ArrayList<>();
+        private final List<ScorePopupAnimation> activeScorePopups = new ArrayList<>();
 
         @Override
         public List<Goomba> getActiveInstances() {
             return activeInstances;
+        }
+
+        @Override
+        public List<ScorePopupAnimation> getActiveScorePopups() {
+            return activeScorePopups;
         }
 
         @Override

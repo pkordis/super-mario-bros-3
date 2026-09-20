@@ -174,6 +174,19 @@ public final class GameConstants {
     public static final double GRAVITY_FAST = 5.0;
     public static final double[] JUMP_FORCE = {-3.5, -3.625, -3.75, -4.0};
 
+    /**
+     * Upward velocity the player is given for stomping an enemy (dasm prg000 {@code Player_HitEnemy}
+     * @ PRG000_D2B4: {@code LDA #-$40 / STA Player_YVel}), i.e. {@code -$40/16} px/frame.
+     *
+     * <p>The ROM sets this one value whatever the player is doing; there is no separate boosted variant
+     * for holding A, and a stomp grants no {@code Player_AllowAirJump} (only springboards and bolts do).
+     * The extra height from holding A falls out of the ordinary variable-height gravity instead: while
+     * the player is rising faster than {@code -$20} with A held, gravity is {@link #GRAVITY_SLOW} rather
+     * than {@link #GRAVITY_FAST}. Because this bounce starts beyond that threshold, holding A stretches
+     * it well past a normal jump, which is what lets a chain of stomps climb.
+     */
+    public static final double PLAYER_STOMP_BOUNCE_YVEL = -4.0;
+
     public static final int PMETER_LEVELS = 7;
     public static final int PMETER_CHARGE_FRAMES = 8;
     public static final int PMETER_DRAIN_FRAMES = 24;

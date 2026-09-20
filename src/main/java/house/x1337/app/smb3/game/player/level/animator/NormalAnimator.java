@@ -68,14 +68,14 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
             walkAnimTicks = 0;
             walkFrameIndex = 0;
             if (frameChanged(DUCKING, orientation, -1)) {
-                rebuildWithTexture(node, assets.duckTexture(), orientation);
+                rebuildWithTexture(node, assets.duck(), orientation);
                 markRendered(DUCKING, orientation, -1);
             }
             return;
         }
 
         if (movement == STILL) {
-            renderStill(node, orientation, assets.stillTexture());
+            renderStill(node, orientation, assets.still());
             return;
         }
 
@@ -83,7 +83,7 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
             walkAnimTicks = 0;
             walkFrameIndex = 0;
             if (frameChanged(SKIDDING, orientation, -1)) {
-                rebuildWithTexture(node, assets.skidTexture(), orientation);
+                rebuildWithTexture(node, assets.skid(), orientation);
                 markRendered(SKIDDING, orientation, -1);
             }
             return;
@@ -96,7 +96,7 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
             // flight/wag Y-effects (those are gated behind hasTail() in the
             // move/refine code).
             final boolean boosted = flyTime > 0;
-            final Texture airTexture = boosted ? assets.fastJumpTexture() : assets.jumpTexture();
+            final Texture airTexture = boosted ? assets.fastJump() : assets.jump();
             final int airFrame = boosted ? 1 : 0;
             if (frameChanged(movement, orientation, airFrame)) {
                 rebuildWithTexture(node, airTexture, orientation);
