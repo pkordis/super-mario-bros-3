@@ -44,7 +44,17 @@ import static java.lang.Math.min;
 @Prototype
 @RequiredArgsConstructor
 public final class ActiveObjectGrid<T extends ActiveLevelObject> {
-    private static final double DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS = 6.0;
+    /**
+     * How far above an object's top the player's reference Y must be for contact to count as a stomp
+     * rather than a body hit — the ROM's {@code Player_HitEnemy} @ PRG000_D218, which loads {@code #19}
+     * for an ordinary object and compares {@code Objects_Y - 19} against {@code Player_Y}.
+     *
+     * <p>The ROM picks this per object: {@code 17} for a pile-driver microgoomba and a hopping Cheep
+     * Cheep, {@code 8} when the object is giant, {@code 19} for everything else. Only ordinary-sized
+     * enemies exist here, so the ordinary value is the only one needed; it becomes a per-object property
+     * the moment a giant or microgoomba does.
+     */
+    private static final double STOMP_RANGE_PIXELS = 19.0;
 
     private final Map<Long, List<T>> cellsByKey = new HashMap<>();
     private final EnemySpawner enemySpawner;
@@ -234,7 +244,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                 }
                 object.onCollisionWith(levelScenePlayer);
                 if (object.resolvesDirectionalPlayerCollision()) {
-                    dispatchDirectionalPlayerCollision(object, levelScenePlayer, playerBounds);
+                    dispatchDirectionalPlayerCollision(object, levelScenePlayer);
                 }
             }
             if (levelScenePlayer.isTailAttackStriking()) {
@@ -249,63 +259,59 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      * mirror of {@code StaticEnvironmentCollisionGrid}'s terrain dispatch, for the objects that opt in
      * via {@link ActiveLevelObject#resolvesDirectionalPlayerCollision()} (the enemies).
      *
-     * <p>The side is the box's <b>least-overlapping axis</b> (the minimum-translation direction), so a
-     * collision counts as vertical only while the player is more overlapped along X than Y — i.e. it is
-     * genuinely on top of / underneath the object, not merely brushing a top corner while running into
-     * the side. That axis then splits by which edge is shallower and by the player's vertical motion:
+     * <p>The split is <b>purely vertical</b>, and deliberately so: the ROM's {@code Player_HitEnemy}
+     * (dasm prg000 @ PRG000_D218) decides a stomp from one comparison, {@code Objects_Y - 19} against
+     * {@code Player_Y}, and never consults the horizontal axis at all. Once the boxes overlap, the only
+     * question is whether the player's reference top sits at least {@value #STOMP_RANGE_PIXELS}px above
+     * the object's top:
      *
      * <ul>
-     *   <li><b>From above</b> ({@code onCollisionFromAbove}) — a stomp: a vertical hit whose shallow edge
-     *       is the object's top, the player descending ({@code DY >= 0}), and the feet already
-     *       {@value #DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS}px into that top. The overlap gate is the fix for
-     *       the stomp firing on the first grazing frame: it waits until the player has genuinely sunk
-     *       onto the object, so a small — but real — overlap is required, uniformly for every enemy.</li>
-     *   <li><b>From below</b> ({@code onCollisionFromBelow}) — a vertical hit whose shallow edge is the
-     *       object's bottom while the player is rising ({@code DY < 0}).</li>
-     *   <li><b>Overlap</b> ({@code onPlayerOverlap}) — a side hit (X is the shallower axis).</li>
+     *   <li><b>From above</b> ({@code onCollisionFromAbove}) — a stomp: within stomp range and the player
+     *       not rising ({@code DY >= 0}).</li>
+     *   <li><b>From below</b> ({@code onCollisionFromBelow}) — too deep to be a stomp, and the player is
+     *       rising into the object.</li>
+     *   <li><b>Overlap</b> ({@code onPlayerOverlap}) — too deep to be a stomp and not rising: the body
+     *       hit the ROM answers by hurting the player.</li>
      * </ul>
      *
-     * <p>A vertical hit that is not yet {@value #DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS}px deep, or whose
-     * direction disagrees with the player's motion, dispatches nothing this tick and waits for the next.
+     * <p>Note the threshold measures from {@link house.x1337.app.smb3.model.game.player.PlayerPosition}'s
+     * Y, <b>not</b> from the hitbox top. That reference is the same for either size — the feet are always
+     * at {@code Y + 32} — so one constant covers large and small Mario alike, which the ROM calls out
+     * explicitly ({@code Player_Y} is "near the hat" when Super and "roughly 16 pixels above" the head
+     * when small). Measuring from the hitbox top instead would silently make the two sizes stomp at
+     * different depths.
+     *
+     * <p>This replaced a least-overlapping-axis test plus a 6px minimum sink depth, neither of which the
+     * ROM has. Together they made the stomp progressively harder the faster the player fell — a deeper
+     * vertical overlap demanded an equally deep horizontal one — so a stomp only registered near the
+     * enemy's centre, and a player landing across two adjacent enemies got roughly half the needed
+     * overlap on each and stomped neither. The vertical threshold subsumes what the axis test was for:
+     * running into an enemy's side puts the player's feet level with its feet, far too deep to qualify.
      *
      * @param object       the object the player is overlapping this tick
      * @param player       the colliding player
-     * @param playerBounds the player's object-collision hitbox for this tick
      */
     private void dispatchDirectionalPlayerCollision(
         final ActiveLevelObject object,
-        final LevelScenePlayer player,
-        final AxisAlignedBoundingBox playerBounds
+        final LevelScenePlayer player
     ) {
-        final AxisAlignedBoundingBox objectBounds = object.getBounds();
+        final double objectTop = object.getBounds().top();
+        final boolean withinStompRange = player.getPosition().getY() <= objectTop - STOMP_RANGE_PIXELS;
+        final boolean playerRising = player.getPosition().getDY() < 0;
 
-        // Per-edge overlap depths (all positive: the boxes already intersect).
-        final double topPenetration = playerBounds.bottom() - objectBounds.top();
-        final double bottomPenetration = objectBounds.bottom() - playerBounds.top();
-        final double leftPenetration = playerBounds.right() - objectBounds.left();
-        final double rightPenetration = objectBounds.right() - playerBounds.left();
-        final double verticalPenetration = min(topPenetration, bottomPenetration);
-        final double horizontalPenetration = min(leftPenetration, rightPenetration);
-
-        // Shallower along X than Y: a side hit, whichever way the player is moving.
-        if (horizontalPenetration < verticalPenetration) {
-            object.onPlayerOverlap(player);
-            return;
-        }
-
-        final boolean playerDescending = player.getPosition().getDY() >= 0;
-        if (topPenetration <= bottomPenetration) {
-            // The player's lower part is the leading edge — a landing on the object's top. Only a
-            // descending player that has already overlapped by the minimum counts; otherwise wait.
-            if (playerDescending && topPenetration >= DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS) {
+        if (withinStompRange) {
+            if (!playerRising) {
                 object.onCollisionFromAbove(player);
             }
+            // Rising while still clear of the object: the player is leaving it, most often on the very
+            // bounce a stomp just gave them. Nothing to dispatch.
             return;
         }
-        // The player's upper part is the leading edge — rising into the object's underside.
-        if (!playerDescending && bottomPenetration >= DIRECTIONAL_HIT_MIN_OVERLAP_PIXELS) {
+        if (playerRising) {
             object.onCollisionFromBelow(player);
+            return;
         }
+        object.onPlayerOverlap(player);
     }
 
     /**

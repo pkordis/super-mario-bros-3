@@ -16,6 +16,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
@@ -39,12 +40,13 @@ public final class Goomba implements EnemyLevelObject {
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(SPRITE_SIZE_PIXELS, SPRITE_SIZE_PIXELS);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
+    @Accessors(fluent = true)
+    private final boolean bouncesOffOtherObjects = true;
     private final GoombaAnimator animator = getBean(GoombaAnimator.class);
     private final LevelObjectType type = GOOMBA;
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GoombaMode mode = NORMAL;
-    private final boolean bouncesOffOtherObjects = true;
 
     private final GameEngine gameEngine;
     private final Offset offset;

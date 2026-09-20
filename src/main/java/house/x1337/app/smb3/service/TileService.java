@@ -25,6 +25,8 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static house.x1337.app.smb3.enumeration.TileType.ENEMY_PART;
+import static house.x1337.app.smb3.enumeration.TileType.OBJECT_INTERACTIVE_SINGLE;
 import static java.lang.Math.max;
 import static java.util.Comparator.comparing;
 
@@ -142,13 +144,13 @@ public class TileService implements TilesProvider {
             final int[] pixels = partPixels.get(index);
             final Tile existing = tilesBySha256.get(calculateSha256(pixels));
             if (existing == null) {
-                tileIds[index] = createCustomTile(TileType.ENEMY_PART, description, pixels, pixels).getId();
+                tileIds[index] = createCustomTile(ENEMY_PART, description, pixels, pixels).getId();
                 continue;
             }
             tileIds[index] = existing.getId();
             if (existing.getType() == null) {
                 // An unclassified tile from an earlier import: this is what it turned out to be.
-                existing.setType(TileType.ENEMY_PART);
+                existing.setType(ENEMY_PART);
                 existing.setArgbData(pixels);
                 updateTile(existing);
             } else {
@@ -177,7 +179,7 @@ public class TileService implements TilesProvider {
         return tileCache
             .values()
             .stream()
-            .filter(t -> t.getType() != null && !t.isVirtual())
+            .filter(t -> t.getType() != null && !t.isVirtual() && t.getType() != ENEMY_PART)
             .sorted(comparing(Tile::getType).thenComparing(Tile::getId))
             .toList();
     }
@@ -186,7 +188,7 @@ public class TileService implements TilesProvider {
         return tileCache
             .values()
             .stream()
-            .filter(t -> t.getType() == TileType.OBJECT_INTERACTIVE_SINGLE)
+            .filter(t -> t.getType() == OBJECT_INTERACTIVE_SINGLE)
             .sorted(comparing(Tile::getId))
             .toList();
     }

@@ -144,14 +144,13 @@ class ActiveObjectGridTest {
     }
 
     @Test
-    @DisplayName("a descending player overlapping an opt-in object's top by enough triggers onCollisionFromAbove")
+    @DisplayName("a descending player landing on an opt-in object's top triggers onCollisionFromAbove")
     void stompTriggersOnCollisionFromAbove() {
-        // Prepare — enemy box [20,36]x[0,16]; player descending, feet 8px into the top (>= min overlap).
-        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        // Prepare — enemy occupying [20,36]x[80,96]; the player's feet have just broken its top edge.
         final ActiveObjectGrid<StubObject> grid = newGrid();
-        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions), true);
+        final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = collidingPlayer(1.0, AxisAlignedBoundingBox.ofSize(20, -8, dimensions));
+        final LevelScenePlayer player = playerAt(20, 49, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -164,34 +163,92 @@ class ActiveObjectGridTest {
     }
 
     @Test
-    @DisplayName("a descending player only grazing the object's top does not stomp yet")
-    void shallowTopOverlapDoesNotStompYet() {
-        // Prepare — same enemy; player descending but feet only 3px into the top (< min overlap).
-        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+    @DisplayName("a stomp needs no horizontal centring — clipping the enemy's edge counts")
+    void stompDoesNotRequireHorizontalCentring() {
+        // Prepare — the player's hitbox is [10,22], overlapping the enemy's [20,36] by just 2px. The ROM
+        // never looks at the horizontal axis to decide a stomp (Player_HitEnemy @ PRG000_D218); an
+        // earlier least-overlapping-axis rule here demanded roughly half the player's width on the
+        // enemy, which is what made stomps feel like they needed dead-centre aim.
         final ActiveObjectGrid<StubObject> grid = newGrid();
-        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions), true);
+        final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = collidingPlayer(1.0, AxisAlignedBoundingBox.ofSize(20, -13, dimensions));
+        final LevelScenePlayer player = playerAt(8, 49, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
 
-        // Verify — no directional method yet; the undirected contact still fires
-        assertThat(enemy.fromAboveCount).as("stomp waits for a real overlap").isZero();
+        // Verify
+        assertThat(enemy.fromAboveCount).as("a 2px clip still stomps").isEqualTo(1);
         assertThat(enemy.overlapCount).isZero();
-        assertThat(enemy.fromBelowCount).isZero();
-        assertThat(enemy.collisionCount).as("undirected onCollisionWith fires on any contact").isEqualTo(1);
     }
 
     @Test
-    @DisplayName("a rising player under an opt-in object triggers onCollisionFromBelow")
-    void risingPlayerTriggersOnCollisionFromBelow() {
-        // Prepare — same enemy; player rising (DY < 0), head 8px into the underside (>= min overlap).
-        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+    @DisplayName("landing across two adjacent objects stomps both in the same tick")
+    void landingBetweenTwoObjectsStompsBoth() {
+        // Prepare — two enemies flush side by side, [20,36] and [36,52]; the player straddles the seam
+        // with 6px on each. Each object is hit-tested independently, exactly as the ROM's object loop
+        // reaches Player_HitEnemy once per object, so both are pressed on the same frame.
         final ActiveObjectGrid<StubObject> grid = newGrid();
-        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions), true);
+        final StubObject leftEnemy = enemyAt(20, 80);
+        final StubObject rightEnemy = enemyAt(36, 80);
+        grid.insert(leftEnemy);
+        grid.insert(rightEnemy);
+        final LevelScenePlayer player = playerAt(28, 49, 1.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(leftEnemy.fromAboveCount).as("left enemy stomped").isEqualTo(1);
+        assertThat(rightEnemy.fromAboveCount).as("right enemy stomped").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a stomp registers on the very first tick of contact, at any fall speed")
+    void stompRegistersOnFirstContactTick() {
+        // Prepare — a fast fall breaks the enemy's top edge by 4px on the tick it is first detected.
+        // There is no minimum sink depth in the ROM, and a depth requirement scaled badly with speed:
+        // the faster the fall, the more horizontal overlap the old axis rule demanded alongside it.
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = collidingPlayer(-1.0, AxisAlignedBoundingBox.ofSize(20, 8, dimensions));
+        final LevelScenePlayer player = playerAt(20, 52, 4.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.fromAboveCount).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("running into an object's side is a body hit, not a stomp")
+    void sideHitIsNotAStomp() {
+        // Prepare — the player's feet are level with the enemy's, so its reference Y (96 - 32 = 64) is
+        // only 16px above the enemy's top: inside the 19px stomp range, hence a body hit. This is the
+        // case the old least-overlapping-axis test existed to catch; the vertical threshold covers it.
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80);
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(30, 64, 1.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.overlapCount).as("onPlayerOverlap — the ROM hurts the player here").isEqualTo(1);
+        assertThat(enemy.fromAboveCount).isZero();
+        assertThat(enemy.fromBelowCount).isZero();
+    }
+
+    @Test
+    @DisplayName("a rising player too deep to be stomping triggers onCollisionFromBelow")
+    void risingPlayerTriggersOnCollisionFromBelow() {
+        // Prepare — same depth as the side hit, but rising into the object.
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80);
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(20, 64, -1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -203,33 +260,36 @@ class ActiveObjectGridTest {
     }
 
     @Test
-    @DisplayName("a side hit on an opt-in object triggers onPlayerOverlap")
-    void sideHitTriggersOnPlayerOverlap() {
-        // Prepare — player overlapping mostly along X (shallower horizontal penetration): a side hit.
-        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+    @DisplayName("a player rising while still clear of the object dispatches nothing directional")
+    void risingWhileAboveDispatchesNothing() {
+        // Prepare — within stomp range but moving up: the bounce a stomp just granted. Re-dispatching
+        // onCollisionFromAbove here would stomp the same enemy twice.
         final ActiveObjectGrid<StubObject> grid = newGrid();
-        final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions), true);
+        final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = collidingPlayer(1.0, AxisAlignedBoundingBox.ofSize(30, 4, dimensions));
+        final LevelScenePlayer player = playerAt(20, 49, -4.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
 
         // Verify
-        assertThat(enemy.overlapCount).as("onPlayerOverlap").isEqualTo(1);
         assertThat(enemy.fromAboveCount).isZero();
         assertThat(enemy.fromBelowCount).isZero();
+        assertThat(enemy.overlapCount).isZero();
+        assertThat(enemy.collisionCount).as("the undirected contact still fires").isEqualTo(1);
     }
 
     @Test
     @DisplayName("an object that does not opt in gets only the undirected onCollisionWith")
     void nonOptInObjectGetsOnlyUndirectedCollision() {
-        // Prepare — a reward-like object (directional == false) stomped from above.
-        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        // Prepare — a reward-like object (directional == false) landed on from above.
         final ActiveObjectGrid<StubObject> grid = newGrid();
-        final StubObject reward = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions), false);
+        final StubObject reward = new StubObject(
+            AxisAlignedBoundingBox.ofSize(20, 80, new DimensionsPixels(16, 16)),
+            false
+        );
         grid.insert(reward);
-        final LevelScenePlayer player = collidingPlayer(1.0, AxisAlignedBoundingBox.ofSize(20, -8, dimensions));
+        final LevelScenePlayer player = playerAt(20, 49, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -367,17 +427,40 @@ class ActiveObjectGridTest {
     }
 
     /**
-     * A player double whose body box is the given hitbox and whose vertical velocity sign selects the
-     * stomp vs. head-hit branch; never tail-striking, so only body collisions register.
+     * A player double placed as the real one is: {@code positionY} is the reference Y the stomp test
+     * measures from, and the hitbox is derived from it exactly as {@code getObjectCollisionBounds()} does
+     * for a large standing player — X spans {@code +2..+14}, Y spans {@code +6..+32}. Keeping the two in
+     * step is what makes these tests mean anything; a box detached from the reference Y could satisfy the
+     * threshold at a geometry the player can never actually reach.
+     *
+     * @param positionX the player's position X in sprite-pixel space
+     * @param positionY the player's position Y — its reference top, with the feet at {@code +32}
+     * @param dy        vertical velocity; negative is rising
      */
-    private static LevelScenePlayer collidingPlayer(final double dy, final AxisAlignedBoundingBox body) {
+    private static LevelScenePlayer playerAt(final double positionX, final double positionY, final double dy) {
+        final PlayerPosition position = new PlayerPosition();
+        position.setX(positionX);
+        position.setY(positionY);
+        position.setDY(dy);
+
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
-        when(player.getObjectCollisionBounds()).thenReturn(body);
-        when(player.isTailAttackStriking()).thenReturn(false);
-        final PlayerPosition position = mock(PlayerPosition.class);
-        when(position.getDY()).thenReturn(dy);
         when(player.getPosition()).thenReturn(position);
+        when(player.isTailAttackStriking()).thenReturn(false);
+        when(player.getObjectCollisionBounds()).thenReturn(new AxisAlignedBoundingBox(
+            positionX + 2,
+            positionY + 6,
+            positionX + 14,
+            positionY + 32
+        ));
         return player;
+    }
+
+    /** A 16x16 opt-in (directional) object at the given top-left, as a Goomba's box is. */
+    private static StubObject enemyAt(final double left, final double top) {
+        return new StubObject(
+            AxisAlignedBoundingBox.ofSize(left, top, new DimensionsPixels(16, 16)),
+            true
+        );
     }
 
     /**
