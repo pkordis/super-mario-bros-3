@@ -311,7 +311,7 @@ other block's reward — `Block.configure` reads it, nothing is hardcoded per fl
 
 ## 5. Outstanding
 
-1. `LargeToRaccoonAnimator` passes a fixed `LEFT` to `rebuildWithTexture`, but the ROM
+1. `SuitLostPoofAnimator` passes a fixed `LEFT` to `rebuildWithTexture`, but the ROM
    sets `%11000001` (H+V flipped) for the suit poof (`prg029.asm Player_SuitLost_DoPoof`)
    — that animator's orientation looks independently wrong. Unverified.
 2. `sprites/object/brick/poof_1..4.png` are staged for deletion; nothing references them.

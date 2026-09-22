@@ -16,6 +16,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     void spawnIntoScene();
     boolean isSpawnedIntoScene();
     DimensionsPixels getBoundsPixels();
+    void hurt(LevelScenePlayer levelScenePlayer);
 
     /**
      * Whether this enemy still takes part in collision at all. An enemy in a dying or defeated state —

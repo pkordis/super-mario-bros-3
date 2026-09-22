@@ -9,8 +9,6 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
-import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 
 public sealed interface LevelScenePlayerCapabilities
     extends
@@ -52,6 +50,14 @@ public sealed interface LevelScenePlayerCapabilities
         return getPlayerData().getIdentity();
     }
 
+    /**
+     * Advances whichever transition is running by one tick, and completes it into the mode that
+     * transition queued (dasm {@code Player_QueueSuit}).
+     *
+     * <p>The destination is read from the runtime state rather than implied by the counter, because the
+     * poof counter is shared by two transitions travelling in opposite directions: the Super Leaf's
+     * promotion to {@code RACCOON} and the suit loss back down to {@code NORMAL}.
+     */
     default void tickModeTransition() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
         getPosition().snapshotPrevious();
@@ -60,13 +66,13 @@ public sealed interface LevelScenePlayerCapabilities
         if (runtimeState.isPoofing()) {
             runtimeState.decrementPoof();
             if (!runtimeState.isPoofing()) {
-                onTransitionComplete(RACCOON);
+                onTransitionComplete(runtimeState.getQueuedMode());
             }
             return;
         }
         runtimeState.decrementGrow();
         if (!runtimeState.isGrowing()) {
-            onTransitionComplete(NORMAL);
+            onTransitionComplete(runtimeState.getQueuedMode());
         }
     }
 }

@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
@@ -9,6 +10,8 @@ import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
+import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
@@ -19,8 +22,10 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INVINCIBILITY_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.RACCOON_TRANSITION_TICKS;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.SUIT_LOSS_TRANSITION_TICKS;
 import static java.lang.Math.abs;
 
 public interface LevelScenePlayerRuntimeStateAware
@@ -140,13 +145,45 @@ public interface LevelScenePlayerRuntimeStateAware
 
     /** Begins the small→Super grow transition (dasm {@code Player_Grow = $2f}). */
     default void turnToNormal() {
+        getRuntimeState().setQueuedMode(NORMAL);
         getRuntimeState().setGrowCounter(NORMAL_TRANSITION_TICKS);
         neutraliseMotionForTransition();
     }
 
     /** Begins the large→Raccoon poof transition (dasm {@code Player_SuitLost = $17}). */
     default void turnToRaccoon() {
+        getRuntimeState().setQueuedMode(RACCOON);
         getRuntimeState().setPoofCounter(RACCOON_TRANSITION_TICKS);
+        neutraliseMotionForTransition();
+    }
+
+    default void onHurt() {
+        if (!isHurtable() || !isAdvanced()) {
+            return;
+        }
+        loseAdvancedSuit();
+    }
+
+    default boolean isHurtable() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        return !runtimeState.isHurtInvincible() && !runtimeState.isTransitioning();
+    }
+
+    /**
+     * Discards an advanced suit, poofing back to {@link PlayerMode#NORMAL} and arming the flashing
+     * invincibility (dasm {@code Player_GetHurt} @ PRG000_DA15 and PRG000_DA6D:
+     * {@code Player_SuitLost = $17}, {@code Player_QueueSuit = $02}, {@code Player_FlashInv = $71}).
+     *
+     * <p>The invincibility counter is armed here, at the same moment as the poof, rather than when the
+     * poof ends — the ROM writes both in the same breath. It still does not start <em>running</em> until
+     * gameplay resumes, because nothing decrements it while the poof owns the draw routine; see
+     * {@link PlayerRuntimeState#getHurtInvincibilityCounter()}.
+     */
+    default void loseAdvancedSuit() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        runtimeState.setQueuedMode(NORMAL);
+        runtimeState.setPoofCounter(SUIT_LOSS_TRANSITION_TICKS);
+        runtimeState.setHurtInvincibilityCounter(HURT_INVINCIBILITY_TICKS);
         neutraliseMotionForTransition();
     }
 

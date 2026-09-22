@@ -48,7 +48,7 @@ import static java.lang.Math.abs;
 @Prototype
 @RequiredArgsConstructor
 public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAnimatorAssets> {
-    private final PlayerMode playerMode = NORMAL;
+    private final PlayerMode mode = NORMAL;
     private final GameEngine gameEngine;
     private final PlayerIdentity identity;
 

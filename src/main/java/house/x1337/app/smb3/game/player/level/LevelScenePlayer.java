@@ -243,6 +243,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void advanceAnimation() {
         animationContext.update(this);
+        // Paired with the frame the animator just chose, because the ROM's blanking is part of drawing
+        // that frame rather than a separate effect: Player_Draw decides it before writing any sprite.
+        applyHurtFlashVisibility();
     }
 
     @Override
@@ -346,6 +349,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         advanceAnimation();
+
+        // Only now, on a frame the player was actually drawn as itself, does the hurt flash advance
+        // (dasm prg029 Player_Draw: DEC Player_FlashInv). Both early returns above are frames the ROM
+        // never reaches that code on — the poof owns the draw routine for its whole duration
+        // (PRG029_D205 returns straight after it) — which is precisely what holds the invincibility at
+        // full length until gameplay resumes. Decremented after advanceAnimation so this frame's
+        // visibility came from the pre-decrement value, as the ROM's LDA/DEC order gives.
+        runtimeState.decrementHurtInvincibility();
 
         // Advance the vertical camera scroll (locked at the level bottom unless
         // flying/climbing — SMB3 Level_FreeVertScroll mode 0).

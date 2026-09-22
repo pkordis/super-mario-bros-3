@@ -2,8 +2,10 @@ package house.x1337.app.smb3.game.player.level.animator;
 
 import com.jme3.scene.Node;
 import com.jme3.texture.Texture;
+import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
+import house.x1337.app.smb3.game.player.PlayerModeAware;
 import house.x1337.app.smb3.model.game.player.PlayerAnimatorAssetsMoving;
 import house.x1337.app.smb3.model.game.player.level.LevelScenePlayerAnimatorSpecifications;
 import lombok.Setter;
@@ -14,7 +16,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static java.lang.Math.min;
 
 /**
- * Shared behaviour for the level-scene sprite animators (small and raccoon
+ * Shared behavior for the level-scene sprite animators (small and raccoon
  * Mario). Concrete animators differ only in their sprite dimensions, frame
  * sequences and per-frame texture lookups; the walk/run tick timing, the
  * frame-change bookkeeping and the JME quad-rebuild are identical and live here.
@@ -29,7 +31,9 @@ import static java.lang.Math.min;
  * @param <A> the concrete animator's asset bundle type
  */
 public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAssetsMoving>
-    implements LevelScenePlayerAnimator<A> {
+    implements
+        LevelScenePlayerAnimator<A>,
+        PlayerModeAware {
 
     /**
      * NES tick counts before advancing to the next walk frame, indexed by
@@ -52,6 +56,15 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
 
     @Setter
     protected A assets;
+
+    @Override
+    public String getFramesParentContext() {
+        return "sprites/player/%s/level/%s/"
+            .formatted(
+                getIdentity().getAnimationFramesPath(),
+                getMode().name().toLowerCase()
+            );
+    }
 
     protected final void advanceWalkAnimation(final double absDx) {
         final int rawVel = (int) (absDx * TILE_SPRITE_SIZE);
@@ -154,6 +167,12 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
             orientation,
             specifications.getQuadWidth(),
             specifications.getRightPadding()
+        );
+    }
+
+    public final void setMode(final PlayerMode playerMode) {
+        throw new UnsupportedOperationException(
+            "Implementations of BaseLevelScenePlayerAnimator cannot have player's mode changed. It must be final"
         );
     }
 }

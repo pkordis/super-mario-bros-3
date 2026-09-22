@@ -142,8 +142,26 @@ public final class Goomba implements EnemyLevelObject {
     }
 
     @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
+    @Override
+    public void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
+    @Override
     public boolean isHittable() {
         return !squished && whamMotion == null;
+    }
+
+    @Override
+    public void hurt(final LevelScenePlayer levelScenePlayer) {
+        if (squished || whamMotion != null) {
+            return;
+        }
+        levelScenePlayer.onHurt();
     }
 
     @Override
