@@ -208,5 +208,11 @@ class EnemyMotionManagerTest {
         public void onCollisionWith(final LevelScenePlayer player) {
             // Not exercised here.
         }
+
+        @Override
+        public void hurt(final LevelScenePlayer player) {
+            // Not exercised here: what a hit costs the player belongs to each enemy, and the gate under
+            // test is the manager's broadphase admission.
+        }
     }
 }

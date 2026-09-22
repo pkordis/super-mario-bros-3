@@ -191,6 +191,36 @@ class PlayerHurtDemotionTest {
             .isZero();
     }
 
+    @Test
+    @DisplayName("A hit taken at a run leaves the run intact all the way through the poof")
+    void momentumSurvivesTheHitAndThePoof() {
+        // Player_GetHurt writes Player_SuitLost, Player_QueueSuit, Player_FlashInv and Player_Flip, and
+        // nothing else — notably not Player_XVel, which only Player_Die zeroes. So the speed the player
+        // was carrying is the speed they come out of the poof with, and the P-meter keeps charging
+        // because the run flag is recomputed from that velocity before anything reads it.
+        // Prepare - running flat out
+        final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
+        runtimeState.setTo(RUNNING);
+        runtimeState.setRunning(true);
+        final PlayerPosition position = positionWithVelocity(3.5, 0);
+        final LevelScenePlayer player = hurtablePlayer(RACCOON, runtimeState, position);
+        doCallRealMethod().when(player).tickModeTransition();
+
+        // Execute
+        player.onHurt();
+        assertThat(position.getDX())
+            .as("the hit itself must not brake the player")
+            .isEqualTo(3.5);
+        for (int tick = 0; tick < SUIT_LOSS_TRANSITION_TICKS; tick++) {
+            player.tickModeTransition();
+        }
+
+        // Verify
+        assertThat(position.getDX())
+            .as("and neither does the poof, which advances nothing but its own counter")
+            .isEqualTo(3.5);
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
