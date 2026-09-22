@@ -6,26 +6,38 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.effect.PoofSequence;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
-import house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.SuitLostPoofAnimatorAssets;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
-import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.model.game.effect.PoofSequence.POOF_FRAMES_CONTEXT;
 
+/**
+ * Draws the {@code Player_SuitLost} poof cloud in place of the player sprite, whichever direction the
+ * suit change is going (dasm prg029 {@code Player_SuitLost_DoPoof}).
+ *
+ * <p>Deliberately not named for a destination mode. One counter and one cloud serve both the Super
+ * Leaf's promotion to Raccoon ({@code ObjHit_SuperLeaf}) and the suit loss back down to Normal that a
+ * hit causes ({@code Player_GetHurt}); where the player lands is decided by the queued mode, not here.
+ */
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class LargeToRaccoonAnimator implements LevelScenePlayerAnimator<LargeToRaccoonAnimatorAssets> {
+public final class SuitLostPoofAnimator implements LevelScenePlayerAnimator<SuitLostPoofAnimatorAssets> {
     private final PoofSequence poofSequence = PoofSequence.wrapping();
 
-    private final PlayerMode playerMode = RACCOON;
+    /**
+     * Inert. The interface requires a mode purely to build the default sprite path, which this animator
+     * overrides with the shared effect directory — so nothing ever reads this, and no value of it would
+     * be more correct than another for a cloud that plays in both directions.
+     */
+    private final PlayerMode playerMode = null;
     private final GameEngine gameEngine;
     private final PlayerIdentity identity;
 
     private int lastFrameIndex = -1;
-    private LargeToRaccoonAnimatorAssets assets;
+    private SuitLostPoofAnimatorAssets assets;
 
     /**
      * The poof art is player-independent and shared with the switch-block puff, so it is loaded from the

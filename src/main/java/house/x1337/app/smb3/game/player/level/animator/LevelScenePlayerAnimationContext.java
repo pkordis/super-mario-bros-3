@@ -4,9 +4,9 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.level.asset.NormalAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.RaccoonAnimatorAssets;
-import house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.ShrunkAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.ShrunkToNormalAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.SuitLostPoofAnimatorAssets;
 import lombok.RequiredArgsConstructor;
 
 @Prototype
@@ -16,7 +16,7 @@ public class LevelScenePlayerAnimationContext {
     private final NormalAnimator normalAnimator;
     private final RaccoonAnimator raccoonAnimator;
     private final ShrunkToNormalAnimator shrunkToNormalAnimator;
-    private final LargeToRaccoonAnimator largeToRaccoonAnimator;
+    private final SuitLostPoofAnimator suitLostPoofAnimator;
     private final EmptyAnimator emptyAnimator;
     private LevelScenePlayerAnimator<?> activeAnimator;
 
@@ -50,21 +50,22 @@ public class LevelScenePlayerAnimationContext {
             shrunkToNormalAnimator.update(levelScenePlayer);
             return;
         }
-        // Likewise the large→Raccoon poof transition (dasm Player_SuitLost): the
-        // poof cloud replaces the player sprite until the player becomes RACCOON.
+        // Likewise every suit change that is not a size change (dasm Player_SuitLost): the poof cloud
+        // replaces the player sprite until the queued mode takes effect — whether that is the Raccoon
+        // suit being gained or an advanced suit being lost to a hit.
         if (levelScenePlayer.getRuntimeState().isPoofing()) {
-            largeToRaccoonAnimator.update(levelScenePlayer);
+            suitLostPoofAnimator.update(levelScenePlayer);
             return;
         }
         shrunkToNormalAnimator.resetState();
-        largeToRaccoonAnimator.resetState();
+        suitLostPoofAnimator.resetState();
         activeAnimator.update(levelScenePlayer);
     }
 
     public void loadAssets() {
         ShrunkAnimatorAssets.loadFor(shrunkAnimator);
         ShrunkToNormalAnimatorAssets.loadFor(shrunkToNormalAnimator);
-        LargeToRaccoonAnimatorAssets.loadFor(largeToRaccoonAnimator);
+        SuitLostPoofAnimatorAssets.loadFor(suitLostPoofAnimator);
         NormalAnimatorAssets.loadFor(normalAnimator);
         RaccoonAnimatorAssets.loadFor(raccoonAnimator);
     }

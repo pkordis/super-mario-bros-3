@@ -1,31 +1,42 @@
 package house.x1337.app.smb3.enumeration;
 
+import house.x1337.app.smb3.util.EnumValuesMatcher;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
-@Getter
 @RequiredArgsConstructor
-public enum PlayerMode {
-    NORMAL(true),
-    RACCOON(true),
-    SHRUNK(false),
-    TANOOKI(true);
+public enum PlayerMode implements EnumValuesMatcher<PlayerMode> {
+    NORMAL,
+    RACCOON,
+    SHRUNK,
+    TANOOKI;
 
+    @Getter(lazy = true)
     @Accessors(fluent = true)
-    private final boolean isLarge;
+    private final boolean isLarge = initIsLarge();
 
-    public boolean isSmall() {
-        return !isLarge;
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    private final boolean isAdvanced = initIsAdvanced();
+
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    private final boolean hasTail = initHasTail();
+
+    private boolean initIsLarge() {
+        return this != SHRUNK;
     }
 
-    /**
-     * Whether this suit carries the raccoon/tanooki tail — the only modes that
-     * perform tail wag, powered-flight fall control and the tail attack. NORMAL
-     * (big Mario) is large but tailless, so it mirrors SHRUNK for airborne
-     * behaviour while mirroring RACCOON on the ground.
-     */
-    public boolean hasTail() {
-        return this == RACCOON || this == TANOOKI;
+    private boolean initIsAdvanced() {
+        return isNoneOf(SHRUNK, NORMAL);
+    }
+
+    public boolean isSmall() {
+        return !isLarge();
+    }
+
+    public boolean initHasTail() {
+        return isAnyOf(RACCOON, TANOOKI);
     }
 }

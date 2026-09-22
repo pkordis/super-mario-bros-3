@@ -3,11 +3,11 @@ package house.x1337.app.smb3.model.game.asset.loader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import house.x1337.app.smb3.model.game.asset.AnimatorAssets;
 import house.x1337.app.smb3.model.game.enemy.asset.GoombaAnimatorAssets;
-import house.x1337.app.smb3.model.game.player.level.asset.LargeToRaccoonAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.NormalAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.RaccoonAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.ShrunkAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.ShrunkToNormalAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.SuitLostPoofAnimatorAssets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -43,7 +43,7 @@ class AnimatorAssetsDescriptorTest {
             Arguments.of(RaccoonAnimatorAssets.class, "sprites/player/mario/level/raccoon/"),
             Arguments.of(ShrunkAnimatorAssets.class, "sprites/player/mario/level/shrunk/"),
             Arguments.of(ShrunkToNormalAnimatorAssets.class, "sprites/player/mario/level/shrunk_to_normal/"),
-            Arguments.of(LargeToRaccoonAnimatorAssets.class, POOF_FRAMES_CONTEXT)
+            Arguments.of(SuitLostPoofAnimatorAssets.class, POOF_FRAMES_CONTEXT)
         );
     }
 

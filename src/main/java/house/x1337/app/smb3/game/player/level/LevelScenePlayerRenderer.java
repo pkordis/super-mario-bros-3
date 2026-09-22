@@ -21,6 +21,8 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
+import static com.jme3.scene.Spatial.CullHint.Always;
+import static com.jme3.scene.Spatial.CullHint.Inherit;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.foregroundLayers;
@@ -94,6 +96,25 @@ public interface LevelScenePlayerRenderer
         geometry.setQueueBucket(Transparent);
 
         node.attachChild(geometry);
+    }
+
+    /**
+     * Applies this tick's flashing-invincibility phase to the player sprite.
+     *
+     * <p>The ROM does not fade the player: {@code Player_Draw} simply jumps past the sprite-writing code
+     * on the blanked ticks (prg029 @ PRG029_CEC8 → PRG029_D094), leaving nothing in {@code Sprite_RAM}
+     * for the player that frame. Two ticks drawn, two skipped — fast enough to read as a semi-transparent
+     * shimmer rather than as blinking.
+     *
+     * <p>Culling the node reproduces that faithfully and, unlike an alpha ramp on the material, survives
+     * the animators freely detaching and rebuilding the node's geometry every time the frame changes —
+     * the flag lives on the node, which outlives its children.
+     */
+    default void applyHurtFlashVisibility() {
+        if (getNode() == null) {
+            return;
+        }
+        getNode().setCullHint(getRuntimeState().isSpriteDrawnThisTick() ? Inherit : Always);
     }
 
     default void updateForegroundLayerBuckets() {

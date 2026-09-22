@@ -17,4 +17,8 @@ public interface PlayerModeAware {
     default boolean hasTail() {
         return getMode().hasTail();
     }
+
+    default boolean isAdvanced() {
+        return getMode().isAdvanced();
+    }
 }

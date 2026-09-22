@@ -64,7 +64,7 @@ public final class RaccoonAnimator
     private static final int TAIL_WAG_ANIM_DURATION = 10;
     private static final int[] TAIL_ATTACK_FRAME_SEQUENCE = {0, 1, 0, 2, 0};
 
-    private final PlayerMode playerMode = RACCOON;
+    private final PlayerMode mode = RACCOON;
     private final GameEngine gameEngine;
     private final PlayerIdentity identity;
 

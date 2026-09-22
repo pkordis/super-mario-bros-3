@@ -3,12 +3,12 @@ package house.x1337.app.smb3.game.player.factory;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayerRenderer;
 import house.x1337.app.smb3.game.player.level.animator.EmptyAnimator;
-import house.x1337.app.smb3.game.player.level.animator.LargeToRaccoonAnimator;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.game.player.level.animator.NormalAnimator;
 import house.x1337.app.smb3.game.player.level.animator.RaccoonAnimator;
 import house.x1337.app.smb3.game.player.level.animator.ShrunkAnimator;
 import house.x1337.app.smb3.game.player.level.animator.ShrunkToNormalAnimator;
+import house.x1337.app.smb3.game.player.level.animator.SuitLostPoofAnimator;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -25,7 +25,7 @@ public interface PlayerAnimatorFactory {
             getBean(NormalAnimator.class, e, i),
             getBean(RaccoonAnimator.class, e, i),
             getBean(ShrunkToNormalAnimator.class, e, i),
-            getBean(LargeToRaccoonAnimator.class, e, i),
+            getBean(SuitLostPoofAnimator.class, e, i),
             getBean(EmptyAnimator.class, e, i)
         );
     }

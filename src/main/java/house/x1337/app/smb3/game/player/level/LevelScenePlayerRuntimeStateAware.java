@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
@@ -9,6 +10,8 @@ import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
+import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
@@ -19,8 +22,10 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INVINCIBILITY_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.RACCOON_TRANSITION_TICKS;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.SUIT_LOSS_TRANSITION_TICKS;
 import static java.lang.Math.abs;
 
 public interface LevelScenePlayerRuntimeStateAware
@@ -140,19 +145,65 @@ public interface LevelScenePlayerRuntimeStateAware
 
     /** Begins the small→Super grow transition (dasm {@code Player_Grow = $2f}). */
     default void turnToNormal() {
+        getRuntimeState().setQueuedMode(NORMAL);
         getRuntimeState().setGrowCounter(NORMAL_TRANSITION_TICKS);
         neutraliseMotionForTransition();
     }
 
     /** Begins the large→Raccoon poof transition (dasm {@code Player_SuitLost = $17}). */
     default void turnToRaccoon() {
+        getRuntimeState().setQueuedMode(RACCOON);
         getRuntimeState().setPoofCounter(RACCOON_TRANSITION_TICKS);
         neutraliseMotionForTransition();
     }
 
+    default void onHurt() {
+        if (!isHurtable() || !isAdvanced()) {
+            return;
+        }
+        loseAdvancedSuit();
+    }
+
+    default boolean isHurtable() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        return !runtimeState.isHurtInvincible() && !runtimeState.isTransitioning();
+    }
+
     /**
-     * Neutralises motion so the transition frames render as a clean standing pose
-     * regardless of what the player was doing when the powerup was collected.
+     * Discards an advanced suit, poofing back to {@link PlayerMode#NORMAL} and arming the flashing
+     * invincibility (dasm {@code Player_GetHurt} @ PRG000_DA15 and PRG000_DA6D:
+     * {@code Player_SuitLost = $17}, {@code Player_QueueSuit = $02}, {@code Player_FlashInv = $71}).
+     *
+     * <p>The invincibility counter is armed here, at the same moment as the poof, rather than when the
+     * poof ends — the ROM writes both in the same breath. It still does not start <em>running</em> until
+     * gameplay resumes, because nothing decrements it while the poof owns the draw routine; see
+     * {@link PlayerRuntimeState#getHurtInvincibilityCounter()}.
+     */
+    default void loseAdvancedSuit() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        runtimeState.setQueuedMode(NORMAL);
+        runtimeState.setPoofCounter(SUIT_LOSS_TRANSITION_TICKS);
+        runtimeState.setHurtInvincibilityCounter(HURT_INVINCIBILITY_TICKS);
+        neutraliseMotionForTransition();
+    }
+
+    /**
+     * Spends the abilities a transition ends and settles a grounded player, without touching what the
+     * player had built up on the way in.
+     *
+     * <p><b>Horizontal momentum and the P-meter are preserved.</b> No transition in the ROM writes
+     * {@code Player_XVel} or {@code Player_Power}: {@code ObjHit_PUpMush} (dasm prg001 @ PRG001_A8AB)
+     * writes only {@code Player_QueueSuit} and {@code Player_Grow}, {@code ObjHit_SuperLeaf} only the
+     * queued suit and {@code Player_SuitLost}, and {@code Player_GetHurt} (prg000 @ PRG000_DA15) only
+     * those plus {@code Player_FlashInv} and {@code Player_Flip}. The one routine that does stop the
+     * player dead is {@code Player_Die}, which zeroes {@code Player_XVel} explicitly — the contrast is
+     * the point, and it is why a hit taken at a run leaves the run intact.
+     *
+     * <p>Zeroing it here cost the player their speed <em>and</em> their P-meter: with {@code DX} back at
+     * zero, the first resumed frame fails the run test in {@code handlePowerMeterAndRunFlag}
+     * ({@code abs(DX) >= PLAYER_TOPRUNSPEED}), so the meter starts draining instead of charging and the
+     * player has to accelerate from a standstill. Preserving {@code DX} keeps the run flag set on that
+     * very frame, because the flag is recomputed from velocity before anything else reads it.
      *
      * <p><b>An airborne player keeps its vertical physics.</b> The transition freezes the player for its
      * whole duration ({@code isHaltingGameplay} → {@code tickModeTransition}), and the movement mode is
@@ -164,12 +215,12 @@ public interface LevelScenePlayerRuntimeStateAware
      * rising ({@code DY < 0}), so a zeroed {@code DY} plus a grounded state turned the platform into a
      * floor the player could walk along from underneath. Preserving the airborne mode and {@code DY}
      * keeps the pass-through exemption intact and lets the jump resume where it left off — which is also
-     * what the ROM does: {@code ObjHit_PUpMush} (dasm prg001 PRG001_A8AB) writes only
-     * {@code Player_QueueSuit} and {@code Player_Grow}, never {@code Player_InAir} or the velocities,
-     * and {@code Player_Grow} is consumed purely as a draw-time frame override (prg029 PRG029_D224).
+     * what the ROM does, {@code Player_Grow} being consumed purely as a draw-time frame override
+     * (prg029 PRG029_D224).
      *
-     * <p>The standing pose is unaffected by this: both transition animators own rendering outright and
-     * pick their frame from the transition counter alone, never from the movement mode.
+     * <p>What is still spent are the abilities the transition itself ends — flight, tail wag and any
+     * swing in progress — since a player mid-transition is either gaining a suit that has not earned
+     * them yet or losing the one that did.
      */
     private void neutraliseMotionForTransition() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
@@ -178,7 +229,6 @@ public interface LevelScenePlayerRuntimeStateAware
         runtimeState.setPlayerFlyTime(0);
         runtimeState.setPlayerWagCount(0);
         runtimeState.setPlayerTailAttackCountdown(0);
-        position.setDX(0);
         if (runtimeState.isInAir()) {
             // Mid-air: the jump is still in progress and must survive the freeze intact.
             return;

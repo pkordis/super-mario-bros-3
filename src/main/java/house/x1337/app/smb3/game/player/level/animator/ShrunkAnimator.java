@@ -57,7 +57,7 @@ import static java.lang.Math.abs;
 @Prototype
 @RequiredArgsConstructor
 public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAnimatorAssets> {
-    private final PlayerMode playerMode = SHRUNK;
+    private final PlayerMode mode = SHRUNK;
     private final GameEngine gameEngine;
     private final PlayerIdentity identity;
 

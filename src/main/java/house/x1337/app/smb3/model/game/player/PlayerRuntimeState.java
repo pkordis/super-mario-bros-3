@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,6 +36,31 @@ public class PlayerRuntimeState {
      * {@code ObjHit_SuperLeaf} @ PRG001_AC40: {@code LDA #$17; STA Player_SuitLost}).
      */
     public static final int RACCOON_TRANSITION_TICKS = 23;
+
+    /**
+     * Number of ticks the advanced→Normal suit-loss "poof" runs.
+     *
+     * <p>The same {@code Player_SuitLost} counter and the same {@code $17}, written by the hurt path
+     * rather than by a powerup (dasm {@code Player_GetHurt} @ PRG000_DA15: {@code LDA #$17; STA
+     * Player_SuitLost}). Named separately from {@link #RACCOON_TRANSITION_TICKS} because the two are
+     * only incidentally equal — they are written by different routines and either could be retuned.
+     */
+    public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
+
+    /**
+     * Ticks of flashing invincibility granted by a damaging hit (dasm {@code Player_GetHurt} @
+     * PRG000_DA6D: {@code LDA #$71; STA Player_FlashInv}).
+     */
+    public static final int HURT_INVINCIBILITY_TICKS = 0x71;
+
+    /**
+     * The bit of {@link #hurtInvincibilityCounter} that blanks the player sprite.
+     *
+     * <p>The ROM's draw routine tests it with {@code AND #$02} (prg029 {@code Player_Draw} @
+     * PRG029_CEC8), so the sprite is drawn for two ticks and skipped for the next two — a 4-tick
+     * flicker period, not an every-other-frame one.
+     */
+    private static final int INVINCIBILITY_BLANK_PHASE_MASK = 0x02;
 
     private PlayerMovement movement = STILL;
 
@@ -116,6 +142,33 @@ public class PlayerRuntimeState {
     @Setter
     private int poofCounter;
 
+    /**
+     * The mode the running transition will hand the player once its counter reaches zero (dasm
+     * {@code Player_QueueSuit}, which every transition writes alongside its own counter —
+     * {@code ObjHit_PUpMush}, {@code ObjHit_SuperLeaf} and {@code Player_GetHurt} all do).
+     *
+     * <p>Held here rather than inferred from the counter that is running, because the poof counter
+     * alone no longer identifies a destination: the same {@code Player_SuitLost} poof plays for the
+     * large→Raccoon promotion and for the advanced→Normal suit loss, in opposite directions.
+     */
+    @Setter
+    private PlayerMode queuedMode;
+
+    /**
+     * Remaining ticks of post-hit flashing invincibility (dasm {@code Player_FlashInv}, initialised to
+     * {@code $71} by {@code Player_GetHurt} @ PRG000_DA6D). While non-zero the player cannot be hurt
+     * again ({@code Player_GetHurt} returns immediately) and its sprite flickers.
+     *
+     * <p>Unlike {@link #growCounter} and {@link #poofCounter} this does <b>not</b> halt gameplay — it is
+     * consumed purely at draw time, and the ROM decrements it inside {@code Player_Draw} itself. That
+     * placement is what staggers the two effects when a hit starts both: while {@code Player_SuitLost} is
+     * non-zero the draw dispatcher plays the poof and returns without ever reaching {@code Player_Draw}
+     * (prg029 @ PRG029_D205), so this counter is held at its full value for the whole poof and only
+     * begins running once gameplay resumes.
+     */
+    @Setter
+    private int hurtInvincibilityCounter;
+
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;
     }
@@ -145,6 +198,32 @@ public class PlayerRuntimeState {
     public void decrementPoof() {
         if (poofCounter > 0) {
             poofCounter--;
+        }
+    }
+
+    /** @return whether post-hit flashing invincibility is still running. */
+    public boolean isHurtInvincible() {
+        return hurtInvincibilityCounter > 0;
+    }
+
+    /**
+     * Whether the player sprite is drawn on this tick, given the flashing invincibility phase.
+     *
+     * <p>Mirrors {@code Player_Draw} @ PRG029_CEC8 exactly, including the read order: the ROM loads the
+     * counter, decrements <em>memory</em>, then masks the value it had already loaded — so the phase
+     * belongs to the pre-decrement value. {@link #decrementHurtInvincibility} is therefore called after
+     * this, not before.
+     *
+     * @return {@code true} to draw the player, {@code false} to skip it this tick
+     */
+    public boolean isSpriteDrawnThisTick() {
+        return !isHurtInvincible() || (hurtInvincibilityCounter & INVINCIBILITY_BLANK_PHASE_MASK) == 0;
+    }
+
+    /** Advances the flashing invincibility by one frame (dasm {@code DEC Player_FlashInv}). */
+    public void decrementHurtInvincibility() {
+        if (hurtInvincibilityCounter > 0) {
+            hurtInvincibilityCounter--;
         }
     }
 

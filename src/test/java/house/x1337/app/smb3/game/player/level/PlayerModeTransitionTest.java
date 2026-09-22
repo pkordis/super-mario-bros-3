@@ -51,8 +51,8 @@ class PlayerModeTransitionTest {
             .as("The rising velocity is what exempts a one-way platform from being solid")
             .isCloseTo(-3.0, within(TOLERANCE));
         assertThat(position.getDX())
-            .as("Horizontal drift is still cancelled so the grow frames render a clean pose")
-            .isCloseTo(0.0, within(TOLERANCE));
+            .as("Horizontal momentum survives: no transition in the ROM writes Player_XVel")
+            .isCloseTo(2.5, within(TOLERANCE));
     }
 
     @Test
@@ -73,7 +73,7 @@ class PlayerModeTransitionTest {
     }
 
     @Test
-    @DisplayName("Growing on the ground still neutralises to a standing pose")
+    @DisplayName("Growing on the ground settles vertically but keeps the run going")
     void growingOnTheGroundNeutralisesMotion() {
         // Prepare - running along the ground
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
@@ -88,7 +88,9 @@ class PlayerModeTransitionTest {
         // Verify
         assertThat(runtimeState.getMovement()).isEqualTo(STILL);
         assertThat(runtimeState.isDucking()).as("The grow pose always stands up").isFalse();
-        assertThat(position.getDX()).isCloseTo(0.0, within(TOLERANCE));
+        assertThat(position.getDX())
+            .as("Player_XVel is never written by a transition, so the speed carries through")
+            .isCloseTo(3.0, within(TOLERANCE));
         assertThat(position.getDY()).isCloseTo(0.0, within(TOLERANCE));
     }
 
@@ -122,7 +124,9 @@ class PlayerModeTransitionTest {
 
         // Verify
         assertThat(groundedState.getMovement()).isEqualTo(STILL);
-        assertThat(groundedPosition.getDX()).isCloseTo(0.0, within(TOLERANCE));
+        assertThat(groundedPosition.getDX())
+            .as("the poof costs the player their suit, not their speed")
+            .isCloseTo(3.0, within(TOLERANCE));
     }
 
     // -------------------------------------------------------------------------
