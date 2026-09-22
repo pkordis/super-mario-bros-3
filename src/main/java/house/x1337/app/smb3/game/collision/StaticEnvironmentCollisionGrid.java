@@ -1,8 +1,11 @@
 package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.level.LevelObject;
+import house.x1337.app.smb3.game.object.level.block.motion.BlockMotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
 import static house.x1337.app.smb3.model.game.LevelObjectOffset.fromPlayerOffset;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
@@ -35,12 +39,14 @@ import static java.lang.Math.floor;
 @Slf4j
 @Prototype
 @RequiredArgsConstructor
-public final class StaticEnvironmentCollisionGrid implements GameMath {
+public final class StaticEnvironmentCollisionGrid implements GameEngineAware, GameMath {
     private final GameEngine gameEngine;
     private final PowerSwitchTimeWindow powerSwitchTimeWindow;
 
     private LevelObject[][] objects;
     private LevelObject[][] underlayObjects;
+    private LevelSceneLayerType[][] surfaceLayers;
+    private LevelSceneLayerType[][] underlayLayers;
     private LevelSceneDimensions dimensions;
 
     public void tick() {
@@ -308,11 +314,44 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
         }
     }
 
+    /**
+     * Retires the object at {@code offset}, exposing whatever tile sat directly beneath it.
+     *
+     * <p>The fallback slot is emptied as it is promoted, so retiring the same cell twice clears it rather
+     * than handing back the same stand-in forever — which is what let a brick stacked over another brick
+     * be broken indefinitely. The layer provenance moves in step with the object so a second break still
+     * erases from the layer that actually paints the newly exposed tile.
+     */
     public void removeLevelObjectAt(final Offset offset) {
         try {
             objects[offset.y()][offset.x()] = underlayObjects[offset.y()][offset.x()];
+            underlayObjects[offset.y()][offset.x()] = EMPTY_LEVEL_OBJECT;
+            if (surfaceLayers != null && underlayLayers != null) {
+                surfaceLayers[offset.y()][offset.x()] = underlayLayers[offset.y()][offset.x()];
+                underlayLayers[offset.y()][offset.x()] = null;
+            }
         } catch (final ArrayIndexOutOfBoundsException e) {
             log.error("removeLevelObjectAt error", e);
+        }
+    }
+
+    /**
+     * Which layer paints the tile currently showing at {@code offset} — the layer whose baked texture has
+     * to be erased when that tile is retired.
+     *
+     * @param offset the cell to look up
+     * @return that cell's layer, falling back to {@code INTERACTIVE_OBJECTS} when unknown, since a
+     *         tile-bound interactive object is what a caller retiring a cell is almost always holding
+     */
+    public LevelSceneLayerType getSourceLayerAt(final Offset offset) {
+        if (surfaceLayers == null) {
+            return INTERACTIVE_OBJECTS;
+        }
+        try {
+            final LevelSceneLayerType sourceLayer = surfaceLayers[offset.y()][offset.x()];
+            return sourceLayer == null ? INTERACTIVE_OBJECTS : sourceLayer;
+        } catch (final ArrayIndexOutOfBoundsException e) {
+            return INTERACTIVE_OBJECTS;
         }
     }
 
@@ -457,5 +496,14 @@ public final class StaticEnvironmentCollisionGrid implements GameMath {
             }
         }
         return Optional.ofNullable(closest);
+    }
+
+    public boolean isBlockBumpActiveAt(final Offset cellOffset) {
+        for (final BlockMotionManager blockMotionManager : getMotionManagers(BlockMotionManager.class)) {
+            if (blockMotionManager.isBlockBumpActiveAt(cellOffset)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

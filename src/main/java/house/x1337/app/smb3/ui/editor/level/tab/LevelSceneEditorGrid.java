@@ -55,8 +55,10 @@ public class LevelSceneEditorGrid extends JPanel {
             }
 
             private void handle(final MouseEvent e) {
-                final Tile selectedTile = tab.getSelectedTile();
-                if (selectedTile == null) return; // editing blocked when no tile is selected
+                // Editing is blocked while nothing is armed — no tile and no enemy selected.
+                if (!tab.hasPlaceableSelection()) {
+                    return;
+                }
                 final int col = e.getX() / TILE_SIZE;
                 final int row = e.getY() / TILE_SIZE;
                 tab.updateStatus(col, row);

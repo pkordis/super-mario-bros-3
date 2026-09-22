@@ -6,6 +6,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Quad;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
@@ -22,7 +23,7 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.FOREGROUND_LAYERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.foregroundLayers;
 
 public interface LevelScenePlayerRenderer
     extends
@@ -99,8 +100,8 @@ public interface LevelScenePlayerRenderer
         final Node rootNode = getGameEngine().getRootNode();
         final boolean background = (getVisibility() == BACKGROUND);
 
-        for (final String layerName : FOREGROUND_LAYERS) {
-            final Spatial layerSpatial = rootNode.getChild(layerName);
+        for (final LevelSceneLayerType layer : foregroundLayers()) {
+            final Spatial layerSpatial = rootNode.getChild(layer.getLayerName());
             if (layerSpatial instanceof Geometry layerGeometry) {
                 if (background) {
                     // Move to Translucent and re-attach after player so it renders on top

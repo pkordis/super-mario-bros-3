@@ -14,7 +14,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends MotionManager<C> {
+public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends MotionManager {
     float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
     float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
     float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
@@ -85,7 +85,6 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
             .getCameraState()
             .getActiveObjectRegion(getActivationMarginPixels());
         final ActiveObjectGrid<ActiveLevelObject> broadPhase = gameEngine.getActiveObjectGrid();
-
         final Iterator<C> iterator = activeInstances.iterator();
         while (iterator.hasNext()) {
             final C instance = iterator.next();

@@ -13,7 +13,6 @@ import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
-import house.x1337.app.smb3.game.object.level.block.animation.base.BlockBounceAnimation;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
@@ -29,22 +28,13 @@ import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the shared bump-bounce of {@link BlockBounceAnimation}: the borrowed tile rises 10 sprite
- * pixels over five ticks, comes back down the same way and expires exactly on its own cell.
- *
- * <p>The trajectory below is the running sum of {@code BOUNCE_VELOCITY} read back-to-front, which is
- * what the dasm bump does through {@code Block_UpdateBump}; it is symmetric and sums to zero, so a
- * bounced block always lands back where it started. The first tick applies the still-zero velocity
- * from spawn, so the sprite only starts moving on tick 2.
- */
 class BlockBounceAnimationTest {
 
     private static final int COLUMNS = 8;

@@ -42,15 +42,6 @@ import static java.util.Comparator.comparing;
 import static javax.swing.BorderFactory.createEmptyBorder;
 import static javax.swing.BorderFactory.createTitledBorder;
 
-/**
- * Editor window for creating a custom single-tiled level object.
- * Contains three sections:
- * <ul>
- *   <li>Object Properties: LevelObjectTypeSingleTiled and description</li>
- *   <li>Tile Editor: visual editor to modify transparency etc.</li>
- *   <li>Custom Data: key-value pairs for additional metadata</li>
- * </ul>
- */
 @Slf4j
 @Prototype
 public final class CreateCustomLevelObjectWindow extends JDialog {
@@ -58,14 +49,10 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
 
     private final TileService tileService = getBean(TileService.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
-    private final int[] originalArgbData;
-
-    // Object properties
     private final JComboBox<String> objectTypeCombo = buildObjectTypeCombo();
     private final JTextField descriptionField = new JTextField(20);
-
-    // Tile editor
-    private final CustomLevelObjectTileEditorPanel tileEditorPanel;
+    private int[] originalArgbData;
+    private CustomLevelObjectTileEditorPanel tileEditorPanel;
 
     // Custom data table
     private final DefaultTableModel customDataModel = new DefaultTableModel(
@@ -77,17 +64,14 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
     private final JButton createButton = new JButton("Create");
     private final JButton cancelButton = new JButton("Cancel");
 
-    public CreateCustomLevelObjectWindow(
-        final JFrame parent,
-        final int[] originalArgbData
-    ) {
+    public CreateCustomLevelObjectWindow(final JFrame parent) {
         super(parent);
-        this.originalArgbData = originalArgbData;
-        this.tileEditorPanel = getBean(CustomLevelObjectTileEditorPanel.class, originalArgbData);
     }
 
-    @PostConstruct
-    void init() {
+    public void render(final int[] originalArgbData) {
+        this.originalArgbData = originalArgbData;
+        this.tileEditorPanel = getBean(CustomLevelObjectTileEditorPanel.class);
+        this.tileEditorPanel.render(originalArgbData);
         setTitle("Create Custom Level Object – Single Tiled");
         setModal(true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);

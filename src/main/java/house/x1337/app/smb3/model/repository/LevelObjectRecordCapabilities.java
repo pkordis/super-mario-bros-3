@@ -21,19 +21,48 @@ import static house.x1337.app.smb3.model.ImageResource.fromData;
 
 public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord {
     /**
-     * Resolves the {@link LevelObjectType} from the record's type string and
-     * instantiates a fresh {@link LevelObject} via the type's no-args constructor.
-     * Resolution order: {@link LevelObjectTypeSingleTiled} → {@link LevelObjectTypeMultiTiled}.
+     * Resolves this record's type string to its {@link LevelObjectType}, searching
+     * {@link LevelObjectTypeSingleTiled} then {@link LevelObjectTypeMultiTiled}.
+     *
+     * <p>Empty for a tile that has not been classified yet ({@code type == null}) and for a type string
+     * no longer present in either enum. Callers use this to decide <em>which world</em> a placement
+     * belongs to before instantiating anything: a single-tiled type is a terrain cell the collision
+     * grid owns, a multi-tiled one is a whole entity placed elsewhere (an enemy, spawned into the
+     * active-object world).
+     *
+     * @return the resolved type, or empty if the record names none
+     */
+    default Optional<LevelObjectType> findLevelObjectType() {
+        final String typeName = ((LevelObjectRecord) this).getType();
+        if (typeName == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(LevelObjectTypeSingleTiled.valueOf(typeName));
+        } catch (final IllegalArgumentException ignored) {
+            // not a single-tiled type - try multi-tiled below
+        }
+        try {
+            return Optional.of(LevelObjectTypeMultiTiled.valueOf(typeName));
+        } catch (final IllegalArgumentException ignored) {
+            // not a multi-tiled type either
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Instantiates a fresh {@link LevelObject} for this record. A single-tiled object is handed the
+     * painted tile's image — its appearance <em>is</em> that tile — while a multi-tiled one is not,
+     * because it is a whole entity whose sprites come from its own assets.
      *
      * @throws IllegalArgumentException if the type string cannot be resolved to either enum.
-     * @throws IllegalStateException if the resolved type's instance class cannot be instantiated.
      */
     default LevelObject toLevelObject(
         final GameEngine gameEngine,
         final Offset offset
     ) {
         final LevelObjectRecord record = (LevelObjectRecord) this;
-        final LevelObjectType type = resolveLevelObjectType(record.getType());
+        final LevelObjectType type = resolveLevelObjectType();
         if (type.isSingleTiled()) {
             final TileService tileService = getBean(TileService.class);
             final Optional<Tile> tile = tileService.findById(record.getId());
@@ -55,26 +84,10 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
     }
 
     @NonNull
-    private LevelObjectType resolveLevelObjectType(final String typeName) {
-        LevelObjectType type = null;
-        try {
-            type = LevelObjectTypeSingleTiled.valueOf(typeName);
-        } catch (final IllegalArgumentException ignored) {
-            // not a single-tiled type - try multi-tiled below
-        }
-        if (type == null) {
-            try {
-                type = LevelObjectTypeMultiTiled.valueOf(typeName);
-            } catch (final IllegalArgumentException ignored) {
-                // not a multi-tiled type either
-            }
-        }
-        if (type == null) {
-            throw new IllegalArgumentException(
-                "Cannot resolve LevelObjectType for type=\"" + typeName + "\""
-            );
-        }
-        return type;
+    private LevelObjectType resolveLevelObjectType() {
+        return findLevelObjectType().orElseThrow(() -> new IllegalArgumentException(
+            "Cannot resolve LevelObjectType for type=\"" + ((LevelObjectRecord) this).getType() + "\""
+        ));
     }
 
     private void enrichData(final LevelObjectType type, final LevelObject newLevelObject) {

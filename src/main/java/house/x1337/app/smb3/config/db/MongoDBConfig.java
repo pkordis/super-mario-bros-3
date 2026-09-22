@@ -8,6 +8,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
+import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
@@ -54,6 +55,9 @@ public class MongoDBConfig {
     @Value("${spring.data.mongodb.collection.level-objects:levelObjects}")
     private String levelObjectsCollection;
 
+    @Value("${spring.data.mongodb.collection.enemies:enemies}")
+    private String enemiesCollection;
+
     @Value("${spring.data.mongodb.collection.configuration:configuration}")
     private String configurationCollection;
 
@@ -93,6 +97,7 @@ public class MongoDBConfig {
                     .register(LevelSceneRecord.class)
                     .register(LevelSceneRecord.LevelSceneLayerData.class)
                     .register(LevelObjectRecord.class)
+                    .register(EnemyRecord.class)
                     .build()
             )
         );
@@ -134,6 +139,11 @@ public class MongoDBConfig {
     @Bean
     MongoCollection<LevelObjectRecord> levelObjectMongoCollection(final MongoDatabase mongoDatabase) {
         return mongoDatabase.getCollection(levelObjectsCollection, LevelObjectRecord.class);
+    }
+
+    @Bean
+    MongoCollection<EnemyRecord> enemyMongoCollection(final MongoDatabase mongoDatabase) {
+        return mongoDatabase.getCollection(enemiesCollection, EnemyRecord.class);
     }
 
     @Bean

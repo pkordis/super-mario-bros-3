@@ -115,17 +115,15 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      */
     public AxisAlignedBoundingBox getObjectCollisionBounds() {
         final boolean largeStanding = isLarge() && !runtimeState.isDucking();
-        final double x = position.getX();
-        final double y = position.getY();
         // Horizontal edges match the solid-collision stop offsets (large 2..14, small/ducking 3..13)
         // rather than the sprite-flush 1..15. The old box overreached the wall stop by 1px on each
         // side, so a player resting flush against a block still overlapped an item sitting in the
         // adjacent column by ~1px — collecting it without moving. Aligning to where the body actually
         // stops removes that phantom pixel (matches the ROM's tight Player_BoundBox: it collides only
         // on real overlap, not when the edges merely touch).
-        final double left = x + (isLarge() ? 2 : 3);
-        final double right = x + (isLarge() ? 14 : 13);
-        return new AxisAlignedBoundingBox(left, y + (largeStanding ? 6 : 16), right, y + 32);
+        final double left = position.getX() + (isLarge() ? 2 : 3);
+        final double right = position.getX() + (isLarge() ? 14 : 13);
+        return new AxisAlignedBoundingBox(left, position.getY() + (largeStanding ? 6 : 16), right, position.getY() + 32);
     }
 
     /**
@@ -154,12 +152,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      * @return the tail hitbox for the current tick
      */
     public AxisAlignedBoundingBox getTailAttackBounds() {
-        final double x = position.getX();
-        final double y = position.getY();
-        final double left = x + (orientation.getHorizontal() == RIGHT
+        final double left = position.getX() + (orientation.getHorizontal() == RIGHT
             ? TAIL_ATTACK_X_OFFSET_RIGHT
             : TAIL_ATTACK_X_OFFSET_LEFT);
-        final double top = y + TAIL_ATTACK_Y_OFFSET;
+        final double top = position.getY() + TAIL_ATTACK_Y_OFFSET;
         return new AxisAlignedBoundingBox(left, top, left + TAIL_ATTACK_WIDTH, top + TAIL_ATTACK_HEIGHT);
     }
 

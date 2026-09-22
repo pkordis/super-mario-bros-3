@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.config.db;
 
+import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
@@ -48,5 +49,10 @@ public class NitriteConfig {
     @Bean
     ObjectRepository<LevelObjectRecord> levelObjectRepository(final Nitrite nitrite) {
         return nitrite.getRepository(LevelObjectRecord.class);
+    }
+
+    @Bean
+    ObjectRepository<EnemyRecord> enemyObjectRepository(final Nitrite nitrite) {
+        return nitrite.getRepository(EnemyRecord.class);
     }
 }

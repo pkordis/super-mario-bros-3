@@ -6,15 +6,8 @@ import lombok.RequiredArgsConstructor;
 import java.util.Arrays;
 import java.util.List;
 
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_AIR;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
-import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
-import static house.x1337.app.smb3.enumeration.TileType.Category.NON_COLLIDING;
-import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
-import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.*;
+import static house.x1337.app.smb3.enumeration.TileType.Category.*;
 import static lombok.AccessLevel.PRIVATE;
 
 @Getter
@@ -50,19 +43,38 @@ public enum TileType {
     SOLID("Solid - Flat Ground/Obstacle/Block", COLLIDING, STATIC_ENVIRONMENT),
     SOLID_RAMP("Solid - Ramp Ground/Obstacle (Uphill/Downhill)", COLLIDING, STATIC_ENVIRONMENT),
 
+    // Enemy
+    ENEMY_PART("Enemy (Single or Multi-tiled)", ENEMY, NON_PLAYABLE_CHARACTERS),
+
     // Water
     WATER_SURFACE("Water - Surface", NON_COLLIDING, STATIC_ENVIRONMENT),
     WATER_BODY("Water - Body (Swimmable)", NON_COLLIDING, STATIC_ENVIRONMENT);
 
     private final String label;
     private final Category category;
-    private final LevelSceneLayerType typicalLevelSceneLayerOwningType;
+    private final LevelSceneLayerType levelSceneLayerOwningType;
 
     public enum Category {
         COLLIDING,
+        ENEMY,
         NON_COLLIDING,
         ONE_WAY_PLATFORM,
         VIRTUAL
+    }
+
+    /**
+     * Whether a tile of this type may be painted while {@code activeLayer} is the active one.
+     *
+     * <p>A tile belongs to exactly one layer, and painting it anywhere else is the authoring mistake this
+     * guards: brick blocks dropped into the static-environment layer, for instance, are terrain rather
+     * than interactive objects. A virtual type owns no layer — it marks the scene instead of painting into
+     * it — so it is always available.
+     *
+     * @param activeLayer the layer currently being edited, may be {@code null} when no scene is open
+     * @return {@code true} when this type is free to paint
+     */
+    public boolean isPaintableOn(final LevelSceneLayerType activeLayer) {
+        return levelSceneLayerOwningType == null || levelSceneLayerOwningType == activeLayer;
     }
 
     public static TileType fromLabel(final String label) {

@@ -25,6 +25,8 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static house.x1337.app.smb3.enumeration.TileType.ENEMY_PART;
+import static house.x1337.app.smb3.enumeration.TileType.OBJECT_INTERACTIVE_SINGLE;
 import static java.lang.Math.max;
 import static java.util.Comparator.comparing;
 
@@ -89,18 +91,10 @@ public class TileService implements TilesProvider {
 
     public TileImportResult importFromImage(final BufferedImage image) {
         final int s = TILE_SPRITE_SIZE;
-        final int w = image.getWidth();
-        final int h = image.getHeight();
+        assertTileGridMultiples(image);
 
-        if (w % s != 0 || h % s != 0) {
-            throw new IllegalArgumentException(
-                "Image dimensions (" + w + "x" + h + ") are not multiples of " + s + "x" + s + ".\n" +
-                    "Each tile must be exactly " + s + "x" + s + " pixels."
-            );
-        }
-
-        final int cols = w / s;
-        final int rows = h / s;
+        final int cols = image.getWidth() / s;
+        final int rows = image.getHeight() / s;
         final Tile[][] grid = new Tile[rows][cols];
         final List<Tile> newTiles = new ArrayList<>();
 
@@ -128,6 +122,48 @@ public class TileService implements TilesProvider {
         return new TileImportResult(grid, rows, cols, Collections.unmodifiableList(newTiles));
     }
 
+    public void assertTileGridMultiples(final BufferedImage image) {
+        final int s = TILE_SPRITE_SIZE;
+        final int w = image.getWidth();
+        final int h = image.getHeight();
+
+        if (w == 0 || h == 0 || w % s != 0 || h % s != 0) {
+            throw new IllegalArgumentException(
+                "Image dimensions (" + w + "x" + h + ") are not multiples of " + s + "x" + s + ".\n" +
+                    "Each tile must be exactly " + s + "x" + s + " pixels."
+            );
+        }
+    }
+
+    public int[] createEnemyPartTiles(
+        final List<int[]> partPixels,
+        final String description
+    ) {
+        final int[] tileIds = new int[partPixels.size()];
+        for (int index = 0; index < tileIds.length; index++) {
+            final int[] pixels = partPixels.get(index);
+            final Tile existing = tilesBySha256.get(calculateSha256(pixels));
+            if (existing == null) {
+                tileIds[index] = createCustomTile(ENEMY_PART, description, pixels, pixels).getId();
+                continue;
+            }
+            tileIds[index] = existing.getId();
+            if (existing.getType() == null) {
+                // An unclassified tile from an earlier import: this is what it turned out to be.
+                existing.setType(ENEMY_PART);
+                existing.setArgbData(pixels);
+                updateTile(existing);
+            } else {
+                log.debug(
+                    "Reusing already classified tile id={} (type={}) as an enemy part.",
+                    existing.getId(),
+                    existing.getType()
+                );
+            }
+        }
+        return tileIds;
+    }
+
     public Optional<Tile> findById(final int id) {
         if (!tileCache.containsKey(id)) {
             final TileRecord tileRecord = tileRepository.findById(id).orElse(null);
@@ -143,7 +179,7 @@ public class TileService implements TilesProvider {
         return tileCache
             .values()
             .stream()
-            .filter(t -> t.getType() != null && !t.isVirtual())
+            .filter(t -> t.getType() != null && !t.isVirtual() && t.getType() != ENEMY_PART)
             .sorted(comparing(Tile::getType).thenComparing(Tile::getId))
             .toList();
     }
@@ -152,7 +188,7 @@ public class TileService implements TilesProvider {
         return tileCache
             .values()
             .stream()
-            .filter(t -> t.getType() == TileType.OBJECT_INTERACTIVE_SINGLE)
+            .filter(t -> t.getType() == OBJECT_INTERACTIVE_SINGLE)
             .sorted(comparing(Tile::getId))
             .toList();
     }

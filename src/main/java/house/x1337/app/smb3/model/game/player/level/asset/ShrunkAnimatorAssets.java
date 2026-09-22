@@ -8,13 +8,12 @@ import house.x1337.app.smb3.model.game.player.level.asset.loader.PlayerAnimatorA
 import house.x1337.app.smb3.model.game.player.level.dimension.ShrunkDimensions;
 
 public record ShrunkAnimatorAssets(
-    Texture stillTexture,
-    Texture walkTexture,
-    Texture skidTexture,
-    Texture jumpTexture,
-    Texture fastJumpTexture,
-    Texture[] walkFrameTextures,
-    Texture[] runFrameTextures
+    Texture still,
+    Texture skid,
+    Texture jump,
+    Texture fastJump,
+    Texture[] walk,
+    Texture[] run
 ) implements PlayerAnimatorAssetsMoving, ShrunkDimensions {
     private static final int[] WALK_OR_RUN_FRAME_SEQUENCE = {0, 1, 0, 1};
 

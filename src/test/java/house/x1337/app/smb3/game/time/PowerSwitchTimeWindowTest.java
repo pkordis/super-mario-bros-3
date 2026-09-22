@@ -8,11 +8,6 @@ import static house.x1337.app.smb3.game.time.PowerSwitchTimeWindow.TICKS_PER_COU
 import static house.x1337.app.smb3.game.time.PowerSwitchTimeWindow.TOTAL_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Pins {@link PowerSwitchTimeWindow} against the ROM's {@code Level_PSwitchCnt} countdown
- * (dasm {@code prg008.asm PRG008_A203}, ~:391): seeded at $80 and decremented only when
- * {@code Counter_1 AND #$03 == 0}, i.e. once every 4 frames — 512 ticks, ~8.5 s at 60 Hz.
- */
 class PowerSwitchTimeWindowTest {
 
     @Test

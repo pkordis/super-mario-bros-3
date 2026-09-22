@@ -8,6 +8,7 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.Reward;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
@@ -30,7 +31,7 @@ import static com.jme3.texture.Image.Format.RGBA8;
 import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.level.scene.LevelSceneCapabilities.LevelSceneLayerCapabilities.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,18 +44,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * Pins the coin half of the P-Switch substitution: while the window is open a {@link Coin} is a solid,
- * breakable brick rather than a collectable coin — the mirror of a breakable brick becoming a coin.
- *
- * <p>{@code PSwitch_SubstTileAndAttr} (dasm {@code prg000.asm:1599}) is bidirectional and swaps the tile
- * as it is read, so every consequence tested here follows from the substituted read: the solid attribute
- * {@code $03} instead of the coin's {@code $00}, the bump-block scan landing on {@code LATP_Brick}
- * because the fetched tile is now {@code TILEA_BRICK} ($67 = {@code TILEA_QBLOCKFLOWER} + 7), and the
- * coin branch of {@code Player_DoSpecialTiles} no longer matching {@code TILEA_COIN}.
- */
 class CoinPowerSwitchSubstitutionTest {
-
     private static final int COLUMNS = 8;
     private static final int ROWS = 8;
     private static final Offset COIN_OFFSET = Offset.of(2, 3);
@@ -72,6 +62,9 @@ class CoinPowerSwitchSubstitutionTest {
         coinAnimator = mock(CoinAnimator.class);
         brickBlockMotionManager = mock(BrickBlockMotionManager.class);
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
+        // A substituted coin is painted into the interactive-objects layer, which is the layer whose baked
+        // texture smashBrick has to erase.
+        when(collisionGrid.getSourceLayerAt(COIN_OFFSET)).thenReturn(LevelSceneLayerType.INTERACTIVE_OBJECTS);
         gameEngine = gameEngineMock();
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
