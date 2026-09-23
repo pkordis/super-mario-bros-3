@@ -193,6 +193,58 @@ Coordinates are in NES pixels; `--scale` converts to strip pixels.
 
 ---
 
+### misc/export_mongo_to_nitrite.py
+
+Exports a MongoDB database into a Nitrite (MVStore) file that the game can open with
+`db.provider=NITRITE`. Use it to snapshot the authoring database (`smb3db`) into the
+`smb3.db` file the game reads when no Mongo server is available.
+
+```
+python misc/export_mongo_to_nitrite.py [--uri URI] [--host HOST] [--port PORT]
+                                       [--database NAME] [--username USER] [--password PASS]
+                                       [--auth-database NAME] [--output PATH]
+                                       [--compress BOOL] [--no-backup] [--skip-build]
+```
+
+| Option | Default | Notes |
+|--------|---------|-------|
+| `--uri` | built from host/port | Full connection string, overrides `--host`/`--port` |
+| `--host` | `localhost` | |
+| `--port` | `27017` | |
+| `--database` | `smb3db` | |
+| `--username` / `--password` | none | Omit both for an unauthenticated server |
+| `--auth-database` | value of `--database` | |
+| `--output` | `<project root>/smb3.db` | |
+| `--compress` | `false` | MVStore compression, must match `db.nitrite.compress` |
+| `--no-backup` | off | Fail instead of rotating an existing output file |
+| `--skip-build` | off | Reuse `target/classes` and the cached classpath |
+
+Resolution order per setting: command line > `SPRING_DATA_MONGODB_*` environment variables >
+`src/main/resources/application.properties` > built-in default.
+
+This is the one tool that is only a launcher: the work happens in
+`house.x1337.app.smb3.tool.MongoToNitriteExporter`, because writing an MVStore file requires the
+Nitrite Java library. The script compiles the project with the Maven wrapper, resolves the runtime
+classpath and runs that class.
+
+Behaviour worth knowing:
+
+- `tiles`, `levelScenes`, `levelObjects` and `enemies` are copied through the same record classes
+  and `ObjectRepository` API the game uses, so the file layout matches `NitriteConfig` exactly.
+- Every other collection (e.g. `configuration`) is copied document-by-document into a Nitrite
+  collection of the same name, with the Mongo `_id` field renamed to `id` — the key the Nitrite
+  repositories query on.
+- An existing output file is renamed in place to `smb3.db.bak01`, `smb3.db.bak02`, … using the
+  first free index. Nothing is ever overwritten.
+- The source is pinged before anything is renamed, so a failed export leaves the previous file
+  where it was.
+
+Covered by `src/test/java/house/x1337/app/smb3/tool/MongoToNitriteExporterTest.java`, which runs a
+full export against an in-memory MongoDB (`de.bwaldvogel:mongo-java-server`, test scope) and reads
+the result back through Nitrite.
+
+---
+
 ### misc/dump_colors.py
 
 Prints all distinct RGBA colours in a PNG (or in a region of it), sorted by
