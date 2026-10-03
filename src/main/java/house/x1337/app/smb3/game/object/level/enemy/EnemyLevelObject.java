@@ -55,6 +55,19 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
         return AxisAlignedBoundingBox.ofSize(getPixelX(), getPixelY(), getBoundsPixels());
     }
 
+    /**
+     * An enemy's stomp-depth reference is its sprite top ({@code Objects_Y}), not its collision box top -
+     * the ROM measures the stomp from {@code Objects_Y} regardless of how the box is inset (dasm prg000
+     * {@code Player_HitEnemy} @ PRG000_D218). An enemy that insets its box (a Goomba's top sits {@code +2}
+     * below the sprite) must keep this at the sprite top or it would silently stomp from the wrong depth.
+     *
+     * @return the enemy's sprite-top Y
+     */
+    @Override
+    default double getStompReferenceTop() {
+        return getPixelY();
+    }
+
     @Override
     default boolean isCollidable() {
         return false;

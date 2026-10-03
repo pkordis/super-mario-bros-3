@@ -103,9 +103,19 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     /**
      * The player's hitbox for collision against dynamic {@code ActiveLevelObject}s, in sprite-pixel
-     * space. Horizontally it matches the solid-collision stop offsets (X spans +2..+14 large, +3..+13
-     * small/ducking) so it never pokes past where the body rests against a wall; the bottom sits at
-     * +32; the top at +6 when large and standing, or +16 when small or ducking.
+     * space — the ROM's {@code Player_BoundBox} (dasm prg000 @ line 5190), selected by size exactly as
+     * {@code Object_HitTest} does: entry 0 for small or ducking, entry 1 otherwise. Each ROM entry is
+     * {@code (left, width, top, height)} applied to the sprite's top-left, so:
+     *
+     * <ul>
+     *   <li><b>Large standing</b> {@code (3, 10, 5, 25)} → X {@code [+3, +13]}, Y {@code [+5, +30]}.</li>
+     *   <li><b>Small / ducking</b> {@code (4, 8, 17, 13)} → X {@code [+4, +12]}, Y {@code [+17, +30]}.</li>
+     * </ul>
+     *
+     * <p>Note the bottom is {@code +30} for both, not the sprite-flush {@code +32}: the ROM's box stops
+     * two pixels above the feet. The size switch keys off {@link #isLarge()} AND
+     * {@code !isDucking()} together — a ducking large player uses the small box, which is what the ROM's
+     * {@code Player_IsDucking} test does.
      *
      * <p>This is the "hoist" point for object collision — compute it <b>once per tick</b> and reuse
      * it across every object test, rather than recomputing the player's state inside each object's
@@ -115,15 +125,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      */
     public AxisAlignedBoundingBox getObjectCollisionBounds() {
         final boolean largeStanding = isLarge() && !runtimeState.isDucking();
-        // Horizontal edges match the solid-collision stop offsets (large 2..14, small/ducking 3..13)
-        // rather than the sprite-flush 1..15. The old box overreached the wall stop by 1px on each
-        // side, so a player resting flush against a block still overlapped an item sitting in the
-        // adjacent column by ~1px — collecting it without moving. Aligning to where the body actually
-        // stops removes that phantom pixel (matches the ROM's tight Player_BoundBox: it collides only
-        // on real overlap, not when the edges merely touch).
-        final double left = position.getX() + (isLarge() ? 2 : 3);
-        final double right = position.getX() + (isLarge() ? 14 : 13);
-        return new AxisAlignedBoundingBox(left, position.getY() + (largeStanding ? 6 : 16), right, position.getY() + 32);
+        // Edges straight from the ROM's Player_BoundBox table (left/width/top/height offsets): large
+        // standing spans X [+3, +13] / Y [+5, +30], small or ducking spans X [+4, +12] / Y [+17, +30].
+        final double left = position.getX() + (largeStanding ? 3 : 4);
+        final double right = position.getX() + (largeStanding ? 13 : 12);
+        final double top = position.getY() + (largeStanding ? 5 : 17);
+        final double bottom = position.getY() + 30;
+        return new AxisAlignedBoundingBox(left, top, right, bottom);
     }
 
     /**

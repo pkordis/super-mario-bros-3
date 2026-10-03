@@ -295,7 +295,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         final ActiveLevelObject object,
         final LevelScenePlayer player
     ) {
-        final double objectTop = object.getBounds().top();
+        final double objectTop = object.getStompReferenceTop();
         final boolean withinStompRange = player.getPosition().getY() <= objectTop - STOMP_RANGE_PIXELS;
         final boolean playerRising = player.getPosition().getDY() < 0;
 

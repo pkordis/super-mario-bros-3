@@ -37,6 +37,20 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         return false;
     }
 
+    /**
+     * The Y the stomp-depth check measures the player's top against - the ROM's {@code Objects_Y} in
+     * {@code Player_HitEnemy} (dasm prg000 @ PRG000_D218), described there as "generally the top of the
+     * enemy". It is deliberately <b>not</b> the {@link #getBounds() collision box} top: the ROM selects
+     * the stomp reference and the overlap box from two separate tables, so an enemy whose box is inset
+     * from its sprite (a Goomba's starts {@code +2} down) is still judged stompable from its sprite top.
+     * Defaults to the box top for objects that do not distinguish the two.
+     *
+     * @return the Y the {@code STOMP_RANGE} offset is applied to
+     */
+    default double getStompReferenceTop() {
+        return getBounds().top();
+    }
+
     default boolean bouncesOffOtherObjects() {
         return false;
     }
