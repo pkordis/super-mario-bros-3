@@ -6,7 +6,7 @@ import house.x1337.app.smb3.model.game.enemy.asset.GoombaAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.NormalAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.RaccoonAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.ShrunkAnimatorAssets;
-import house.x1337.app.smb3.model.game.player.level.asset.ShrunkToNormalAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.SizeChangingAnimatorAssets;
 import house.x1337.app.smb3.model.game.player.level.asset.SuitLostPoofAnimatorAssets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,7 +42,7 @@ class AnimatorAssetsDescriptorTest {
             Arguments.of(NormalAnimatorAssets.class, "sprites/player/mario/level/normal/"),
             Arguments.of(RaccoonAnimatorAssets.class, "sprites/player/mario/level/raccoon/"),
             Arguments.of(ShrunkAnimatorAssets.class, "sprites/player/mario/level/shrunk/"),
-            Arguments.of(ShrunkToNormalAnimatorAssets.class, "sprites/player/mario/level/shrunk_to_normal/"),
+            Arguments.of(SizeChangingAnimatorAssets.class, "sprites/player/mario/level/size_changing/"),
             Arguments.of(SuitLostPoofAnimatorAssets.class, POOF_FRAMES_CONTEXT)
         );
     }

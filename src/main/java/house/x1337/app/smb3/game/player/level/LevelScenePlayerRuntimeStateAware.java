@@ -12,6 +12,7 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
@@ -146,7 +147,7 @@ public interface LevelScenePlayerRuntimeStateAware
     /** Begins the small→Super grow transition (dasm {@code Player_Grow = $2f}). */
     default void turnToNormal() {
         getRuntimeState().setQueuedMode(NORMAL);
-        getRuntimeState().setGrowCounter(NORMAL_TRANSITION_TICKS);
+        getRuntimeState().setGrowShrinkCounter(NORMAL_TRANSITION_TICKS);
         neutraliseMotionForTransition();
     }
 
@@ -157,11 +158,52 @@ public interface LevelScenePlayerRuntimeStateAware
         neutraliseMotionForTransition();
     }
 
+    /**
+     * Begins the Normal→Shrunk shrink a damaging hit causes (dasm {@code Player_GetHurt} @ PRG000_DA4E
+     * and PRG000_DA6D: {@code Player_QueueSuit = $02} then {@code DEC} to small, {@code Player_Grow =
+     * $2f}, {@code Player_FlashInv = $71}).
+     *
+     * <p>It rides the same {@code Player_Grow} counter and the same frame table as the small→Super grow,
+     * only played in reverse: {@code Player_Update} applies the queued suit at frame start, so the suit
+     * is already small for the whole transition, and the draw routine reverses the frame index when the
+     * suit is small (prg029 @ PRG029_D22E: {@code X = $0B - (Player_Grow >> 2)}). The shrink is therefore
+     * literally the grow animation backwards — rendered by its own {@code normalToShrunkAnimator}, which
+     * shares {@link PlayerRuntimeState#NORMAL_TRANSITION_TICKS} and the grow art with {@link #turnToNormal}
+     * but is keyed apart from it by the queued mode.
+     *
+     * <p>Unlike the poof paths ({@link #loseAdvancedSuit}), the flashing invincibility armed here
+     * <em>runs during the shrink itself</em>, so the player visibly flickers while shrinking. The grow
+     * counter does not blank the sprite the way the poof cloud does: the ROM falls through to
+     * {@code JSR Player_Draw} every grow tick (prg029 @ PRG029_D224), and {@code Player_Draw} is where
+     * {@code DEC Player_FlashInv} and the blank-phase test live. See {@code tickModeTransition}, which
+     * decrements the flash on the grow path and holds it on the poof path for exactly this reason.
+     */
+    default void turnToShrunk() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        runtimeState.setQueuedMode(SHRUNK);
+        runtimeState.setGrowShrinkCounter(NORMAL_TRANSITION_TICKS);
+        runtimeState.setHurtInvincibilityCounter(HURT_INVINCIBILITY_TICKS);
+        neutraliseMotionForTransition();
+    }
+
+    /**
+     * Takes a damaging hit (dasm {@code Player_GetHurt} @ PRG000_DA15). What it costs depends on the
+     * suit: an advanced suit is poofed back to Normal ({@link #loseAdvancedSuit}), a big Normal player
+     * shrinks ({@link #turnToShrunk}), and a small player dies — the one case not yet implemented, so it
+     * is left as a no-op rather than silently shrinking a player who should die.
+     *
+     * <p>The hit is ignored outright while flashing or mid-transition, mirroring the ROM's guard
+     * (PRG000_D9D3 / PRG000_D355 both bail on {@code Player_FlashInv} and the halt flags).
+     */
     default void onHurt() {
-        if (!isHurtable() || !isAdvanced()) {
+        if (!isHurtable()) {
             return;
         }
-        loseAdvancedSuit();
+        if (isAdvanced()) {
+            loseAdvancedSuit();
+        } else if (isLarge()) {
+            turnToShrunk();
+        }
     }
 
     default boolean isHurtable() {

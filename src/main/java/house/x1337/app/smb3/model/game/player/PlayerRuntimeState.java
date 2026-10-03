@@ -71,6 +71,11 @@ public class PlayerRuntimeState {
      * conditions (holding objects, sliding, etc.). The animator uses this to
      * keep the duck frame rendered even while the movement mode is
      * JUMPING/FALLING/FLYING.
+     * -- GETTER --
+     *  Returns whether the player is ducking. This checks the independent
+     *  ducking flag rather than the movement mode, allowing ducking to
+     *  coexist with airborne states (duck-jump).
+
      */
     private boolean ducking;
 
@@ -121,14 +126,14 @@ public class PlayerRuntimeState {
     /**
      * Remaining ticks of the small→Super grow transition (dasm
      * {@code Player_Grow}, initialised to {@code $2f} by {@code ObjHit_PUpMush}
-     * @ PRG001_A8AB). While non-zero the player is "growing": it halts gameplay
+     * @ PRG001_A8AB). While non-zero the player is "growing/shrinking": it halts gameplay
      * (dasm {@code Player_HaltGame = ... ORA Player_Grow}, prg008 PRG008_A1B4)
-     * and its draw routine plays the grow flicker (prg029 PRG029_D224). The
-     * counter is decremented once per frame and the size flip to NORMAL happens
+     * and its draw routine plays the grow/shrinking flicker (prg029 PRG029_D224). The
+     * counter is decremented once per frame and the size flip to NORMAL/SHRUNK happens
      * when it reaches zero.
      */
     @Setter
-    private int growCounter;
+    private int growShrinkCounter;
 
     /**
      * Remaining ticks of the large→Raccoon "poof" suit-change (dasm
@@ -159,7 +164,7 @@ public class PlayerRuntimeState {
      * {@code $71} by {@code Player_GetHurt} @ PRG000_DA6D). While non-zero the player cannot be hurt
      * again ({@code Player_GetHurt} returns immediately) and its sprite flickers.
      *
-     * <p>Unlike {@link #growCounter} and {@link #poofCounter} this does <b>not</b> halt gameplay — it is
+     * <p>Unlike {@link #growShrinkCounter} and {@link #poofCounter} this does <b>not</b> halt gameplay — it is
      * consumed purely at draw time, and the ROM decrements it inside {@code Player_Draw} itself. That
      * placement is what staggers the two effects when a hit starts both: while {@code Player_SuitLost} is
      * non-zero the draw dispatcher plays the poof and returns without ever reaching {@code Player_Draw}
@@ -174,23 +179,23 @@ public class PlayerRuntimeState {
     }
 
     public boolean isTransitioning() {
-        return isGrowing() || isPoofing();
+        return isChangingSize() || isTurningToRaccoon();
     }
 
     /** @return whether the small→Super grow transition is in progress. */
-    public boolean isGrowing() {
-        return growCounter > 0;
+    public boolean isChangingSize() {
+        return growShrinkCounter > 0;
     }
 
     /** Advances the grow transition by one frame (dasm {@code DEC Player_Grow}). */
     public void decrementGrow() {
-        if (growCounter > 0) {
-            growCounter--;
+        if (growShrinkCounter > 0) {
+            growShrinkCounter--;
         }
     }
 
     /** @return whether the large→Raccoon poof transition is in progress. */
-    public boolean isPoofing() {
+    public boolean isTurningToRaccoon() {
         return poofCounter > 0;
     }
 
@@ -225,15 +230,6 @@ public class PlayerRuntimeState {
         if (hurtInvincibilityCounter > 0) {
             hurtInvincibilityCounter--;
         }
-    }
-
-    /**
-     * Returns whether the player is ducking. This checks the independent
-     * ducking flag rather than the movement mode, allowing ducking to
-     * coexist with airborne states (duck-jump).
-     */
-    public boolean isDucking() {
-        return ducking;
     }
 
     /**

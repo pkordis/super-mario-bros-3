@@ -76,7 +76,7 @@ class CollisionGridOneWayPlatformTest {
         for (int tick = 0; tick < PlayerRuntimeState.NORMAL_TRANSITION_TICKS; tick++) {
             runtimeState.decrementGrow();
         }
-        assertThat(runtimeState.isGrowing()).as("The transition has completed").isFalse();
+        assertThat(runtimeState.isChangingSize()).as("The transition has completed").isFalse();
         grid.handleCollision(player, false);
 
         // Verify - the player must resume the jump, not be grounded inside the platform. A grounded

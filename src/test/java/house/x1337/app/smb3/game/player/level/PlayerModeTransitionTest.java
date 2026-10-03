@@ -42,7 +42,7 @@ class PlayerModeTransitionTest {
         player.turnToNormal();
 
         // Verify
-        assertThat(runtimeState.getGrowCounter()).isEqualTo(NORMAL_TRANSITION_TICKS);
+        assertThat(runtimeState.getGrowShrinkCounter()).isEqualTo(NORMAL_TRANSITION_TICKS);
         assertThat(runtimeState.getMovement())
             .as("A player frozen mid-jump must not be reported as standing")
             .isEqualTo(JUMPING);
