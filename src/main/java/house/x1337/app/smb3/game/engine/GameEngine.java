@@ -16,6 +16,7 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -186,6 +187,13 @@ public final class GameEngine extends GameEngineCapabilities {
         // this rebuilds the grids fresh and spawnPlacedEnemies first resets the enemy managers, so no
         // enemy is duplicated.
         setupLevel(levelScene);
+
+        // Retire the previous player's input listener before the respawn attaches a new one. The key
+        // mappings are shared and stay (PlayerInputHandler.init registers them once per engine); only
+        // the per-player listener must be swapped, or a dead player's handler keeps receiving input.
+        if (playerOne instanceof final LevelScenePlayer previousLevelPlayer) {
+            previousLevelPlayer.getInputHandler().detachInput();
+        }
 
         // Create and attach the player at its spawn, shrunk. A fresh LevelScenePlayer re-reads the
         // spawn point and builds a fresh vertical scroll, so the camera returns to the level start.

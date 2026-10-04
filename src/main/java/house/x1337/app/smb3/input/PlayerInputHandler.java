@@ -51,25 +51,59 @@ public final class PlayerInputHandler
     private final Set<String> handledKeys = new HashSet<>();
 
     /**
-     * Installs key mappings into the given {@link InputManager}.
+     * Installs key mappings into the given {@link InputManager} and attaches this handler as their
+     * listener.
+     *
+     * <p>The mappings are keyed by name on the engine's single, long-lived {@code InputManager}, so they
+     * belong to the {@link GameEngine}, not to any one player. A fresh handler is built every time a
+     * player is (re)spawned — notably on the death restart — so the {@code addMapping} calls are guarded
+     * with {@link InputManager#hasMapping(String)}: they install once per engine and are skipped on
+     * every later handler, which is what stops jME3's "Attempted to add mapping ... twice" warnings on
+     * restart. The listener, by contrast, is per-handler and is always (re)attached so this tick's input
+     * routes to the current player; the engine drops the previous player's listener when it respawns.
      */
     @PostConstruct
     public void init() {
         final InputManager inputManager = gameEngine.getInputManager();
-        inputManager.addMapping(HANDLER_UP, new KeyTrigger(KeyInput.KEY_UP));
-        inputManager.addMapping(HANDLER_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
-        inputManager.addMapping(HANDLER_LEFT, new KeyTrigger(KeyInput.KEY_LEFT));
-        inputManager.addMapping(HANDLER_RIGHT, new KeyTrigger(KeyInput.KEY_RIGHT));
-        inputManager.addMapping(HANDLER_JUMP, new KeyTrigger(KeyInput.KEY_X));
-        inputManager.addMapping(HANDLER_RUN, new KeyTrigger(KeyInput.KEY_Z));
-        inputManager.addMapping(HANDLER_SIZE_TOGGLE, new KeyTrigger(KeyInput.KEY_RETURN));
-        inputManager.addMapping(HANDLER_LAYER_TOGGLE, new KeyTrigger(KeyInput.KEY_L));
+        registerMapping(inputManager, HANDLER_UP, KeyInput.KEY_UP);
+        registerMapping(inputManager, HANDLER_DOWN, KeyInput.KEY_DOWN);
+        registerMapping(inputManager, HANDLER_LEFT, KeyInput.KEY_LEFT);
+        registerMapping(inputManager, HANDLER_RIGHT, KeyInput.KEY_RIGHT);
+        registerMapping(inputManager, HANDLER_JUMP, KeyInput.KEY_X);
+        registerMapping(inputManager, HANDLER_RUN, KeyInput.KEY_Z);
+        registerMapping(inputManager, HANDLER_SIZE_TOGGLE, KeyInput.KEY_RETURN);
+        registerMapping(inputManager, HANDLER_LAYER_TOGGLE, KeyInput.KEY_L);
 
         inputManager.addListener(this,
                 HANDLER_UP, HANDLER_DOWN, HANDLER_LEFT, HANDLER_RIGHT,
                 HANDLER_JUMP, HANDLER_RUN, HANDLER_SIZE_TOGGLE, HANDLER_LAYER_TOGGLE);
         //,
         //        HANDLER_EXIT);
+    }
+
+    /**
+     * Adds a key mapping only if the engine's {@code InputManager} does not already carry it. The
+     * mappings outlive any single player, so a handler built for a respawn must not re-add them.
+     *
+     * @param inputManager the engine's shared input manager
+     * @param name         the mapping name (a {@code HANDLER_*} constant)
+     * @param keyCode      the {@link KeyInput} code to bind
+     */
+    private static void registerMapping(final InputManager inputManager, final String name, final int keyCode) {
+        if (!inputManager.hasMapping(name)) {
+            inputManager.addMapping(name, new KeyTrigger(keyCode));
+        }
+    }
+
+    /**
+     * Removes this handler's listener from the engine's {@code InputManager}, leaving the shared key
+     * mappings in place (they are owned by the engine, registered once in {@link #init()}). Called when
+     * the player this handler drives is retired — on the death restart a fresh handler is built for the
+     * respawned player, and without this the retired handler would stay subscribed and keep mutating
+     * its own (now unread) key state on every input, accumulating one dead listener per death.
+     */
+    public void detachInput() {
+        gameEngine.getInputManager().removeListener(this);
     }
 
     /**
