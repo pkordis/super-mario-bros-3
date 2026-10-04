@@ -93,8 +93,12 @@ class GoombaBumpTest {
         assertThat(left.isFacingRight()).isTrue();
         assertThat(right.isFacingRight()).isFalse();
 
-        // Execute - one tick closes the 0px gap into a 1px overlap, then the bump pass resolves it
-        tickAndResolveBumps(left, right);
+        // Execute - the ROM boxes are inset (13px wide, +1 from each sprite edge), so adjacent Goombas
+        // start 3px apart; closing at 1px a tick combined, the fourth tick turns the 3px gap into a 1px
+        // overlap, and that tick's bump pass resolves it.
+        for (int tick = 0; tick < 4; tick++) {
+            tickAndResolveBumps(left, right);
+        }
 
         // Verify - each has turned away from the other, mirroring the about-face at a wall
         assertThat(left.isFacingRight()).as("The left Goomba now heads left, away").isFalse();
@@ -136,20 +140,22 @@ class GoombaBumpTest {
     @Test
     @DisplayName("A pair that is already heavily overlapped separates instead of flipping in lockstep")
     void heavilyOverlappedPairSeparates() {
-        // Prepare - walk them into each other with the bump pass disabled so they end up 10px deep, the
+        // Prepare - walk them into each other with the bump pass disabled so they end up ~5px deep, the
         // state an author stacking placements nearly on top of each other would produce. A blind
         // about-face would flip both every tick and never let them part; turning away from the neighbour
-        // is idempotent, so they commit to opposite directions.
+        // is idempotent, so they commit to opposite directions. (The ROM boxes are 13px wide inset by 1,
+        // starting 3px apart; 8 free ticks at 0.5px/tick each close that into a ~5px overlap, deep but
+        // not so deep that their centres have crossed - which would make "away" point the wrong way.)
         final Goomba left = goombaAt(5, WALK_ROW);
         final Goomba right = goombaAt(6, WALK_ROW);
         faceTowardsEachOther(left, right);
-        for (int tick = 0; tick < 10; tick++) {
+        for (int tick = 0; tick < 8; tick++) {
             left.motionUpdate();
             right.motionUpdate();
         }
         assertThat(left.getBounds().right() - right.getBounds().left())
             .as("Deeply interpenetrating before the first bump")
-            .isGreaterThan(8.0);
+            .isGreaterThan(4.0);
 
         // Execute
         for (int tick = 0; tick < 40; tick++) {
@@ -172,8 +178,10 @@ class GoombaBumpTest {
         assertThat(lower.isFacingRight()).isFalse();
         assertThat(upper.isFacingRight()).isFalse();
 
-        // Execute - the faller closes on the head and overlaps it vertically
-        for (int tick = 0; tick < 8; tick++) {
+        // Execute - the faller closes on the head and overlaps it vertically. The ROM box is only 8px
+        // tall (sprite +2..+10), so the faller has to cover most of the 16px gap before the boxes meet;
+        // gravity accelerates from rest, so give it enough ticks to land flush on the lower's row.
+        for (int tick = 0; tick < 16; tick++) {
             tickAndResolveBumps(lower, upper);
         }
 

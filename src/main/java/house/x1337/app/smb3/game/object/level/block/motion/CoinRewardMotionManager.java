@@ -91,4 +91,19 @@ public final class CoinRewardMotionManager implements MotionManager {
 
         return completion;
     }
+
+    /**
+     * Drops any in-flight coin pops and score captions when the level restarts (dasm: a death re-enters
+     * the level fresh). These spawn during play and normally expire on their own, but a restart can fire
+     * mid-flight, so each is detached from the scene before the list is cleared — otherwise its geometry
+     * would linger in the rebuilt scene. Pending completions are left to be dropped with the manager; the
+     * block that was waiting on a coin's score is itself gone with the old scene.
+     */
+    @Override
+    public void reset() {
+        activeCoins.forEach(pending -> pending.completable().detach());
+        activeCoins.clear();
+        activeScores.forEach(ScorePopupAnimation::detach);
+        activeScores.clear();
+    }
 }

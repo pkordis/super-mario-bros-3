@@ -76,4 +76,16 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
         }
         return false;
     }
+
+    /**
+     * Drops any in-flight brick break or bounce animations when the level restarts, detaching each from
+     * the scene before clearing so none lingers in the rebuilt level.
+     */
+    @Override
+    public void reset() {
+        activeBreaks.forEach(BrickBlockBreakAnimation::detach);
+        activeBreaks.clear();
+        activeBounces.forEach(BrickBlockBounceAnimation::detach);
+        activeBounces.clear();
+    }
 }

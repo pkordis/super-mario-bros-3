@@ -123,6 +123,27 @@ class EnemyMotionManagerTest {
         assertThat(broadPhase.query(enemy.getBounds())).isEmpty();
     }
 
+    @Test
+    @DisplayName("Reset detaches every live enemy's sprite before clearing, leaving nothing in the scene")
+    void resetDetachesLiveEnemies() {
+        // A level restart (e.g. after the player dies) resets the managers while enemies are still alive
+        // — the one that just killed the player always is. Clearing the list alone would orphan their
+        // sprite geometries in the scene; reset must detach each first.
+        // Prepare - two live enemies in the manager
+        final StubEnemy first = enemyAt(32);
+        final StubEnemy second = enemyAt(64);
+        manager.spawn(first);
+        manager.spawn(second);
+
+        // Execute
+        manager.reset();
+
+        // Verify - each was detached exactly once, and the manager carries nothing into the next scene
+        assertThat(first.getDetachCount()).as("first enemy's sprite detached").isEqualTo(1);
+        assertThat(second.getDetachCount()).as("second enemy's sprite detached").isEqualTo(1);
+        assertThat(manager.getActiveInstances()).as("population dropped").isEmpty();
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
@@ -158,6 +179,7 @@ class EnemyMotionManagerTest {
         @Setter
         private Reward pendingScoreReward;
         private int motionUpdates;
+        private int detachCount;
 
         private StubEnemy(final GameEngine gameEngine, final double pixelX) {
             this.gameEngine = gameEngine;
@@ -191,7 +213,9 @@ class EnemyMotionManagerTest {
 
         @Override
         public void detach() {
-            // No sprite was ever attached.
+            // Records the call rather than touching the scene graph (no sprite was ever attached) so the
+            // manager's reset can be shown to detach each live enemy.
+            detachCount++;
         }
 
         @Override
@@ -207,6 +231,12 @@ class EnemyMotionManagerTest {
         @Override
         public void onCollisionWith(final LevelScenePlayer player) {
             // Not exercised here.
+        }
+
+        @Override
+        public void hurt(final LevelScenePlayer player) {
+            // Not exercised here: what a hit costs the player belongs to each enemy, and the gate under
+            // test is the manager's broadphase admission.
         }
     }
 }

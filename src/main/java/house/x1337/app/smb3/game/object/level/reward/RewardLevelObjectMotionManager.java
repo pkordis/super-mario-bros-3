@@ -137,4 +137,19 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
     default void spawn(final C newLevelObject) {
         getActiveInstances().add(newLevelObject);
     }
+
+    /**
+     * Drops this manager's live population when the level restarts (dasm: a death re-enters the level
+     * fresh). Reward instances and their rising score captions are spawned during play and normally
+     * clear themselves as they are collected or expire, but a restart can fire mid-flight — a reward
+     * still rolling, a caption still rising — so their nodes must be detached here or they would linger
+     * in the rebuilt scene.
+     */
+    @Override
+    default void reset() {
+        getActiveInstances().forEach(ActiveLevelObject::detach);
+        getActiveInstances().clear();
+        getActiveScorePopups().forEach(ScorePopupAnimation::detach);
+        getActiveScorePopups().clear();
+    }
 }

@@ -6,31 +6,28 @@ import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.player.PlayerIdentity;
-import house.x1337.app.smb3.model.game.player.level.asset.ShrunkToNormalAnimatorAssets;
+import house.x1337.app.smb3.model.game.player.level.asset.SizeChangingAnimatorAssets;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
-import static house.x1337.app.smb3.model.game.player.level.asset.ShrunkToNormalAnimatorAssets.GROW_FRAMES;
-import static java.lang.Math.clamp;
+import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class ShrunkToNormalAnimator implements LevelScenePlayerAnimator<ShrunkToNormalAnimatorAssets> {
-    private static final int GROW_FRAME_SHIFT = 2;
-
+public final class SizeChangingAnimator implements LevelScenePlayerAnimator<SizeChangingAnimatorAssets> {
     private final PlayerMode playerMode = NORMAL;
     private final GameEngine gameEngine;
     private final PlayerIdentity identity;
 
     private int lastFrameIndex = -1;
-    private ShrunkToNormalAnimatorAssets assets;
+    private SizeChangingAnimatorAssets assets;
     private PlayerOrientationHorizontal lastOrientation;
 
     @Override
     public String getFramesParentContext() {
-        return "sprites/player/%s/level/shrunk_to_normal/"
+        return "sprites/player/%s/level/size_changing/"
             .formatted(getIdentity().getAnimationFramesPath());
     }
 
@@ -42,9 +39,12 @@ public final class ShrunkToNormalAnimator implements LevelScenePlayerAnimator<Sh
 
     @Override
     public void update(final LevelScenePlayer levelScenePlayer) {
-        final int growCounter = levelScenePlayer.getRuntimeState().getGrowCounter();
-        final int step = clamp(growCounter >> GROW_FRAME_SHIFT, 0, GROW_FRAMES.length - 1);
-        final int frameIndex = GROW_FRAMES[step];
+        final int growShrinkCounter = levelScenePlayer.getRuntimeState().getGrowShrinkCounter();
+        // One counter, one table, both directions — the shrink reads the table backwards so it lands on
+        // the shrunk frame rather than playing the grow sequence and snapping small at the end (dasm
+        // prg029 @ PRG029_D22E). The destination comes from the queued suit, as the ROM's reversal does.
+        final boolean shrinking = levelScenePlayer.getRuntimeState().getQueuedMode() == SHRUNK;
+        final int frameIndex = SizeChangingAnimatorAssets.frameIndexFor(growShrinkCounter, shrinking);
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
 
         if (frameIndex == lastFrameIndex && orientation == lastOrientation) {
@@ -52,6 +52,6 @@ public final class ShrunkToNormalAnimator implements LevelScenePlayerAnimator<Sh
         }
         lastFrameIndex = frameIndex;
         lastOrientation = orientation;
-        rebuildWithTexture(levelScenePlayer.getNode(), assets.growing()[frameIndex], orientation);
+        rebuildWithTexture(levelScenePlayer.getNode(), assets.sizeChanging()[frameIndex], orientation);
     }
 }

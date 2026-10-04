@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.object.level.reward;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.CoinType;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
@@ -16,6 +17,7 @@ import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.CoinType.FLIPPING;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_FLIPPING;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_50;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
@@ -43,6 +46,7 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     private final Offset offset;
 
     private Dimensions spriteDimensions;
+    private CoinType coinType;
 
     @Setter
     private boolean expired;
@@ -59,6 +63,13 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
             imageResource.getDimensions().width() * PIXELS_TO_GAME_UNITS,
             imageResource.getDimensions().height() * PIXELS_TO_GAME_UNITS
         );
+    }
+
+    @Override
+    public void configure(final LevelObjectData data) {
+        coinType = data
+            .getEnum(CoinType.class, "type")
+            .orElse(FLIPPING);
     }
 
     @Override

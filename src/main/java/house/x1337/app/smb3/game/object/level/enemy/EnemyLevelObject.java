@@ -16,6 +16,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     void spawnIntoScene();
     boolean isSpawnedIntoScene();
     DimensionsPixels getBoundsPixels();
+    void hurt(LevelScenePlayer levelScenePlayer);
 
     /**
      * Whether this enemy still takes part in collision at all. An enemy in a dying or defeated state —
@@ -52,6 +53,19 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     @Override
     default AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(getPixelX(), getPixelY(), getBoundsPixels());
+    }
+
+    /**
+     * An enemy's stomp-depth reference is its sprite top ({@code Objects_Y}), not its collision box top -
+     * the ROM measures the stomp from {@code Objects_Y} regardless of how the box is inset (dasm prg000
+     * {@code Player_HitEnemy} @ PRG000_D218). An enemy that insets its box (a Goomba's top sits {@code +2}
+     * below the sprite) must keep this at the sprite top or it would silently stomp from the wrong depth.
+     *
+     * @return the enemy's sprite-top Y
+     */
+    @Override
+    default double getStompReferenceTop() {
+        return getPixelY();
     }
 
     @Override

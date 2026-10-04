@@ -150,7 +150,7 @@ class ActiveObjectGridTest {
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = playerAt(20, 49, 1.0);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -172,7 +172,7 @@ class ActiveObjectGridTest {
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = playerAt(8, 49, 1.0);
+        final LevelScenePlayer player = playerAt(8, 55, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -193,7 +193,7 @@ class ActiveObjectGridTest {
         final StubObject rightEnemy = enemyAt(36, 80);
         grid.insert(leftEnemy);
         grid.insert(rightEnemy);
-        final LevelScenePlayer player = playerAt(28, 49, 1.0);
+        final LevelScenePlayer player = playerAt(28, 55, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -212,7 +212,7 @@ class ActiveObjectGridTest {
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = playerAt(20, 52, 4.0);
+        final LevelScenePlayer player = playerAt(20, 54, 4.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -267,7 +267,7 @@ class ActiveObjectGridTest {
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
-        final LevelScenePlayer player = playerAt(20, 49, -4.0);
+        final LevelScenePlayer player = playerAt(20, 55, -4.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -289,7 +289,7 @@ class ActiveObjectGridTest {
             false
         );
         grid.insert(reward);
-        final LevelScenePlayer player = playerAt(20, 49, 1.0);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
 
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
@@ -429,12 +429,13 @@ class ActiveObjectGridTest {
     /**
      * A player double placed as the real one is: {@code positionY} is the reference Y the stomp test
      * measures from, and the hitbox is derived from it exactly as {@code getObjectCollisionBounds()} does
-     * for a large standing player — X spans {@code +2..+14}, Y spans {@code +6..+32}. Keeping the two in
-     * step is what makes these tests mean anything; a box detached from the reference Y could satisfy the
-     * threshold at a geometry the player can never actually reach.
+     * for a large standing player — X spans {@code +3..+13}, Y spans {@code +5..+30} (the ROM's
+     * {@code Player_BoundBox} entry 1). Keeping the two in step is what makes these tests mean anything; a
+     * box detached from the reference Y could satisfy the threshold at a geometry the player can never
+     * actually reach.
      *
      * @param positionX the player's position X in sprite-pixel space
-     * @param positionY the player's position Y — its reference top, with the feet at {@code +32}
+     * @param positionY the player's position Y — its reference top, with the box bottom at {@code +30}
      * @param dy        vertical velocity; negative is rising
      */
     private static LevelScenePlayer playerAt(final double positionX, final double positionY, final double dy) {
@@ -447,10 +448,10 @@ class ActiveObjectGridTest {
         when(player.getPosition()).thenReturn(position);
         when(player.isTailAttackStriking()).thenReturn(false);
         when(player.getObjectCollisionBounds()).thenReturn(new AxisAlignedBoundingBox(
-            positionX + 2,
-            positionY + 6,
-            positionX + 14,
-            positionY + 32
+            positionX + 3,
+            positionY + 5,
+            positionX + 13,
+            positionY + 30
         ));
         return player;
     }

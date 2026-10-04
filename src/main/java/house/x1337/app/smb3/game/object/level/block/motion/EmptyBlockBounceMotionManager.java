@@ -57,4 +57,14 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
         }
         return false;
     }
+
+    /**
+     * Drops any in-flight empty-block bounce animations when the level restarts, detaching each from the
+     * scene before clearing so none lingers in the rebuilt level.
+     */
+    @Override
+    public void reset() {
+        activeBounces.forEach(EmptyBlockBounceAnimation::detach);
+        activeBounces.clear();
+    }
 }

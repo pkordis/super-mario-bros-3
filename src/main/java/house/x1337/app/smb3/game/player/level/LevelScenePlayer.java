@@ -14,6 +14,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -22,6 +23,9 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_FALL_MAX;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_GRAVITY;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
@@ -84,6 +88,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private PlayerMode mode;
     private Node node;
 
+    /**
+     * Guards the one-shot {@link PlayerDied} publish at the end of the death throe, so the engine is
+     * asked to restart the level exactly once even though {@link #tickDeath()} keeps running until the
+     * engine swaps the scene out.
+     */
+    private boolean deathEventPublished;
+
     public LevelScenePlayer(
         final GameEngine gameEngine,
         final PlayerData playerData
@@ -103,9 +114,19 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     /**
      * The player's hitbox for collision against dynamic {@code ActiveLevelObject}s, in sprite-pixel
-     * space. Horizontally it matches the solid-collision stop offsets (X spans +2..+14 large, +3..+13
-     * small/ducking) so it never pokes past where the body rests against a wall; the bottom sits at
-     * +32; the top at +6 when large and standing, or +16 when small or ducking.
+     * space — the ROM's {@code Player_BoundBox} (dasm prg000 @ line 5190), selected by size exactly as
+     * {@code Object_HitTest} does: entry 0 for small or ducking, entry 1 otherwise. Each ROM entry is
+     * {@code (left, width, top, height)} applied to the sprite's top-left, so:
+     *
+     * <ul>
+     *   <li><b>Large standing</b> {@code (3, 10, 5, 25)} → X {@code [+3, +13]}, Y {@code [+5, +30]}.</li>
+     *   <li><b>Small / ducking</b> {@code (4, 8, 17, 13)} → X {@code [+4, +12]}, Y {@code [+17, +30]}.</li>
+     * </ul>
+     *
+     * <p>Note the bottom is {@code +30} for both, not the sprite-flush {@code +32}: the ROM's box stops
+     * two pixels above the feet. The size switch keys off {@link #isLarge()} AND
+     * {@code !isDucking()} together — a ducking large player uses the small box, which is what the ROM's
+     * {@code Player_IsDucking} test does.
      *
      * <p>This is the "hoist" point for object collision — compute it <b>once per tick</b> and reuse
      * it across every object test, rather than recomputing the player's state inside each object's
@@ -115,15 +136,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      */
     public AxisAlignedBoundingBox getObjectCollisionBounds() {
         final boolean largeStanding = isLarge() && !runtimeState.isDucking();
-        // Horizontal edges match the solid-collision stop offsets (large 2..14, small/ducking 3..13)
-        // rather than the sprite-flush 1..15. The old box overreached the wall stop by 1px on each
-        // side, so a player resting flush against a block still overlapped an item sitting in the
-        // adjacent column by ~1px — collecting it without moving. Aligning to where the body actually
-        // stops removes that phantom pixel (matches the ROM's tight Player_BoundBox: it collides only
-        // on real overlap, not when the edges merely touch).
-        final double left = position.getX() + (isLarge() ? 2 : 3);
-        final double right = position.getX() + (isLarge() ? 14 : 13);
-        return new AxisAlignedBoundingBox(left, position.getY() + (largeStanding ? 6 : 16), right, position.getY() + 32);
+        // Edges straight from the ROM's Player_BoundBox table (left/width/top/height offsets): large
+        // standing spans X [+3, +13] / Y [+5, +30], small or ducking spans X [+4, +12] / Y [+17, +30].
+        final double left = position.getX() + (largeStanding ? 3 : 4);
+        final double right = position.getX() + (largeStanding ? 13 : 12);
+        final double top = position.getY() + (largeStanding ? 5 : 17);
+        final double bottom = position.getY() + 30;
+        return new AxisAlignedBoundingBox(left, top, right, bottom);
     }
 
     /**
@@ -243,10 +262,22 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void advanceAnimation() {
         animationContext.update(this);
+        // Paired with the frame the animator just chose, because the ROM's blanking is part of drawing
+        // that frame rather than a separate effect: Player_Draw decides it before writing any sprite.
+        applyHurtFlashVisibility();
     }
 
     @Override
     public void updateFrame() {
+        // The death throe owns the tick: it freezes gameplay and plays out its own rise-and-fall off
+        // the bottom of the screen (dasm Player_IsDying — the dying routine in prg029 PRG029_D768 owns
+        // the Y motion while the rest of the game is halted). Checked first: a dying player runs no
+        // physics, input or transition.
+        if (runtimeState.isDying()) {
+            tickDeath();
+            return;
+        }
+
         // The small→Super grow transition owns the tick: advance only the grow
         // flicker (dasm prg029 PRG029_D224) and skip all physics/input.
         if (runtimeState.isTransitioning()) {
@@ -347,6 +378,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         advanceAnimation();
 
+        // Only now, on a frame the player was actually drawn as itself, does the hurt flash advance
+        // (dasm prg029 Player_Draw: DEC Player_FlashInv). Both early returns above are frames the ROM
+        // never reaches that code on — the poof owns the draw routine for its whole duration
+        // (PRG029_D205 returns straight after it) — which is precisely what holds the invincibility at
+        // full length until gameplay resumes. Decremented after advanceAnimation so this frame's
+        // visibility came from the pre-decrement value, as the ROM's LDA/DEC order gives.
+        runtimeState.decrementHurtInvincibility();
+
         // Advance the vertical camera scroll (locked at the level bottom unless
         // flying/climbing — SMB3 Level_FreeVertScroll mode 0).
         updateVerticalScroll();
@@ -367,9 +406,73 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
+    /**
+     * Advances the death throe by one tick (dasm prg029 PRG029_D768): apply gravity to the launch
+     * velocity, move on the Y axis only, and draw the dead frame. The body pops up
+     * ({@link GameConstants#PLAYER_DEATH_RISE_YVEL}), decelerates at {@link GameConstants#PLAYER_DEATH_GRAVITY}
+     * to an apex, then falls — capped at {@link GameConstants#PLAYER_DEATH_FALL_MAX} — off the bottom of
+     * the level. There is no horizontal motion and no input; the throe owns the player entirely while
+     * {@link #isHaltingGameplay()} freezes everything else.
+     *
+     * <p>Once the body has dropped clear of the bottom edge, a single {@link PlayerDied} is published
+     * (guarded by {@link #deathEventPublished}) and the engine restarts the level from scratch. The
+     * throe keeps ticking harmlessly until that swap happens, so the one-shot guard matters.
+     */
+    private void tickDeath() {
+        position.snapshotPrevious();
+
+        // Pre-launch pause (dasm Event_Countdown seeded to $30): the dead sprite is drawn in place with
+        // no motion while the countdown runs; the rise-and-fall begins only once it reaches zero. This
+        // is the beat where the body hangs in contact with the enemy that killed it before popping up.
+        if (runtimeState.isDeathPausing()) {
+            runtimeState.decrementDeathPause();
+            advanceAnimation();
+            updateVisualPosition();
+            return;
+        }
+
+        applyDeathGravityStep(position);
+        advanceAnimation();
+        updateVisualPosition();
+
+        if (!deathEventPublished && hasFallenOffLevel(position, getLevelScene().getDimensions().rows())) {
+            deathEventPublished = true;
+            gameEngine.publish(new PlayerDied());
+        }
+    }
+
+    /**
+     * One tick of death-throe Y motion (dasm prg029 PRG029_D768): add gravity to the velocity, cap the
+     * fall at the terminal rate, and move on Y only. Extracted as a pure step over the position so the
+     * physics is unit-testable without a fully wired player.
+     *
+     * @param position the dying player's position, advanced in place
+     */
+    static void applyDeathGravityStep(final PlayerPosition position) {
+        position.addToDY(PLAYER_DEATH_GRAVITY);
+        if (position.getDY() > PLAYER_DEATH_FALL_MAX) {
+            position.setDY(PLAYER_DEATH_FALL_MAX);
+        }
+        position.addToY(position.getDY());
+    }
+
+    /**
+     * Whether the dying body has dropped a full tile below the level's bottom edge, i.e. fully
+     * off-screen. Y is sprite-pixel space growing down, so the bottom edge sits at
+     * {@code rows × TILE_SPRITE_SIZE}; one extra tile of margin ensures the sprite has entirely cleared
+     * the view before the restart fires.
+     *
+     * @param position the dying player's position
+     * @param rows     the level height in tiles
+     * @return {@code true} once the body is clear of the bottom edge
+     */
+    static boolean hasFallenOffLevel(final PlayerPosition position, final int rows) {
+        return position.getY() > (double) (rows + 1) * TILE_SPRITE_SIZE;
+    }
+
     @Override
     public boolean isHaltingGameplay() {
-        return runtimeState.isTransitioning();
+        return runtimeState.isTransitioning() || runtimeState.isDying();
     }
 
     @Override

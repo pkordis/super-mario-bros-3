@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.object.level;
 
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -37,6 +38,20 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         return false;
     }
 
+    /**
+     * The Y the stomp-depth check measures the player's top against - the ROM's {@code Objects_Y} in
+     * {@code Player_HitEnemy} (dasm prg000 @ PRG000_D218), described there as "generally the top of the
+     * enemy". It is deliberately <b>not</b> the {@link #getBounds() collision box} top: the ROM selects
+     * the stomp reference and the overlap box from two separate tables, so an enemy whose box is inset
+     * from its sprite (a Goomba's starts {@code +2} down) is still judged stompable from its sprite top.
+     * Defaults to the box top for objects that do not distinguish the two.
+     *
+     * @return the Y the {@code STOMP_RANGE} offset is applied to
+     */
+    default double getStompReferenceTop() {
+        return getBounds().top();
+    }
+
     default boolean bouncesOffOtherObjects() {
         return false;
     }
@@ -50,9 +65,12 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     }
 
     default void detach() {
-        getGameEngine()
-            .getRootNode()
-            .detachChild(getSpriteGeometry());
+        final Geometry spriteGeometry = getSpriteGeometry();
+        if (spriteGeometry != null) {
+            getGameEngine()
+                .getRootNode()
+                .detachChild(spriteGeometry);
+        }
     }
 
     default WorldOffset getCurrentWorldOffset() {

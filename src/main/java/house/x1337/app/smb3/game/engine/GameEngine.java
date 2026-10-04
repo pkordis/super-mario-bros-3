@@ -16,6 +16,7 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
+import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -137,11 +138,30 @@ public final class GameEngine extends GameEngineCapabilities {
         // leaving the bottom strip for the fixed HUD region.
         viewPort.getCamera().setViewPort(0f, 1f, HUD_VIEWPORT_BOTTOM, 1f);
 
-        // Create the HUD viewport - a separate camera that renders a solid
-        // colored strip at the bottom of the screen, independent of camera
-        // scrolling. This mirrors the NES IRQ-driven status bar (scanline 192+).
+        // Build the level, player, HUD and timer. Extracted so the death-restart can replay exactly
+        // this sequence from scratch (dasm: a player death drops back to the map and re-enters the
+        // level fresh — here the engine stays up and the level is rebuilt in place).
+        buildLevel();
 
+        // Frame-capture state — toggled by pressing 9.
+        // Uses a post viewport so the readback fires after all main viewports
+        // (game scene + HUD) have fully rendered including their Translucent
+        // bucket, which is where the player sprite lives.
+        frameCaptureState = new FrameCaptureState();
+        stateManager.attach(frameCaptureState);
+        registerCaptureTrigger();
+    }
 
+    /**
+     * Builds (or rebuilds) everything that belongs to one run of the level: the baked tile layers and
+     * their camera target, the collision/active-object grids and placed enemies, the player at its
+     * spawn in SHRUNK mode, the HUD, and the countdown timer. Everything else set up in
+     * {@link #simpleInitApp()} — the fixed-rate timer, the viewports, the camera-state and
+     * frame-capture app states, the input mappings, the player identity — is one-time and is
+     * deliberately left untouched so this can run again on a death-restart without duplicating app
+     * lifecycle state.
+     */
+    public void buildLevel() {
         // Camera target node - the camera follows the player
         final Node cameraTarget = new Node("CameraTarget");
         rootNode.attachChild(cameraTarget);
@@ -157,7 +177,26 @@ public final class GameEngine extends GameEngineCapabilities {
             levelScene.getDimensions().rows()
         );
 
-        // Create and attach the players
+        // Clear every manager's leftover population BEFORE rebuilding, so a restart does not carry the
+        // previous run's rewards, score captions or effect animations into the fresh scene. Done before
+        // setupLevel because setupLevel -> spawnPlacedEnemies repopulates the enemy managers (and resets
+        // them itself first); resetting after it would wipe the enemies just spawned.
+        motionManagers.forEach(MotionManager::reset);
+
+        // (Re)build the collision/active-object grids and (re)spawn the authored enemies. On a restart
+        // this rebuilds the grids fresh and spawnPlacedEnemies first resets the enemy managers, so no
+        // enemy is duplicated.
+        setupLevel(levelScene);
+
+        // Retire the previous player's input listener before the respawn attaches a new one. The key
+        // mappings are shared and stay (PlayerInputHandler.init registers them once per engine); only
+        // the per-player listener must be swapped, or a dead player's handler keeps receiving input.
+        if (playerOne instanceof final LevelScenePlayer previousLevelPlayer) {
+            previousLevelPlayer.getInputHandler().detachInput();
+        }
+
+        // Create and attach the player at its spawn, shrunk. A fresh LevelScenePlayer re-reads the
+        // spawn point and builds a fresh vertical scroll, so the camera returns to the level start.
         playerData.setIdentity(MARIO.identity());
         playerOne = PlayerFactory.spawn(
             playerData,
@@ -168,18 +207,12 @@ public final class GameEngine extends GameEngineCapabilities {
             },
             this
         );
+        allPlayers.clear();
         allPlayers.add(playerOne);
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
+        playerData.getPlayerTimer().clear();
         playerData.getPlayerTimer().setInitialTime(300);
         playerData.getPlayerTimer().start();
-
-        // Frame-capture state — toggled by pressing 9.
-        // Uses a post viewport so the readback fires after all main viewports
-        // (game scene + HUD) have fully rendered including their Translucent
-        // bucket, which is where the player sprite lives.
-        frameCaptureState = new FrameCaptureState();
-        stateManager.attach(frameCaptureState);
-        registerCaptureTrigger();
     }
 
     private void registerCaptureTrigger() {

@@ -103,6 +103,12 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
 
     @Override
     default void reset() {
+        // Detach each enemy's sprite geometry before dropping it — not just clear the list. An enemy
+        // alive at reset time (the one that just killed the player is always alive) still has its sprite
+        // attached to the root node; clearing the list alone would orphan that geometry, leaving the
+        // enemy visibly frozen in the scene after the restart. detach() removes it, exactly as the
+        // per-tick update does when an enemy expires.
+        getActiveInstances().forEach(ActiveLevelObject::detach);
         getActiveInstances().clear();
         getActiveScorePopups().forEach(ScorePopupAnimation::detach);
         getActiveScorePopups().clear();

@@ -47,7 +47,17 @@ public final class Goomba implements EnemyLevelObject {
     private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
     private static final double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / TILE_SPRITE_SIZE;
     private static final int SPRITE_SIZE_PIXELS = TILE_SPRITE_SIZE;
-    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(SPRITE_SIZE_PIXELS, SPRITE_SIZE_PIXELS);
+
+    // Collision box inset from the 16x16 sprite, matching the ROM's bounding-box table entry the Goomba
+    // selects. dasm prg000 Object_AttrFlags gives OBJ_GOOMBA (#$72) OAT_BOUNDBOX01, and Object_BoundBox
+    // row 01 is (left 1, width 13, top 2, height 8) - offsets applied to the sprite's top-left. So the
+    // box spans X [+1, +14] and Y [+2, +10], tighter and much shorter than the full tile. The stomp
+    // depth still measures from Objects_Y (the sprite top), not this box - see getStompReferenceTop.
+    private static final int BOUND_BOX_LEFT_OFFSET = 1;
+    private static final int BOUND_BOX_TOP_OFFSET = 2;
+    private static final int BOUND_BOX_WIDTH = 13;
+    private static final int BOUND_BOX_HEIGHT = 8;
+    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
     @Accessors(fluent = true)
@@ -83,6 +93,21 @@ public final class Goomba implements EnemyLevelObject {
     void init() {
         pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
         pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
+    }
+
+    /**
+     * The Goomba's collision box, inset from its 16x16 sprite to the ROM's {@code Object_BoundBox} row
+     * 01 (dasm prg000: left {@code +1}, width 13, top {@code +2}, height 8). Overridden rather than left
+     * to the full-tile default so object overlap engages where the ROM's does - a touch narrower, and far
+     * shorter, than the sprite.
+     *
+     * @return the box spanning X {@code [pixelX+1, pixelX+14]}, Y {@code [pixelY+2, pixelY+10]}
+     */
+    @Override
+    public AxisAlignedBoundingBox getBounds() {
+        final double left = pixelX + BOUND_BOX_LEFT_OFFSET;
+        final double top = pixelY + BOUND_BOX_TOP_OFFSET;
+        return new AxisAlignedBoundingBox(left, top, left + BOUND_BOX_WIDTH, top + BOUND_BOX_HEIGHT);
     }
 
     @Override
@@ -142,8 +167,26 @@ public final class Goomba implements EnemyLevelObject {
     }
 
     @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
+    @Override
+    public void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
+    @Override
     public boolean isHittable() {
         return !squished && whamMotion == null;
+    }
+
+    @Override
+    public void hurt(final LevelScenePlayer levelScenePlayer) {
+        if (squished || whamMotion != null) {
+            return;
+        }
+        levelScenePlayer.onHurt();
     }
 
     @Override
