@@ -187,6 +187,37 @@ public final class GameConstants {
      */
     public static final double PLAYER_STOMP_BOUNCE_YVEL = -4.0;
 
+    /**
+     * Upward velocity the death throe launches with (dasm {@code Player_Die} @ prg000 PRG000_DA8E:
+     * {@code LDA #-64 / STA Player_YVel}), i.e. {@code -$40/16} px/frame — the player pops up before
+     * falling off the bottom of the screen. Numerically the same as {@link #PLAYER_STOMP_BOUNCE_YVEL},
+     * but written by a different routine and free to be retuned.
+     */
+    public static final double PLAYER_DEATH_RISE_YVEL = -4.0;
+
+    /**
+     * Ticks the dead player holds still in place before the death throe launches (dasm {@code Player_Die}
+     * @ prg000: {@code LDA #$30 / STA Event_Countdown}). While this counts down, the dying routine draws
+     * the dead frame but applies no motion (prg029 {@code Player_Die_Dying} jumps to the draw-only
+     * {@code PRG029_D771} whenever {@code Event_Countdown != 0}); only when it reaches zero does the
+     * rise-and-fall ({@code PRG029_D768}) begin. {@code $30 = 48} ticks.
+     */
+    public static final int PLAYER_DEATH_PAUSE_TICKS = 0x30;
+
+    /**
+     * Per-tick gravity applied to the death throe (dasm prg029 PRG029_D768: {@code INC Player_YVel}
+     * twice = {@code +2} in 4.4 fixed-point, i.e. {@code 2/16} px/frame²). Decelerates the rise to an
+     * apex at ~32 ticks, then accelerates the fall.
+     */
+    public static final double PLAYER_DEATH_GRAVITY = 2.0 / TILE_SPRITE_SIZE;
+
+    /**
+     * Terminal fall speed of the death throe (dasm {@code Player_ApplyYVelocity} caps at
+     * {@code FALLRATE_MAX = $40}, i.e. {@code $40/16} px/frame). The dying body never falls faster
+     * than this on its way off-screen.
+     */
+    public static final double PLAYER_DEATH_FALL_MAX = 4.0;
+
     public static final int PMETER_LEVELS = 7;
     public static final int PMETER_CHARGE_FRAMES = 8;
     public static final int PMETER_DRAIN_FRAMES = 24;

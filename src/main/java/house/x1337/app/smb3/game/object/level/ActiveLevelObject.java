@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.object.level;
 
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -64,9 +65,12 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     }
 
     default void detach() {
-        getGameEngine()
-            .getRootNode()
-            .detachChild(getSpriteGeometry());
+        final Geometry spriteGeometry = getSpriteGeometry();
+        if (spriteGeometry != null) {
+            getGameEngine()
+                .getRootNode()
+                .detachChild(spriteGeometry);
+        }
     }
 
     default WorldOffset getCurrentWorldOffset() {

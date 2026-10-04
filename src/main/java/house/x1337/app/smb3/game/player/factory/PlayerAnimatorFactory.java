@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player.factory;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayerRenderer;
+import house.x1337.app.smb3.game.player.level.animator.DeathAnimator;
 import house.x1337.app.smb3.game.player.level.animator.EmptyAnimator;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.game.player.level.animator.NormalAnimator;
@@ -26,6 +27,7 @@ public interface PlayerAnimatorFactory {
             getBean(RaccoonAnimator.class, e, i),
             getBean(SizeChangingAnimator.class, e, i),
             getBean(SuitLostPoofAnimator.class, e, i),
+            getBean(DeathAnimator.class, e, i),
             getBean(EmptyAnimator.class, e, i)
         );
     }

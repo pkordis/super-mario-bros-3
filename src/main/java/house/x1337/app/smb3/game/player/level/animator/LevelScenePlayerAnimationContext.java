@@ -17,6 +17,7 @@ public class LevelScenePlayerAnimationContext {
     private final RaccoonAnimator raccoonAnimator;
     private final SizeChangingAnimator sizeChangingAnimator;
     private final SuitLostPoofAnimator suitLostPoofAnimator;
+    private final DeathAnimator deathAnimator;
     private final EmptyAnimator emptyAnimator;
     private LevelScenePlayerAnimator<?> activeAnimator;
 
@@ -43,6 +44,13 @@ public class LevelScenePlayerAnimationContext {
     }
 
     public void update(final LevelScenePlayer levelScenePlayer) {
+        // The death throe owns rendering for its whole duration (dasm Player_IsDying): the dead frame
+        // (PF_DIE) replaces every other sprite until the level restarts. Checked first because a dying
+        // player is neither changing size nor poofing, and nothing should ever draw it as its mode.
+        if (levelScenePlayer.getRuntimeState().isDying()) {
+            deathAnimator.update(levelScenePlayer);
+            return;
+        }
         // The size transitions own rendering for their whole duration (dasm Player_Grow): a dedicated
         // animator plays the size shimmer, then rendering returns to the mode animators. The one grow
         // counter runs in both directions — a small→Super grow and the Normal→Shrunk shrink a hit

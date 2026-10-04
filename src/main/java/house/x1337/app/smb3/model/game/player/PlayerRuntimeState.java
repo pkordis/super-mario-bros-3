@@ -174,12 +174,59 @@ public class PlayerRuntimeState {
     @Setter
     private int hurtInvincibilityCounter;
 
+    /**
+     * Whether the player is playing out its death throe (dasm {@code Player_IsDying}, set by
+     * {@code Player_Die} @ prg000 PRG000_DAA9). While set the player halts all gameplay — the countdown
+     * timer, every active object and the camera freeze (dasm {@code Player_HaltGame = ... ORA
+     * Player_IsDying}, prg008 PRG008_A1B4) — and its own update owns the rise-and-fall motion and draws
+     * the dead frame, exactly as the ROM's dying routine does (prg029 PRG029_D768). It is one-way: once
+     * dying, the throe runs to completion and the level restarts, so there is no "stop dying" short of a
+     * fresh scene.
+     */
+    private boolean dying;
+
+    /**
+     * Ticks remaining of the still pause before the death throe launches (dasm {@code Event_Countdown}
+     * seeded to {@code $30} by {@code Player_Die}). While {@link #dying} and this is {@code > 0} the dead
+     * sprite is drawn in place with no motion; the rise-and-fall begins only once it reaches zero (dasm
+     * prg029 {@code Player_Die_Dying}: {@code Event_Countdown != 0} draws without moving). It rides
+     * alongside {@link #dying} rather than being inferred from it so the two phases of the throe — the
+     * pause and the motion — are distinct.
+     */
+    @Setter
+    private int deathPauseCounter;
+
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;
     }
 
     public boolean isTransitioning() {
         return isChangingSize() || isTurningToRaccoon();
+    }
+
+    /** @return whether the player is playing out its death throe (dasm {@code Player_IsDying}). */
+    public boolean isDying() {
+        return dying;
+    }
+
+    /** Enters the death throe (dasm {@code Player_Die}: {@code Player_IsDying = 1}). */
+    public void startDying() {
+        dying = true;
+    }
+
+    /**
+     * @return whether the dead player is still in its launch pause — drawn in place, not yet moving
+     *         (dasm: {@code Player_IsDying} set and {@code Event_Countdown != 0}).
+     */
+    public boolean isDeathPausing() {
+        return dying && deathPauseCounter > 0;
+    }
+
+    /** Advances the death launch pause by one tick (dasm the {@code DEC Event_Countdown} loop). */
+    public void decrementDeathPause() {
+        if (deathPauseCounter > 0) {
+            deathPauseCounter--;
+        }
     }
 
     /** @return whether the small→Super grow transition is in progress. */

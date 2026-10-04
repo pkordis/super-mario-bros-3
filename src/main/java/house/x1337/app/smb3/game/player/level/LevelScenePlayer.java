@@ -14,6 +14,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -22,6 +23,9 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_FALL_MAX;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_GRAVITY;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
@@ -83,6 +87,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private LevelSceneVerticalScroll verticalScroll;
     private PlayerMode mode;
     private Node node;
+
+    /**
+     * Guards the one-shot {@link PlayerDied} publish at the end of the death throe, so the engine is
+     * asked to restart the level exactly once even though {@link #tickDeath()} keeps running until the
+     * engine swaps the scene out.
+     */
+    private boolean deathEventPublished;
 
     public LevelScenePlayer(
         final GameEngine gameEngine,
@@ -258,6 +269,15 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateFrame() {
+        // The death throe owns the tick: it freezes gameplay and plays out its own rise-and-fall off
+        // the bottom of the screen (dasm Player_IsDying — the dying routine in prg029 PRG029_D768 owns
+        // the Y motion while the rest of the game is halted). Checked first: a dying player runs no
+        // physics, input or transition.
+        if (runtimeState.isDying()) {
+            tickDeath();
+            return;
+        }
+
         // The small→Super grow transition owns the tick: advance only the grow
         // flicker (dasm prg029 PRG029_D224) and skip all physics/input.
         if (runtimeState.isTransitioning()) {
@@ -386,9 +406,73 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
+    /**
+     * Advances the death throe by one tick (dasm prg029 PRG029_D768): apply gravity to the launch
+     * velocity, move on the Y axis only, and draw the dead frame. The body pops up
+     * ({@link GameConstants#PLAYER_DEATH_RISE_YVEL}), decelerates at {@link GameConstants#PLAYER_DEATH_GRAVITY}
+     * to an apex, then falls — capped at {@link GameConstants#PLAYER_DEATH_FALL_MAX} — off the bottom of
+     * the level. There is no horizontal motion and no input; the throe owns the player entirely while
+     * {@link #isHaltingGameplay()} freezes everything else.
+     *
+     * <p>Once the body has dropped clear of the bottom edge, a single {@link PlayerDied} is published
+     * (guarded by {@link #deathEventPublished}) and the engine restarts the level from scratch. The
+     * throe keeps ticking harmlessly until that swap happens, so the one-shot guard matters.
+     */
+    private void tickDeath() {
+        position.snapshotPrevious();
+
+        // Pre-launch pause (dasm Event_Countdown seeded to $30): the dead sprite is drawn in place with
+        // no motion while the countdown runs; the rise-and-fall begins only once it reaches zero. This
+        // is the beat where the body hangs in contact with the enemy that killed it before popping up.
+        if (runtimeState.isDeathPausing()) {
+            runtimeState.decrementDeathPause();
+            advanceAnimation();
+            updateVisualPosition();
+            return;
+        }
+
+        applyDeathGravityStep(position);
+        advanceAnimation();
+        updateVisualPosition();
+
+        if (!deathEventPublished && hasFallenOffLevel(position, getLevelScene().getDimensions().rows())) {
+            deathEventPublished = true;
+            gameEngine.publish(new PlayerDied());
+        }
+    }
+
+    /**
+     * One tick of death-throe Y motion (dasm prg029 PRG029_D768): add gravity to the velocity, cap the
+     * fall at the terminal rate, and move on Y only. Extracted as a pure step over the position so the
+     * physics is unit-testable without a fully wired player.
+     *
+     * @param position the dying player's position, advanced in place
+     */
+    static void applyDeathGravityStep(final PlayerPosition position) {
+        position.addToDY(PLAYER_DEATH_GRAVITY);
+        if (position.getDY() > PLAYER_DEATH_FALL_MAX) {
+            position.setDY(PLAYER_DEATH_FALL_MAX);
+        }
+        position.addToY(position.getDY());
+    }
+
+    /**
+     * Whether the dying body has dropped a full tile below the level's bottom edge, i.e. fully
+     * off-screen. Y is sprite-pixel space growing down, so the bottom edge sits at
+     * {@code rows × TILE_SPRITE_SIZE}; one extra tile of margin ensures the sprite has entirely cleared
+     * the view before the restart fires.
+     *
+     * @param position the dying player's position
+     * @param rows     the level height in tiles
+     * @return {@code true} once the body is clear of the bottom edge
+     */
+    static boolean hasFallenOffLevel(final PlayerPosition position, final int rows) {
+        return position.getY() > (double) (rows + 1) * TILE_SPRITE_SIZE;
+    }
+
     @Override
     public boolean isHaltingGameplay() {
-        return runtimeState.isTransitioning();
+        return runtimeState.isTransitioning() || runtimeState.isDying();
     }
 
     @Override

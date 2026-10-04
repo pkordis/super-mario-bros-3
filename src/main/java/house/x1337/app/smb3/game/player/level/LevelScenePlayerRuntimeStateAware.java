@@ -8,6 +8,8 @@ import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
@@ -203,12 +205,38 @@ public interface LevelScenePlayerRuntimeStateAware
             loseAdvancedSuit();
         } else if (isLarge()) {
             turnToShrunk();
+        } else {
+            die();
         }
+    }
+
+    /**
+     * Begins the death throe a shrunk player suffers on a damaging hit (dasm {@code Player_Die} @ prg000
+     * PRG000_DA8E). It zeroes horizontal motion ({@code Player_XVel = 0}), pops the body upward
+     * ({@code Player_YVel = -64} → {@link GameConstants#PLAYER_DEATH_RISE_YVEL}), and raises
+     * {@code Player_IsDying}. From the next tick the player halts all gameplay and its own update owns
+     * the rise-and-fall off the bottom of the screen (see {@code LevelScenePlayer.tickDeath}); the dead
+     * sprite is drawn by the dedicated death animator while the throe plays.
+     *
+     * <p>Guarded by {@link #isHurtable()} at the single call site ({@link #onHurt()}), so a hit taken
+     * while already dying, flashing or mid-transition cannot restart it.
+     */
+    default void die() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        final PlayerPosition position = getPosition();
+        runtimeState.startDying();
+        runtimeState.setDeathPauseCounter(PLAYER_DEATH_PAUSE_TICKS);
+        runtimeState.standUp();
+        runtimeState.setPlayerFlyTime(0);
+        runtimeState.setPlayerWagCount(0);
+        runtimeState.setPlayerTailAttackCountdown(0);
+        position.setDX(0);
+        position.setDY(PLAYER_DEATH_RISE_YVEL);
     }
 
     default boolean isHurtable() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
-        return !runtimeState.isHurtInvincible() && !runtimeState.isTransitioning();
+        return !runtimeState.isHurtInvincible() && !runtimeState.isTransitioning() && !runtimeState.isDying();
     }
 
     /**

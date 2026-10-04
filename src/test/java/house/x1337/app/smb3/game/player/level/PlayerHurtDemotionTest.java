@@ -122,22 +122,49 @@ class PlayerHurtDemotionTest {
     }
 
     @Test
-    @DisplayName("A small player absorbs the hit untouched — death is not implemented, so it is a no-op")
-    void smallPlayerIsUnaffected() {
-        // The ROM kills small here (Player_Die); that is not implemented, so the hit must be a no-op
-        // rather than silently shrinking a player who should die or granting free invincibility.
-        // Prepare
+    @DisplayName("A small player dies: the hit starts the death throe, not a shrink or a poof")
+    void smallPlayerDies() {
+        // The ROM kills small here (Player_Die @ PRG000_DA8E): Player_XVel = 0, Player_YVel = -64, and
+        // Player_IsDying = 1 — no suit change, no poof, no grow counter.
+        // Prepare - running, to prove the throe zeroes horizontal motion as Player_Die does
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
-        final LevelScenePlayer player = hurtablePlayer(SHRUNK, runtimeState, positionWithVelocity(0, 0));
+        runtimeState.setTo(RUNNING);
+        final PlayerPosition position = positionWithVelocity(3.0, 0);
+        final LevelScenePlayer player = hurtablePlayer(SHRUNK, runtimeState, position);
 
         // Execute
         player.onHurt();
 
         // Verify
-        assertThat(runtimeState.getPoofCounter()).isZero();
-        assertThat(runtimeState.getGrowShrinkCounter()).isZero();
-        assertThat(runtimeState.getHurtInvincibilityCounter()).isZero();
-        assertThat(runtimeState.getQueuedMode()).isNull();
+        assertThat(runtimeState.isDying()).as("the death throe has begun").isTrue();
+        assertThat(runtimeState.isDeathPausing())
+            .as("the throe opens with the still pause, body held in place before launching")
+            .isTrue();
+        assertThat(runtimeState.getDeathPauseCounter())
+            .as("Event_Countdown seeded to $30 = 48 ticks")
+            .isEqualTo(0x30);
+        assertThat(runtimeState.getPoofCounter()).as("a death is not a poof").isZero();
+        assertThat(runtimeState.getGrowShrinkCounter()).as("nor a shrink").isZero();
+        assertThat(runtimeState.getHurtInvincibilityCounter()).as("death grants no flashing").isZero();
+        assertThat(position.getDX()).as("Player_XVel = 0").isZero();
+        assertThat(position.getDY()).as("Player_YVel = -64 = -4.0 px/frame rise").isEqualTo(-4.0);
+    }
+
+    @Test
+    @DisplayName("A dying player cannot be hurt again, so a second contact does not restart the throe")
+    void aDyingPlayerAbsorbsFurtherHits() {
+        // Prepare - already dying
+        final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
+        final LevelScenePlayer player = hurtablePlayer(SHRUNK, runtimeState, positionWithVelocity(0, 0));
+        player.onHurt();
+        assertThat(runtimeState.isDying()).isTrue();
+
+        // Execute - a second hit mid-throe
+        player.onHurt();
+
+        // Verify - still a no-op; the throe is one-way
+        assertThat(player.isHurtable()).isFalse();
+        assertThat(runtimeState.isDying()).isTrue();
     }
 
     @Test
@@ -299,6 +326,7 @@ class PlayerHurtDemotionTest {
         doCallRealMethod().when(player).isLarge();
         doCallRealMethod().when(player).isHurtable();
         doCallRealMethod().when(player).onHurt();
+        doCallRealMethod().when(player).die();
         doCallRealMethod().when(player).loseAdvancedSuit();
         doCallRealMethod().when(player).turnToShrunk();
         doCallRealMethod().when(player).turnToNormal();

@@ -1,6 +1,9 @@
 package house.x1337.app.smb3.ui.editor.level.tester;
 
+import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.event.TestSessionEventListener;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
@@ -65,5 +68,28 @@ public class LevelSceneTesterSession implements TestSessionEventListener {
     @Override
     public void onGameEngineStopped() {
         stop();
+    }
+
+    @Override
+    public void onLevelSceneRestart() {
+        final Node rootNode = gameEngine.getRootNode();
+        // Detach the current player's node by name (there is exactly one "PlayerNode" in a level run).
+        // Done by name rather than via the Player handle because the Player interface exposes no node —
+        // only the level player does — and the restart only ever runs in a level scene.
+        final Spatial playerNode = rootNode.getChild("PlayerNode");
+        if (playerNode != null) {
+            playerNode.removeFromParent();
+        }
+        final Spatial cameraTarget = rootNode.getChild("CameraTarget");
+        if (cameraTarget != null) {
+            cameraTarget.removeFromParent();
+        }
+        for (final LevelSceneLayerType layer : LevelSceneLayerType.values()) {
+            final Spatial layerGeometry = rootNode.getChild(layer.getLayerName());
+            if (layerGeometry != null) {
+                layerGeometry.removeFromParent();
+            }
+        }
+        gameEngine.buildLevel();
     }
 }
