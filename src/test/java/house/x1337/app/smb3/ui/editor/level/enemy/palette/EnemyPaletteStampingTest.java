@@ -12,7 +12,7 @@ import java.util.Arrays;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -121,7 +121,7 @@ class EnemyPaletteStampingTest {
     @DisplayName("A malformed enemy is drawn as one blank part and stamps nothing")
     void malformedEnemyIsTolerated() {
         // Prepare - an enemy that lost its grid, as a hand-edited or outdated document might
-        final EnemyStamp broken = EnemyStamp.builder().id("broken").enemyType(GOOMBA).build();
+        final EnemyStamp broken = EnemyStamp.builder().id("broken").enemyType(GOOMBA_NORMAL).build();
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute & Verify - an image is produced, never a zero-sized one, and nothing is written
@@ -147,7 +147,7 @@ class EnemyPaletteStampingTest {
         return EnemyStamp
             .builder()
             .id("enemy-1")
-            .enemyType(GOOMBA)
+            .enemyType(GOOMBA_NORMAL)
             .tiles(new Tile[][] {
                 {topLeft, topRight},
                 {bottomLeft, bottomRight}

@@ -144,6 +144,35 @@ class ActiveObjectGridTest {
     }
 
     @Test
+    @DisplayName("An enemy close enough to touch is hurt-then-struck on the same tick, body hit first")
+    void bodyHitLandsBeforeTheTailStrikeOnTheSameTick() {
+        // Prepare — a 16x16 enemy wedged into the seam: its box clips the player's body box by 1px and
+        // sits inside the tail box as well. The ROM resolves both, in this order, on one frame — per
+        // object slot it runs Object_DoStateAction first, and a ground troop's handler ends in
+        // Object_HandleBumpUnderneath which tail-calls Player_HitEnemy, before
+        // Object_HitByTailOrBouncer is reached at all (dasm prg000 @ PRG000_C9B6). So the player can be
+        // hurt by the very enemy this frame's swing kills; that is the original's behaviour, not a bug
+        // to be ordered away.
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(12, 80);
+        grid.insert(enemy);
+        final LevelScenePlayer player = mock(LevelScenePlayer.class);
+        final PlayerPosition position = new PlayerPosition();
+        position.setY(64);
+        position.setDY(1.0);
+        when(player.getPosition()).thenReturn(position);
+        when(player.getObjectCollisionBounds()).thenReturn(new AxisAlignedBoundingBox(3, 69, 13, 94));
+        when(player.isTailAttackStriking()).thenReturn(true);
+        when(player.getTailAttackBounds()).thenReturn(new AxisAlignedBoundingBox(17, 80, 27, 95));
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify — too deep to be a stomp and not rising, so the body hit is the hurting one
+        assertThat(enemy.events).containsExactly("collision", "overlap", "tail");
+    }
+
+    @Test
     @DisplayName("a descending player landing on an opt-in object's top triggers onCollisionFromAbove")
     void stompTriggersOnCollisionFromAbove() {
         // Prepare — enemy occupying [20,36]x[80,96]; the player's feet have just broken its top edge.
@@ -482,6 +511,8 @@ class ActiveObjectGridTest {
         private final AxisAlignedBoundingBox bounds;
         private final boolean directional;
         private final List<ActiveLevelObject> bumpedFrom = new ArrayList<>();
+        /** Every player interaction this stub received, in dispatch order. */
+        private final List<String> events = new ArrayList<>();
         private boolean bouncing;
         private int collisionCount;
         private int tailAttackCount;
@@ -525,6 +556,16 @@ class ActiveObjectGridTest {
         }
 
         @Override
+        public int getXVelocityFixedPoint() {
+            return 0;
+        }
+
+        @Override
+        public int getYVelocityFixedPoint() {
+            return 0;
+        }
+
+        @Override
         public Dimensions getSpriteDimensions() {
             throw doNotCall();
         }
@@ -541,6 +582,7 @@ class ActiveObjectGridTest {
         @Override
         public void onCollisionWith(final LevelScenePlayer player) {
             collisionCount++;
+            events.add("collision");
         }
 
         @Override
@@ -561,11 +603,13 @@ class ActiveObjectGridTest {
         @Override
         public void onPlayerOverlap(final LevelScenePlayer player) {
             overlapCount++;
+            events.add("overlap");
         }
 
         @Override
         public void onTailAttack(final LevelScenePlayer player) {
             tailAttackCount++;
+            events.add("tail");
         }
 
         @Override

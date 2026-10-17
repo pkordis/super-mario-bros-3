@@ -56,10 +56,20 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         // sprite always faces the pressed direction, including during a skid
         // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
         // Pad_Holding regardless of velocity direction).
-        if (inputLeft) {
-            orientation.setHorizontal(LEFT);
-        } else if (inputRight) {
-            orientation.setHorizontal(RIGHT);
+        //
+        // Except during a tail attack, which the ROM skips outright for the whole countdown
+        // (PRG008_AE11: LDA Player_TailAttack / BNE PRG008_AE26, before the pad is even read). The swing
+        // owns the facing while it runs: Player_TailAttackAnim mirrors the sprite partway through and
+        // mirrors it back at the end, and a held direction overwriting Player_FlipBits in between would
+        // both cancel that spin and drag the tail's hitbox onto the wrong side mid-swing. Acceleration is
+        // deliberately left running — the ROM's skip covers the facing store only.
+        final boolean tailAttacking = runtimeState.getPlayerTailAttackCountdown() > 0;
+        if (!tailAttacking) {
+            if (inputLeft) {
+                orientation.setHorizontal(LEFT);
+            } else if (inputRight) {
+                orientation.setHorizontal(RIGHT);
+            }
         }
 
         // Determine top speed

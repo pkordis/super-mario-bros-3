@@ -24,7 +24,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -96,7 +96,7 @@ class EnemySpawnerTest {
         // Prepare - a Goomba anchor tile painted on the NPC layer
         tiles[PLACED_ROW][PLACED_COLUMN] = enemyPartTile(ANCHOR_TILE_ID);
         when(enemyStampService.findByRenderingStarterTileId(ANCHOR_TILE_ID))
-            .thenReturn(Optional.of(EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA).build()));
+            .thenReturn(Optional.of(EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA_NORMAL).build()));
         final Goomba goomba = mock(Goomba.class);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, Offset.of(PLACED_COLUMN, PLACED_ROW)))

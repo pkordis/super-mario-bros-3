@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
-import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -114,7 +114,7 @@ class EnemyConverterTest {
         return EnemyRecord
             .builder()
             .id("enemy-1")
-            .enemyType(GOOMBA)
+            .enemyType(GOOMBA_NORMAL)
             .rows(rows)
             .columns(columns)
             .tileIds(tileIds)

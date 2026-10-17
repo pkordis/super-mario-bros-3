@@ -113,7 +113,10 @@ class PlayerModeTransitionTest {
         assertThat(airborneState.isInAir()).isTrue();
         assertThat(airborneState.getPlayerFlyTime()).isZero();
         assertThat(airborneState.getPlayerWagCount()).isZero();
-        assertThat(airborneState.getPlayerTailAttackCountdown()).isZero();
+        assertThat(airborneState.getPlayerTailAttackCountdown())
+            .as("A swing in progress survives: Player_GetHurt never writes Player_TailAttack, and the "
+                + "strike it would disarm is resolved later in the same tick")
+            .isEqualTo(7);
         assertThat(airbornePosition.getDY()).isCloseTo(-1.5, within(TOLERANCE));
 
         // Prepare & Execute - the grounded counterpart

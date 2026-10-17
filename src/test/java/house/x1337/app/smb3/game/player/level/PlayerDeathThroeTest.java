@@ -9,10 +9,14 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_FALL_MAX;
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.player.level.LevelScenePlayer.applyDeathGravityStep;
-import static house.x1337.app.smb3.game.player.level.LevelScenePlayer.hasFallenOffLevel;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.mock;
 
 /**
  * Pins the death throe's Y motion and off-screen completion (dasm {@code Player_Die} launch of
@@ -24,6 +28,8 @@ import static org.assertj.core.api.Assertions.within;
 class PlayerDeathThroeTest {
     private static final int ROWS = 12;
     private static final double TOLERANCE = 1e-9;
+
+    private final LevelScenePlayer mockPlayer = mock(LevelScenePlayer.class);
 
     @Test
     @DisplayName("The throe opens with a 48-tick still pause before any motion")
@@ -65,9 +71,10 @@ class PlayerDeathThroeTest {
         final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
         final double startX = position.getX();
         final double startY = position.getY();
+        doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
 
         // Execute - one tick
-        applyDeathGravityStep(position);
+        mockPlayer.applyDeathGravityStep(position);
 
         // Verify - velocity eased by +gravity (2/16), Y moved by the new velocity, X untouched
         assertThat(position.getDY())
@@ -85,13 +92,14 @@ class PlayerDeathThroeTest {
     void risesToApexThenFalls() {
         final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
         final double startY = position.getY();
+        doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
 
         double highestY = position.getY();
         boolean startedFalling = false;
         for (int tick = 0; tick < 80; tick++) {
             final double before = position.getY();
-            applyDeathGravityStep(position);
-            highestY = Math.min(highestY, position.getY());
+            mockPlayer.applyDeathGravityStep(position);
+            highestY = min(highestY, position.getY());
             if (position.getY() > before) {
                 startedFalling = true;
             }
@@ -106,11 +114,12 @@ class PlayerDeathThroeTest {
     @DisplayName("The fall never exceeds the terminal rate")
     void fallIsCappedAtTerminalRate() {
         final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
 
         double maxFallSpeed = 0;
         for (int tick = 0; tick < 400; tick++) {
-            applyDeathGravityStep(position);
-            maxFallSpeed = Math.max(maxFallSpeed, position.getDY());
+            mockPlayer.applyDeathGravityStep(position);
+            maxFallSpeed = max(maxFallSpeed, position.getDY());
         }
 
         assertThat(maxFallSpeed)
@@ -124,21 +133,23 @@ class PlayerDeathThroeTest {
     @Test
     @DisplayName("Off-level completion fires only once the body is a tile below the bottom edge")
     void offLevelPredicateNeedsAFullTileOfMargin() {
+        doCallRealMethod().when(mockPlayer).hasFallenOffLevel(any(), anyInt());
+
         final PlayerPosition atBottomEdge = positionWith(4.0 * TILE_SPRITE_SIZE, 0);
         atBottomEdge.setY((double) ROWS * TILE_SPRITE_SIZE);
-        assertThat(hasFallenOffLevel(atBottomEdge, ROWS))
+        assertThat(mockPlayer.hasFallenOffLevel(atBottomEdge, ROWS))
             .as("level with the bottom edge is not yet off-screen")
             .isFalse();
 
         final PlayerPosition justBelowEdge = positionWith(4.0 * TILE_SPRITE_SIZE, 0);
         justBelowEdge.setY((double) (ROWS + 1) * TILE_SPRITE_SIZE);
-        assertThat(hasFallenOffLevel(justBelowEdge, ROWS))
+        assertThat(mockPlayer.hasFallenOffLevel(justBelowEdge, ROWS))
             .as("exactly one tile below is still on the boundary, not past it")
             .isFalse();
 
         final PlayerPosition clear = positionWith(4.0 * TILE_SPRITE_SIZE, 0);
         clear.setY((double) (ROWS + 1) * TILE_SPRITE_SIZE + 1);
-        assertThat(hasFallenOffLevel(clear, ROWS))
+        assertThat(mockPlayer.hasFallenOffLevel(clear, ROWS))
             .as("a tile and a pixel below has cleared the view")
             .isTrue();
     }
@@ -147,11 +158,13 @@ class PlayerDeathThroeTest {
     @DisplayName("Driven to completion, the throe eventually clears the bottom of the level")
     void throeEventuallyClearsTheLevel() {
         final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
+        doCallRealMethod().when(mockPlayer).hasFallenOffLevel(any(), anyInt());
 
         boolean cleared = false;
         for (int tick = 0; tick < 400 && !cleared; tick++) {
-            applyDeathGravityStep(position);
-            cleared = hasFallenOffLevel(position, ROWS);
+            mockPlayer.applyDeathGravityStep(position);
+            cleared = mockPlayer.hasFallenOffLevel(position, ROWS);
         }
 
         assertThat(cleared).as("the body falls off the bottom within the throe").isTrue();

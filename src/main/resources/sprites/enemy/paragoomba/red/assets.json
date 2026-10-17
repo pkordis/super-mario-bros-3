@@ -1,0 +1,14 @@
+{
+  "walk": [
+    "paragoomba_left.png",
+    "paragoomba_right.png"
+  ],
+  "wingUp": [
+    "paragoomba_wing_up_left.png",
+    "paragoomba_wing_up_right.png"
+  ],
+  "wingDown": [
+    "paragoomba_wing_down_left.png",
+    "paragoomba_wing_down_right.png"
+  ]
+}

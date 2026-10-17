@@ -409,7 +409,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         if (leadingColumn < 0) {
             return false;
         }
-        return gameEngine.getCollisionGrid().isSolidTile(leadingColumn, midRow);
+        return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
     }
 
     /**
@@ -419,7 +419,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private boolean isGroundBelow(final double proposedY) {
         final int centerColumn = (int) floor((pixelX + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
         final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
-        return gameEngine.getCollisionGrid().isSolidTile(centerColumn, feetRow);
+        return gameEngine.getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
     }
 
     /**

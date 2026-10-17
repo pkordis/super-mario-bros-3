@@ -73,7 +73,9 @@ class GoombaTailAttackTest {
         }
 
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isSolidTile(anyInt(), anyInt()))
+        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
+            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
             .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 

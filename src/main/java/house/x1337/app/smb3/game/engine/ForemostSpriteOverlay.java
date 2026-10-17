@@ -17,6 +17,10 @@ import lombok.extern.slf4j.Slf4j;
  * choosing a depth: the tail-attack flash was tried at both the largest and the smallest depth in the
  * project and rendered behind the player either way.
  *
+ * <p>That sort is now {@code DepthOrderedGeometryComparator}, so a depth does decide the order — but only
+ * <em>within</em> the scene. A sprite that must never be covered by anything, whatever depth the rest of
+ * the scene is given, still belongs here rather than at the top of the depth ladder.
+ *
  * <p>So the guarantee is taken from jME's own pipeline instead. A post view renders after every main
  * viewport has finished, including its translucent bucket — the same property {@code FrameCaptureState}
  * relies on to read back a completed frame. Anything attached here therefore lands on top of the level,

@@ -65,7 +65,7 @@ public interface LevelScenePlayerRuntimeStateAware
      * not participate in the movement state machine. The animator is
      * responsible for rendering the duck frame when the flag is set.
      *
-     * @param inputHandler
+     * @param inputHandler the input handler to read the current pad state from
      * @param hitSomething true if the player collided with a horizontal wall this
      *                     frame (dasm prg008 PRG008_B4F3: INC Player_WalkAnimTicks
      *                     on wall hit keeps the walk animation running)
@@ -210,17 +210,6 @@ public interface LevelScenePlayerRuntimeStateAware
         }
     }
 
-    /**
-     * Begins the death throe a shrunk player suffers on a damaging hit (dasm {@code Player_Die} @ prg000
-     * PRG000_DA8E). It zeroes horizontal motion ({@code Player_XVel = 0}), pops the body upward
-     * ({@code Player_YVel = -64} → {@link GameConstants#PLAYER_DEATH_RISE_YVEL}), and raises
-     * {@code Player_IsDying}. From the next tick the player halts all gameplay and its own update owns
-     * the rise-and-fall off the bottom of the screen (see {@code LevelScenePlayer.tickDeath}); the dead
-     * sprite is drawn by the dedicated death animator while the throe plays.
-     *
-     * <p>Guarded by {@link #isHurtable()} at the single call site ({@link #onHurt()}), so a hit taken
-     * while already dying, flashing or mid-transition cannot restart it.
-     */
     default void die() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
         final PlayerPosition position = getPosition();
@@ -288,9 +277,30 @@ public interface LevelScenePlayerRuntimeStateAware
      * what the ROM does, {@code Player_Grow} being consumed purely as a draw-time frame override
      * (prg029 PRG029_D224).
      *
-     * <p>What is still spent are the abilities the transition itself ends — flight, tail wag and any
-     * swing in progress — since a player mid-transition is either gaining a suit that has not earned
-     * them yet or losing the one that did.
+     * <p>What is still spent are the flight abilities the transition itself ends — flight time and tail
+     * wag — since a player mid-transition is either gaining a suit that has not earned them yet or losing
+     * the one that did.
+     *
+     * <p><b>A tail swing in progress is deliberately left alone</b>, and this is load-bearing.
+     * {@code Player_GetHurt} (dasm prg000 @ PRG000_D9D3 through PRG000_DA6D) writes
+     * {@code Player_SuitLost}, {@code Player_QueueSuit}, {@code Player_Kuribo}, {@code Player_Grow},
+     * {@code Player_FlashInv} and {@code Player_Flip} — and never {@code Player_TailAttack}. In the whole
+     * ROM that counter is only cleared by kicking a shell (prg008 @ PRG008_AF52) and by grabbing an ice
+     * block (@ PRG008_B5F4).
+     *
+     * <p>It matters because of <em>when</em> the hurt lands relative to the strike: the ROM resolves both
+     * inside the object loop, hurt first ({@code Player_HitEnemy}, reached from the end of the enemy's own
+     * handler) and the tail immediately after ({@code Object_HitByTailOrBouncer}) — see
+     * {@code ActiveObjectGrid.resolveActiveObjectCollisions}, which keeps that order. Zeroing the counter
+     * here therefore did not merely tidy up a spent ability: it disarmed, retroactively, a strike the same
+     * tick was about to resolve, which is exactly how the original lets a player kill the enemy that just
+     * hurt him. With the counter untouched, the hit costs the suit and the swing still connects.
+     *
+     * <p>Leaving it running past the poof is safe because the counter is ticked <b>unconditionally</b>,
+     * every frame, halt or no halt and tail or no tail ({@code tickTailAttackCountdown}, the ROM's shared
+     * counter block) — so it always reaches zero on its own a few frames later. It is not safe to leave
+     * running <em>and</em> gate the tick: the swing would never end, and the facing freeze that belongs to
+     * it would never lift.
      */
     private void neutraliseMotionForTransition() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
@@ -298,7 +308,6 @@ public interface LevelScenePlayerRuntimeStateAware
         runtimeState.standUp();
         runtimeState.setPlayerFlyTime(0);
         runtimeState.setPlayerWagCount(0);
-        runtimeState.setPlayerTailAttackCountdown(0);
         if (runtimeState.isInAir()) {
             // Mid-air: the jump is still in progress and must survive the freeze intact.
             return;

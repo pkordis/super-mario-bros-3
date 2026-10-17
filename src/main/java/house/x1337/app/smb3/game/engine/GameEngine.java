@@ -20,6 +20,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 import static house.x1337.app.smb3.GameConstants.BLACK;
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 import static house.x1337.app.smb3.GameConstants.SIMULATION_DT;
@@ -133,6 +136,13 @@ public final class GameEngine extends GameEngineCapabilities {
 
         stateManager.attach(cameraState);
         viewPort.setBackgroundColor(BLACK);
+
+        // Make the Z_DEPTH_* ladder decide what covers what, instead of jME's camera-distance sort -
+        // which, for a 2D scene, is really a distance-from-screen-centre sort and reorders two sprites
+        // of the same object as it moves. Both buckets, because the foreground layers are moved between
+        // them while the player is in the background (LevelScenePlayerRenderer#updateForegroundLayerBuckets).
+        viewPort.getQueue().setGeometryComparator(Transparent, new DepthOrderedGeometryComparator());
+        viewPort.getQueue().setGeometryComparator(Translucent, new DepthOrderedGeometryComparator());
 
         // Restrict the game viewport to the upper portion of the window,
         // leaving the bottom strip for the fixed HUD region.

@@ -5,6 +5,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.GiantBrickBlock;
 import house.x1337.app.smb3.game.object.level.block.GiantEmptyBlock;
 import house.x1337.app.smb3.game.object.level.enemy.Goomba;
+import house.x1337.app.smb3.game.object.level.enemy.ParaGoomba;
 import house.x1337.app.smb3.game.object.level.variant.ConfigurableVariant;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,8 @@ public enum LevelObjectTypeMultiTiled implements LevelObjectType {
     EMPTY_BLOCK("Empty Block (solid/used)", GiantEmptyBlock.class),
 
     // Enemies
-    GOOMBA("Goomba", Goomba.class);
+    GOOMBA("Goomba", Goomba.class),
+    PARA_GOOMBA("Para-Goomba", ParaGoomba.class);
 
     private final boolean singleTiled = false;
     private final String label;

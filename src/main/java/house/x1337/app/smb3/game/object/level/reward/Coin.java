@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.game.object.level.reward;
 
-import com.jme3.scene.Geometry;
+import  com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.CoinType;
 import house.x1337.app.smb3.enumeration.Reward;
@@ -94,6 +94,16 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     @Override
     public boolean isCollected() {
         return expired;
+    }
+
+    @Override
+    public int getXVelocityFixedPoint() {
+        return 0;
+    }
+
+    @Override
+    public int getYVelocityFixedPoint() {
+        return 0;
     }
 
     @Override

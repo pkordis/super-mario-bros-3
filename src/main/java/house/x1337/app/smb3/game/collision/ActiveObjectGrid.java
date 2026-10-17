@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -121,7 +122,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                 }
                 for (final T candidate : bucket) {
                     // An object spanning several cells is listed in each; dedup by identity so the
-                    // caller runs its narrowphase test once per object.
+                    // caller runs its narrow-phase test once per object.
                     if (alreadyAdded.add(candidate)) {
                         candidates.add(candidate);
                     }
@@ -137,6 +138,18 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     public void spawnPlacedEnemies() {
         enemySpawner.spawn();
+    }
+
+    /**
+     * Registers one enemy that came into being mid-level, leaving the rest of the enemy world alone -
+     * the counterpart to {@link #spawnPlacedEnemies()}, which is the level-setup pass and resets
+     * everything first. Routed through the grid because an object already reaches it through its
+     * {@code GameEngine}, and the grid is where the spawner lives.
+     *
+     * @param enemy the enemy to register with the manager that owns its type
+     */
+    public void spawnEnemy(final EnemyLevelObject enemy) {
+        enemySpawner.spawnOne(enemy);
     }
 
     /**
@@ -163,7 +176,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      *
      * <p>Run as its own phase, after every manager has moved and re-inserted its objects and before the
      * player pass. It cannot be folded into the walk itself: an enemy deciding mid-move whether a
-     * neighbour blocks it would be querying a half-filled grid, seeing only the objects whose managers
+     * neighbor blocks it would be querying a half-filled grid, seeing only the objects whose managers
      * happened to run first and missing the rest entirely. That is the same reason the tail strike is
      * resolved from here.
      *

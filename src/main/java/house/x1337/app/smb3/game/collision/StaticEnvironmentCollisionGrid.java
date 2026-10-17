@@ -448,23 +448,55 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     }
 
     /**
-     * Queries the scene's static terrain: is the tile at {@code (column, row)} solid? Off the left
-     * or right edge, and below the world, count as solid so the mushroom cannot escape sideways or
-     * fall through the floor; above the world (negative row) is open sky.
+     * Queries the scene's static terrain for a probe that is <b>falling onto</b> a tile: is the tile at
+     * {@code (column, row)} something an object can come to rest on? This is the ROM's first solidity
+     * tier — {@code Tile_AttrTable[0..3]}, "solid at the ground (i.e. Player can stand on it)"
+     * (smb3.asm:2763) — so it includes the jump-through platforms, which is the whole point of them.
+     *
+     * <p>Off the left or right edge, and below the world, count as solid so an object cannot escape
+     * sideways or fall through the floor; above the world (negative row) is open sky.
+     *
+     * @see #isWallOrCeilingSolidTile(int, int) for the head-and-walls tier
      */
-    public boolean isSolidTile(final int column, final int row) {
-        final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final int columns = gameEngine.getLevelScene().getDimensions().columns();
-        if (row < 0) {
-            return false;
-        }
-        if (row >= rows) {
-            return true;
-        }
-        if (column < 0 || column >= columns) {
-            return true;
+    public boolean isGroundSolidTile(final int column, final int row) {
+        if (isOutsideTheLevel(column, row)) {
+            return row >= 0;
         }
         return getLevelObjectAt(Offset.of(column, row)).isCollidable();
+    }
+
+    /**
+     * Queries the scene's static terrain for a probe that is <b>rising into</b> a tile or <b>walking
+     * into</b> it: is the tile at {@code (column, row)} solid to a head or a side? This is the ROM's
+     * second solidity tier — {@code Tile_AttrTable[4..7]}, "solid at the head and walls" (smb3.asm:2763)
+     * — which the jump-through platforms are deliberately below.
+     *
+     * <p>The two tiers are not a player concession. The shared object tile detection builds
+     * {@code Objects_DetStat} from exactly this split (dasm prg000 @ PRG000_C559): the wall test and the
+     * ceiling test both {@code CMP Tile_AttrTable+4,Y} while the floor test, taken when {@code YVel >= 0},
+     * {@code CMP Tile_AttrTable,Y}. So a panel top stops a falling Goomba and is thin air to a hopping
+     * Para-Goomba's head and to anything walking into its side — the same thing the player sees.
+     *
+     * <p>Bounds behave as in {@link #isGroundSolidTile(int, int)}: the level's sides stay solid so an
+     * object cannot walk out of the world.
+     */
+    public boolean isWallOrCeilingSolidTile(final int column, final int row) {
+        if (isOutsideTheLevel(column, row)) {
+            return row >= 0;
+        }
+        final LevelObject levelObject = getLevelObjectAt(Offset.of(column, row));
+        return levelObject.isCollidable() && !levelObject.isOneWayPlatform();
+    }
+
+    /**
+     * Whether the cell lies outside the level proper. Above the world is <em>not</em> outside in the
+     * sense that matters to the callers — they treat a negative row as open sky — so it is reported here
+     * and each caller resolves it with {@code row >= 0}.
+     */
+    private boolean isOutsideTheLevel(final int column, final int row) {
+        final int rows = gameEngine.getLevelScene().getDimensions().rows();
+        final int columns = gameEngine.getLevelScene().getDimensions().columns();
+        return row < 0 || row >= rows || column < 0 || column >= columns;
     }
 
     /**
