@@ -18,7 +18,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
  * <p>Two unrelated kinds of object need this: an {@link AnimatableLevelObject}, whose animator
  * repaints its cell every few ticks, and a self-moving object that must <em>remove</em> its own baked
  * cell because it stops being part of the terrain — a collected coin erasing itself, or an enemy
- * erasing the editor placement tile it was spawned from before it walks away from that cell.
+ * erasing the editor placement it was spawned from before it walks away from that cell. An object
+ * placed across several cells can reach any of them by passing the cell explicitly.
  */
 public interface BakedLayerPainter {
     Offset getOffset();
@@ -41,6 +42,31 @@ public interface BakedLayerPainter {
         final LevelSceneDimensions dimensions,
         final int[] pixels
     ) {
+        paintToBakedTexture(bakedLayerGeometry, dimensions, pixels, getOffset());
+    }
+
+    /**
+     * Paints one 16x16 tile of ARGB pixels into an arbitrary cell of a baked layer, for an object that
+     * owns more of the layer than the one cell it is anchored at — a multi-tile enemy clearing the whole
+     * stamp an author placed it with.
+     *
+     * <p>A cell outside the level is ignored rather than rejected: a footprint is derived from the
+     * object's own shape and may legitimately reach past the edge of a level it was placed against.
+     *
+     * @param bakedLayerGeometry the geometry holding the baked layer texture
+     * @param dimensions         the level's tile dimensions
+     * @param pixels             16x16 ARGB pixels, row-major from the top-left
+     * @param cell               the layer cell to paint, in tile columns and rows
+     */
+    default void paintToBakedTexture(
+        final Geometry bakedLayerGeometry,
+        final LevelSceneDimensions dimensions,
+        final int[] pixels,
+        final Offset cell
+    ) {
+        if (cell.x() < 0 || cell.x() >= dimensions.columns() || cell.y() < 0 || cell.y() >= dimensions.rows()) {
+            return;
+        }
         final Texture2D texture = (Texture2D) bakedLayerGeometry
             .getMaterial()
             .getTextureParam("ColorMap")
@@ -48,13 +74,12 @@ public interface BakedLayerPainter {
         final Image image = texture.getImage();
         final ByteBuffer buffer = image.getData(0);
         final int imageWidth = dimensions.columns() * TILE_SPRITE_SIZE;
-        final Offset offset = getOffset();
 
         for (int spritePixelRow = 0; spritePixelRow < TILE_SPRITE_SIZE; spritePixelRow++) {
-            final int imgRow = (dimensions.rows() - 1 - offset.y()) * TILE_SPRITE_SIZE
+            final int imgRow = (dimensions.rows() - 1 - cell.y()) * TILE_SPRITE_SIZE
                 + (TILE_SPRITE_SIZE - 1 - spritePixelRow);
             for (int spritePixelCol = 0; spritePixelCol < TILE_SPRITE_SIZE; spritePixelCol++) {
-                final int imgCol = offset.x() * TILE_SPRITE_SIZE + spritePixelCol;
+                final int imgCol = cell.x() * TILE_SPRITE_SIZE + spritePixelCol;
                 final int indexOffset = (imgRow * imageWidth + imgCol) * TILE_SCALE;
                 final int argb = pixels[spritePixelRow * TILE_SPRITE_SIZE + spritePixelCol];
                 buffer.put(indexOffset, (byte) ((argb >> 16) & 0xFF)); // R
@@ -77,11 +102,27 @@ public interface BakedLayerPainter {
         final Geometry bakedLayerGeometry,
         final LevelSceneDimensions dimensions
     ) {
+        eraseFromBakedTexture(bakedLayerGeometry, dimensions, getOffset());
+    }
+
+    /**
+     * Clears an arbitrary cell of a baked layer to fully transparent.
+     *
+     * @param bakedLayerGeometry the geometry holding the baked layer texture
+     * @param dimensions         the level's tile dimensions
+     * @param cell               the layer cell to clear, in tile columns and rows
+     */
+    default void eraseFromBakedTexture(
+        final Geometry bakedLayerGeometry,
+        final LevelSceneDimensions dimensions,
+        final Offset cell
+    ) {
         // An all-zero ARGB tile is exactly "transparent black" in every channel.
         paintToBakedTexture(
             bakedLayerGeometry,
             dimensions,
-            new int[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE]
+            new int[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE],
+            cell
         );
     }
 }

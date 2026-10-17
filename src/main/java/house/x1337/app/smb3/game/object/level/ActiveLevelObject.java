@@ -29,6 +29,8 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
 public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     double getPixelX();
     double getPixelY();
+    int getXVelocityFixedPoint();
+    int getYVelocityFixedPoint();
     Dimensions getSpriteDimensions();
     AxisAlignedBoundingBox getBounds();
     Geometry getSpriteGeometry();

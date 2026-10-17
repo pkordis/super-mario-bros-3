@@ -4,7 +4,7 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -22,7 +22,7 @@ class EnemyStampTest {
         assertThat(enemy.getColumns()).isEqualTo(3);
 
         // A damaged document with no grid reports no extent rather than throwing.
-        final EnemyStamp empty = EnemyStamp.builder().enemyType(GOOMBA).build();
+        final EnemyStamp empty = EnemyStamp.builder().enemyType(GOOMBA_NORMAL).build();
         assertThat(empty.getRows()).isZero();
         assertThat(empty.getColumns()).isZero();
     }
@@ -61,7 +61,7 @@ class EnemyStampTest {
     void wellFormednessGuardsDamagedDocuments() {
         assertThat(enemy(2, 3, 1, 0).isWellFormed()).isTrue();
 
-        assertThat(EnemyStamp.builder().enemyType(GOOMBA).build().isWellFormed())
+        assertThat(EnemyStamp.builder().enemyType(GOOMBA_NORMAL).build().isWellFormed())
             .as("no grid at all")
             .isFalse();
         assertThat(enemy(2, 3, 2, 0).isWellFormed())
@@ -86,7 +86,7 @@ class EnemyStampTest {
 
         assertThat(enemy(1, 1, 0, 0).getName())
             .as("no description: the type's label")
-            .isEqualTo(GOOMBA.getLabel());
+            .isEqualTo(GOOMBA_NORMAL.getLabel());
     }
 
     // -------------------------------------------------------------------------
@@ -109,7 +109,7 @@ class EnemyStampTest {
         return EnemyStamp
             .builder()
             .id("enemy-1")
-            .enemyType(GOOMBA)
+            .enemyType(GOOMBA_NORMAL)
             .tiles(tiles)
             .renderingStarterRow(starterRow)
             .renderingStarterColumn(starterColumn)

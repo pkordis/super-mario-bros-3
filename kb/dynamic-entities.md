@@ -320,11 +320,26 @@ sprites/enemy/<enemy>/<mode>/assets.json      # e.g. sprites/enemy/goomba/normal
 { "walk": ["goomba_left.png", "goomba_right.png"] }
 ```
 
-- **Folder = mode.** Modes are declared **per enemy** (`GoombaMode`) behind the shared `EnemyMode`
-  interface, which is all the generic machinery needs (the sprite folder). The ROM gives each mode its own
-  object ID while sharing the handlers: Goomba `$72`, Paragoomba `$73`, para-with-Micros `$74`, giant
-  `$7C` — all four enter `ObjInit_GroundTroop`. So a winged Goomba is **a new mode constant + a new
-  sprite folder**, not a new entity class. `EnemyLevelObject.getMode()` selects the folder.
+- **Folder = mode.** Modes are declared **per enemy family** behind the shared `EnemyMode` interface,
+  which is all the generic machinery needs (the sprite folder). `EnemyLevelObject.getMode()` selects the
+  folder, and `EnemyAnimator`'s cache is keyed by it, so a new mode is a new folder and nothing else.
+  The whole Goomba family shares one `GoombaMode` (`NORMAL`/`RED`): the enum names only the leaf folder,
+  while the root comes from each animator's own `framesPath` (`goomba` vs `paragoomba`), so there is
+  nothing left for a per-entity copy to say. It is also what makes the stomp handover type-safe — a
+  de-winged Para-Goomba passes its mode to the replacement `Goomba`, which used to work only because two
+  separate enums happened to spell their constants alike (**SIMPLIFIED 2026-10**: `ParaGoombaMode` was a
+  byte-identical duplicate and is gone).
+  > **CORRECTED 2026-10 (SMB3-4).** This section used to claim that "a winged Goomba is a new mode
+  > constant + a new sprite folder, not a new entity class", on the grounds that `$72`, `$73`, `$74` and
+  > `$7C` all enter `ObjInit_GroundTroop`. **The shared init is the only thing they share.** `$73` has
+  > its own per-frame handler `ObjNorm_ParaGoomba` (`prg004.asm:3011`), wholly separate from
+  > `ObjNorm_GroundTroop`, and its own draw `ParaGoomba_Draw` (`:3130`) which adds two hardware sprites
+  > on top of the Goomba body. A winged Goomba is therefore **its own entity class** — see the
+  > Para-Goomba section below. Mode constants are for palettes (`NORMAL` / `RED`), not for behaviour.
+- **Mode travels as a placement attribute.** `EnemyType` has one constant per *placeable variant*
+  (`PARA_GOOMBA_NORMAL`, `PARA_GOOMBA_RED`) carrying the `EnemyMode`; `EnemySpawner` writes it as the single
+  `EnemyMode.MODE_ATTRIBUTE` (`"mode"`) entry of the `LevelObjectData` it hands to `configure`. Every
+  enemy must therefore override `configure` to consume it, or `LevelObject`'s default warns and discards.
 - **JSON key = action.** `walk` now; `flyFrameTextures` / `squashedTexture` when those
   land. A record component per action, named to match the key — no loader changes either way.
 - **Parsing is shared.** `PlayerAnimatorAssetsLoader` was generalised into
@@ -590,3 +605,252 @@ well-formedness incl. a ragged grid, naming, `containsTile`),
 `util/converter/EnemyConverterTest` (id→tile resolution, `NULL_TILE` fill, short-id padding, **record →
 `EnemyStamp` → record round-trip**) and `ui/editor/level/enemy/create/EnemyTilesGridPanelTest` (the anchor
 default), which had been conflated in one class. Suite: 113 tests green.
+
+---
+
+## Para-Goomba — `OBJ_PARAGOOMBA = $73` (SMB3-4, 2026-10)
+
+The hopping winged Goomba, ported as **its own entity class** `ParaGoomba`. See the CORRECTED note in
+the sprites section above for why it is not a mode of `Goomba` — though it does wear the family's
+shared `GoombaMode` palettes, since the body art it tints is the Goomba's own.
+
+### What it shares with the Goomba, and what it does not
+
+| concern | shared? | site |
+|---|---|---|
+| Init — face the nearest player, nothing else | **yes**, `ObjInit_GroundTroop` | `prg004.asm:34` |
+| Walk speed `±$08`, facing IS direction | **yes**, `GroundTroop_XVel` | `prg004.asm:3019-3027` |
+| Collision box `OAT_BOUNDBOX01` (left +1, w 13, top +2, h 8) | **yes**, same table row | `prg000.asm:413` |
+| Body draw — the mirror pair, unmodified | **yes**, `GroundTroop_DrawMirrored` | `prg004.asm:3131` |
+| `OA3_HALT_NORMALONLY \| OA3_SQUASH`, points, kill action | **yes**, byte-identical | `:244`, `:286`, `:328` |
+| Per-frame handler | **no** — `ObjNorm_ParaGoomba` | `prg004.asm:3011` |
+| `OAT_BOUNCEOFFOTHERS` | **no** — `$73` lacks it, `$72` has it | `prg000.asm:412-413` |
+| `OA2_GNDPLAYERMOD` | **no** — `$73` lacks it, `$72` has it | `prg004.asm:201-202` |
+| Collide table | **no** — `OCSPECIAL_KILLCHANGETO \| OBJ_GOOMBA` | `prg004.asm:119` |
+
+The missing `OAT_BOUNCEOFFOTHERS` is a **correction to the ticket**, which listed `:413` as "the same
+row the Goomba uses" — the *box* is the same row, but the bounce flag is not set. Two Para-Goombas walk
+straight through one another, so `bouncesOffOtherObjects()` keeps the interface default of `false`.
+`OA2_GNDPLAYERMOD` is deliberately unmodelled: the branch it selects (`PRG000_D205`) is a documented
+no-op in the dasm itself, and the Goomba port does not model it either.
+
+### Motion: one `DEC` is the whole "flying" feel
+
+- **Net fall `+$02`/frame.** `Object_Move` applies `OBJECT_FALLRATE = $03` and caps at
+  `OBJECT_MAXFALL = $40`; the handler then does one `DEC Objects_YVel`. Because the decrement lands
+  *after* the cap, terminal velocity is `$3F`, not the Goomba's `$40`. Do **not** model wing lift any
+  other way.
+- **Hop cadence — `Objects_Var4`.** On a grounded frame with `Objects_Timer` expired: `Var4++` and
+  `YVel = -$10`. On the 4th, `Var4 = 0`, `Objects_Timer = $50` and `YVel = -$30`. Object timers tick
+  every frame unconditionally (`prg000.asm:1855`), so `$50` is 80 frames, spent sitting on the ground.
+  At `+$02`/frame that is a 4.5 px little hop and a 37.5 px big one.
+- **Ceiling** `DetStat & $08` → `YVel = $01` (a stall, not a bounce).
+- **Grounded re-face every 64 ticks.** `Objects_Var5` increments every frame but is only *read* inside
+  the ground-contact branch, so a beat that falls mid-flight is simply lost.
+- **Four clocks, all separate**, which is the thing to get right:
+
+| clock | ROM slot | rate |
+|---|---|---|
+| hop counter | `Var4` | per ground contact |
+| hop cooldown | `Objects_Timer` | −1/frame |
+| wing flap | `Var3` | +1/frame, **+3** while rising with `Var4 == 0`, pinned to `0` on the ground while `Var4 == 0` |
+| body frame | `Counter_1 >> 3` | flat 8-frame toggle |
+
+### Rendering: three quads, never pre-composed
+
+`ParaGoomba_Draw` is the Goomba body plus two hand-written sprites, so `ParaGoomba` owns three
+geometries. **Do not bake body+wings into composed frames** — `Var3` and `Counter_1` run at different
+and varying rates, so baked frames would fuse two clocks the ROM keeps apart.
+
+- Two wing patterns only: `$CD` raised, `$CF` lowered, chosen by `Var3 & $08` (**set** = raised).
+- Each wing is one 8x16 sprite, **10 px above** the body's sprite top and **2 px outward** from each of
+  the body's two 8x16 halves: left at `bodyX - 2`, right at `bodyX + 8 + 2`.
+- New `Z_DEPTH_ENEMY_WING = 0.065f` (between items at `0.06` and enemies at `0.07`) so the wings pass
+  **behind** the body, as OAM slots 2/3 do behind 0/1.
+- The art ships all **four** wing files rather than two-plus-a-quad-flip, keeping `ParaGoombaAnimator`
+  flip-free exactly as `GoombaAnimator` is. `ParaGoombaAnimatorAssetsTest` pins the mirror in pixels.
+- `ParaGoomba` overrides `detach()`: the `ActiveLevelObject` default only knows about the body quad.
+
+### Two stomps to kill — the slot is rewritten, not replaced
+
+The first stomp does **not** kill it. `PRG000_D2B4` (`prg000.asm:3940`, the normal stomp path) tests the
+collide-table entry's upper byte **with no attribute gate**, and for `$73` the entry is `$0872`, so it:
+bounces the player `-$40`, awards `Score_Get100PlusPts`, overwrites `Level_ObjectID,X` with
+`OBJ_GOOMBA`, **increments `Objects_HitCount` back**, zeroes `YVel` and returns. From the next frame the
+object genuinely *is* a Goomba. The second stomp then finds `$72` with `OA3_SQUASH` and runs the
+flattened 16-frame death already ported in `Goomba`.
+
+> The `smb3.asm:3139` comment that `OCSPECIAL_KILLCHANGETO` "requires `OA3_DIESHELLED`" is **misleading**:
+> that gate applies only to bump-from-underneath (`prg000.asm:3628`) and `Enemy_Kill`
+> (`prg000.asm:6010`), not to the normal stomp — which is the path that governs de-winging.
+
+Port shape:
+
+- `ParaGoomba.onCollisionFromAbove` awards `SCORE_100`, bounces the player, hands the slot over and sets
+  `expired`. It implements **none** of the aftermath — no fall, no grounding, no walk.
+- `ParaGoomba.handSlotOverToAGoomba(hitCooldownTicks)` is the shared half of **both** defeat responses
+  (see the tail-attack section): it builds the `Goomba` from the *live* pixel position, hands it the slot
+  and registers it, returning it so the caller can act on it.
+- `Goomba.adoptSlotOf(pixelX, pixelY, facingRight, hitCooldownTicks)` is the port of the in-place ID
+  rewrite. It carries the **live sub-tile position** (the constructor's `Offset` is whole tiles and would
+  snap a mid-air de-winging), carries `facingRight`, and starts `YVel` at rest per `PRG000_D31E`. It also
+  sets an `adoptedSlot` flag that makes `spawnIntoScene` skip `faceClosestPlayer` (the direction is
+  already settled) and `eraseFromBakedTexture` (the Para-Goomba already erased that cell).
+- **`Objects_Timer2 = 8` is not optional.** The replacement appears inside the player who just stomped
+  it, so without a brief hit-cooldown one stomp chains straight into squashing it and the enemy dies in
+  one hit. `Goomba.hitCooldownTicks` ticks down in `motionUpdate` and folds into `isHittable()`, which is
+  what keeps it out of the broadphase — structurally the same thing the ROM does by gating
+  `Player_HitEnemy` on the timer (`prg000.asm:3685`).
+- **Single-instance spawn.** `EnemySpawner.spawn()` is the level-setup pass and *resets* every enemy
+  manager and animator first, which is wrong mid-level. New: `EnemySpawner.spawnOne(EnemyLevelObject)`,
+  reached through `ActiveObjectGrid.spawnEnemy`, which registers one enemy and disturbs nothing else.
+  The manager's per-tick pass then builds its sprite and starts inserting it into the broadphase.
+
+### Terrain solidity is two-tiered, and that is not a player concession
+
+Every active object probes the terrain through `StaticEnvironmentCollisionGrid`, and there are **two**
+queries, not one:
+
+| query | ROM tier | includes a jump-through panel? | used for |
+|---|---|---|---|
+| `isGroundSolidTile` | `Tile_AttrTable[0..3]` — "solid at the ground" | **yes** | the falling/feet probe |
+| `isWallOrCeilingSolidTile` | `Tile_AttrTable[4..7]` — "solid at the head and walls" | **no** | the rising/head and side probes |
+
+Those two halves of the per-tileset table are described in `smb3.asm:2763`, and the shared object tile
+detection (dasm prg000 @ PRG000_C559, which builds `Objects_DetStat`) uses exactly that split: the wall
+test and the ceiling test both `CMP Tile_AttrTable+4,Y`, while the floor test — taken when
+`YVel >= 0` — uses `CMP Tile_AttrTable,Y`. The player's own routine does the same (`prg008.asm:1483`:
+"Wall/ceiling-solid tile quadrant limits begin at `Tile_AttrTable+4`").
+
+So a `PANEL_WALKABLE_TOP` (or a `LAKITU_CLOUD`, same `ONE_WAY_PLATFORM` category) stops a *falling*
+Goomba and is thin air to a hopping Para-Goomba's head and to anything walking into its side. Using one
+flat "is it solid" query for all three probes is how Para-Goombas ended up bouncing their heads on panel
+tops the player walks straight through. There is no third tier and no per-object exception: if an object
+needs terrain, it picks the tier by the direction it is moving.
+
+Covered by `ParaGoombaHopTest` (`aPanelTopIsNotACeiling`, `aPanelTopIsNotAWall`, `aPanelTopIsStillAFloor`).
+
+### The collision box — one per slot, and the wings are not in it
+
+Worth stating flatly, because the wings make it look otherwise: **an SMB3 object has exactly one
+bounding box, chosen by object ID from a constant table, and nothing that is merely drawn contributes to
+it.**
+
+- `Object_CalcBoundBox` (`prg000.asm:5435`) masks `Object_AttrFlags[ID]` for the box index and reads
+  `Object_BoundBox` (`:277`). `$73` is `OAT_BOUNDBOX01` with no other flag (`:413`) — row 1,
+  `left +1 / width 13 / top +2 / height 8`, byte-identical to `$72`'s. The Y pair is *(top offset,
+  height)*, not the "Bot Top" the table's comment suggests: `ObjectObject_Intersect` (`:5523`) uses the
+  second byte of each pair as an extent in a difference comparison, exactly as it does the X width.
+- That one box serves **every** interaction: the player's body (`Object_HitTest` @ PRG000_D836, against
+  `Player_BoundBox` = `3/10/5/25` for large standing), the tail (`Object_RespondToTailAttack`), left/right
+  bouncers, and object-to-object (`Object_CalcBoundBox2`). There is no second box, no per-part box, and no
+  wing box.
+- `ParaGoomba_Draw` (`prg004.asm:3129`) is pure OAM: it reads the body's two sprite slots, writes two more
+  at `bodyY - 10` and `bodyX - 2` / `bodyX + 8 + 2`, sets their attributes, and picks pattern `$CD` or
+  `$CF` off `Var3 & $08`. It never touches a box, a hit test or a state.
+
+So the hittable area is the **top 8 px of the 16x16 body** — the body's own lower 6 px are outside it too
+— while the drawn figure is ~26 px tall counting wings. That gap is the whole reason the tail feels like
+it misses (see `kb/bug-fixes/tail-attack-swing-side.md`), and it is authentic.
+
+### Tail attack — one hit, killed *through* a replacement Goomba
+
+`Object_RespondToTailAttack` (`prg000.asm:5906`) falls into `Enemy_Kill`, which gates on `OA3_DIESHELLED`
+— `$73` does not carry it (`prg004.asm:244`), so the branch that would consult the collide table, and
+with it `OCSPECIAL_KILLCHANGETO`, is never taken. One hit, not two, and no de-winged stage to survive.
+
+`Enemy_Kill` itself (`prg000.asm:5996`) is worth reading before touching the throw: it sets
+`Objects_Timer2 = 12`, queues `SND_PLAYERKICK`, scores `Score_Get100PlusPts`, sets state `6`
+(`OBJSTATE_KILLED`), sets `YVel = -$50` for a tail kill (`-$30` for a bouncer — it branches on
+`Temp_Var4 == $0F`, the caller's box width, which is `$0A` for the tail), picks `XVel` from
+`EnemyKill_XVels` by which side the player is on, and ORs in `SPR_VFLIP`. `EnemyKnockMotion`'s `-80` and
+its away-from-the-player X are those numbers.
+
+The port nevertheless routes the kill through the **same slot handover the stomp uses** and then strikes
+the replacement — `handSlotOverToAGoomba(0).onTailAttack(player)` — rather than owning a second copy of
+the death throw:
+
+- The corpse the ROM throws **is** a ground Goomba's. `$73`'s kill action is `KILLACT_JUSTDRAWMIRROR`
+  (`prg004.asm:328`), so `ParaGoomba_Draw` stops running and the wings go from the frame after the blow;
+  the tumble itself is the one shared `ObjState_Killed`.
+- `hitCooldownTicks = 0`, because the kill path sets no `Objects_Timer2` — and a grace period would make
+  `Goomba.isHittable()` swallow the very blow that created the replacement.
+- `EnemyKnockMotion`, `SPR_VFLIP` and the `TailAttackFlashMotionManager` flash therefore live only in
+  `Goomba`. `ParaGoomba` draws nothing inverted and holds no knock state; `positionSprite()` is
+  unconditionally upright and winged.
+- Score: the `SCORE_100` caption is queued on the **replacement**, which its own manager's
+  `postCollision` awards later in the same tick (`GameEngine` order: managers update → bumps →
+  collisions → `postCollision`). Queuing it on both would pay twice.
+
+> Earlier revisions duplicated the whole throw inside `ParaGoomba`. If you are tempted to put it back,
+> note that the only observable difference the handover makes is that the wings disappear one frame
+> earlier — which is what `KILLACT_JUSTDRAWMIRROR` does.
+
+### Killed and still hurting you, on the same frame — a ROM quirk, not a bug
+
+Tail-whacking an enemy that is already touching you hurts you *and* kills it on one frame, and the
+original does this too. The order is fixed by the object loop (`prg000.asm` @ PRG000_C9B6), which per
+slot runs:
+
+1. `Object_DoStateAction` → the enemy's handler. A ground troop's and `$73`'s both end in
+   `JMP Object_HandleBumpUnderneath`, and *that* routine tail-calls `Player_HitEnemy` (`:3608`) — so the
+   hurt/stomp resolution is the last thing the handler does.
+2. `Object_HitByTailOrBouncer` → `Object_RespondToTailAttack` → `Enemy_Kill`.
+
+The window is exactly one frame wide, and only reachable when the enemy's box overlaps *both* the
+player's `Player_BoundBox` and the tail box — i.e. the enemy was already on top of you when you swung.
+From the next frame the object is in state `6`, whose `ObjState_Killed` (`:3167`) only falls and draws
+(`KILLACT_JUSTDRAWMIRROR`), and it is excluded from the hit tests by `Obj2Obj_EnByState` and by
+`Objects_Timer2 = 12` — so a corpse can never hurt anyone. (Watch out for kill actions `5`
+`Object_NormalAndKilled` and `9` `Object_NormalWhileKilled`: those *do* keep running the normal handler
+while killed, so for objects carrying them the dying frames stay dangerous. Neither applies to `$72` or
+`$73`.)
+
+The port reproduces the ordering structurally: `ActiveObjectGrid.resolveActiveObjectCollisions` resolves
+every body collision for a player and only then dispatches the tail strike. Pinned by
+`ActiveObjectGridTest#bodyHitLandsBeforeTheTailStrikeOnTheSameTick` (ordering) and
+`TailStrikeDuringABodyHitTest` (the same thing end-to-end, against a real player). Do not "fix" it by
+moving the tail first — that would silently make the swing a shield.
+
+> Ordering alone was not enough to make it happen: the hurt used to clear the swing counter on its way
+> out, which disarmed the strike the same tick was about to resolve. See
+> `kb/bug-fixes/hurt-cancelled-the-tail-strike.md` — and note that `Player_GetHurt` writes no part of the
+> swing state.
+
+### Deliberately not ported
+
+- `Object_DeleteOffScreen`, which opens the handler — left to the central enemy expiry (SMB3-3). Only the
+  fall-off-the-level expiry the Goomba already has is kept.
+- `Object_HandleBumpUnderneath`, which closes it — the **block-bump** half only, which the port does not
+  model; the same omission the Goomba makes. Its tail call into `Player_HitEnemy` is very much ported —
+  that is the engine's collision pass, and the section above depends on where it sits.
+- `OBJ_PARAGOOMBAWITHMICROS = $74`, the Micro-Goomba bomber. It shares this body draw and box but has its
+  own handler `ObjNorm_ParaGoombaBomber`; the class is left open to it and it is **not** implemented.
+
+### Open questions, resolved
+
+1. **Is `RED` vs `NORMAL` a palette or `$73` vs `$74`?** A palette. `$73` carries `OA1_PAL1`
+   (`prg004.asm:161`) where `$72` carries `OA1_PAL3` (`:160`), and `$74` is a different handler, not a
+   second palette. So `RED` is the authentic ROM appearance and `NORMAL` is a project extension — kept as
+   the default because it is the Goomba-palette body the art drop targets. The de-winged replacement is
+   always a plain `NORMAL` Goomba, matching `$72`'s own `OA1_PAL3`.
+2. **`red/` art is a placeholder.** The folder currently holds a copy of the `normal/` art so the mode
+   loads and animates; replacing those six PNGs is a pure file swap.
+
+### Testing
+
+`ParaGoombaHopTest` (hop cadence, hop heights, the `$50` cooldown, net float rate and `$3F` terminal,
+ceiling stall, wall about-face, the 64-tick grounded re-face and the beat that is lost mid-flight, the
+shared box, no bump-off-others), `ParaGoombaWingClockTest` (8-up/8-down, the `+3` rising rate, wings
+pinned through the cooldown, and more wing flips than body flips over one climb),
+`ParaGoombaStompTest` (sub-tile handover, facing, rest `YVel`, the 8-tick untouchability, two-stomps-to-
+kill, single expiry, no re-face and no cell erase), `ParaGoombaTailAttackTest` (the kill handover: the
+replacement is struck on the spot with no cooldown, inherits the strike position, owes the single
+caption, flips and launches on the second tick and sinks through the floor, while the Para-Goomba itself
+drives none of it), `ParaGoombaModeTest`, `ParaGoombaAnimatorAssetsTest`.
+
+The entity keeps the Goomba's testability contract: `motionUpdate()` never touches the scene graph
+(`positionSprite()` no-ops while `spriteGeometry == null`), so a mocked `GameEngine`,
+`StaticEnvironmentCollisionGrid` and `ParaGoombaAnimator` plus a `boolean[][]` of solids is enough, and
+the package-private `faceClosestPlayer()` is called directly in place of `spawnIntoScene()`.
+`.\mvnw.cmd test` → 374 tests green after this change.

@@ -90,9 +90,10 @@ public final class RaccoonAnimator
         if (tailAttack > 0) {
             final int frameIndex = tailAttack >> 2; // 4→3→2→1→0
             final int clampedFrame = min(frameIndex, 4);
-            // Flip orientation at tailAttack == 11 and 3 (dasm: EOR #SPR_HFLIP)
-            final boolean flipped = (tailAttack <= 11 && tailAttack > 3);
-            final PlayerOrientationHorizontal effectiveOrientation = orientationHorizontal.oppositeIf(flipped);
+            // The sprite is mirrored for the middle of the swing (dasm: EOR #SPR_HFLIP at $0B and $03).
+            // Taken from the player rather than recomputed here, because the tail's hitbox is placed off
+            // this same facing — the two must not drift (LevelScenePlayer#getTailAttackSwingFacing).
+            final PlayerOrientationHorizontal effectiveOrientation = levelScenePlayer.getTailAttackSwingFacing();
             // Select the attack sequence once, then map the countdown step
             // onto the 3 distinct sprites via TAIL_ATTACK_FRAME_SEQUENCE, just
             // like the walk/run frame tables. Ground and air sequences differ

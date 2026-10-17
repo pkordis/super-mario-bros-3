@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.player.level;
 import com.jme3.scene.Node;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
@@ -56,23 +57,32 @@ import static java.lang.Math.min;
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     // Raccoon tail-attack hitbox for dynamic objects, in sprite-pixel space (dasm prg000
-    // Object_RespondToTailAttack / Player_TailAttackXOff): offset to the side the player faces, 10 wide,
-    // 15 tall, covering the lower body. The swing "kicks" (registers a hit) only on the two countdown
-    // frames $0C and $09.
-    private static final double TAIL_ATTACK_X_OFFSET_RIGHT = 17;
-    private static final double TAIL_ATTACK_X_OFFSET_LEFT = -10;
+    // Object_RespondToTailAttack / Player_TailAttackXOff): 10 wide, 15 tall, covering the lower body, and
+    // placed on the side OPPOSITE the facing the sprite is drawn with -- which is the side the tail is
+    // drawn on. The ROM indexes the offset table by Player_FlipBits, so the unflipped (left-facing) art
+    // takes +$11 and the flipped (right-facing) art takes -$0A; see getTailAttackSwingFacing for why
+    // that puts the box behind the player on the first strike frame and in front on the second.
+    private static final double TAIL_ATTACK_X_OFFSET_FACING_LEFT = 17;
+    private static final double TAIL_ATTACK_X_OFFSET_FACING_RIGHT = -10;
     private static final double TAIL_ATTACK_WIDTH = 10;
     private static final double TAIL_ATTACK_Y_OFFSET = 16;
     private static final double TAIL_ATTACK_HEIGHT = 15;
     private static final int TAIL_ATTACK_STRIKE_FRAME_EARLY = 12;
     private static final int TAIL_ATTACK_STRIKE_FRAME_LATE = 9;
 
+    // The swing mirrors the sprite partway through: Player_TailAttackAnim EORs SPR_HFLIP on the frame the
+    // counter reads $0B and EORs it back on $03 (dasm prg008 @ PRG008_B103), so the counter range
+    // ($0B, $03] is drawn -- and struck -- facing the other way.
+    private static final int TAIL_ATTACK_FLIP_FROM_FRAME = 11;
+    private static final int TAIL_ATTACK_FLIP_UNTIL_FRAME = 3;
+
     // Tail attack against static blocks is NOT the box above: the ROM probes a single point and looks up
     // the one tile containing it (dasm prg008 Player_TailAttack_HitBlocks -> Player_GetTileAndSlope, with
-    // the offsets from Player_TailAttack_Offsets: Y = 28, X = -6 facing left / +21 facing right). It also
-    // fires on one frame only, $09 -- not on $0C like the object test.
-    private static final double TAIL_ATTACK_BLOCK_PROBE_X_RIGHT = 21;
-    private static final double TAIL_ATTACK_BLOCK_PROBE_X_LEFT = -6;
+    // the offsets from Player_TailAttack_Offsets: Y = 28, X = -6 or +21). Keyed off Player_FlipBits like
+    // the object box, so it too sits behind the drawn facing. It also fires on one frame only, $09 --
+    // not on $0C like the object test.
+    private static final double TAIL_ATTACK_BLOCK_PROBE_X_FACING_LEFT = 21;
+    private static final double TAIL_ATTACK_BLOCK_PROBE_X_FACING_RIGHT = -6;
     private static final double TAIL_ATTACK_BLOCK_PROBE_Y = 28;
 
     private final LevelScenePlayerAnimationContext animationContext;
@@ -162,18 +172,51 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     }
 
     /**
+     * The facing the tail swing is drawn <em>and struck</em> with this tick — the ROM's
+     * {@code Player_FlipBits} during a wag, which is not the facing the player set out with.
+     *
+     * <p>{@code Player_TailAttackAnim} mirrors the sprite mid-swing: it EORs {@code SPR_HFLIP} on the
+     * frame the counter reads {@code $0B} and EORs it back on {@code $03} (dasm prg008 @ PRG008_B103),
+     * so Mario spins through the wag. The facing cannot be steered while it runs, either — the pad's
+     * facing update is skipped outright for the whole countdown (prg008 @ PRG008_AE11:
+     * {@code LDA Player_TailAttack / BNE}), which is what lets the EOR survive a held direction.
+     *
+     * <p>It matters because every tail geometry is keyed off {@code Player_FlipBits} rather than off the
+     * player's intent, and the two strike frames straddle the flip: {@code $0C} lands before it and
+     * {@code $09} after. With the hitbox always sitting <b>behind</b> the drawn facing (see
+     * {@link #getTailAttackBounds()}), the swing therefore covers <b>both sides</b> of the player — the
+     * early frame strikes behind them, the late frame in front — which is the tail arcing around.
+     *
+     * @return the drawn facing: the player's own outside the flip window, mirrored inside it
+     */
+    public PlayerOrientationHorizontal getTailAttackSwingFacing() {
+        final int countdown = runtimeState.getPlayerTailAttackCountdown();
+        final boolean flipped = countdown <= TAIL_ATTACK_FLIP_FROM_FRAME
+            && countdown > TAIL_ATTACK_FLIP_UNTIL_FRAME;
+        return orientation.getHorizontal().oppositeIf(flipped);
+    }
+
+    /**
      * The tail attack's hitbox for this tick, in sprite-pixel space (dasm prg000
-     * {@code Object_RespondToTailAttack}, offsets from {@code Player_TailAttackXOff}). It sits on the
-     * side the player faces — just past the right edge ({@code +17}) when facing right, or just left
-     * ({@code −10}) when facing left — is 10 wide and 15 tall, and covers the lower body ({@code +16}
-     * below the sprite top). Only meaningful while {@link #isTailAttackStriking()}.
+     * {@code Object_RespondToTailAttack}, offsets from {@code Player_TailAttackXOff}). It is 10 wide and
+     * 15 tall, covers the lower body ({@code +16} below the sprite top), and sits on the side
+     * <b>opposite</b> {@link #getTailAttackSwingFacing()} — just past the right edge ({@code +17}) while
+     * the sprite is drawn facing left, or just left of it ({@code -10}) while drawn facing right.
+     *
+     * <p>Behind the drawn facing is where the tail <em>is</em>: the ROM reads the offset straight out of
+     * {@code Player_TailAttackXOff} indexed by {@code Player_FlipBits}, and the entry for unflipped
+     * (left-facing) art is {@code +$11}. Taking the player's facing instead would put the box where the
+     * tail is not drawn, and would miss the swing's back half entirely — an enemy walking into the player
+     * from behind is legitimately tail-struck in the original.
+     *
+     * <p>Only meaningful while {@link #isTailAttackStriking()}.
      *
      * @return the tail hitbox for the current tick
      */
     public AxisAlignedBoundingBox getTailAttackBounds() {
-        final double left = position.getX() + (orientation.getHorizontal() == RIGHT
-            ? TAIL_ATTACK_X_OFFSET_RIGHT
-            : TAIL_ATTACK_X_OFFSET_LEFT);
+        final double left = position.getX() + (getTailAttackSwingFacing() == RIGHT
+            ? TAIL_ATTACK_X_OFFSET_FACING_RIGHT
+            : TAIL_ATTACK_X_OFFSET_FACING_LEFT);
         final double top = position.getY() + TAIL_ATTACK_Y_OFFSET;
         return new AxisAlignedBoundingBox(left, top, left + TAIL_ATTACK_WIDTH, top + TAIL_ATTACK_HEIGHT);
     }
@@ -194,12 +237,17 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      * X of the tail's block-probe point, in sprite-pixel space. See
      * {@link #getTailAttackBlockProbeY()} for why this is a point rather than a box.
      *
-     * @return the probe X, {@code +21} of the sprite left edge facing right, {@code -6} facing left
+     * <p>Keyed off {@link #getTailAttackSwingFacing()} exactly as the object box is, and for the same
+     * reason — the ROM indexes {@code Player_TailAttack_Offsets} by {@code Player_FlipBits} (dasm prg008
+     * @ PRG008_B95F). The probe fires on {@code $09} alone, which falls inside the flip window, so for a
+     * player who swung facing right it resolves to {@code +21}: the tile in front of them.
+     *
+     * @return the probe X, {@code +21} while drawn facing left, {@code -6} while drawn facing right
      */
     public double getTailAttackBlockProbeX() {
-        return position.getX() + (orientation.getHorizontal() == RIGHT
-            ? TAIL_ATTACK_BLOCK_PROBE_X_RIGHT
-            : TAIL_ATTACK_BLOCK_PROBE_X_LEFT);
+        return position.getX() + (getTailAttackSwingFacing() == RIGHT
+            ? TAIL_ATTACK_BLOCK_PROBE_X_FACING_RIGHT
+            : TAIL_ATTACK_BLOCK_PROBE_X_FACING_LEFT);
     }
 
     /**
@@ -269,6 +317,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void updateFrame() {
+        // The swing counter first, and outside every early return below: the ROM runs its shared counter
+        // block (dasm prg008 @ PRG008_A1DE) after Player_Update on the unconditional path, so it ticks
+        // through a halt, through a suit loss and through the death throe alike. See
+        // tickTailAttackCountdown for what gating it strands.
+        tickTailAttackCountdown();
+
         // The death throe owns the tick: it freezes gameplay and plays out its own rise-and-fall off
         // the bottom of the screen (dasm Player_IsDying — the dying routine in prg029 PRG029_D768 owns
         // the Y motion while the rest of the game is halted). Checked first: a dying player runs no
@@ -406,18 +460,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
-    /**
-     * Advances the death throe by one tick (dasm prg029 PRG029_D768): apply gravity to the launch
-     * velocity, move on the Y axis only, and draw the dead frame. The body pops up
-     * ({@link GameConstants#PLAYER_DEATH_RISE_YVEL}), decelerates at {@link GameConstants#PLAYER_DEATH_GRAVITY}
-     * to an apex, then falls — capped at {@link GameConstants#PLAYER_DEATH_FALL_MAX} — off the bottom of
-     * the level. There is no horizontal motion and no input; the throe owns the player entirely while
-     * {@link #isHaltingGameplay()} freezes everything else.
-     *
-     * <p>Once the body has dropped clear of the bottom edge, a single {@link PlayerDied} is published
-     * (guarded by {@link #deathEventPublished}) and the engine restarts the level from scratch. The
-     * throe keeps ticking harmlessly until that swap happens, so the one-shot guard matters.
-     */
     private void tickDeath() {
         position.snapshotPrevious();
 
@@ -441,14 +483,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
-    /**
-     * One tick of death-throe Y motion (dasm prg029 PRG029_D768): add gravity to the velocity, cap the
-     * fall at the terminal rate, and move on Y only. Extracted as a pure step over the position so the
-     * physics is unit-testable without a fully wired player.
-     *
-     * @param position the dying player's position, advanced in place
-     */
-    static void applyDeathGravityStep(final PlayerPosition position) {
+    void applyDeathGravityStep(final PlayerPosition position) {
         position.addToDY(PLAYER_DEATH_GRAVITY);
         if (position.getDY() > PLAYER_DEATH_FALL_MAX) {
             position.setDY(PLAYER_DEATH_FALL_MAX);
@@ -456,17 +491,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         position.addToY(position.getDY());
     }
 
-    /**
-     * Whether the dying body has dropped a full tile below the level's bottom edge, i.e. fully
-     * off-screen. Y is sprite-pixel space growing down, so the bottom edge sits at
-     * {@code rows × TILE_SPRITE_SIZE}; one extra tile of margin ensures the sprite has entirely cleared
-     * the view before the restart fires.
-     *
-     * @param position the dying player's position
-     * @param rows     the level height in tiles
-     * @return {@code true} once the body is clear of the bottom edge
-     */
-    static boolean hasFallenOffLevel(final PlayerPosition position, final int rows) {
+    boolean hasFallenOffLevel(final PlayerPosition position, final int rows) {
         return position.getY() > (double) (rows + 1) * TILE_SPRITE_SIZE;
     }
 

@@ -202,6 +202,16 @@ class EnemyMotionManagerTest {
         }
 
         @Override
+        public int getXVelocityFixedPoint() {
+            return 0;
+        }
+
+        @Override
+        public int getYVelocityFixedPoint() {
+            return 0;
+        }
+
+        @Override
         public Dimensions getSpriteDimensions() {
             return Dimensions.fullTile("StubEnemy");
         }

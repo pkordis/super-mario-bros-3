@@ -6,7 +6,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum GoombaMode implements EnemyMode {
-    NORMAL("normal");
+    NORMAL("normal"),
+    RED("red");
 
     private final String framesFolder;
 }

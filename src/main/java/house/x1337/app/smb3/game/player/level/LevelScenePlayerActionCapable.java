@@ -29,26 +29,18 @@ public interface LevelScenePlayerActionCapable extends LevelScenePlayerMoveCapab
         // needed — the flag persists from whatever it was before takeoff.
     }
 
-    /**
-     * Handles the raccoon tail attack (dasm prg008: Player_TailAttackAnim).
-     *
-     * <p>Triggered by a new B press while grounded, not ducking, and not
-     * already attacking. Sets {@code playerTailAttack} to 18 ($12) which
-     * auto-decrements each frame. The animation plays over 18 frames with
-     * the player sprite flipping at frames 11 and 3.
-     */
-    default void handleTailAttack(final PlayerInputHandler inputHandler) {
+    default void tickTailAttackCountdown() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
-
-        // Decrement counter each frame (at start, so the trigger frame
-        // displays at the full $12 value matching the dasm)
         if (runtimeState.getPlayerTailAttackCountdown() > 0) {
             runtimeState.setPlayerTailAttackCountdown(runtimeState.getPlayerTailAttackCountdown() - 1);
         }
+    }
 
+    default void handleTailAttack(final PlayerInputHandler inputHandler) {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
         final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
 
-        // Cannot initiate while ducking (dasm: if PAD_DOWN held, skip)
+        // Cannot initiate while ducking
         if (!inputDown && runtimeState.getPlayerTailAttackCountdown() == 0) {
             if (inputHandler.consumePress(HANDLER_RUN)) {
                 runtimeState.setPlayerTailAttackCountdown(18);
