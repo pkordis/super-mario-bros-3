@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.game.object.level.reward;
 
-import  com.jme3.scene.Geometry;
+import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.CoinType;
 import house.x1337.app.smb3.enumeration.Reward;
@@ -17,6 +17,8 @@ import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -25,12 +27,12 @@ import lombok.Setter;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.CoinType.FLIPPING;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_FLIPPING;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_50;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Getter
 @Prototype
@@ -45,18 +47,19 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     private final ImageResource imageResource;
     private final Offset offset;
 
+    /** A coin never moves: it is collected where it was placed. */
+    private final FixedPointVelocity velocity = STILL;
+
     private Dimensions spriteDimensions;
     private CoinType coinType;
 
     @Setter
     private boolean expired;
-    private double pixelX;
-    private double pixelY;
+    private PixelPosition position;
 
     @PostConstruct
     void init() {
-        pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
-        pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
+        position = PixelPosition.ofTile(offset);
 
         spriteDimensions = new Dimensions(
             "Coin",
@@ -97,23 +100,13 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     }
 
     @Override
-    public int getXVelocityFixedPoint() {
-        return 0;
-    }
-
-    @Override
-    public int getYVelocityFixedPoint() {
-        return 0;
-    }
-
-    @Override
     public AxisAlignedBoundingBox getBounds() {
         final DimensionsPixels imageDimensions = imageResource.getDimensions();
         return new AxisAlignedBoundingBox(
-            pixelX,
-            pixelY,
-            pixelX + (double) imageDimensions.width() / TILE_SCALE,
-            pixelY + (double) imageDimensions.height() / TILE_SCALE
+            position.x(),
+            position.y(),
+            position.x() + (double) imageDimensions.width() / TILE_SCALE,
+            position.y() + (double) imageDimensions.height() / TILE_SCALE
         );
     }
 

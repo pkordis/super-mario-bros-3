@@ -16,8 +16,7 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
     @Override
     default AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            getPixelX(),
-            getPixelY(),
+            getPosition(),
             getImageResource().getDimensions()
         );
     }

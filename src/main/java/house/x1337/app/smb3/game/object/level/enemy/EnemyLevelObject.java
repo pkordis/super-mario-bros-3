@@ -66,7 +66,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
 
     @Override
     default AxisAlignedBoundingBox getBounds() {
-        return AxisAlignedBoundingBox.ofSize(getPixelX(), getPixelY(), getBoundsPixels());
+        return AxisAlignedBoundingBox.ofSize(getPosition(), getBoundsPixels());
     }
 
     /**
@@ -156,7 +156,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
      */
     @Override
     default double getStompReferenceTop() {
-        return getPixelY();
+        return getPosition().y();
     }
 
     @Override

@@ -2,13 +2,12 @@ package house.x1337.app.smb3.game.object.level.enemy;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.model.game.WorldOffset;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
-import static java.lang.Math.floor;
 
 public interface GoombaFamilyEnemy extends EnemyLevelObject {
-    double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / TILE_SPRITE_SIZE;
     int BIG_HOP_COOLDOWN_TICKS = 80;
     int BIG_HOP_Y_VELOCITY_FIXED_POINT = -48;
     int BODY_RIGHT_SPRITE_OFFSET_PIXELS = TILE_SPRITE_SIZE / 2;
@@ -34,20 +33,17 @@ public interface GoombaFamilyEnemy extends EnemyLevelObject {
     int WING_LIFT_PIXELS = 10;
     int WING_OUTWARD_OFFSET_PIXELS = 2;
 
-    default WorldOffset pixelToWorldOffset(
-        final double pixelX,
-        final double pixelY
-    ) {
+    default WorldOffset pixelToWorldOffset(final PixelPosition position) {
         final Geometry spriteGeometry = getSpriteGeometry();
         if (spriteGeometry == null) {
             return null;
         }
         final int rows = getGameEngine().getLevelScene().getDimensions().rows();
-        final float worldX = (float) (pixelX / TILE_SPRITE_SIZE);
+        final float worldX = (float) (position.x() / TILE_SPRITE_SIZE);
         // Drop the sprite by one logical pixel, for the same reason SuperMushroom does: resting feet
         // are mathematically flush with the tile top but rasterise a pixel high, leaving a seam above
         // the surface. Purely visual - the collision maths above is untouched.
-        final float worldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE) - 1f / TILE_SPRITE_SIZE;
+        final float worldY = (rows - 1) - (float) (position.y() / TILE_SPRITE_SIZE) - 1f / TILE_SPRITE_SIZE;
         return WorldOffset.of(
             worldX,
             worldY,
@@ -55,22 +51,33 @@ public interface GoombaFamilyEnemy extends EnemyLevelObject {
         );
     }
 
-    default boolean isGroundBelow(final double proposedY) {
-        final int centerColumn = (int) floor((getPixelX() + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
+    /**
+     * @param proposed the position the enemy is about to move to
+     * @return {@code true} if a solid tile sits under its feet there
+     */
+    default boolean isGroundBelow(final PixelPosition proposed) {
+        final int centerColumn = getPosition().plusX(SPRITE_SIZE_PIXELS / 2.0).column();
+        final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
         return getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
     }
 
-    default boolean isWallAhead(final double proposedX) {
-        final int midRow = (int) floor((getPixelY() + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int leadingColumn = getXVelocityFixedPoint() > 0
-            ? (int) floor((proposedX + SPRITE_SIZE_PIXELS - 1) / TILE_SPRITE_SIZE)
-            : (int) floor(proposedX / TILE_SPRITE_SIZE);
+    /**
+     * @param proposed the position the enemy is about to move to
+     * @return {@code true} if its leading edge (right when travelling right, left otherwise) would
+     *         enter a solid tile there
+     */
+    default boolean isWallAhead(final PixelPosition proposed) {
+        final int midRow = getPosition().plusY(SPRITE_SIZE_PIXELS / 2.0).row();
+        final int leadingColumn = getVelocity().movingRight()
+            ? proposed.plusX(SPRITE_SIZE_PIXELS - 1).column()
+            : proposed.column();
         return getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
     }
 
     default boolean hasFallenOffLevel() {
         final int rows = getLevelScene().getDimensions().rows();
-        return getPixelY() / TILE_SPRITE_SIZE > rows + 1;
+        // Compared as a real number of tiles rather than via PixelPosition.row(): flooring first
+        // would keep an enemy alive for the final fractional tile of its fall.
+        return getPosition().y() / TILE_SPRITE_SIZE > rows + 1;
     }
 }

@@ -13,6 +13,8 @@ import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -30,8 +32,7 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.Dimensions.fullTile;
-import static java.lang.Math.floor;
-import static java.lang.Math.min;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Getter
 @Prototype
@@ -64,21 +65,18 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
     private boolean spawnedIntoScene;
     private boolean tailStruck;
     private boolean wingUp;
-    private double pixelX;
-    private double pixelY;
     private int hopCooldownTicks;
     private int hopCounter;
     private int refaceClock;
     private int walkFrameIndex;
     private int walkFrameTicks;
     private int wingClock;
-    private int xVelocityFixedPoint;
-    private int yVelocityFixedPoint;
+    private PixelPosition position;
+    private FixedPointVelocity velocity = STILL;
 
     @PostConstruct
     void init() {
-        pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
-        pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
+        position = PixelPosition.ofTile(offset);
     }
 
     @Override
@@ -90,9 +88,10 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
 
     @Override
     public AxisAlignedBoundingBox getBounds() {
-        final double left = pixelX + BOUND_BOX_LEFT_OFFSET;
-        final double top = pixelY + BOUND_BOX_TOP_OFFSET;
-        return new AxisAlignedBoundingBox(left, top, left + BOUND_BOX_WIDTH, top + BOUND_BOX_HEIGHT);
+        return AxisAlignedBoundingBox.ofSize(
+            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            BOUNDS_PIXELS
+        );
     }
 
     @Override
@@ -184,7 +183,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         }
 
         // Facing IS direction, as for the ground troop: XVel is reloaded from the flip bit every frame.
-        xVelocityFixedPoint = facingRight ? WALK_SPEED_FIXED_POINT : -WALK_SPEED_FIXED_POINT;
+        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
 
         advanceWalkFrame();
         moveHorizontally();
@@ -194,7 +193,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         advanceWingClock();
 
         if (ceilingContact) {
-            yVelocityFixedPoint = CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT;
+            velocity = velocity.withY(CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT);
         }
         if (groundContact) {
             onGroundContact();
@@ -207,10 +206,10 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
     }
 
     void faceClosestPlayer() {
-        final double center = pixelX + SPRITE_SIZE_PIXELS / 2.0;
+        final double center = position.x() + SPRITE_SIZE_PIXELS / 2.0;
         facingRight = gameEngine
             .getCollisionGrid()
-            .findClosestPlayerTo(pixelX, pixelY)
+            .findClosestPlayerTo(position.x(), position.y())
             .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0 >= center)
             .orElse(false);
     }
@@ -219,7 +218,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         final Goomba goomba = getBean(
             Goomba.class,
             gameEngine,
-            Offset.of(pixelX / TILE_SPRITE_SIZE, pixelY / TILE_SPRITE_SIZE)
+            Offset.of(position.x() / TILE_SPRITE_SIZE, position.y() / TILE_SPRITE_SIZE)
         );
         goomba.configure(new LevelObjectData(
             Map.of(MODE_ATTRIBUTE, mode.name())
@@ -252,7 +251,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
      * the float decrement, as the handler does.
      */
     private void advanceWingClock() {
-        final int risingBonus = hopCounter == 0 && yVelocityFixedPoint < 0 ? RISING_WING_FLAP_BONUS : 0;
+        final int risingBonus = hopCounter == 0 && velocity.rising() ? RISING_WING_FLAP_BONUS : 0;
         wingClock = (wingClock + risingBonus + 1) & OBJECT_CLOCK_WRAP;
         applyWingPhase();
     }
@@ -287,47 +286,47 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         if (hopCounter == HOPS_PER_CYCLE) {
             hopCounter = 0;
             hopCooldownTicks = BIG_HOP_COOLDOWN_TICKS;
-            yVelocityFixedPoint = BIG_HOP_Y_VELOCITY_FIXED_POINT;
+            velocity = velocity.withY(BIG_HOP_Y_VELOCITY_FIXED_POINT);
             return;
         }
-        yVelocityFixedPoint = LITTLE_HOP_Y_VELOCITY_FIXED_POINT;
+        velocity = velocity.withY(LITTLE_HOP_Y_VELOCITY_FIXED_POINT);
     }
 
     private void moveHorizontally() {
-        final double proposedX = pixelX + xVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
-        if (isWallAhead(proposedX)) {
+        final PixelPosition proposed = position.steppedX(velocity);
+        if (isWallAhead(proposed)) {
             // Object_FlipFace: flip only, no velocity negate - the next frame rederives XVel from facing.
             // The handler defers this to its last instruction; doing it here, where the move is blocked,
             // is the Goomba's arrangement and differs in nothing observable.
             facingRight = !facingRight;
             return;
         }
-        pixelX = proposedX;
+        position = proposed;
     }
 
     private void moveVertically() {
         groundContact = false;
         ceilingContact = false;
-        final double proposedY = pixelY + yVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
+        final PixelPosition proposed = position.steppedY(velocity);
 
-        if (yVelocityFixedPoint >= 0 && isGroundBelow(proposedY)) {
+        if (velocity.descending() && isGroundBelow(proposed)) {
             // Object_HitGround: align the feet to the tile top it landed on.
-            final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
-            pixelY = (double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS;
-            yVelocityFixedPoint = 0;
+            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
+            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+            velocity = velocity.withY(0);
             grounded = true;
             groundContact = true;
             return;
         }
-        if (yVelocityFixedPoint < 0 && isCeilingAbove(proposedY)) {
-            final int headRow = (int) floor(proposedY / TILE_SPRITE_SIZE);
-            pixelY = (double) (headRow + 1) * TILE_SPRITE_SIZE;
-            yVelocityFixedPoint = 0;
+        if (velocity.rising() && isCeilingAbove(proposed)) {
+            final int headRow = proposed.row();
+            position = position.withY((double) (headRow + 1) * TILE_SPRITE_SIZE);
+            velocity = velocity.withY(0);
             grounded = false;
             ceilingContact = true;
             return;
         }
-        pixelY = proposedY;
+        position = proposed;
         grounded = false;
     }
 
@@ -337,12 +336,13 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
      * the Goomba's {@code $40}, because the decrement lands after the cap.
      */
     private void applyFloatingGravity() {
-        yVelocityFixedPoint = min(yVelocityFixedPoint + GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT)
-            - WING_LIFT_FIXED_POINT;
+        velocity = velocity
+            .falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT)
+            .plusY(-WING_LIFT_FIXED_POINT);
     }
 
     private void positionSprite() {
-        final WorldOffset worldOffset = pixelToWorldOffset(pixelX, pixelY);
+        final WorldOffset worldOffset = pixelToWorldOffset(position);
         if (worldOffset == null) {
             return;
         }
@@ -381,9 +381,9 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         }
     }
 
-    private boolean isCeilingAbove(final double proposedY) {
-        final int centerColumn = (int) floor((pixelX + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int headRow = (int) floor(proposedY / TILE_SPRITE_SIZE);
+    private boolean isCeilingAbove(final PixelPosition proposed) {
+        final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
+        final int headRow = proposed.row();
         return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(centerColumn, headRow);
     }
 }

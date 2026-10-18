@@ -36,8 +36,8 @@ class EnemyKnockMotionTest {
         motion.advance();
 
         // Verify - the flash is showing its first frame and the enemy has not budged
-        assertThat(motion.getStepX()).isCloseTo(0.0, within(TOLERANCE));
-        assertThat(motion.getStepY()).isCloseTo(0.0, within(TOLERANCE));
+        assertThat(motion.getStepVelocity().pixelStepX()).isCloseTo(0.0, within(TOLERANCE));
+        assertThat(motion.getStepVelocity().pixelStepY()).isCloseTo(0.0, within(TOLERANCE));
         assertThat(motion.isUpsideDown()).as("still the right way up").isFalse();
     }
 
@@ -53,10 +53,10 @@ class EnemyKnockMotionTest {
 
         // Verify
         assertThat(motion.isUpsideDown()).as("Objects_FlipBits |= SPR_VFLIP").isTrue();
-        assertThat(motion.getStepY())
+        assertThat(motion.getStepVelocity().pixelStepY())
             .as("launched at -$50/16 px per tick")
             .isCloseTo(LAUNCH_PIXELS_PER_TICK, within(TOLERANCE));
-        assertThat(motion.getStepX())
+        assertThat(motion.getStepVelocity().pixelStepX())
             .as("knocked away from the attacker on its left")
             .isCloseTo(KNOCK_PIXELS_PER_TICK, within(TOLERANCE));
     }
@@ -70,7 +70,7 @@ class EnemyKnockMotionTest {
         motion.advance();
 
         // Verify
-        assertThat(motion.getStepX()).isCloseTo(-KNOCK_PIXELS_PER_TICK, within(TOLERANCE));
+        assertThat(motion.getStepVelocity().pixelStepX()).isCloseTo(-KNOCK_PIXELS_PER_TICK, within(TOLERANCE));
     }
 
     @Test
@@ -83,7 +83,7 @@ class EnemyKnockMotionTest {
         // Execute & Verify - Object_Move only ever touches Y for a killed object
         for (int tick = 0; tick < 40; tick++) {
             motion.advance();
-            assertThat(motion.getStepX())
+            assertThat(motion.getStepVelocity().pixelStepX())
                 .as("tick %d", tick)
                 .isCloseTo(KNOCK_PIXELS_PER_TICK, within(TOLERANCE));
         }
@@ -98,15 +98,15 @@ class EnemyKnockMotionTest {
         motion.advance();
 
         // Execute & Verify - each tick is exactly OBJECT_FALLRATE slower than the last
-        double previousStepY = motion.getStepY();
+        double previousStepY = motion.getStepVelocity().pixelStepY();
         boolean everDescended = false;
         for (int tick = 0; tick < 40; tick++) {
             motion.advance();
-            assertThat(motion.getStepY() - previousStepY)
+            assertThat(motion.getStepVelocity().pixelStepY() - previousStepY)
                 .as("gravity applied on tick %d", tick)
                 .isCloseTo(GRAVITY_PIXELS_PER_TICK, within(TOLERANCE));
-            previousStepY = motion.getStepY();
-            everDescended |= motion.getStepY() > 0;
+            previousStepY = motion.getStepVelocity().pixelStepY();
+            everDescended |= motion.getStepVelocity().pixelStepY() > 0;
         }
         assertThat(everDescended).as("the arc turns over and the enemy falls").isTrue();
     }
@@ -123,8 +123,8 @@ class EnemyKnockMotionTest {
         }
 
         // Verify - OBJECT_MAXFALL = $40, i.e. 4 px per tick
-        assertThat(motion.getStepY()).isCloseTo(0x40 / 16.0, within(TOLERANCE));
-        assertThat(motion.getYVelocityFixedPoint()).isEqualTo(0x40);
+        assertThat(motion.getStepVelocity().pixelStepY()).isCloseTo(0x40 / 16.0, within(TOLERANCE));
+        assertThat(motion.getVelocity().y()).isEqualTo(0x40);
     }
 
     @Test
@@ -138,7 +138,7 @@ class EnemyKnockMotionTest {
         // Execute
         for (int tick = 0; tick < 80; tick++) {
             motion.advance();
-            y += motion.getStepY();
+            y += motion.getStepVelocity().pixelStepY();
             highest = min(highest, y);
         }
 

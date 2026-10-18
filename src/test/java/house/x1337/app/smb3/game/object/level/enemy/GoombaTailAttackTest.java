@@ -154,7 +154,7 @@ class GoombaTailAttackTest {
             .isEqualTo((int) (WALK_ROW_PIXEL_Y + TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("between the player and the Goomba")
-            .isBetween((int) playerX, (int) goomba.getPixelX() + TILE_SPRITE_SIZE);
+            .isBetween((int) playerX, (int) goomba.getPosition().x() + TILE_SPRITE_SIZE);
     }
 
     @Test
@@ -172,7 +172,7 @@ class GoombaTailAttackTest {
         assertThat(spawnedAt.x()).isEqualTo((int) (playerX - TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("between the Goomba and the player")
-            .isBetween((int) goomba.getPixelX(), (int) playerX);
+            .isBetween((int) goomba.getPosition().x(), (int) playerX);
     }
 
     @Test
@@ -196,15 +196,15 @@ class GoombaTailAttackTest {
         final Goomba goomba = goombaAt(5, WALK_ROW);
         goomba.faceClosestPlayer();
         goomba.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
-        final double struckAtX = goomba.getPixelX();
-        final double struckAtY = goomba.getPixelY();
+        final double struckAtX = goomba.getPosition().x();
+        final double struckAtY = goomba.getPosition().y();
 
         // Execute - the tick the flash appears on
         goomba.motionUpdate();
 
         // Verify - still exactly where it was hit, and still upright
-        assertThat(goomba.getPixelX()).isCloseTo(struckAtX, within(TOLERANCE));
-        assertThat(goomba.getPixelY()).isCloseTo(struckAtY, within(TOLERANCE));
+        assertThat(goomba.getPosition().x()).isCloseTo(struckAtX, within(TOLERANCE));
+        assertThat(goomba.getPosition().y()).isCloseTo(struckAtY, within(TOLERANCE));
         assertThat(goomba.getWhamMotion().isUpsideDown()).isFalse();
 
         // Execute - wham frame _1
@@ -212,8 +212,8 @@ class GoombaTailAttackTest {
 
         // Verify - inverted and rising
         assertThat(goomba.getWhamMotion().isUpsideDown()).isTrue();
-        assertThat(goomba.getPixelY()).as("thrown upward").isLessThan(struckAtY);
-        assertThat(goomba.getPixelX()).as("and knocked away from the player").isGreaterThan(struckAtX);
+        assertThat(goomba.getPosition().y()).as("thrown upward").isLessThan(struckAtY);
+        assertThat(goomba.getPosition().x()).as("and knocked away from the player").isGreaterThan(struckAtX);
     }
 
     @Test
@@ -229,10 +229,10 @@ class GoombaTailAttackTest {
         goomba.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
 
         // Execute - long enough to clear the apex and sink past the floor row
-        double deepest = goomba.getPixelY();
+        double deepest = goomba.getPosition().y();
         for (int tick = 0; tick < 80; tick++) {
             goomba.motionUpdate();
-            deepest = max(deepest, goomba.getPixelY());
+            deepest = max(deepest, goomba.getPosition().y());
         }
 
         // Verify - it went clean through the row it had been standing on

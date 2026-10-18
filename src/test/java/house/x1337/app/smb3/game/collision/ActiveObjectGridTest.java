@@ -10,6 +10,8 @@ import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -546,23 +549,13 @@ class ActiveObjectGridTest {
         }
 
         @Override
-        public double getPixelX() {
+        public PixelPosition getPosition() {
             throw doNotCall();
         }
 
         @Override
-        public double getPixelY() {
-            throw doNotCall();
-        }
-
-        @Override
-        public int getXVelocityFixedPoint() {
-            return 0;
-        }
-
-        @Override
-        public int getYVelocityFixedPoint() {
-            return 0;
+        public FixedPointVelocity getVelocity() {
+            return STILL;
         }
 
         @Override

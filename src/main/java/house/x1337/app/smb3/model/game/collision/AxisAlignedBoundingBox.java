@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model.game.collision;
 
 import house.x1337.app.smb3.model.game.DimensionsPixels;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 /**
  * An axis-aligned bounding box in <b>sprite-pixel space</b> — the same coordinate space the
@@ -39,5 +40,20 @@ public record AxisAlignedBoundingBox(double left, double top, double right, doub
         final DimensionsPixels dimensions
     ) {
         return new AxisAlignedBoundingBox(left, top, left + dimensions.width(), top + dimensions.height());
+    }
+
+    /**
+     * The box of the given size anchored at a sprite-pixel position. Inset boxes compose this with
+     * {@code PixelPosition.plus(dx, dy)} rather than needing an overload of their own.
+     *
+     * @param topLeft    the box's upper-left corner
+     * @param dimensions the box's extent in sprite-pixels
+     * @return the box spanning {@code dimensions} down and right of {@code topLeft}
+     */
+    public static AxisAlignedBoundingBox ofSize(
+        final PixelPosition topLeft,
+        final DimensionsPixels dimensions
+    ) {
+        return ofSize(topLeft.x(), topLeft.y(), dimensions);
     }
 }

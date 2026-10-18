@@ -87,17 +87,17 @@ class GoombaWalkTest {
         // Prepare
         final Goomba goomba = goombaAt(5, WALK_ROW);
         goomba.faceClosestPlayer();
-        final double startX = goomba.getPixelX();
+        final double startX = goomba.getPosition().x();
 
         // Execute
         tick(goomba, 16);
 
         // Verify
         assertThat(goomba.isFacingRight()).as("An unflipped ground troop walks left").isFalse();
-        assertThat(goomba.getPixelX())
+        assertThat(goomba.getPosition().x())
             .as("16 frames x $08/16 px = 8 px to the left")
             .isCloseTo(startX - 8.0, within(TOLERANCE));
-        assertThat(goomba.getPixelY())
+        assertThat(goomba.getPosition().y())
             .as("Resting on the floor: Object_HitGround re-aligns the feet every frame")
             .isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(goomba.isGrounded()).isTrue();
@@ -109,7 +109,7 @@ class GoombaWalkTest {
         // Prepare - player five tiles to the right of a Goomba at column 5
         final Goomba goomba = goombaAt(5, WALK_ROW);
         givenPlayerAtPixelX(10 * TILE_SPRITE_SIZE);
-        final double startX = goomba.getPixelX();
+        final double startX = goomba.getPosition().x();
 
         // Execute
         goomba.faceClosestPlayer();
@@ -117,7 +117,7 @@ class GoombaWalkTest {
 
         // Verify
         assertThat(goomba.isFacingRight()).as("GroundTroop_FlipTowardsPlayer sets SPR_HFLIP").isTrue();
-        assertThat(goomba.getPixelX())
+        assertThat(goomba.getPosition().x())
             .as("Facing is direction: the flipped troop walks right")
             .isCloseTo(startX + 8.0, within(TOLERANCE));
     }
@@ -135,7 +135,7 @@ class GoombaWalkTest {
 
         // Verify
         assertThat(goomba.isFacingRight()).as("The Goomba has turned around").isTrue();
-        assertThat(goomba.getPixelX())
+        assertThat(goomba.getPosition().x())
             .as("Never overlaps the wall: its left edge stays at or past the wall column's right edge")
             .isGreaterThanOrEqualTo(4 * (double) TILE_SPRITE_SIZE);
     }
@@ -160,7 +160,7 @@ class GoombaWalkTest {
         // Verify
         assertThat(goomba.isFacingRight()).as("No about-face: only the red troopa avoids ledges").isFalse();
         assertThat(goomba.isGrounded()).isFalse();
-        assertThat(goomba.getPixelY())
+        assertThat(goomba.getPosition().y())
             .as("Falling below the row it was walking on")
             .isGreaterThan(WALK_ROW_PIXEL_Y);
     }
@@ -174,15 +174,15 @@ class GoombaWalkTest {
 
         // Execute & Verify - Object_Move adds gravity at the end of the frame, after the move
         tick(goomba, 1);
-        assertThat(goomba.getYVelocityFixedPoint()).isEqualTo(3);
+        assertThat(goomba.getVelocity().y()).isEqualTo(3);
 
         tick(goomba, 20);
-        assertThat(goomba.getYVelocityFixedPoint())
+        assertThat(goomba.getVelocity().y())
             .as("21 frames x $03 = $3f, still one step under the cap")
             .isEqualTo(63);
 
         tick(goomba, 1);
-        assertThat(goomba.getYVelocityFixedPoint())
+        assertThat(goomba.getVelocity().y())
             .as("Terminal velocity is OBJECT_MAXFALL = $40, i.e. 4 px/frame")
             .isEqualTo(64);
     }
@@ -199,7 +199,7 @@ class GoombaWalkTest {
 
         // Verify
         assertThat(goomba.isGrounded()).isTrue();
-        assertThat(goomba.getPixelY())
+        assertThat(goomba.getPosition().y())
             .as("Feet flush with the floor tile's top edge")
             .isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(goomba.isExpired()).as("Landing is not an expiry").isFalse();
@@ -227,7 +227,8 @@ class GoombaWalkTest {
     // Fixtures
     // -------------------------------------------------------------------------
 
-    private Goomba goombaAt(final int column, final int row) {        final Goomba goomba = new Goomba(gameEngine, Offset.of(column, row));
+    private Goomba goombaAt(final int column, final int row) {
+        final Goomba goomba = new Goomba(gameEngine, Offset.of(column, row));
         goomba.init();
         return goomba;
     }

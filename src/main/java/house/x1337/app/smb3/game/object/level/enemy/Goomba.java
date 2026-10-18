@@ -16,6 +16,8 @@ import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -33,28 +35,20 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.LEFT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.strikeFrom;
-import static java.lang.Math.floor;
-import static java.lang.Math.min;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Getter
 @Prototype
 @RequiredArgsConstructor
 public final class Goomba implements GoombaFamilyEnemy {
-    private static final int MAX_FALL_FIXED_POINT = 64;
-    private static final int TICKS_PER_WALK_FRAME = 8;
-    private static final int SQUISH_TICKS = 16;
     private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
-    private static final double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / TILE_SPRITE_SIZE;
-
-    // Collision box inset from the 16x16 sprite, matching the ROM's bounding-box table entry the Goomba
-    // selects. dasm prg000 Object_AttrFlags gives OBJ_GOOMBA (#$72) OAT_BOUNDBOX01, and Object_BoundBox
-    // row 01 is (left 1, width 13, top 2, height 8) - offsets applied to the sprite's top-left. So the
-    // box spans X [+1, +14] and Y [+2, +10], tighter and much shorter than the full tile. The stomp
-    // depth still measures from Objects_Y (the sprite top), not this box - see getStompReferenceTop.
+    private static final int BOUND_BOX_HEIGHT = 8;
     private static final int BOUND_BOX_LEFT_OFFSET = 1;
     private static final int BOUND_BOX_TOP_OFFSET = 2;
     private static final int BOUND_BOX_WIDTH = 13;
-    private static final int BOUND_BOX_HEIGHT = 8;
+    private static final int MAX_FALL_FIXED_POINT = 64;
+    private static final int SQUISH_TICKS = 16;
+    private static final int TICKS_PER_WALK_FRAME = 8;
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
@@ -80,19 +74,16 @@ public final class Goomba implements GoombaFamilyEnemy {
     private boolean grounded;
     private boolean spawnedIntoScene;
     private boolean squished;
-    private double pixelX;
-    private double pixelY;
     private int hitCooldownTicks;
     private int squishTicksRemaining;
     private int walkFrameIndex;
     private int walkFrameTicks;
-    private int xVelocityFixedPoint;
-    private int yVelocityFixedPoint;
+    private PixelPosition position;
+    private FixedPointVelocity velocity = STILL;
 
     @PostConstruct
     void init() {
-        pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
-        pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
+        position = PixelPosition.ofTile(offset);
     }
 
     @Override
@@ -106,12 +97,12 @@ public final class Goomba implements GoombaFamilyEnemy {
         final ParaGoomba paraGoomba,
         final int hitCooldownTicks
     ) {
-        this.pixelX = paraGoomba.getPixelX();
-        this.pixelY = paraGoomba.getPixelY();
+        this.position = paraGoomba.getPosition();
         this.facingRight = paraGoomba.isFacingRight();
         this.hitCooldownTicks = hitCooldownTicks;
-        this.yVelocityFixedPoint = 0;
-        this.xVelocityFixedPoint = facingRight ? WALK_SPEED_FIXED_POINT : -WALK_SPEED_FIXED_POINT;
+        // Deliberately not the Para-Goomba's velocity: the ROM zeroes YVel on the hand-over
+        // (PRG000_D31E) and the walk reloads XVel from the facing on its first frame anyway.
+        this.velocity = STILL.directedX(facingRight, WALK_SPEED_FIXED_POINT);
         this.adoptedSlot = true;
         gameEngine.getActiveObjectGrid().spawnEnemy(this);
     }
@@ -122,13 +113,14 @@ public final class Goomba implements GoombaFamilyEnemy {
      * to the full-tile default so object overlap engages where the ROM's does - a touch narrower, and far
      * shorter, than the sprite.
      *
-     * @return the box spanning X {@code [pixelX+1, pixelX+14]}, Y {@code [pixelY+2, pixelY+10]}
+     * @return the box spanning X {@code [x+1, x+14]}, Y {@code [y+2, y+10]}
      */
     @Override
     public AxisAlignedBoundingBox getBounds() {
-        final double left = pixelX + BOUND_BOX_LEFT_OFFSET;
-        final double top = pixelY + BOUND_BOX_TOP_OFFSET;
-        return new AxisAlignedBoundingBox(left, top, left + BOUND_BOX_WIDTH, top + BOUND_BOX_HEIGHT);
+        return AxisAlignedBoundingBox.ofSize(
+            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            BOUNDS_PIXELS
+        );
     }
 
     @Override
@@ -159,7 +151,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         squishTicksRemaining = SQUISH_TICKS;
         pendingScoreReward = SCORE_100;
         // Halt horizontal movement, as ObjState_Squashed does on touching the ground.
-        xVelocityFixedPoint = 0;
+        velocity = velocity.withX(0);
         animator.applyCurrentFrame(this);
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
     }
@@ -170,7 +162,7 @@ public final class Goomba implements GoombaFamilyEnemy {
             return;
         }
         final double playerX = levelScenePlayer.getPosition().getX();
-        final boolean playerOnTheLeft = playerX + SPRITE_SIZE_PIXELS / 2.0 < pixelX + SPRITE_SIZE_PIXELS / 2.0;
+        final boolean playerOnTheLeft = playerX + SPRITE_SIZE_PIXELS / 2.0 < position.x() + SPRITE_SIZE_PIXELS / 2.0;
         whamMotion = strikeFrom(playerOnTheLeft ? LEFT : RIGHT);
         pendingScoreReward = SCORE_100;
 
@@ -215,14 +207,14 @@ public final class Goomba implements GoombaFamilyEnemy {
     public void onSideCollisionWith(final ActiveLevelObject other) {
         final AxisAlignedBoundingBox otherBounds = other.getBounds();
         final double otherCenterX = (otherBounds.left() + otherBounds.right()) / 2.0;
-        facingRight = otherCenterX < pixelX + SPRITE_SIZE_PIXELS / 2.0;
+        facingRight = otherCenterX < position.x() + SPRITE_SIZE_PIXELS / 2.0;
     }
 
     void faceClosestPlayer() {
-        final double center = pixelX + SPRITE_SIZE_PIXELS / 2.0;
+        final double center = position.x() + SPRITE_SIZE_PIXELS / 2.0;
         facingRight = gameEngine
             .getCollisionGrid()
-            .findClosestPlayerTo(pixelX, pixelY)
+            .findClosestPlayerTo(position.x(), position.y())
             .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0 >= center)
             .orElse(false);
     }
@@ -249,8 +241,8 @@ public final class Goomba implements GoombaFamilyEnemy {
             return;
         }
 
-        // Facing IS direction: the handler reloads GroundTroop_XVel from the flip bit every frame.
-        xVelocityFixedPoint = facingRight ? WALK_SPEED_FIXED_POINT : -WALK_SPEED_FIXED_POINT;
+        // Facing IS direction
+        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
 
         advanceWalkFrame();
         moveHorizontally();
@@ -276,8 +268,7 @@ public final class Goomba implements GoombaFamilyEnemy {
 
     private void tickDeathByTailAttack() {
         whamMotion.advance();
-        pixelX += whamMotion.getStepX();
-        pixelY += whamMotion.getStepY();
+        position = position.stepped(whamMotion.getStepVelocity());
         positionSprite();
 
         if (hasFallenOffLevel()) {
@@ -296,33 +287,33 @@ public final class Goomba implements GoombaFamilyEnemy {
     }
 
     private void moveHorizontally() {
-        final double proposedX = pixelX + xVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
-        if (isWallAhead(proposedX)) {
+        final PixelPosition proposed = position.steppedX(velocity);
+        if (isWallAhead(proposed)) {
             facingRight = !facingRight;
             return;
         }
-        pixelX = proposedX;
+        position = proposed;
     }
 
     private void moveVertically() {
-        final double proposedY = pixelY + yVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
-        if (yVelocityFixedPoint >= 0 && isGroundBelow(proposedY)) {
-            final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
-            pixelY = (double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS;
-            yVelocityFixedPoint = 0;
+        final PixelPosition proposed = position.steppedY(velocity);
+        if (velocity.descending() && isGroundBelow(proposed)) {
+            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
+            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+            velocity = velocity.withY(0);
             grounded = true;
             return;
         }
-        pixelY = proposedY;
+        position = proposed;
         grounded = false;
     }
 
     private void applyGravity() {
-        yVelocityFixedPoint = min(yVelocityFixedPoint + GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
+        velocity = velocity.falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
     }
 
     private void positionSprite() {
-        final WorldOffset worldOffset = pixelToWorldOffset(pixelX, pixelY);
+        final WorldOffset worldOffset = pixelToWorldOffset(position);
         if (worldOffset == null) {
             return;
         }

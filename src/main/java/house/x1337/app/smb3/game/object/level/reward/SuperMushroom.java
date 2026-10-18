@@ -16,6 +16,8 @@ import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,9 +26,9 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floor;
-import static java.lang.Math.min;
 
 /**
  * A Super Mushroom power-up.
@@ -53,7 +55,8 @@ import static java.lang.Math.min;
  *       ({@code Object_AboutFace}) when it runs into a wall.</li>
  * </ol>
  *
- * <p>All velocities are 4.4 fixed-point ({@code value/16 == px/frame}). World collision is resolved
+ * <p>All velocities are 4.4 fixed-point ({@code value/16 == px/frame}), carried in a
+ * {@link house.x1337.app.smb3.model.game.motion.FixedPointVelocity}. World collision is resolved
  * directly against the scene's {@link StaticEnvironmentCollisionGrid} — the same tile-aligned solids
  * the player uses — which is why the mushroom, alone among the reward items so far, needs a
  * reference to it. ({@code ObjHit_PUpMush} also grows the player / grants the Super suit; that suit
@@ -91,25 +94,22 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private boolean rising = true;
     private boolean grounded;
     private boolean fallDirectionRight;
-    private double pixelX;
-    private double pixelY;
     private int riseTimer;
     private int riseSubCounter;
     private int collectProtectionTimer;
-    private int xVelocityFixedPoint;
-    private int yVelocityFixedPoint;
+    private PixelPosition position;
+    private FixedPointVelocity velocity = STILL;
 
     @Override
     public void configure(final SuperMushroomVariantData variantData) {
         variantData.applyTo(this);
 
         // Emerge from the top of the block cell (top-left aligned); the creep moves it up from here.
-        pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
-        pixelY = (double) offset.y() * TILE_SPRITE_SIZE;
+        position = PixelPosition.ofTile(offset);
         riseTimer = RISE_TIMER_INITIAL;
         collectProtectionTimer = COLLECT_PROTECTION_FRAMES;
         // dasm Mushroom_SetFall: the mushroom rolls AWAY from the player once it lands.
-        fallDirectionRight = pixelX >= closestPlayerCenterX() - SPRITE_SIZE_PIXELS / 2.0;
+        fallDirectionRight = position.x() >= closestPlayerCenterX() - SPRITE_SIZE_PIXELS / 2.0;
 
         final ImageResource imageResource = getImageResource();
         spriteDimensions = new Dimensions(
@@ -149,7 +149,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private void tickRise() {
         if (riseTimer < RISE_MOVEMENT_THRESHOLD) {
             if (riseSubCounter == 0) {
-                pixelY -= 1;
+                position = position.plusY(-1);
                 riseSubCounter = RISE_PIXEL_INTERVAL_FRAMES - 1;
             } else {
                 riseSubCounter--;
@@ -181,12 +181,12 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      */
     private void tickMoving() {
         // dasm: DetStat & $04 (on ground) && XVel == 0 -> PowerUp_BounceXVel kicks it rolling.
-        if (grounded && xVelocityFixedPoint == 0) {
-            xVelocityFixedPoint = fallDirectionRight ? X_MOVE_SPEED_FIXED_POINT : -X_MOVE_SPEED_FIXED_POINT;
+        if (grounded && velocity.stationaryX()) {
+            velocity = velocity.directedX(fallDirectionRight, X_MOVE_SPEED_FIXED_POINT);
         }
 
         // Gravity (dasm Object_ApplyGravity): YVel += fall rate, capped at terminal velocity.
-        yVelocityFixedPoint = min(yVelocityFixedPoint + GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
+        velocity = velocity.falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
 
         moveHorizontally();
         moveVertically();
@@ -207,11 +207,11 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * solid tile (dasm {@code Object_AboutFace}).
      */
     private void moveHorizontally() {
-        final double proposedX = pixelX + xVelocityFixedPoint * PIXELS_TO_GAME_UNITS;
-        if (xVelocityFixedPoint != 0 && isWallAhead(proposedX)) {
-            xVelocityFixedPoint = -xVelocityFixedPoint;
+        final PixelPosition proposed = position.steppedX(velocity);
+        if (!velocity.stationaryX() && isWallAhead(proposed)) {
+            velocity = velocity.negatedX();
         } else {
-            pixelX = proposedX;
+            position = proposed;
         }
     }
 
@@ -220,14 +220,14 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * tile's top edge and zeroes the fall (dasm {@code Object_HitGround}).
      */
     private void moveVertically() {
-        final double proposedY = pixelY + yVelocityFixedPoint * PIXELS_TO_GAME_UNITS;
-        if (yVelocityFixedPoint >= 0 && isGroundBelow(proposedY)) {
-            final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
-            pixelY = (double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS;
-            yVelocityFixedPoint = 0;
+        final PixelPosition proposed = position.steppedY(velocity);
+        if (velocity.descending() && isGroundBelow(proposed)) {
+            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
+            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+            velocity = velocity.withY(0);
             grounded = true;
         } else {
-            pixelY = proposedY;
+            position = proposed;
             grounded = false;
         }
     }
@@ -244,12 +244,12 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         if (!grounded) {
             return;
         }
-        final int centerColumn = (int) floor((pixelX + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int feetRow = (int) floor((pixelY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
+        final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
+        final int feetRow = position.plusY(SPRITE_SIZE_PIXELS).row();
         if (!getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
             return;
         }
-        yVelocityFixedPoint = BLOCK_BUMP_YVEL;
+        velocity = velocity.withY(BLOCK_BUMP_YVEL);
         grounded = false;
         applyBumpAboutFace();
     }
@@ -262,11 +262,10 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * over the block it was bumped off, rather than walking straight off.
      */
     private void applyBumpAboutFace() {
-        final int subTileX = ((int) floor(pixelX)) & 0x0f;
+        final int subTileX = ((int) floor(position.x())) & 0x0f;
         final boolean inRightHalf = subTileX >= 0x08;
-        final boolean movingLeft = xVelocityFixedPoint < 0;
-        if (inRightHalf ^ movingLeft) {
-            xVelocityFixedPoint = -xVelocityFixedPoint;
+        if (inRightHalf ^ velocity.movingLeft()) {
+            velocity = velocity.negatedX();
         }
     }
 
@@ -326,8 +325,8 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
 
     private void positionSprite() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final float worldX = (float) (pixelX / TILE_SPRITE_SIZE);
-        float worldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE);
+        final float worldX = (float) (position.x() / TILE_SPRITE_SIZE);
+        float worldY = (rows - 1) - (float) (position.y() / TILE_SPRITE_SIZE);
         if (!rising) {
             // Drop the sprite by one logical pixel (1/TILE_SPRITE_SIZE world units): its resting
             // feet are mathematically flush with the tile top, but it rasterises a pixel high,
@@ -345,14 +344,14 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * Clips the sprite quad to just the slice that has emerged above the dispensing block's top
      * edge, hiding the rest so the block appears to contain it. The emerged height is the distance
      * the sprite's top has risen past the block cell's top edge, in game-units:
-     * {@code offset.y() - pixelY / TILE_SPRITE_SIZE}. Both the quad geometry and its texture
+     * {@code offset.y() - position.y() / TILE_SPRITE_SIZE}. Both the quad geometry and its texture
      * coordinates are trimmed to the top {@code emerged} portion, so the visible slice always lines
      * up exactly with the block's top edge (see {@link #positionSprite()} for the world placement).
      */
     private void clipToEmergedPortion() {
         final float spriteWidth = spriteDimensions.width();
         final float spriteHeight = spriteDimensions.height();
-        final float emerged = (float) clamp(offset.y() - pixelY / TILE_SPRITE_SIZE, 0.0, spriteHeight);
+        final float emerged = (float) clamp(offset.y() - position.y() / TILE_SPRITE_SIZE, 0.0, spriteHeight);
         final float localBottom = spriteHeight - emerged;
         final float texCoordBottom = localBottom / spriteHeight;
 
@@ -398,11 +397,11 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * @return {@code true} if the leading edge (right when moving right, left when moving left) at
      *         the mushroom's vertical midpoint would enter a solid tile
      */
-    private boolean isWallAhead(final double proposedX) {
-        final int midRow = (int) floor((pixelY + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int leadingColumn = xVelocityFixedPoint > 0
-            ? (int) floor((proposedX + SPRITE_SIZE_PIXELS - 1) / TILE_SPRITE_SIZE)
-            : (int) floor(proposedX / TILE_SPRITE_SIZE);
+    private boolean isWallAhead(final PixelPosition proposed) {
+        final int midRow = position.plusY(SPRITE_SIZE_PIXELS / 2.0).row();
+        final int leadingColumn = velocity.movingRight()
+            ? proposed.plusX(SPRITE_SIZE_PIXELS - 1).column()
+            : proposed.column();
         // The level's left boundary is not a wall for the mushroom: rather than about-facing back
         // to the right, it keeps rolling left off the edge and expires once fully out of bounds
         // (see hasFallenOffLevel). Real solid tiles inside the level (column >= 0) still turn it.
@@ -413,12 +412,12 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * @param proposedY the vertical position the mushroom would occupy this frame
-     * @return {@code true} if a solid tile sits under the mushroom's feet at that position
+     * @param proposed the position the mushroom would occupy this frame
+     * @return {@code true} if a solid tile sits under the mushroom's feet there
      */
-    private boolean isGroundBelow(final double proposedY) {
-        final int centerColumn = (int) floor((pixelX + SPRITE_SIZE_PIXELS / 2.0) / TILE_SPRITE_SIZE);
-        final int feetRow = (int) floor((proposedY + SPRITE_SIZE_PIXELS) / TILE_SPRITE_SIZE);
+    private boolean isGroundBelow(final PixelPosition proposed) {
+        final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
+        final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
         return gameEngine.getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
     }
 
@@ -432,9 +431,9 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private double closestPlayerCenterX() {
         return gameEngine
             .getCollisionGrid()
-            .findClosestPlayerTo(pixelX, pixelY)
+            .findClosestPlayerTo(position.x(), position.y())
             .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0)
-            .orElse(pixelX + SPRITE_SIZE_PIXELS / 2.0);
+            .orElse(position.x() + SPRITE_SIZE_PIXELS / 2.0);
     }
 
     /**
@@ -444,8 +443,8 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      */
     private boolean hasFallenOffLevel() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final boolean belowFloor = pixelY / TILE_SPRITE_SIZE > rows + 1;
-        final boolean pastLeftEdge = pixelX + SPRITE_SIZE_PIXELS <= 0;
+        final boolean belowFloor = position.y() / TILE_SPRITE_SIZE > rows + 1;
+        final boolean pastLeftEdge = position.x() + SPRITE_SIZE_PIXELS <= 0;
         return belowFloor || pastLeftEdge;
     }
 }

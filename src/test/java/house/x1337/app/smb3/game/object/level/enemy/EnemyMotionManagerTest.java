@@ -14,6 +14,8 @@ import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -167,8 +170,8 @@ class EnemyMotionManagerTest {
     @Getter
     private static final class StubEnemy implements EnemyLevelObject {
         private final GameEngine gameEngine;
-        private final double pixelX;
-        private final double pixelY = 0;
+        private final PixelPosition position;
+        private final FixedPointVelocity velocity = STILL;
         private final EnemyMode mode = NORMAL;
         private final boolean spawnedIntoScene = true;
         private final DimensionsPixels boundsPixels = new DimensionsPixels(16, 16);
@@ -183,7 +186,7 @@ class EnemyMotionManagerTest {
 
         private StubEnemy(final GameEngine gameEngine, final double pixelX) {
             this.gameEngine = gameEngine;
-            this.pixelX = pixelX;
+            this.position = new PixelPosition(pixelX, 0);
         }
 
         @Override
@@ -199,16 +202,6 @@ class EnemyMotionManagerTest {
         @Override
         public void spawnIntoScene() {
             throw new UnsupportedOperationException("Already in the scene");
-        }
-
-        @Override
-        public int getXVelocityFixedPoint() {
-            return 0;
-        }
-
-        @Override
-        public int getYVelocityFixedPoint() {
-            return 0;
         }
 
         @Override

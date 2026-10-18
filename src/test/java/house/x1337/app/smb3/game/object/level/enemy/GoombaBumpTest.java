@@ -107,15 +107,15 @@ class GoombaBumpTest {
         assertThat(right.isFacingRight()).as("The right Goomba now heads right, away").isTrue();
 
         // Execute - let them walk on
-        final double leftX = left.getPixelX();
-        final double rightX = right.getPixelX();
+        final double leftX = left.getPosition().x();
+        final double rightX = right.getPosition().x();
         for (int tick = 0; tick < 16; tick++) {
             tickAndResolveBumps(left, right);
         }
 
         // Verify - they are moving apart and no longer overlap
-        assertThat(left.getPixelX()).as("Walking left").isLessThan(leftX);
-        assertThat(right.getPixelX()).as("Walking right").isGreaterThan(rightX);
+        assertThat(left.getPosition().x()).as("Walking left").isLessThan(leftX);
+        assertThat(right.getPosition().x()).as("Walking right").isGreaterThan(rightX);
         assertThat(left.getBounds().intersects(right.getBounds())).as("Separated").isFalse();
     }
 
@@ -238,7 +238,7 @@ class GoombaBumpTest {
      * {@code faceClosestPlayer} then resolves to the inward direction.
      */
     private void faceTowardsEachOther(final Goomba left, final Goomba right) {
-        final double midpoint = (left.getPixelX() + right.getPixelX()) / 2.0;
+        final double midpoint = (left.getPosition().x() + right.getPosition().x()) / 2.0;
         givenPlayerAtPixelX(midpoint);
         left.faceClosestPlayer();
         right.faceClosestPlayer();

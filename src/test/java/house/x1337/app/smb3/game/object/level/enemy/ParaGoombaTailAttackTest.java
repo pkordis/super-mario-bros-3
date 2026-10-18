@@ -172,8 +172,8 @@ class ParaGoombaTailAttackTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
         tick(paraGoomba, 5);
-        final double struckAtX = paraGoomba.getPixelX();
-        final double struckAtY = paraGoomba.getPixelY();
+        final double struckAtX = paraGoomba.getPosition().x();
+        final double struckAtY = paraGoomba.getPosition().y();
         assertThat(struckAtY % TILE_SPRITE_SIZE).as("Genuinely mid-tile vertically").isNotZero();
 
         // Execute
@@ -181,8 +181,8 @@ class ParaGoombaTailAttackTest {
 
         // Verify - the ROM keeps the same slot, so the sub-tile position carries across
         final Goomba replacement = captureSpawnedGoomba();
-        assertThat(replacement.getPixelX()).isCloseTo(struckAtX, within(TOLERANCE));
-        assertThat(replacement.getPixelY()).isCloseTo(struckAtY, within(TOLERANCE));
+        assertThat(replacement.getPosition().x()).isCloseTo(struckAtX, within(TOLERANCE));
+        assertThat(replacement.getPosition().y()).isCloseTo(struckAtY, within(TOLERANCE));
         assertThat(replacement.getOffset())
             .as("Its placement cell is derived from where it actually is")
             .isEqualTo(Offset.of(struckAtX / TILE_SPRITE_SIZE, struckAtY / TILE_SPRITE_SIZE));
@@ -226,7 +226,7 @@ class ParaGoombaTailAttackTest {
         assertThat(spawnedAt.y()).as("Player_Y + $10").isEqualTo((int) (REST_ROW_PIXEL_Y + TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("Between the player and the Para-Goomba")
-            .isBetween((int) playerX, (int) paraGoomba.getPixelX() + TILE_SPRITE_SIZE);
+            .isBetween((int) playerX, (int) paraGoomba.getPosition().x() + TILE_SPRITE_SIZE);
     }
 
     @Test
@@ -237,15 +237,15 @@ class ParaGoombaTailAttackTest {
         paraGoomba.faceClosestPlayer();
         paraGoomba.onTailAttack(playerAt((START_COLUMN - 1) * (double) TILE_SPRITE_SIZE));
         final Goomba replacement = captureSpawnedGoomba();
-        final double struckAtX = replacement.getPixelX();
-        final double struckAtY = replacement.getPixelY();
+        final double struckAtX = replacement.getPosition().x();
+        final double struckAtY = replacement.getPosition().y();
 
         // Execute - the tick the flash appears on
         replacement.motionUpdate();
 
         // Verify - exactly where the Para-Goomba was hit, still the right way up and not walking
-        assertThat(replacement.getPixelX()).isCloseTo(struckAtX, within(TOLERANCE));
-        assertThat(replacement.getPixelY()).isCloseTo(struckAtY, within(TOLERANCE));
+        assertThat(replacement.getPosition().x()).isCloseTo(struckAtX, within(TOLERANCE));
+        assertThat(replacement.getPosition().y()).isCloseTo(struckAtY, within(TOLERANCE));
         assertThat(replacement.getWhamMotion().isUpsideDown()).isFalse();
 
         // Execute
@@ -253,8 +253,8 @@ class ParaGoombaTailAttackTest {
 
         // Verify - inverted, rising, and knocked away from the player
         assertThat(replacement.getWhamMotion().isUpsideDown()).isTrue();
-        assertThat(replacement.getPixelY()).as("Thrown upward").isLessThan(struckAtY);
-        assertThat(replacement.getPixelX()).as("And away from the player").isGreaterThan(struckAtX);
+        assertThat(replacement.getPosition().y()).as("Thrown upward").isLessThan(struckAtY);
+        assertThat(replacement.getPosition().x()).as("And away from the player").isGreaterThan(struckAtX);
     }
 
     @Test
@@ -269,10 +269,10 @@ class ParaGoombaTailAttackTest {
         final Goomba replacement = captureSpawnedGoomba();
 
         // Execute
-        double deepest = replacement.getPixelY();
+        double deepest = replacement.getPosition().y();
         for (int tick = 0; tick < 100; tick++) {
             replacement.motionUpdate();
-            deepest = max(deepest, replacement.getPixelY());
+            deepest = max(deepest, replacement.getPosition().y());
         }
 
         // Verify - ObjState_Killed runs Object_Move with no ground alignment
@@ -288,16 +288,16 @@ class ParaGoombaTailAttackTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW - 3);
         paraGoomba.faceClosestPlayer();
         paraGoomba.onTailAttack(playerAt((START_COLUMN - 1) * (double) TILE_SPRITE_SIZE));
-        final double expiredAtX = paraGoomba.getPixelX();
-        final double expiredAtY = paraGoomba.getPixelY();
+        final double expiredAtX = paraGoomba.getPosition().x();
+        final double expiredAtY = paraGoomba.getPosition().y();
         final int hopCounterAtDeath = paraGoomba.getHopCounter();
 
         // Execute
         tick(paraGoomba, 30);
 
         // Verify
-        assertThat(paraGoomba.getPixelX()).isCloseTo(expiredAtX, within(TOLERANCE));
-        assertThat(paraGoomba.getPixelY()).as("Did not fall").isCloseTo(expiredAtY, within(TOLERANCE));
+        assertThat(paraGoomba.getPosition().x()).isCloseTo(expiredAtX, within(TOLERANCE));
+        assertThat(paraGoomba.getPosition().y()).as("Did not fall").isCloseTo(expiredAtY, within(TOLERANCE));
         assertThat(paraGoomba.getHopCounter()).as("The hop cycle stopped dead").isEqualTo(hopCounterAtDeath);
     }
 

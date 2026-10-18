@@ -132,8 +132,8 @@ class ParaGoombaStompTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
         tick(paraGoomba, 5);
-        final double stompedAtX = paraGoomba.getPixelX();
-        final double stompedAtY = paraGoomba.getPixelY();
+        final double stompedAtX = paraGoomba.getPosition().x();
+        final double stompedAtY = paraGoomba.getPosition().y();
         assertThat(stompedAtX % TILE_SPRITE_SIZE).as("Genuinely mid-tile horizontally").isNotZero();
         assertThat(stompedAtY % TILE_SPRITE_SIZE).as("And mid-tile vertically").isNotZero();
 
@@ -142,8 +142,8 @@ class ParaGoombaStompTest {
 
         // Verify - the ROM keeps the same slot, so the replacement inherits the live sub-tile position
         final Goomba replacement = captureSpawnedGoomba();
-        assertThat(replacement.getPixelX()).isCloseTo(stompedAtX, within(TOLERANCE));
-        assertThat(replacement.getPixelY()).isCloseTo(stompedAtY, within(TOLERANCE));
+        assertThat(replacement.getPosition().x()).isCloseTo(stompedAtX, within(TOLERANCE));
+        assertThat(replacement.getPosition().y()).isCloseTo(stompedAtY, within(TOLERANCE));
         assertThat(replacement.getOffset())
             .as("Its placement cell is derived from where it actually is")
             .isEqualTo(Offset.of(stompedAtX / TILE_SPRITE_SIZE, stompedAtY / TILE_SPRITE_SIZE));
@@ -165,7 +165,7 @@ class ParaGoombaStompTest {
         // Verify
         final Goomba replacement = captureSpawnedGoomba();
         assertThat(replacement.isFacingRight()).isTrue();
-        assertThat(replacement.getXVelocityFixedPoint()).as("And its velocity follows that facing").isEqualTo(8);
+        assertThat(replacement.getVelocity().x()).as("And its velocity follows that facing").isEqualTo(8);
     }
 
     @Test
@@ -175,13 +175,13 @@ class ParaGoombaStompTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, 0);
         paraGoomba.faceClosestPlayer();
         tick(paraGoomba, 10);
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("Falling when stomped").isPositive();
+        assertThat(paraGoomba.getVelocity().y()).as("Falling when stomped").isPositive();
 
         // Execute
         paraGoomba.onCollisionFromAbove(descendingPlayer());
 
         // Verify - PRG000_D31E zeroes YVel before returning
-        assertThat(captureSpawnedGoomba().getYVelocityFixedPoint()).isZero();
+        assertThat(captureSpawnedGoomba().getVelocity().y()).isZero();
     }
 
     @Test
@@ -289,15 +289,15 @@ class ParaGoombaStompTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW - 3);
         paraGoomba.faceClosestPlayer();
         paraGoomba.onCollisionFromAbove(descendingPlayer());
-        final double expiredAtX = paraGoomba.getPixelX();
-        final double expiredAtY = paraGoomba.getPixelY();
+        final double expiredAtX = paraGoomba.getPosition().x();
+        final double expiredAtY = paraGoomba.getPosition().y();
 
         // Execute
         tick(paraGoomba, 30);
 
         // Verify
-        assertThat(paraGoomba.getPixelX()).isCloseTo(expiredAtX, within(TOLERANCE));
-        assertThat(paraGoomba.getPixelY()).as("Did not fall, so nothing is duplicated").isCloseTo(
+        assertThat(paraGoomba.getPosition().x()).isCloseTo(expiredAtX, within(TOLERANCE));
+        assertThat(paraGoomba.getPosition().y()).as("Did not fall, so nothing is duplicated").isCloseTo(
             expiredAtY,
             within(TOLERANCE)
         );

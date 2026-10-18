@@ -12,6 +12,8 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +27,7 @@ import java.util.List;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -169,23 +172,13 @@ class TailStrikeDuringABodyHitTest {
         }
 
         @Override
-        public double getPixelX() {
-            return bounds.left();
+        public PixelPosition getPosition() {
+            return new PixelPosition(bounds.left(), bounds.top());
         }
 
         @Override
-        public double getPixelY() {
-            return bounds.top();
-        }
-
-        @Override
-        public int getXVelocityFixedPoint() {
-            return 0;
-        }
-
-        @Override
-        public int getYVelocityFixedPoint() {
-            return 0;
+        public FixedPointVelocity getVelocity() {
+            return STILL;
         }
 
         @Override

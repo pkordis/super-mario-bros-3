@@ -8,8 +8,11 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_LEAF;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
+import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Getter
 @Prototype
@@ -39,7 +43,6 @@ public final class SuperLeaf implements RewardLevelObject {
     private static final int X_VELOCITY_LIMIT_FIXED_POINT = 32;
     private static final int[] FLUTTER_Y_VELOCITY_BASE_FIXED_POINT = {10, -10, 8};
     private static final int FLUTTER_Y_VELOCITY_BIAS_FIXED_POINT = 6;
-    private static final double FIXED_POINT_VELOCITY_TO_PIXELS = 1.0 / 16.0;
 
     private final LevelObjectType type = SUPER_LEAF;
 
@@ -60,18 +63,17 @@ public final class SuperLeaf implements RewardLevelObject {
     private boolean collected;
     private boolean facingRight;
     private boolean rising = true;
-    private double pixelX;
-    private double pixelY;
     private int oscillationDirectionCounter;
-    private int xVelocityFixedPoint;
-    private int yVelocityFixedPoint;
     private int collectProtectionTimer;
+    private PixelPosition position;
+    private FixedPointVelocity velocity = STILL;
 
     @PostConstruct
     void init() {
-        pixelX = (double) offset.x() * TILE_SPRITE_SIZE;
-        pixelY = (double) offset.y() * TILE_SPRITE_SIZE + SPAWN_Y_OFFSET_PIXELS;
-        yVelocityFixedPoint = INITIAL_Y_VELOCITY_FIXED_POINT;
+        position = PixelPosition
+            .ofTile(offset)
+            .plusY(SPAWN_Y_OFFSET_PIXELS);
+        velocity = new FixedPointVelocity(0, INITIAL_Y_VELOCITY_FIXED_POINT);
         collectProtectionTimer = COLLECT_PROTECTION_FRAMES;
 
         spriteDimensions = new Dimensions(
@@ -95,9 +97,9 @@ public final class SuperLeaf implements RewardLevelObject {
         }
 
         if (rising) {
-            pixelY += yVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
-            yVelocityFixedPoint++;
-            if (yVelocityFixedPoint != 0) {
+            position = position.steppedY(velocity);
+            velocity = velocity.plusY(1);
+            if (velocity.y() != 0) {
                 updateFacingAndPosition();
                 return;
             }
@@ -107,19 +109,20 @@ public final class SuperLeaf implements RewardLevelObject {
         }
 
         final int direction = oscillationDirectionCounter & 1;
-        xVelocityFixedPoint += (direction == 0) ? X_VELOCITY_STEP_FIXED_POINT : -X_VELOCITY_STEP_FIXED_POINT;
-        if (xVelocityFixedPoint == ((direction == 0) ? X_VELOCITY_LIMIT_FIXED_POINT : -X_VELOCITY_LIMIT_FIXED_POINT)) {
+        velocity = velocity.plusX((direction == 0) ? X_VELOCITY_STEP_FIXED_POINT : -X_VELOCITY_STEP_FIXED_POINT);
+        if (velocity.x() == ((direction == 0) ? X_VELOCITY_LIMIT_FIXED_POINT : -X_VELOCITY_LIMIT_FIXED_POINT)) {
             oscillationDirectionCounter++;
         }
 
         int bobIndex = direction;
-        if (xVelocityFixedPoint < 0) {
+        if (velocity.movingLeft()) {
             bobIndex++;
         }
-        yVelocityFixedPoint = FLUTTER_Y_VELOCITY_BASE_FIXED_POINT[bobIndex] + FLUTTER_Y_VELOCITY_BIAS_FIXED_POINT;
+        velocity = velocity.withY(
+            FLUTTER_Y_VELOCITY_BASE_FIXED_POINT[bobIndex] + FLUTTER_Y_VELOCITY_BIAS_FIXED_POINT
+        );
 
-        pixelX += xVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
-        pixelY += yVelocityFixedPoint * FIXED_POINT_VELOCITY_TO_PIXELS;
+        position = position.stepped(velocity);
 
         updateFacingAndPosition();
 
@@ -172,7 +175,7 @@ public final class SuperLeaf implements RewardLevelObject {
     /**
      * The leaf's collection hitbox is inset from its sprite, per dasm {@code Object_BoundBox} entry 1
      * ({@code OAT_BOUNDBOX01}, used by {@code OBJ_POWERUP_SUPERLEAF}): left {@code +1}, width 13, so
-     * the box spans {@code [pixelX+1, pixelX+14]} — the right edge sits 2px in from the 16px sprite.
+     * the box spans {@code [x+1, x+14]} — the right edge sits 2px in from the 16px sprite.
      * The default full-sprite box let a leaf swinging back over its spawn column be grabbed by a
      * player standing flush against the dispensing block; this inset restores the clearance the
      * original relies on (the ROM's box is {@code Object_CalcBoundBox} / {@code ObjectObject_Intersect}).
@@ -181,12 +184,9 @@ public final class SuperLeaf implements RewardLevelObject {
      */
     @Override
     public AxisAlignedBoundingBox getBounds() {
-        final double left = pixelX + HITBOX_LEFT_INSET;
-        return new AxisAlignedBoundingBox(
-            left,
-            pixelY,
-            left + HITBOX_WIDTH,
-            pixelY + imageResource.getDimensions().height()
+        return AxisAlignedBoundingBox.ofSize(
+            position.plusX(HITBOX_LEFT_INSET),
+            new DimensionsPixels(HITBOX_WIDTH, imageResource.getDimensions().height())
         );
     }
 
@@ -202,9 +202,9 @@ public final class SuperLeaf implements RewardLevelObject {
     }
 
     private void updateFacingAndPosition() {
-        if (xVelocityFixedPoint > 0) {
+        if (velocity.movingRight()) {
             facingRight = true;
-        } else if (xVelocityFixedPoint < 0) {
+        } else if (velocity.movingLeft()) {
             facingRight = false;
         }
         positionSprite();
@@ -212,8 +212,8 @@ public final class SuperLeaf implements RewardLevelObject {
 
     private void positionSprite() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final float worldX = (float) (pixelX / TILE_SPRITE_SIZE);
-        final float worldY = (rows - 1) - (float) (pixelY / TILE_SPRITE_SIZE);
+        final float worldX = (float) (position.x() / TILE_SPRITE_SIZE);
+        final float worldY = (rows - 1) - (float) (position.y() / TILE_SPRITE_SIZE);
         final float width = spriteDimensions.width();
 
         if (facingRight) {
@@ -229,6 +229,6 @@ public final class SuperLeaf implements RewardLevelObject {
 
     private boolean hasFallenOffLevel() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        return pixelY / TILE_SPRITE_SIZE > rows + 1;
+        return position.y() / TILE_SPRITE_SIZE > rows + 1;
     }
 }

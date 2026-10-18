@@ -1,12 +1,13 @@
 package house.x1337.app.smb3.game.object.level;
 
 import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
@@ -19,7 +20,7 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
  * <p>Collision is expressed purely as box overlap in sprite-pixel space: an object exposes its
  * collision box via {@link #getBounds()}, a player exposes its hitbox via
  * {@code LevelScenePlayer.getObjectCollisionBounds()} (computed once per tick, not per object),
- * and the two are tested with {@link #intersects(AxisAlignedBoundingBox)}. A broadphase ({@code ActiveObjectGrid})
+ * and the two are tested with {@link #intersects(AxisAlignedBoundingBox)}. A broad-phase ({@code ActiveObjectGrid})
  * narrows candidate pairs before that test so the cost stays bounded as the number of active
  * objects grows.
  *
@@ -27,10 +28,8 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
  * the player against fixed, tile-aligned solids, whereas this concerns moving-object overlap.
  */
 public interface ActiveLevelObject extends LevelObject, GameEngineAware {
-    double getPixelX();
-    double getPixelY();
-    int getXVelocityFixedPoint();
-    int getYVelocityFixedPoint();
+    PixelPosition getPosition();
+    FixedPointVelocity getVelocity();
     Dimensions getSpriteDimensions();
     AxisAlignedBoundingBox getBounds();
     Geometry getSpriteGeometry();
@@ -76,9 +75,12 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     }
 
     default WorldOffset getCurrentWorldOffset() {
+        final PixelPosition position = getPosition();
         final int rows = getGameEngine().getLevelScene().getDimensions().rows();
-        final float worldX = (float) (getPixelX() / TILE_SPRITE_SIZE);
-        final float topEdgeWorldY = (rows - 1) - (float) (getPixelY() / TILE_SPRITE_SIZE) + getSpriteDimensions().height();
+        final float worldX = (float) (position.x() / TILE_SPRITE_SIZE);
+        final float topEdgeWorldY = (rows - 1)
+            - (float) (position.y() / TILE_SPRITE_SIZE)
+            + getSpriteDimensions().height();
         return of(worldX, topEdgeWorldY, Z_DEPTH_ITEM_REWARD);
     }
 }

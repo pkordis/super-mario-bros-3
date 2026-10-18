@@ -126,7 +126,7 @@ class ParaGoombaWingClockTest {
         final int risingStep = paraGoomba.getWingClock() - clockAtLaunch;
 
         // Verify - +2 extra on top of the unconditional +1
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("Still rising").isNegative();
+        assertThat(paraGoomba.getVelocity().y()).as("Still rising").isNegative();
         assertThat(risingStep).as("Var3 += 3 a tick on the way up").isEqualTo(3);
 
         // Execute - carry on to the top of the climb and past it
@@ -190,7 +190,7 @@ class ParaGoombaWingClockTest {
         for (int tick = 0; tick < 20; tick++) {
             paraGoomba.motionUpdate();
             assertThat(paraGoomba.getHopCooldownTicks()).as("Still in the cooldown").isPositive();
-            assertThat(paraGoomba.getPixelY()).as("Sitting on the floor").isEqualTo(REST_ROW_PIXEL_Y);
+            assertThat(paraGoomba.getPosition().y()).as("Sitting on the floor").isEqualTo(REST_ROW_PIXEL_Y);
             assertThat(paraGoomba.getWingClock()).as("Var3 = 0 on grounded tick %d", tick + 1).isZero();
             assertThat(paraGoomba.isWingUp()).as("So the wings stay folded").isFalse();
         }
@@ -203,7 +203,7 @@ class ParaGoombaWingClockTest {
     private void tickUntilBigHopLaunch(final ParaGoomba paraGoomba, final int limit) {
         for (int tick = 0; tick < limit; tick++) {
             paraGoomba.motionUpdate();
-            if (paraGoomba.isGroundContact() && paraGoomba.getYVelocityFixedPoint() == BIG_HOP_YVEL) {
+            if (paraGoomba.isGroundContact() && paraGoomba.getVelocity().y() == BIG_HOP_YVEL) {
                 return;
             }
         }
@@ -213,7 +213,7 @@ class ParaGoombaWingClockTest {
     private void tickUntilFalling(final ParaGoomba paraGoomba, final int limit) {
         for (int tick = 0; tick < limit; tick++) {
             paraGoomba.motionUpdate();
-            if (paraGoomba.getYVelocityFixedPoint() >= 0) {
+            if (paraGoomba.getVelocity().y() >= 0) {
                 return;
             }
         }

@@ -139,11 +139,11 @@ class ParaGoombaHopTest {
         // Execute - at a net +$02/frame, -$10 buys (16+14+...+2)/16 px of climb and -$30 buys
         // (48+46+...+2)/16. Measured from the launch, since Object_HitGround has just re-aligned it.
         tickUntilLaunchOf(paraGoomba, LITTLE_HOP_YVEL, 50);
-        final double littleHopFrom = paraGoomba.getPixelY();
+        final double littleHopFrom = paraGoomba.getPosition().y();
         final double littleHopApex = apexOverNextTicks(paraGoomba, 20);
 
         tickUntilLaunchOf(paraGoomba, BIG_HOP_YVEL, 300);
-        final double bigHopFrom = paraGoomba.getPixelY();
+        final double bigHopFrom = paraGoomba.getPosition().y();
         final double bigHopApex = apexOverNextTicks(paraGoomba, 40);
 
         // Verify
@@ -189,7 +189,7 @@ class ParaGoombaHopTest {
 
         // Verify
         assertThat(paraGoomba.isGrounded()).as("Back down, waiting").isTrue();
-        assertThat(paraGoomba.getPixelY())
+        assertThat(paraGoomba.getPosition().y())
             .as("Feet flush with the floor it launched from")
             .isCloseTo(REST_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(paraGoomba.getHopCooldownTicks()).as("Still counting down").isPositive();
@@ -205,20 +205,20 @@ class ParaGoombaHopTest {
 
         // Execute & Verify - Object_Move adds OBJECT_FALLRATE = $03, then the handler's DEC takes one back
         tick(paraGoomba, 1);
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("$03 - $01").isEqualTo(2);
+        assertThat(paraGoomba.getVelocity().y()).as("$03 - $01").isEqualTo(2);
 
         tick(paraGoomba, 30);
-        assertThat(paraGoomba.getYVelocityFixedPoint())
+        assertThat(paraGoomba.getVelocity().y())
             .as("31 frames x $02, still one step under the cap")
             .isEqualTo(62);
 
         tick(paraGoomba, 1);
-        assertThat(paraGoomba.getYVelocityFixedPoint())
+        assertThat(paraGoomba.getVelocity().y())
             .as("OBJECT_MAXFALL caps at $40 inside Object_Move, and the DEC lands after it")
             .isEqualTo(63);
 
         tick(paraGoomba, 20);
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("And stays there").isEqualTo(63);
+        assertThat(paraGoomba.getVelocity().y()).as("And stays there").isEqualTo(63);
     }
 
     @Test
@@ -231,13 +231,13 @@ class ParaGoombaHopTest {
 
         // Execute - tick 1 launches the hop, tick 2 runs into the ceiling
         tick(paraGoomba, 1);
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("Launched").isEqualTo(LITTLE_HOP_YVEL);
+        assertThat(paraGoomba.getVelocity().y()).as("Launched").isEqualTo(LITTLE_HOP_YVEL);
         tick(paraGoomba, 1);
 
         // Verify - DetStat & $08 overwrites whatever the move and the float left behind
         assertThat(paraGoomba.isCeilingContact()).isTrue();
-        assertThat(paraGoomba.getYVelocityFixedPoint()).as("YVel = $01").isEqualTo(1);
-        assertThat(paraGoomba.getPixelY())
+        assertThat(paraGoomba.getVelocity().y()).as("YVel = $01").isEqualTo(1);
+        assertThat(paraGoomba.getPosition().y())
             .as("Head stopped flush under the ceiling tile")
             .isCloseTo(REST_ROW_PIXEL_Y, within(TOLERANCE));
     }
@@ -258,8 +258,8 @@ class ParaGoombaHopTest {
         // Verify - Object_FlipFace flips the bit only; XVel is reloaded from it every frame, so the
         // next step is already rightward without anything negating a velocity
         assertThat(paraGoomba.isFacingRight()).as("Turned around").isTrue();
-        assertThat(paraGoomba.getXVelocityFixedPoint()).as("Walking right at GroundTroop_XVel").isEqualTo(8);
-        assertThat(paraGoomba.getPixelX())
+        assertThat(paraGoomba.getVelocity().x()).as("Walking right at GroundTroop_XVel").isEqualTo(8);
+        assertThat(paraGoomba.getPosition().x())
             .as("Never overlaps the wall: its left edge stays at or past the wall's right edge")
             .isGreaterThanOrEqualTo((wallColumn + 1) * (double) TILE_SPRITE_SIZE);
     }
@@ -279,7 +279,7 @@ class ParaGoombaHopTest {
 
         // Verify
         assertThat(paraGoomba.isCeilingContact()).as("Nothing to bump into").isFalse();
-        assertThat(paraGoomba.getPixelY())
+        assertThat(paraGoomba.getPosition().y())
             .as("Rose past the panel's own row instead of stopping under it")
             .isLessThan(REST_ROW_PIXEL_Y);
     }
@@ -302,7 +302,7 @@ class ParaGoombaHopTest {
 
         // Verify
         assertThat(paraGoomba.isFacingRight()).as("Never turned around").isFalse();
-        assertThat(paraGoomba.getPixelX())
+        assertThat(paraGoomba.getPosition().x())
             .as("Walked on past the panel column")
             .isLessThan(panelColumn * (double) TILE_SPRITE_SIZE);
     }
@@ -322,7 +322,7 @@ class ParaGoombaHopTest {
 
         // Verify - Object_HitGround aligns the feet to the panel's top, from the Tile_AttrTable tier
         assertThat(paraGoomba.isGrounded()).isTrue();
-        assertThat(paraGoomba.getPixelY())
+        assertThat(paraGoomba.getPosition().y())
             .as("Resting with its feet on the panel")
             .isCloseTo((panelRow - 1) * (double) TILE_SPRITE_SIZE, within(TOLERANCE));
     }
@@ -405,7 +405,7 @@ class ParaGoombaHopTest {
         assertThat(paraGoomba.getBounds()).isEqualTo(goomba.getBounds());
         assertThat(paraGoomba.getStompReferenceTop())
             .as("Measured from Objects_Y, not from the inset box top")
-            .isCloseTo(paraGoomba.getPixelY(), within(TOLERANCE));
+            .isCloseTo(paraGoomba.getPosition().y(), within(TOLERANCE));
         assertThat(paraGoomba.getBounds().top())
             .as("The box really is inset, so the two are genuinely different")
             .isGreaterThan(paraGoomba.getStompReferenceTop());
@@ -423,8 +423,8 @@ class ParaGoombaHopTest {
         final List<Integer> launches = new ArrayList<>();
         for (int tick = 0; tick < ticks; tick++) {
             paraGoomba.motionUpdate();
-            if (paraGoomba.isGroundContact() && paraGoomba.getYVelocityFixedPoint() < 0) {
-                launches.add(paraGoomba.getYVelocityFixedPoint());
+            if (paraGoomba.isGroundContact() && paraGoomba.getVelocity().y() < 0) {
+                launches.add(paraGoomba.getVelocity().y());
             }
         }
         return launches;
@@ -442,7 +442,7 @@ class ParaGoombaHopTest {
     ) {
         for (int tick = 1; tick <= limit; tick++) {
             paraGoomba.motionUpdate();
-            if (paraGoomba.isGroundContact() && paraGoomba.getYVelocityFixedPoint() == hopYVelocity) {
+            if (paraGoomba.isGroundContact() && paraGoomba.getVelocity().y() == hopYVelocity) {
                 return tick;
             }
         }
@@ -451,10 +451,10 @@ class ParaGoombaHopTest {
 
     /** @return the highest point (smallest Y) reached over the next {@code ticks} ticks */
     private double apexOverNextTicks(final ParaGoomba paraGoomba, final int ticks) {
-        double apex = paraGoomba.getPixelY();
+        double apex = paraGoomba.getPosition().y();
         for (int tick = 0; tick < ticks; tick++) {
             paraGoomba.motionUpdate();
-            apex = min(apex, paraGoomba.getPixelY());
+            apex = min(apex, paraGoomba.getPosition().y());
         }
         return apex;
     }

@@ -122,8 +122,8 @@ class GoombaStompTest {
         // Prepare - stomped in mid-air, one row above the floor
         final Goomba goomba = goombaAt(5, WALK_ROW - 1);
         goomba.faceClosestPlayer();
-        final double startX = goomba.getPixelX();
-        final double startY = goomba.getPixelY();
+        final double startX = goomba.getPosition().x();
+        final double startY = goomba.getPosition().y();
 
         // Execute
         goomba.onCollisionFromAbove(descendingPlayer());
@@ -132,9 +132,9 @@ class GoombaStompTest {
         }
 
         // Verify - ObjState_Squashed clears XVel but still calls Object_Move, so it drops straight down
-        assertThat(goomba.getPixelX()).as("horizontal movement halted").isCloseTo(startX, within(TOLERANCE));
-        assertThat(goomba.getPixelY()).as("still falling under gravity").isGreaterThan(startY);
-        assertThat(goomba.getPixelY())
+        assertThat(goomba.getPosition().x()).as("horizontal movement halted").isCloseTo(startX, within(TOLERANCE));
+        assertThat(goomba.getPosition().y()).as("still falling under gravity").isGreaterThan(startY);
+        assertThat(goomba.getPosition().y())
             .as("never sinks past the floor it is heading for")
             .isLessThanOrEqualTo(WALK_ROW_PIXEL_Y);
     }
@@ -146,7 +146,7 @@ class GoombaStompTest {
         final Goomba goomba = goombaAt(5, WALK_ROW);
         goomba.faceClosestPlayer();
         goomba.motionUpdate();
-        final double walkedToX = goomba.getPixelX();
+        final double walkedToX = goomba.getPosition().x();
 
         // Execute
         goomba.onCollisionFromAbove(descendingPlayer());
@@ -155,8 +155,8 @@ class GoombaStompTest {
         }
 
         // Verify - Object_HitGround keeps re-aligning the feet, and it never takes another step
-        assertThat(goomba.getPixelX()).as("frozen where it was stomped").isCloseTo(walkedToX, within(TOLERANCE));
-        assertThat(goomba.getPixelY()).isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
+        assertThat(goomba.getPosition().x()).as("frozen where it was stomped").isCloseTo(walkedToX, within(TOLERANCE));
+        assertThat(goomba.getPosition().y()).isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(goomba.isGrounded()).isTrue();
     }
 
