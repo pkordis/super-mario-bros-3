@@ -854,3 +854,86 @@ The entity keeps the Goomba's testability contract: `motionUpdate()` never touch
 `StaticEnvironmentCollisionGrid` and `ParaGoombaAnimator` plus a `boolean[][]` of solids is enough, and
 the package-private `faceClosestPlayer()` is called directly in place of `spawnIntoScene()`.
 `.\mvnw.cmd test` → 374 tests green after this change.
+
+---
+
+## Koopa Troopa - `OBJ_GREENTROOPA = $6C` and `OBJ_REDTROOPA = $6D` (SMB3-6, 2026-10)
+
+### One class for both colours - and why that is NOT a retreat from the Para-Goomba rule
+
+The Para-Goomba section above establishes "a separate `ObjNorm_*` handler means a separate entity
+class, and mode constants never encode behaviour". The troopa is the first case where the first half of
+that rule had to be read more carefully, and the second half still holds.
+
+`$6C` runs `ObjNorm_GroundTroop` - the Goomba's own handler - while `$6D` runs `ObjNorm_RedTroopa`
+(`prg004.asm:69-70`). But `ObjNorm_RedTroopa` is not a different handler in any meaningful sense: it is
+`ObjNorm_GroundTroop` with `PRG004_B283` spliced in, the branch that "keeps a red troopa from marching
+himself right off an edge". Everything else is shared, and shared *in the ROM*, not just in spirit:
+
+| Concern | Green `$6C` | Red `$6D` |
+|---|---|---|
+| Init | `ObjInit_GroundTroop` | `ObjInit_GroundTroop` |
+| Draw | `Troopa_Draw` | `Troopa_Draw` |
+| Bound box | `OAT_BOUNDBOX01` | `OAT_BOUNDBOX01` |
+| Sprite geometry | `OA1_HEIGHT32 \| OA1_WIDTH16` | `OA1_HEIGHT32 \| OA1_WIDTH16` |
+| Walk speed / gravity | `±$08`, `$03` capped `$40` | same |
+| Palette | `OA1_PAL2` | `OA1_PAL1` |
+| **Ledge guard** | **absent** | **`PRG004_B283`** |
+
+Contrast the Para-Goomba, which earned its own class on *two* counts - `ObjNorm_ParaGoomba` is a
+genuinely different handler **and** `ParaGoomba_Draw` adds hardware sprites. The troopas differ by one
+conditional. Splitting them would have meant duplicating the init, the draw, the box, the walk, the
+wall about-face and the gravity in order to express an `if`.
+
+So `KoopaTroopa` is one class, `configure` reads the `EnemyMode.MODE_ATTRIBUTE` into `mode`, and a
+private `turnsAtLedges()` (`mode == RED`) gates `guardAgainstLedge()`. **The knowledge still lives in
+the entity, not in the enum** - `KoopaTroopaMode` remains a folder name with no behavioural accessor on
+it, which is the part of the rule that matters. The next enemy should read the table above before
+reaching for this precedent: one spliced branch justifies it, a different handler does not.
+
+Default mode is `RED`, which is the more forgiving of the two to get wrong - a troopa that turns at an
+edge it should have walked off stays on screen and reportable, whereas the reverse quietly leaves the
+level.
+
+### Palette: the two folders are a one-colour swap, derived not eyeballed
+
+`sprites/enemy/koopa/troopa/{green,red}/` hold the same two 16x32 frames differing in exactly 43 pixels
+each. That is forced by the ROM: the object attribute table picks `OA1_PAL2` or `OA1_PAL1`
+(`prg004.asm:154-155`), and in `PalSet_Plains` (`prg027.asm:1474`) those two sprite palettes agree on
+colour indices 1 and 2 and differ only at index 3 - `$16` red vs `$2A` green. The head and feet are
+forced to `SPR_PAL3` by `Troopa_Draw` regardless of colour (`prg004.asm:4375`), so they are untouched.
+RGB values came from the project's own capture (`captures/_probe/f0000.png`, where `$16` reads
+`#B53120` and `$2A` reads `#5CE430`), not from a guess at a palette table.
+`KoopaTroopaAnimatorAssetsTest.theTwoColoursDifferOnlyInTheShell` pins this pixel by pixel, so a future
+re-extraction of one folder cannot silently drift from the other.
+
+### Known-bad: the walk frames are not both 27-px bottom-anchored
+
+Carried over from the commit that added the red troopa and **still failing**:
+`KoopaTroopaAnimatorAssetsTest.artIsBottomAnchored` and `artFacesLeft` assert a uniform 27-px band of
+art sitting against the canvas bottom (rows 5-31), and the shipped frames do not have it -
+`koopa_troopa_walk_1.png` runs rows 6-31 (26 px) and `koopa_troopa_walk_2.png` runs rows 4-30, leaving
+its bottom row empty. Frame 2's silhouette is therefore a pixel *higher* in its canvas, where
+`Troopa_YOffByFrame = {$06, $05}` (`prg004.asm:4266`) says the odd frame is drawn a pixel *lower*. Two
+things follow and both need settling before the art is trusted:
+
+1. `KoopaTroopaFamilyEnemy`'s claim that the two frames "agree on where the feet are" is false as
+   shipped, so `walkFrameBob()` is applied on top of a bob already baked into the art - and, having the
+   opposite sign, cancels it rather than doubling it. The net on-screen bob today is nothing.
+2. Settling it needs `Troopa_Draw`'s sprite layout reconstructed from CHR - head tip `$C1` at body
+   `Y-16`, body 8x16 pair at `Objects_SpriteY - Troopa_YOffByFrame[frame]`, feet at body `+16` - and the
+   frames re-composed from it, rather than the assertions being relaxed to match whatever is on disk.
+
+### Testing
+
+`KoopaTroopaWalkTest` (walk speed and direction, spawn facing, wall about-face, fall rate and terminal
+velocity, floor alignment, walk cadence, non-collidability, the shell-only box, the 16x32 sprite, the
+mirror compensation and the draw bob), `KoopaTroopaLedgeTurnTest` (red: the about-face, the double
+`Object_ApplyXVel`, indefinite patrol of a narrow island, the `Objects_Var4` one-shot latch, re-arming
+on landing - green: walking straight off the edge, never about-facing in the air, and the paired
+red-vs-green comparison that pins `configure` as the switch), `KoopaTroopaAnimatorAssetsTest` (per-mode
+descriptors, left-facing art only, 16x32 canvases, and the green/red palette-swap identity).
+
+`.\mvnw.cmd test` -> 422 tests, 2 failing: the two pre-existing `artIsBottomAnchored` /
+`artFacesLeft` assertions described above, which were already red on this branch before the green
+variant landed.

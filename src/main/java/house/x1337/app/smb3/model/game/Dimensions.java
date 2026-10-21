@@ -33,6 +33,14 @@ public record Dimensions(
         );
     }
 
+    public static Dimensions doubleTileHeight(final String name) {
+        return new Dimensions(
+            name,
+            TILE_SIZE_GAME_UNITS,
+            TILE_SIZE_GAME_UNITS * 2
+        );
+    }
+
     public Quad toQuad() {
         return new Quad(width, height);
     }
