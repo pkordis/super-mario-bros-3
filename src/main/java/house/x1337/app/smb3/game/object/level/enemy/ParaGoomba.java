@@ -380,10 +380,4 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
             rightWingGeometry = null;
         }
     }
-
-    private boolean isCeilingAbove(final PixelPosition proposed) {
-        final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
-        final int headRow = proposed.row();
-        return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(centerColumn, headRow);
-    }
 }

@@ -1,3 +1,5 @@
 {
-  "walk": ["koopa_troopa_walk_1.png", "koopa_troopa_walk_2.png"]
+  "walk": ["koopa_troopa_walk_1.png", "koopa_troopa_walk_2.png"],
+  "shell": "koopa_troopa_shell.png",
+  "shellFeet": ["koopa_troopa_shell_foot_left.png", "koopa_troopa_shell_foot_right.png"]
 }

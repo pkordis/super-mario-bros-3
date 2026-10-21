@@ -4,5 +4,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.model.game.enemy.EnemyAnimatorAssets;
 
 public record KoopaTroopaAnimatorAssets(
-    Texture[] walk
+    Texture[] walk,
+    Texture shell,
+    Texture[] shellFeet
 ) implements EnemyAnimatorAssets {}

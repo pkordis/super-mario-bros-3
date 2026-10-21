@@ -9,11 +9,11 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Getter
 @RequiredArgsConstructor
 public final class EnemyKnockMotion {
-    private static final int LAUNCH_Y_VELOCITY_FIXED_POINT = -80;
-    private static final int KNOCK_X_VELOCITY_FIXED_POINT = 8;
-    private static final int GRAVITY_FIXED_POINT = 3;
-    private static final int MAX_FALL_FIXED_POINT = 64;
-
+    public static final int BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT = -48;
+    public static final int GRAVITY_FIXED_POINT = 3;
+    public static final int KNOCK_X_VELOCITY_FIXED_POINT = 8;
+    public static final int LAUNCH_Y_VELOCITY_FIXED_POINT = -80;
+    public static final int MAX_FALL_FIXED_POINT = 64;
     private final Direction knockDirection;
     private int launchDelayTicks = 1;
     private boolean upsideDown;
@@ -56,5 +56,9 @@ public final class EnemyKnockMotion {
         RIGHT(-1);
 
         private final int value;
+
+        public static Direction struckFrom(final boolean playerOnTheLeft) {
+            return playerOnTheLeft ? LEFT : RIGHT;
+        }
     }
 }

@@ -907,33 +907,259 @@ RGB values came from the project's own capture (`captures/_probe/f0000.png`, whe
 `KoopaTroopaAnimatorAssetsTest.theTwoColoursDifferOnlyInTheShell` pins this pixel by pixel, so a future
 re-extraction of one folder cannot silently drift from the other.
 
-### Known-bad: the walk frames are not both 27-px bottom-anchored
+### The walk frames meet the bob halfway (clarified in SMB3-7)
 
-Carried over from the commit that added the red troopa and **still failing**:
-`KoopaTroopaAnimatorAssetsTest.artIsBottomAnchored` and `artFacesLeft` assert a uniform 27-px band of
-art sitting against the canvas bottom (rows 5-31), and the shipped frames do not have it -
-`koopa_troopa_walk_1.png` runs rows 6-31 (26 px) and `koopa_troopa_walk_2.png` runs rows 4-30, leaving
-its bottom row empty. Frame 2's silhouette is therefore a pixel *higher* in its canvas, where
-`Troopa_YOffByFrame = {$06, $05}` (`prg004.asm:4266`) says the odd frame is drawn a pixel *lower*. Two
-things follow and both need settling before the art is trusted:
+`Troopa_YOffByFrame = {$06, $05}` (`prg004.asm:4266`) draws the odd walk frame one pixel *lower* than
+the even one, and this project reproduces that as a draw-time quad offset
+(`KoopaTroopaFamilyEnemy#walkFrameBob`). The art is **not** authored identically between the two frames,
+and that is correct rather than a defect: `koopa_troopa_walk_2.png`'s silhouette sits one row higher in
+its own canvas (rows 4-30 against `walk_1`'s 6-31), so the draw-time drop cancels at the feet and both
+frames plant them on the quad's bottom edge. What survives the cancellation is the bob itself — the odd
+frame reaches a pixel further up, so the troopa's head bobs while its feet stay planted.
 
-1. `KoopaTroopaFamilyEnemy`'s claim that the two frames "agree on where the feet are" is false as
-   shipped, so `walkFrameBob()` is applied on top of a bob already baked into the art - and, having the
-   opposite sign, cancels it rather than doubling it. The net on-screen bob today is nothing.
-2. Settling it needs `Troopa_Draw`'s sprite layout reconstructed from CHR - head tip `$C1` at body
-   `Y-16`, body 8x16 pair at `Objects_SpriteY - Troopa_YOffByFrame[frame]`, feet at body `+16` - and the
-   frames re-composed from it, rather than the assertions being relaxed to match whatever is on disk.
+The trap, and it cost a wrong "fix" before being understood: **measure the drawn band, not the raw
+canvas.** Asserting that both frames carry art on canvas row 31 looks like the right invariant and is
+not one — `walk_2` legitimately stops at row 30. `KoopaTroopaAnimatorAssetsTest` adds the frame's bob to
+each measurement before asserting, so it pins the real invariant (both feet lines coincide once drawn,
+and no frame reaches higher than 27 px above them) without over-constraining the art. Repad one frame
+without the other and the feet start sinking.
 
 ### Testing
 
 `KoopaTroopaWalkTest` (walk speed and direction, spawn facing, wall about-face, fall rate and terminal
-velocity, floor alignment, walk cadence, non-collidability, the shell-only box, the 16x32 sprite, the
-mirror compensation and the draw bob), `KoopaTroopaLedgeTurnTest` (red: the about-face, the double
+velocity, floor alignment, walk cadence, the shell-only box, the 16x32 sprite, the mirror compensation
+and the draw bob), `KoopaTroopaLedgeTurnTest` (red: the about-face, the double
 `Object_ApplyXVel`, indefinite patrol of a narrow island, the `Objects_Var4` one-shot latch, re-arming
 on landing - green: walking straight off the edge, never about-facing in the air, and the paired
 red-vs-green comparison that pins `configure` as the switch), `KoopaTroopaAnimatorAssetsTest` (per-mode
 descriptors, left-facing art only, 16x32 canvases, and the green/red palette-swap identity).
 
-`.\mvnw.cmd test` -> 422 tests, 2 failing: the two pre-existing `artIsBottomAnchored` /
-`artFacesLeft` assertions described above, which were already red on this branch before the green
-variant landed.
+`.\mvnw.cmd test` -> 422 tests, 2 failing when this landed: the `artIsBottomAnchored` /
+`artFacesLeft` walk-art assertions. **Resolved in SMB3-7** - see "The walk frames must agree on the feet
+line" below; the art was wrong, not the test.
+
+---
+
+## Koopa Troopa collision and the shell state (SMB3-7, 2026-10)
+
+### The headline: nothing in the game can kill a Koopa Troopa
+
+`ObjectGroup03_Attributes3` gives `$6C`/`$6D` **`OA3_DIESHELLED` and withholds `OA3_SQUASH`**
+(`prg004.asm:238`). Every defeat path therefore converges on `Object_SetShellState`:
+
+| input | site | outcome |
+|---|---|---|
+| stomp | `PRG000_D2B4` (`prg000.asm:3940`) | `Timer2 = 8`, player `YVel = -$40`, **100 pts**, → shelled |
+| tail wham | `Enemy_Kill` → `PRG000_DBB6` (`prg000.asm:5997`) | `Timer2 = 12`, `YVel = -$50`, `XVel = ±$08`, `FlipBits \|= SPR_VFLIP`, **no score**, → shelled |
+| block bumped underneath | `Object_HandleBumpUnderneath` (`prg000.asm:3602`) | `YVel = -$30`, `XVel = ±$08`, `FlipBits = SPR_VFLIP` (**assignment** — facing wiped too), no flash, no `Timer2`, **no score**, → shelled |
+| tail wham **on a shell** | `Obj2Obj_EnByState` (`prg000.asm:6094`) enables it | re-launched, re-flipped, **wake-up clock reset to `$FF`** |
+
+So a shell can be juggled on the tail indefinitely. There is no second-hit kill — do not add one.
+Only a kick into a wall removes a troopa, which is why the carry/kick chain exists at all. Until it
+lands, this enemy is unkillable, and that is correct rather than a gap.
+
+### `Objects_Timer3` is NOT decremented once a frame — the biggest trap in this ticket
+
+The ticket said "255 ticks (~4.25 s)". It is **415 frames (~6.9 s)**. The central object loop
+(`prg000.asm:1875-1899`) gates the decrement:
+
+```
+Timer3 == 0            -> nothing
+Timer3 <  $60          -> DEC every frame
+Timer3 >= $60, state 2 -> DEC every frame            (normal)
+Timer3 >= $60, state 4 -> DEC when Counter_1 & 3 == 0 (held)
+Timer3 >= $60, else    -> DEC when Counter_1 & 1 == 0 (shelled: HALF RATE)
+```
+
+160 units (`$FF`..`$60` inclusive, tested before the decrement) at half rate = 320 frames, then 95 at
+full rate = 95. The dasm's own inline comment there ("every 4 ticks") is loose; read the branch. A
+per-object alternating phase reproduces this exactly for one object — `Counter_1` only matters for
+cross-object phase alignment, which nothing observes. `KoopaTroopaShellTest` pins 415.
+
+Also note the ordering: the loop decrements **before** `Object_DoStateAction`, and
+`Object_ShellDoWakeUp` is the first thing `ObjState_Shelled` does, so the frame the timer reaches zero
+is the frame the troopa stands up. `Object_ShellDoWakeUp` then pops its caller's return address
+(`PRG000_D155`), so the rest of the shelled routine is skipped on that one frame.
+
+### The shake, precisely — three things on one clock
+
+| `Timer3` | effect |
+|---|---|
+| `$FF .. $60` | still, and the clock is running at half speed |
+| `< $60` | `Timer4 = Timer3 & 7` → **1-px horizontal jitter**, and the clock goes to full speed |
+| `< $50` | **feet flicker**, on ticks where `Timer3 & PRG000_CAF1[Timer3 >> 4] != 0` |
+| `0` | wake up |
+
+Two details worth not re-deriving:
+
+- **The jitter is always *leftward* and never an added offset.** `Object_ShakeAndCalcSprite`
+  (`prg000.asm:4551`) sets the carry, conditionally `LSR`s `Timer4` so the carry takes bit 0, then does
+  `Objects_X SBC Horz_Scroll`. A clear carry makes the subtraction borrow, i.e. the sprite X comes out
+  one *less*. With `Timer4 = Timer3 & 7` (always `< $40`, so exactly one `LSR`) the jitter is on when
+  the phase is even and non-zero — phase `0` leaves the carry set.
+- **The flicker accelerates in rate, not in duty.** `PRG000_CAF1 = {$02,$02,$04,$08,$10,$10}` indexed by
+  `Timer3 >> 4`, and `Timer3` counts *down*, so the index walks `4 → 3 → 2 → 1 → 0` and the mask shrinks
+  `$10 → $08 → $04 → $02`. Work the bands out before asserting on them, because the obvious guess is
+  wrong — the proportion of ticks showing feet is a flat **half** throughout; what changes is the run
+  length, `8 → 4 → 2` ticks. Measured as on-runs per 16-unit band the ramp is `0, 1, 2, 4, 4`.
+- **The topmost band shows no feet at all.** The gate is `Timer3 < $50`, but the mask for band 4 is
+  `$10` — a bit never set anywhere in `64..79`. So the feet really begin at `$40`, a whole band later
+  than the threshold suggests. Pinned by test rather than left to be rediscovered.
+
+Wake-up assigns `Objects_FlipBits = ObjectHeld_WakeUpDir[side]` (`prg000.asm:3431`) — a **whole-byte
+write**, which is why the same instruction that faces the troopa at the player also clears `SPR_VFLIP`
+and rights it. `Objects_Var5` is not reset, so the walk frame clock resumes wherever it was.
+
+### `isHittable()` is too coarse, and this is where it first shows
+
+A shell must stay **in the broadphase** (`Obj2Obj_EnByState` keeps it tail-reachable) while being inert
+to the player's body. Since `EnemyMotionManager.update()` gates insertion on `isHittable()`, that flag
+has to stay `true` and the gating moves into the responses: a private `respondsToPlayerContact()`
+(`state == NORMAL && hitCooldownTicks == 0`) guards the stomp, the from-below hit and the overlap, while
+`onTailAttack` is guarded by nothing at all. The ROM arranges the same thing one level down —
+`Player_HitEnemy` returns while `Objects_Timer2 != 0` (`prg000.asm:3683`) and routes a shelled object to
+`Object_HoldKickOrHurtPlayer` rather than the hurt branch. **The carry work owns the proper split**; this
+is the stopgap, and it is the second consumer that will justify the abstraction.
+
+### The shell is simulated, not parked
+
+`ObjState_Shelled` runs `Object_Move` every tick. Gravity `$03` capped `$40`; on a descending floor
+contact `XVel` is halved (sign preserved) and `YVel` becomes `-(YVel / 4)` **only if that is `< -$02`**
+(`CMP #-$02 / BGE`), which is what stops a settling shell twitching forever; ceiling → `YVel = $10`;
+wall → `Object_AboutFace` (negate `XVel` **and** flip facing, unlike the walk's `Object_FlipFace`, since
+a shell's velocity is not derived from its facing). Java's truncating `/` is the same arithmetic as the
+ROM's negate-shift-renegate, odd negatives included.
+
+A shell **does not inherit the red troopa's ledge guard** — `ObjState_Shelled` replaces
+`ObjNorm_RedTroopa` wholesale. "Never walks off its platform" is a property of the walking state only.
+
+### Reuse the launch constants, not `EnemyKnockMotion`
+
+`EnemyKnockMotion` is a fire-and-forget parabola ending in `expired` — right for a Goomba, wrong for an
+`OA3_DIESHELLED` object that has to arc, land and settle. Its constants are now `public`
+(`LAUNCH_Y_VELOCITY_FIXED_POINT = -$50`, `BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT = -$30`,
+`KNOCK_X_VELOCITY_FIXED_POINT = $08`, gravity/cap) plus a `Direction.struckFrom(playerOnTheLeft)`
+factory, so the troopa writes the ROM's one launch onto its own velocity and lets the shell state carry
+it. `-$30` is also the left/right bouncer-block figure, so adding bouncers later needs no new constant.
+
+### Two quads for the states, three for the waking shell, and the block bump is polled
+
+- **Geometry, not texture.** `Troopa_Draw` is 16x32 and `Object_DrawShelled` is 16x16, so the state
+  change swaps which quads are visible. All four are built once in `spawnIntoScene` — a troopa being
+  juggled re-shells on every strike and must not rebuild a quad each time. The anchor is shared for
+  free: the shell's top sits on the tracked Y and it is one tile tall, so its bottom edge is the same
+  feet line the walking quad's is.
+- **Upside down is object state, not an animation.** `SPR_VFLIP` survives for the whole shell life and
+  is cleared only by the wake-up's whole-byte write, so it is a persistent flag driving a negative Y
+  scale plus a one-quad-height lift — the `Goomba#positionSprite` mechanism, but keyed off state rather
+  than off "a knock motion is in progress". The feet inherit bit 7 of the shell's attributes
+  (`prg000.asm:2398`) and so invert with it.
+- **Nothing pushes a block bump.** `Object_HandleBumpUnderneath` reads a tile
+  (`Object_TileFeet2 == TILEA_BLOCKBUMP_CLEAR`); here the equivalent is polling
+  `collisionGrid.isBlockBumpActiveAt(cell)` from `motionUpdate`, the arrangement `SuperMushroom`
+  established. The residency lasts up to ten frames, so the `grounded` test is what stops it re-firing —
+  the launch clears `grounded` immediately. Unlike the mushroom's, the enemy path's horizontal direction
+  **is** player-dependent.
+
+### Art: three quads for the waking shell, which is the ROM's own decomposition
+
+`red/` and `green/` each gained `koopa_troopa_shell.png` (16x16) plus
+`koopa_troopa_shell_foot_{left,right}.png` (8x16 each). **The feet are separate quads, not baked into
+shell frames**, and the reason is not symmetry with the Para-Goomba's wings but a plain rendering fact:
+the shell is drawn on *every* frame while the feet flicker in and out around it
+(`prg000.asm:2333-2344`). Pre-composited "shell with feet" frames make the shell blink away along with
+its own feet, which is exactly the bug a first attempt here produced.
+
+Two further things fall out of the ROM and are worth not re-deriving:
+
+- **The feet are on a different palette.** The shell takes the object's own (`OA1_PAL1` / `OA1_PAL2`),
+  but the feet are forced to `SPR_PAL3` by `ORA #$03` (`prg000.asm:2403`), overriding it. So there is no
+  such thing as a green foot — both colour folders ship byte-identical foot art, in the orange/pink the
+  head and feet of the walking sprite already use. Only `koopa_troopa_shell.png` and the two walk frames
+  take the `$16` → `$2A` swap.
+- **The feet carry no vertical offset of their own.** `ObjWakeUp_FeetYOff = {10, -10}`
+  (`prg000.asm:2148`) is absorbed into where the pixels sit in the 8x16 canvas — the art is
+  bottom-anchored, so sharing the shell's anchor puts it where `+10` puts the ROM's pattern. The pay-off
+  is that the `-10` case needs nothing either: the same negative Y scale and one-quad-height lift that
+  inverts the shell carries the feet to the other side of it, which is all the second table entry says.
+  Horizontally they do take the ROM's offsets — `Sprite_RAM+$03 - 3` and `Sprite_RAM+$07 + 3`, i.e.
+  three pixels past each side of the shell for a 22 px silhouette.
+
+Depth: `Z_DEPTH_ENEMY_FOOT` aliases `Z_DEPTH_ENEMY_WING`, because the feet are in the same two OAM slots
+behind the body that the wings are (`Sprite_RAM+$08` / `+$0C` against `+$00` / `+$04`) and a lower slot
+wins on the NES.
+
+Visibility is `CullHint.Always`/`Inherit` rather than attach/detach — the feet flicker several times a
+second and the walk/shell swap happens on every tail strike, so the scene graph has no business churning
+at that rate. (`BaseLevelScenePlayerAnimator` set that precedent for "drawn this tick or not".)
+
+`KoopaTroopaAnimatorAssetsTest` pins all of it: the 16x16/8x16 footprints, the shell's horizontal
+symmetry, the feet as a mirror pair, the bottom-anchored foot art, the feet being identical across
+colours, and the `$16` → `$2A` swap being pixel-exact everywhere else.
+
+### Deliberately not done
+
+Carrying and kicking; the `SND_PLAYERKICK` cue (no sound engine — a marker comment, as `SwitchBlock`
+set the precedent); left/right bouncer blocks; `Objects_KillTally`; giant troopas and Para-Troopas; the
+Bob-omb and Ice Block branches of `Object_ShellDoWakeUp`.
+
+### Testing
+
+`KoopaTroopaShellTest` (29 tests): hurt gating in both states, broadphase membership while shelled,
+stomp→shell with its single payout, the tail wham's velocities/flip/no-score/cooldown, direction away
+from the player, the re-strike clock reset, the arc and settle, the halving slide across four landings,
+the rebound, the wall about-face, the block bump from both states, both shake thresholds, the
+accelerating flicker rate and the empty top band, the feet belonging to the shell alone, the 415-frame
+clock, the upright wake-up resuming the ledge guard, the persistent flip, the shell draw offsets, and
+the floor-detection depth limit. Plus `KoopaTroopaWalkTest` and `KoopaTroopaLedgeTurnTest` from SMB3-6.
+
+`.\mvnw.cmd test` → 456 tests green.
+
+---
+
+## `Object_WorldDetect4`'s floor-depth limit — the guard that stops an upward teleport (fixed 2026-10)
+
+**Symptom.** A tail-whammed Koopa Troopa shell would occasionally be found resting on a panel top it had
+never cleared — snapped up onto it from the middle of its arc.
+
+**Cause.** `GroundWalkingEnemy.isGroundBelow` tested only "is the tile under the feet solid", with no
+regard for how far into it the object already was, and `Object_HitGround`'s align-to-tile (`Y & $F0`,
+ported as `restOn`) then moved the object up to that tile's top line. For a walker that only ever
+descends onto surfaces the two are the same thing. For a shell they are not.
+
+**The ROM has an explicit guard, and the dasm names it:**
+
+```
+; The only difference amongst the Object_WorldDetect[x] entries is the input value, which
+; specifies the limit that an object should acknowledge a floor tile. E.g., Object_WorldDetect4
+; means the object will not detect a floor if it is more than 4 pixels vertically down in to it.
+```
+(`prg000.asm:905`), enforced at `PRG000_C649` (`prg000.asm:1149`):
+```
+LDA <Objects_Y,X
+AND #$0f          ; tile-relative vertical position
+CMP <Temp_Var1    ; the limit
+BGE PRG000_C65C   ; too far down into the tile -> RTS, no floor detected
+```
+
+`Object_Move` passes **4** (`Object_WorldDetect4`, `prg000.asm:3391`), and 4 is not arbitrary: it is
+`OBJECT_MAXFALL / 16`, one frame of terminal-velocity fall. So an object descending onto a surface is
+always within the limit on the frame its feet enter it, and the limit only ever rejects a surface the
+object is *already sunk into*. **It is a crossing test expressed as a depth** — which is exactly the
+right mental model when porting it.
+
+**Why only the shell could reach it.** Two things have to coincide. A panel top is solid underfoot but
+not as a ceiling (`isGroundSolidTile` vs `isWallOrCeilingSolidTile` — the two-tier terrain the
+Para-Goomba section records), so a rising object passes straight through one. And near the apex of the
+`-$50` launch the vertical speed is a fraction of a pixel while the horizontal is still `$08`, so the
+shell slides *sideways* into a panel's column while straddling its top line — ten pixels sunk into it,
+having approached from neither above nor the side the wall probe watches. The next descending frame then
+aligned it up onto the panel. A walking Goomba or troopa never gets into that position, and a
+tail-struck Goomba uses `EnemyKnockMotion`, which ignores terrain entirely — so the bug was latent in
+shared code until the shell arrived.
+
+**The fix** is the limit, in the shared probe (`GroundWalkingEnemy.isGroundBelow`) where the ROM has it,
+so every ground walker gets it. `KoopaTroopaShellTest` pins both halves: the limit itself at 0/3/4/10 px
+of depth, and the behaviour — a shell at its apex over a one-way platform is left alone and falls past
+it, while one descending onto the same platform from above still lands on it. Both fail without the
+guard.
