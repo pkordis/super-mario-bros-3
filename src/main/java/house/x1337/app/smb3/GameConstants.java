@@ -140,6 +140,9 @@ public final class GameConstants {
     // A Para-Goomba's wings are OAM slots 2 and 3 where its body is 0 and 1, and a lower slot wins on
     // the NES, so the wings pass behind the body. They still sit in front of the reward items.
     public static final float Z_DEPTH_ENEMY_WING = 0.065f;
+    // A waking Koopa Troopa's feet are in the same two slots behind its shell (Sprite_RAM+$08 and +$0C
+    // against the shell's +$00 and +$04), so they share the wings' depth for the same reason.
+    public static final float Z_DEPTH_ENEMY_FOOT = Z_DEPTH_ENEMY_WING;
     // Enemies sit just in front of the reward items and just behind the player (PlayerVisibility
     // FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
     // still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.

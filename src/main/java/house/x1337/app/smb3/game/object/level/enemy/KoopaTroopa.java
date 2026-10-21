@@ -2,14 +2,20 @@ package house.x1337.app.smb3.game.object.level.enemy;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode;
+import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
@@ -18,53 +24,41 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
+import static com.jme3.scene.Spatial.CullHint.Always;
+import static com.jme3.scene.Spatial.CullHint.Inherit;
+import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_FOOT;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
+import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.KNOCK_X_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.LAUNCH_Y_VELOCITY_FIXED_POINT;
 import static house.x1337.app.smb3.model.game.Dimensions.doubleTileHeight;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
-/**
- * The Koopa Troopa - {@code OBJ_GREENTROOPA = $6C} and {@code OBJ_REDTROOPA = $6D}, selected by
- * {@link #configure(LevelObjectData)} (dasm prg004.asm:69-70).
- *
- * <p>Both colours walk exactly as a Goomba does - facing is direction, {@code ±$08} a frame, gravity
- * {@code $03} capped at {@code $40}, about-face into a wall - and differ in <b>one branch</b>: the red
- * one will not walk off a ledge, the green one will. In the ROM that branch is the whole difference
- * between the two handlers: {@code $6D} runs {@code ObjNorm_RedTroopa} (prg004.asm:3788), which is
- * {@code ObjNorm_GroundTroop} plus {@code PRG004_B283}, while {@code $6C} runs
- * {@code ObjNorm_GroundTroop} itself - the same handler the Goomba uses. One class carries both, with
- * the mode gating that single branch in {@link #guardAgainstLedge()}.
- *
- * <p>This is a deliberate exception to {@code kb/dynamic-entities.md}'s "a separate {@code ObjNorm_*}
- * means a separate class" rule, and the reason it is safe here is worth stating: the Para-Goomba earned
- * its own class because {@code ObjNorm_ParaGoomba} is a wholly different handler <em>and</em> a
- * different draw routine. The two troopas share their draw ({@code Troopa_Draw}), their init
- * ({@code ObjInit_GroundTroop}), their bound box, their sprite geometry and every line of their motion
- * bar one conditional. Splitting them would mean duplicating all of that to express a single
- * {@code if}.
- *
- * <p>Deliberately <b>not collidable yet</b>: {@link #isHittable()} is hard {@code false}, so its manager
- * never puts it in the broadphase and nothing can reach it or be reached by it. Stomping into a shell,
- * hurting the player and the tail wham are all one state machine ({@code ObjState_Shelled}, dasm
- * prg000.asm:2151) and land together rather than half-built here.
- */
 @Getter
 @Prototype
 @RequiredArgsConstructor
 public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaTroopa");
-
-    /**
-     * {@code Object_ApplyXVel} is called <b>twice</b> after a ledge about-face (dasm prg004.asm:3845):
-     * one step cancels the move that cleared the edge, the second takes a normal step back inland.
-     */
+    private static final int[] FEET_FLICKER_MASKS = {2, 3, 4, 8, 16, 16};
     private static final int LEDGE_RECOVERY_STEPS = 2;
+    private static final int SHAKE_PHASE_MASK = 7;
+    private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
 
+    @Accessors(fluent = true)
+    private final boolean bouncesOffOtherObjects = true;
     private final KoopaTroopaAnimator animator = getBean(KoopaTroopaAnimator.class);
     private final LevelObjectType type = KOOPA_TROOPA;
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
@@ -73,14 +67,24 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     private final Offset offset;
 
     private Geometry spriteGeometry;
+    private Geometry shellGeometry;
+    private Geometry leftShellFootGeometry;
+    private Geometry rightShellFootGeometry;
     private KoopaTroopaMode mode = RED;
+    private KoopaTroopaState state = NORMAL;
 
     @Setter
     private boolean expired;
+    @Setter
+    private Reward pendingScoreReward;
     private boolean facingRight;
     private boolean grounded;
     private boolean ledgeTurned;
     private boolean spawnedIntoScene;
+    private boolean upsideDown;
+    private boolean wakeUpHalfTickPhase;
+    private int hitCooldownTicks;
+    private int wakeUpTicks;
     private int walkFrameIndex;
     private int walkFrameTicks;
     private PixelPosition position;
@@ -96,15 +100,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         position = PixelPosition.ofTile(offset);
     }
 
-    /**
-     * Picks the variant. For this enemy the placement attribute is doing more than naming a sprite
-     * folder: it also decides whether {@link #guardAgainstLedge()} fires, because colour is what tells
-     * {@code $6C} and {@code $6D} apart in the ROM's handler table.
-     *
-     * <p>Falls back to {@link KoopaTroopaMode#RED}, which is the more forgiving of the two to be wrong
-     * about - a troopa that turns at an edge it should have walked off stays visible and reportable,
-     * whereas the other way round it quietly leaves the level.
-     */
     @Override
     public void configure(final LevelObjectData data) {
         mode = data
@@ -112,17 +107,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
             .orElse(RED);
     }
 
-    /**
-     * The troopa's collision box, which is the ROM's {@code Object_BoundBox} row 01 - the very same row
-     * the Goomba and Para-Goomba use ({@code OAT_BOUNDBOX01}, dasm prg000.asm:407).
-     *
-     * <p>Worth seeing clearly, because it is far smaller than the troopa looks: the sprite spans
-     * {@code y-11 .. y+15}, 27 px tall, but the box is 8 px tall at {@code y+2 .. y+10} - squarely on the
-     * shell. The ROM lets the player pass through a troopa's head and its feet without any contact at
-     * all, and that is reproduced here rather than corrected.
-     *
-     * @return the box spanning X {@code [x+1, x+14)}, Y {@code [y+2, y+10)}
-     */
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
@@ -140,39 +124,78 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         faceClosestPlayer();
 
         spriteGeometry = animator.buildSprite(this);
+        shellGeometry = animator.buildShellSprite(this);
+        leftShellFootGeometry = animator.buildShellFootSprite(this, true);
+        rightShellFootGeometry = animator.buildShellFootSprite(this, false);
         gameEngine.getRootNode().attachChild(spriteGeometry);
+        gameEngine.getRootNode().attachChild(shellGeometry);
+        gameEngine.getRootNode().attachChild(leftShellFootGeometry);
+        gameEngine.getRootNode().attachChild(rightShellFootGeometry);
 
         erasePlacementFromBakedTexture();
+        showGeometryForState();
         positionSprite();
     }
 
-    /**
-     * Non-collidable for now, which this one flag is enough to express: its manager only inserts a
-     * hittable instance into the broadphase, so nothing can reach it and it reaches nothing - no stomp,
-     * no body hit, no tail strike, no object-to-object bump.
-     *
-     * @return {@code false} until the shell state exists for it to be stomped into
-     */
     @Override
-    public boolean isHittable() {
-        return false;
+    public void detach() {
+        KoopaTroopaFamilyEnemy.super.detach();
+        shellGeometry = detached(shellGeometry);
+        leftShellFootGeometry = detached(leftShellFootGeometry);
+        rightShellFootGeometry = detached(rightShellFootGeometry);
     }
 
-    /**
-     * No-op while the troopa is non-collidable. The body hit that reaches this in the ROM
-     * ({@code Object_HoldKickOrHurtPlayer}, dasm prg000.asm:4042) has to choose between hurting the
-     * player, being picked up and being kicked, so it arrives with the shell rather than before it.
-     */
+    @Override
+    public void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
+        if (doesNotRespondToPlayerContact()) {
+            return;
+        }
+        hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
+        pendingScoreReward = SCORE_100;
+        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+        enterShell();
+    }
+
+    @Override
+    public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
+        final double playerX = levelScenePlayer.getPosition().getX();
+        final boolean playerOnTheLeft = playerX + BODY_SIZE_PIXELS / 2.0 < position.x() + BODY_SIZE_PIXELS / 2.0;
+
+        hitCooldownTicks = TAIL_STRIKE_HIT_COOLDOWN_TICKS;
+        launchAwayFromPlayer(LAUNCH_Y_VELOCITY_FIXED_POINT, playerOnTheLeft);
+        // dasm: Sound_QPlayer |= SND_PLAYERKICK - a tail wham is the kick sound, not the squish one.
+        // Nothing to queue it on while the project has no sound engine.
+        // FlipBits |= SPR_VFLIP (prg000.asm:6075) - an OR, so an already-inverted shell stays inverted.
+        upsideDown = true;
+        enterShell();
+        spawnTailFlash(levelScenePlayer, playerOnTheLeft);
+    }
+
+    @Override
+    public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
+    @Override
+    public void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
+        hurt(levelScenePlayer);
+    }
+
     @Override
     public void hurt(final LevelScenePlayer levelScenePlayer) {
-        // Deliberately empty - see the class Javadoc.
+        if (doesNotRespondToPlayerContact()) {
+            return;
+        }
+        levelScenePlayer.onHurt();
     }
 
-    /**
-     * {@code ObjInit_GroundTroop} (dasm prg004.asm:3753) is the troopa's entire init: face the nearest
-     * player and nothing else. Identical to the Goomba's, which is why they share the table entry - and
-     * shared by both colours, which is why it is not gated on the mode.
-     */
+    @Override
+    public void onSideCollisionWith(final ActiveLevelObject other) {
+        final AxisAlignedBoundingBox otherBounds = other.getBounds();
+        final double otherCenterX = (otherBounds.left() + otherBounds.right()) / 2.0;
+        facingRight = otherCenterX < position.x() + BODY_SIZE_PIXELS / 2.0;
+    }
+
     void faceClosestPlayer() {
         final double center = position.x() + BODY_SIZE_PIXELS / 2.0;
         facingRight = gameEngine
@@ -182,35 +205,207 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
             .orElse(false);
     }
 
-    /**
-     * One frame of the troopa's normal handler, in the ROM's order: advance the frame clock, reload the X
-     * velocity from the facing, move, resolve the wall, then the ledge, then apply gravity.
-     *
-     * <p>{@code Object_DeleteOffScreen}, which both handlers open with, is deliberately not ported: the
-     * camera activation window freezes an off-screen enemy rather than destroying it, which is the
-     * project's standing replacement for it and the precedent the Para-Goomba set.
-     * {@code GroundTroop_BumpOffOthers} and {@code Object_HandleBumpUnderneath} both need the broadphase,
-     * so both wait for the shell.
-     */
     @Override
     public void motionUpdate() {
         if (expired) {
             return;
         }
 
-        // Facing IS direction: XVel is reloaded from the flip bit every frame (dasm prg004.asm:3811).
-        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        if (hitCooldownTicks > 0) {
+            hitCooldownTicks--;
+        }
+        runWakeUpClock();
 
-        advanceWalkFrame();
-        moveHorizontally();
-        moveVertically();
-        guardAgainstLedge();
+        if (state == SHELLED) {
+            if (wakeUpTicks == 0) {
+                // Object_ShellDoWakeUp pops its caller's return address when it wakes an object
+                // (PRG000_D155), so the rest of the shelled routine is skipped on this one frame.
+                wakeUp();
+                return;
+            }
+
+            moveShellHorizontally();
+            moveShellVertically();
+        } else {
+            velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+
+            advanceWalkFrame();
+            moveHorizontally();
+            moveVertically();
+            if (mode == RED) {
+                guardAgainstLedge();
+            }
+        }
         applyGravity();
+        reactToBlockBumpBelow();
         positionSprite();
 
         if (hasFallenOffLevel()) {
             setExpired(true);
         }
+    }
+
+    /**
+     * How far left the shell quad is drawn this frame. {@code Object_ShakeAndCalcSprite} does not add an
+     * offset: it leaves the carry clear on {@code Objects_X - Horz_Scroll} when the shake phase's low bit
+     * is clear, so the sprite comes out a pixel short (dasm prg000.asm:4560-4572). Phase {@code 0} leaves
+     * the carry set, hence the non-zero test.
+     *
+     * @return {@link KoopaTroopaFamilyEnemy#SHELL_JITTER_PIXELS} or {@code 0}
+     */
+    public int getShellJitterPixels() {
+        if (!isShellShaking()) {
+            return 0;
+        }
+        final int phase = wakeUpTicks & SHAKE_PHASE_MASK;
+        return phase != 0 && phase % 2 == 0 ? SHELL_JITTER_PIXELS : 0;
+    }
+
+    /**
+     * Whether the waking feet are showing this frame. The ROM simply withholds the two foot sprites on
+     * the off ticks (dasm prg000.asm:2338-2344), leaving the shell drawn either way - which is why this
+     * is a visibility question and not a choice of shell art.
+     *
+     * @return {@code true} on a tick the feet are drawn
+     */
+    public boolean isWakingFeetShowing() {
+        if (state != SHELLED || wakeUpTicks >= SHELL_FEET_THRESHOLD_TICKS) {
+            return false;
+        }
+        return (wakeUpTicks & FEET_FLICKER_MASKS[wakeUpTicks >> 4]) != 0;
+    }
+
+    public boolean isShellShaking() {
+        return state == SHELLED && wakeUpTicks < SHELL_SHAKE_THRESHOLD_TICKS;
+    }
+
+    @Override
+    public void positionSprite() {
+        if (state != SHELLED) {
+            KoopaTroopaFamilyEnemy.super.positionSprite();
+            return;
+        }
+        if (shellGeometry == null) {
+            return;
+        }
+        final WorldOffset feetAnchor = pixelToWorldOffset(position);
+        if (feetAnchor == null) {
+            return;
+        }
+        final WorldOffset shellOffset = shellDrawOffset(feetAnchor);
+        shellGeometry.setLocalScale(1f, upsideDown ? -1f : 1f, 1f);
+        shellOffset.applyTo(shellGeometry);
+
+        positionWakingFoot(leftShellFootGeometry, shellOffset, true);
+        positionWakingFoot(rightShellFootGeometry, shellOffset, false);
+    }
+
+    /**
+     * Hangs one foot three pixels past its side of the shell, inverted with it, and shows it only on the
+     * ticks the flicker says.
+     *
+     * <p>No vertical offset of its own, and that is where the ROM's {@code ObjWakeUp_FeetYOff} went: the
+     * foot art is authored against the bottom of its own 8x16 canvas, so sharing the shell's anchor puts
+     * it exactly where {@code +10} puts the ROM's pattern. The pay-off is that the inverted case needs
+     * nothing extra either - the same negative Y scale and one-quad-height lift that rights the shell
+     * carries the feet to the other side of it, which is all {@code ObjWakeUp_FeetYOff[1] = -10} is
+     * saying (dasm prg000.asm:2148).
+     */
+    private void positionWakingFoot(
+        final Geometry footGeometry,
+        final WorldOffset shellOffset,
+        final boolean leftFoot
+    ) {
+        if (footGeometry == null) {
+            return;
+        }
+        footGeometry.setCullHint(isWakingFeetShowing() ? Inherit : Always);
+        final int outwardPixels = leftFoot
+            ? -SHELL_FOOT_OUTWARD_OFFSET_PIXELS
+            : SHELL_RIGHT_SPRITE_OFFSET_PIXELS + SHELL_FOOT_OUTWARD_OFFSET_PIXELS;
+        footGeometry.setLocalScale(1f, upsideDown ? -1f : 1f, 1f);
+        WorldOffset
+            .of(
+                shellOffset.x() + outwardPixels * PIXELS_TO_GAME_UNITS,
+                shellOffset.y(),
+                Z_DEPTH_ENEMY_FOOT
+            )
+            .applyTo(footGeometry);
+    }
+
+    /**
+     * Where the shell quad is translated to. The anchor is the same feet line the walking quad uses -
+     * the shell's top sits on the tracked Y and it is one tile tall, so its bottom edge lands there too.
+     *
+     * <p>Two corrections ride on top. A negative Y scale mirrors the quad about its own bottom edge and
+     * hangs it <em>below</em> the anchor, so an inverted shell is lifted one quad height to put it back
+     * over the same ground - the vertical twin of the walking sprite's mirror compensation, and the
+     * reason the waking feet end up 10 px <em>above</em> the shell without any separate handling
+     * ({@code ObjWakeUp_FeetYOff = {10, -10}}, dasm prg000.asm:2148). And the shake subtracts its pixel.
+     *
+     * @param feetAnchor the quad's unflipped bottom-left corner, from {@code pixelToWorldOffset}
+     * @return the translation to apply
+     */
+    public WorldOffset shellDrawOffset(final WorldOffset feetAnchor) {
+        final float invertedLift = upsideDown ? TILE_SIZE_GAME_UNITS : 0f;
+        return feetAnchor.plus(-getShellJitterPixels() * PIXELS_TO_GAME_UNITS, invertedLift, 0f);
+    }
+
+    private void runWakeUpClock() {
+        if (state != SHELLED || wakeUpTicks == 0) {
+            return;
+        }
+        if (wakeUpTicks >= SHELL_SHAKE_THRESHOLD_TICKS) {
+            wakeUpHalfTickPhase = !wakeUpHalfTickPhase;
+            if (wakeUpHalfTickPhase) {
+                return;
+            }
+        }
+        wakeUpTicks--;
+    }
+
+    private void wakeUp() {
+        state = NORMAL;
+        upsideDown = false;
+        faceClosestPlayer();
+        showGeometryForState();
+        positionSprite();
+    }
+
+    private void enterShell() {
+        state = SHELLED;
+        wakeUpTicks = WAKE_UP_TICKS;
+        wakeUpHalfTickPhase = false;
+        ledgeTurned = false;
+        showGeometryForState();
+        positionSprite();
+    }
+
+    private void launchAwayFromPlayer(
+        final int launchYVelocityFixedPoint,
+        final boolean playerOnTheLeft
+    ) {
+        final EnemyKnockMotion.Direction knockDirection = EnemyKnockMotion.Direction.struckFrom(playerOnTheLeft);
+        velocity = new FixedPointVelocity(
+            knockDirection.getValue() * KNOCK_X_VELOCITY_FIXED_POINT,
+            launchYVelocityFixedPoint
+        );
+        grounded = false;
+    }
+
+    private void reactToBlockBumpBelow() {
+        if (!grounded) {
+            return;
+        }
+        final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
+        final int feetRow = position.plusY(BODY_SIZE_PIXELS).row();
+        if (!gameEngine.getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
+            return;
+        }
+        launchAwayFromPlayer(BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT, isClosestPlayerOnTheLeft());
+        upsideDown = true;
+        facingRight = false;
+        enterShell();
     }
 
     private void advanceWalkFrame() {
@@ -227,8 +422,21 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         final PixelPosition proposed = position.steppedX(velocity);
         if (isWallAhead(proposed)) {
             // Object_FlipFace: the facing bit alone, and the step is abandoned rather than taken into
-            // the wall (dasm prg004.asm:3827).
+            // the wall (dasm prg004.asm:3827). Enough on its own, because facing is direction here.
             facingRight = !facingRight;
+            return;
+        }
+        position = proposed;
+    }
+
+    private void moveShellHorizontally() {
+        if (velocity.stationaryX()) {
+            return;
+        }
+        final PixelPosition proposed = position.steppedX(velocity);
+        if (isWallAhead(proposed)) {
+            facingRight = !facingRight;
+            velocity = velocity.negatedX();
             return;
         }
         position = proposed;
@@ -249,35 +457,36 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         grounded = false;
     }
 
-    /**
-     * The red troopa's defining behaviour: {@code PRG004_B283} (dasm prg004.asm:3829), the branch that
-     * "keeps a red troopa from marching himself right off an edge".
-     *
-     * <p>When the feet probe finds nothing, the troopa about-faces - negating the X velocity and flipping
-     * the facing, as {@code Object_AboutFace} does - re-applies that velocity <b>twice</b>, and is then
-     * snapped back onto the floor by {@code Object_HitGround}. The result is that it never descends below
-     * the surface it is patrolling, which is what makes a red troopa look like it is respecting bounds:
-     * nothing stores those bounds, they fall out of this probe running every frame.
-     *
-     * <p>A green troopa reaches none of it. {@code ObjNorm_GroundTroop} has no equivalent branch, so it
-     * steps off the edge and falls exactly as a Goomba does - which is the whole behavioural difference
-     * between the colours and the reason {@link #turnsAtLedges()} is consulted first.
-     *
-     * <p>{@code Objects_Var4} is a one-shot latch, cleared on every grounded frame. Without it a troopa
-     * that is genuinely airborne - thrown, or bumped from below - would about-face once a frame all the
-     * way down. With it, such a troopa about-faces once and then falls, which is the ROM's behaviour and
-     * not a bug here.
-     *
-     * <p>Two faithful roughnesses to leave alone. The recovery steps are not collision-checked, so a
-     * troopa on a platform barely wider than itself can be stepped into the wall behind it - harmless,
-     * because the next frame's wall probe turns it straight back. And the snap is the ROM's literal
-     * {@code Y & $F0}, so a troopa that was already mid-tile when it first found no ground is pulled up
-     * to the tile boundary.
-     */
-    private void guardAgainstLedge() {
-        if (!turnsAtLedges()) {
+    private void moveShellVertically() {
+        final PixelPosition proposed = position.steppedY(velocity);
+        if (velocity.descending() && isGroundBelow(proposed)) {
+            final int impactYVelocityFixedPoint = velocity.y();
+            final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
+            restOn((double) feetRow * TILE_SPRITE_SIZE - BODY_SIZE_PIXELS);
+            dampenLanding(impactYVelocityFixedPoint);
             return;
         }
+        if (velocity.rising() && isCeilingAbove(proposed)) {
+            final int headRow = proposed.row();
+            position = position.withY((double) (headRow + 1) * TILE_SPRITE_SIZE);
+            velocity = velocity.withY(CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT);
+            grounded = false;
+            return;
+        }
+        position = proposed;
+        grounded = false;
+    }
+
+    private void dampenLanding(final int impactYVelocityFixedPoint) {
+        velocity = velocity.withX(velocity.x() / SHELL_LANDING_X_DAMPING);
+        final int reboundYVelocity = -(impactYVelocityFixedPoint / SHELL_LANDING_Y_DAMPING);
+        if (reboundYVelocity < SHELL_MIN_BOUNCE_Y_VELOCITY_FIXED_POINT) {
+            velocity = velocity.withY(reboundYVelocity);
+            grounded = false;
+        }
+    }
+
+    private void guardAgainstLedge() {
         if (grounded) {
             ledgeTurned = false;
             return;
@@ -295,20 +504,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         restOn((double) position.row() * TILE_SPRITE_SIZE);
     }
 
-    /**
-     * Which of the two handlers this troopa is running, expressed as the one thing they disagree about.
-     *
-     * <p>Kept here rather than on {@link KoopaTroopaMode} on purpose: an {@code EnemyMode} is a sprite
-     * folder for every other enemy in the project, and encoding behaviour in one would invite the next
-     * mode to do the same. The entity owns its own handler selection.
-     *
-     * @return {@code true} for {@code OBJ_REDTROOPA}, which runs {@code ObjNorm_RedTroopa}
-     */
-    private boolean turnsAtLedges() {
-        return mode == RED;
-    }
-
-    /** {@code Object_HitGround} (dasm prg000.asm:872): sit on the given line and halt the fall. */
     private void restOn(final double groundAlignedY) {
         position = position.withY(groundAlignedY);
         velocity = velocity.withY(0);
@@ -317,5 +512,54 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
 
     private void applyGravity() {
         velocity = velocity.falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
+    }
+
+    private boolean doesNotRespondToPlayerContact() {
+        return state != NORMAL || hitCooldownTicks != 0;
+    }
+
+    private boolean isClosestPlayerOnTheLeft() {
+        final double center = position.x() + BODY_SIZE_PIXELS / 2.0;
+        return gameEngine
+            .getCollisionGrid()
+            .findClosestPlayerTo(position.x(), position.y())
+            .map(closestPlayer -> closestPlayer.getPosition().getX() + BODY_SIZE_PIXELS / 2.0 < center)
+            .orElse(false);
+    }
+
+    private void spawnTailFlash(
+        final LevelScenePlayer levelScenePlayer,
+        final boolean playerOnTheLeft
+    ) {
+        final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
+        getBean(TailAttackFlashMotionManager.class).spawn(
+            gameEngine,
+            Offset.of(
+                levelScenePlayer.getPosition().getX() + tailSideOffset,
+                levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
+            )
+        );
+    }
+
+    private void showGeometryForState() {
+        final boolean shelled = state == SHELLED;
+        setVisible(spriteGeometry, !shelled);
+        setVisible(shellGeometry, shelled);
+        // The feet are driven per frame by positionSprite; hidden outright whenever the shell is not up.
+        setVisible(leftShellFootGeometry, false);
+        setVisible(rightShellFootGeometry, false);
+    }
+
+    private void setVisible(final Geometry geometry, final boolean visible) {
+        if (geometry != null) {
+            geometry.setCullHint(visible ? Inherit : Always);
+        }
+    }
+
+    private Geometry detached(final Geometry geometry) {
+        if (geometry != null) {
+            gameEngine.getRootNode().detachChild(geometry);
+        }
+        return null;
     }
 }

@@ -3,29 +3,20 @@ package house.x1337.app.smb3.game.object.level.enemy;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.model.game.WorldOffset;
 
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 
-/**
- * What every Koopa Troopa shares, red or green: how it is drawn, and where its sprite sits relative to
- * the position it tracks. The red troopa's ledge guard - the one thing that differs
- * ({@code ObjNorm_RedTroopa} vs {@code ObjNorm_GroundTroop}, dasm prg004.asm:69-70) - is not here.
- *
- * <p><b>The tracked position is not the sprite top.</b> {@code Objects_Y} for a troopa is the top of its
- * shell, and the head is drawn above that at negative offsets - the dasm says so by name at
- * prg000.asm:3782. Everything below follows from that: the 16x32 sprite reaches a tile above the tracked
- * Y while its feet stay on the same line a Goomba's do, which is why
- * {@link GroundWalkingEnemy#pixelToWorldOffset} needs no special case for it.
- */
 public interface KoopaTroopaFamilyEnemy extends GroundWalkingEnemy {
-    /**
-     * {@code Troopa_YOffByFrame = {$06, $05}} (dasm prg004.asm:4268): the body is drawn 6 px above
-     * {@code Objects_Y} on the even frame and 5 px above on the odd one. That one pixel is the walk bob,
-     * and it is a draw-time offset in the ROM rather than two differently-padded images - so it stays
-     * one here too, leaving both frames agreeing on where the feet are.
-     */
-    int WALK_FRAME_BOB_PIXELS = 1;
-
-    float BOB_GAME_UNITS = (float) WALK_FRAME_BOB_PIXELS / TILE_SPRITE_SIZE;
+    int CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT = 16;
+    int SHELL_FEET_THRESHOLD_TICKS = 80;
+    int SHELL_FOOT_OUTWARD_OFFSET_PIXELS = 3;
+    int SHELL_JITTER_PIXELS = 1;
+    int SHELL_LANDING_X_DAMPING = 2;
+    int SHELL_LANDING_Y_DAMPING = 4;
+    int SHELL_MIN_BOUNCE_Y_VELOCITY_FIXED_POINT = -2;
+    int SHELL_RIGHT_SPRITE_OFFSET_PIXELS = 8;
+    int SHELL_SHAKE_THRESHOLD_TICKS = 96;
+    int TAIL_STRIKE_HIT_COOLDOWN_TICKS = 12;
+    int WAKE_UP_TICKS = 255;
 
     boolean isFacingRight();
     int getWalkFrameIndex();
@@ -79,6 +70,6 @@ public interface KoopaTroopaFamilyEnemy extends GroundWalkingEnemy {
 
     /** The odd walk frame is drawn one pixel lower. World Y grows upward, so the caller subtracts this. */
     private float walkFrameBob() {
-        return getWalkFrameIndex() % 2 == 0 ? 0f : BOB_GAME_UNITS;
+        return getWalkFrameIndex() % 2 == 0 ? 0f : PIXELS_TO_GAME_UNITS;
     }
 }

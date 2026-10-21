@@ -20,6 +20,7 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
     int BOUND_BOX_LEFT_OFFSET = 1;
     int BOUND_BOX_TOP_OFFSET = 2;
     int BOUND_BOX_WIDTH = 13;
+    int FLOOR_DETECTION_DEPTH_LIMIT_PIXELS = 4;
     int GRAVITY_FIXED_POINT = 3;
     int MAX_FALL_FIXED_POINT = 64;
     int NO_HIT_COOLDOWN_TICKS = 0;
@@ -57,12 +58,41 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
 
     /**
      * @param proposed the position the enemy is about to move to
-     * @return {@code true} if a solid tile sits under its feet there
+     * @return {@code true} if a solid tile sits under its feet there <em>and</em> it is shallow enough
+     *         into that tile to be landing on it
      */
     default boolean isGroundBelow(final PixelPosition proposed) {
+        if (!isWithinFloorDetectionDepth(proposed)) {
+            return false;
+        }
         final int centerColumn = getPosition().plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
         return getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
+    }
+
+    /**
+     * {@code Object_WorldDetect4}'s depth limit - see
+     * {@link #FLOOR_DETECTION_DEPTH_LIMIT_PIXELS}. Without it, {@code Object_HitGround}'s align-to-tile
+     * becomes an upward teleport for anything that got inside a surface without descending onto it: a
+     * tail-whammed shell drifting sideways over a one-way platform at the top of its arc is sunk ten
+     * pixels into it, and would be snapped up onto a ledge it never cleared.
+     *
+     * @param proposed the position the enemy is about to move to
+     * @return {@code true} while the enemy's tracked Y is in the top {@code 4} px of its tile row
+     */
+    private boolean isWithinFloorDetectionDepth(final PixelPosition proposed) {
+        final double depthIntoTile = proposed.y() - (double) proposed.row() * TILE_SPRITE_SIZE;
+        return depthIntoTile < FLOOR_DETECTION_DEPTH_LIMIT_PIXELS;
+    }
+
+    /**
+     * @param proposed the position the enemy is about to move to
+     * @return {@code true} if a solid tile sits over its head there
+     */
+    default boolean isCeilingAbove(final PixelPosition proposed) {
+        final int centerColumn = getPosition().plusX(BODY_SIZE_PIXELS / 2.0).column();
+        final int headRow = proposed.row();
+        return getCollisionGrid().isWallOrCeilingSolidTile(centerColumn, headRow);
     }
 
     /**

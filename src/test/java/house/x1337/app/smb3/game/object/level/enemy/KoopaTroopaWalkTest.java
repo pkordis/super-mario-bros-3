@@ -202,21 +202,21 @@ class KoopaTroopaWalkTest {
     }
 
     @Test
-    @DisplayName("Takes no part in collision yet, so nothing can reach it")
-    void isNotYetCollidable() {
+    @DisplayName("It is a live collision participant: in the broadphase, and it bumps off other objects")
+    void isACollisionParticipant() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
 
         // Execute & Verify
         assertThat(troopa.isHittable())
-            .as("Its manager only inserts a hittable instance into the broadphase")
-            .isFalse();
+            .as("Its manager inserts a hittable instance into the broadphase")
+            .isTrue();
         assertThat(troopa.isCollidable())
-            .as("An enemy is never terrain, so it is not collidable in the tile sense either")
+            .as("An enemy is never terrain, so it is not collidable in the tile sense")
             .isFalse();
         assertThat(troopa.bouncesOffOtherObjects())
-            .as("GroundTroop_BumpOffOthers arrives with the shell")
-            .isFalse();
+            .as("GroundTroop_BumpOffOthers runs in the walking state and Object_BumpOffOthers in the shell")
+            .isTrue();
     }
 
     @Test
