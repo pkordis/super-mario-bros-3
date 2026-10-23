@@ -1,7 +1,10 @@
 {
   "still": "still.png",
   "skid": "rapid_turn.png",
+  "faceForward": "facing_forward.png",
+  "hold": ["holding_1.png", "holding_2.png", "holding_1.png", "holding_2.png"],
   "jump": "jumping.png",
+  "kick": "kicking.png",
   "fastJump": "flying.png",
   "walk": ["still.png", "walking.png"],
   "run": ["running_1.png", "running_2.png"]

@@ -5,7 +5,6 @@ import static java.lang.Math.min;
 
 public record FixedPointVelocity(int x, int y) {
     public static final FixedPointVelocity STILL = new FixedPointVelocity(0, 0);
-
     private static final double TO_PIXELS = 1.0 / TILE_SPRITE_SIZE;
 
     public double pixelStepX() {

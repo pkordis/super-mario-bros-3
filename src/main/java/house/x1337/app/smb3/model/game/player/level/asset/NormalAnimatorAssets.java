@@ -7,19 +7,14 @@ import house.x1337.app.smb3.model.game.player.level.LevelScenePlayerAnimatorSpec
 import house.x1337.app.smb3.model.game.player.level.asset.loader.PlayerAnimatorAssetsLoader;
 import house.x1337.app.smb3.model.game.player.level.dimension.NormalDimensions;
 
-/**
- * Asset bundle for "normal" (big) Mario. It is the raccoon ground set with the
- * tail textures removed (still, skid, duck, jump, and the 3-frame walk/run
- * cycles), plus a small-Mario-style {@code fastJump} for the airborne
- * frames — big Mario mirrors SHRUNK in the air (a single jump/fall frame, or
- * the "fast" frame while the full-P launch boost is active) and RACCOON on the
- * ground.
- */
 public record NormalAnimatorAssets(
     Texture still,
     Texture skid,
     Texture duck,
+    Texture faceForward,
+    Texture[] hold,
     Texture jump,
+    Texture kick,
     Texture fastJump,
     Texture[] walk,
     Texture[] run
