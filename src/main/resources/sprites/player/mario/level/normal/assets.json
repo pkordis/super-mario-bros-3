@@ -2,7 +2,10 @@
   "still": "still.png",
   "skid": "rapid_turn.png",
   "duck": "ducking.png",
+  "faceForward": "facing_forward.png",
+  "hold": ["holding_1.png", "holding_2.png", "holding_3.png", "holding_2.png"],
   "jump": "jumping.png",
+  "kick": "kicking.png",
   "fastJump": "flying.png",
   "walk": ["walking_1.png", "walking_2.png", "still.png"],
   "run": ["running_1.png", "running_2.png", "running_3.png"]

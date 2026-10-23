@@ -15,16 +15,10 @@ public final class EnemyKnockMotion {
     public static final int LAUNCH_Y_VELOCITY_FIXED_POINT = -80;
     public static final int MAX_FALL_FIXED_POINT = 64;
     private final Direction knockDirection;
+    private FixedPointVelocity velocity = STILL;
+    private FixedPointVelocity stepVelocity = STILL;
     private int launchDelayTicks = 1;
     private boolean upsideDown;
-    private FixedPointVelocity velocity = STILL;
-
-    /**
-     * The velocity the owner should move by this frame. Distinct from {@link #getVelocity()} because
-     * {@code Object_Move} applies gravity <em>after</em> the move, so the step is last frame's
-     * pre-gravity snapshot rather than the live value.
-     */
-    private FixedPointVelocity stepVelocity = STILL;
 
     public static EnemyKnockMotion strikeFrom(final Direction knockDirection) {
         return new EnemyKnockMotion(knockDirection);

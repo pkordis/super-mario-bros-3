@@ -27,11 +27,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Every {@code assets.json} must name exactly the components of the record it feeds.
  *
- * <p>{@link AnimatorAssetsLoader} binds the two by <b>field name</b> ({@code visibility(FIELD, ANY)}),
- * and Jackson ignores a key it cannot place — so renaming a record component without renaming its JSON
- * key leaves the component silently null and the sprite silently missing, with nothing failing to
- * compile and no exception at load. Only the Goomba bundle is otherwise deserialized by a test, and the
- * player bundles need a live jME asset manager, so this reflection comparison is what covers them.
+ * <p>{@link AnimatorAssetsLoader} binds the two by <b>field name</b> ({@code visibility(FIELD, ANY)}).
+ * Renaming a record component without renaming its JSON key leaves nothing to compile against and the
+ * sprite silently missing from the bundle's point of view, while the loader throws
+ * {@code UnrecognizedPropertyException} at runtime for the now-unplaceable key — a crash at level
+ * build, far from the rename that caused it. Only the Goomba bundle is otherwise deserialized by a
+ * test, and the player bundles need a live jME asset manager, so this reflection comparison is what
+ * catches the mismatch at build time.
  */
 class AnimatorAssetsDescriptorTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();

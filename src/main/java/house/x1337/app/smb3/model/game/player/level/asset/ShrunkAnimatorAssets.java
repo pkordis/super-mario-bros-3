@@ -10,7 +10,10 @@ import house.x1337.app.smb3.model.game.player.level.dimension.ShrunkDimensions;
 public record ShrunkAnimatorAssets(
     Texture still,
     Texture skid,
+    Texture faceForward,
+    Texture[] hold,
     Texture jump,
+    Texture kick,
     Texture fastJump,
     Texture[] walk,
     Texture[] run
