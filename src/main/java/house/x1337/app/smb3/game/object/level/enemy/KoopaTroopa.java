@@ -33,11 +33,16 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_FOOT;
+import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_BEHIND_PLAYER;
+import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT;
+import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.HELD;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT;
@@ -45,7 +50,6 @@ import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMoti
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.LAUNCH_Y_VELOCITY_FIXED_POINT;
 import static house.x1337.app.smb3.model.game.Dimensions.doubleTileHeight;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
-
 @Getter
 @Prototype
 @RequiredArgsConstructor
@@ -87,6 +91,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     private int wakeUpTicks;
     private int walkFrameIndex;
     private int walkFrameTicks;
+    private LevelScenePlayer carrier;
     private PixelPosition position;
     private FixedPointVelocity velocity = STILL;
 
@@ -147,7 +152,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
 
     @Override
     public void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
-        if (doesNotRespondToPlayerContact()) {
+        if (!canHurtPlayer()) {
             return;
         }
         hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
@@ -173,20 +178,84 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
 
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
-        hurt(levelScenePlayer);
+        holdKickOrHurt(levelScenePlayer);
     }
 
     @Override
     public void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
-        hurt(levelScenePlayer);
+        holdKickOrHurt(levelScenePlayer);
+    }
+
+    private void holdKickOrHurt(final LevelScenePlayer levelScenePlayer) {
+        if (!isCarriable()) {
+            hurt(levelScenePlayer);
+            return;
+        }
+        if (!levelScenePlayer.canPickUpCarriable()) {
+            return;
+        }
+        if (!levelScenePlayer.isCarryButtonHeld()) {
+            // SMB3-10: JMP Player_KickObject.
+            return;
+        }
+        levelScenePlayer.pickUp(this);
+    }
+
+    @Override
+    public boolean canHurtPlayer() {
+        return state == NORMAL && hitCooldownTicks == 0;
+    }
+
+    @Override
+    public boolean isHittable() {
+        return state != KILLED;
     }
 
     @Override
     public void hurt(final LevelScenePlayer levelScenePlayer) {
-        if (doesNotRespondToPlayerContact()) {
+        if (!canHurtPlayer()) {
             return;
         }
         levelScenePlayer.onHurt();
+    }
+
+    @Override
+    public boolean isCarriable() {
+        return state == SHELLED && hitCooldownTicks == 0;
+    }
+
+    @Override
+    public boolean isCarried() {
+        return state == HELD;
+    }
+
+    @Override
+    public void onCarried(final LevelScenePlayer levelScenePlayer) {
+        carrier = levelScenePlayer;
+        state = HELD;
+        velocity = STILL;
+        grounded = false;
+        showGeometryForState();
+        position = carryAnchorFor(levelScenePlayer);
+        positionSprite();
+    }
+
+    @Override
+    public void onReleased(final LevelScenePlayer levelScenePlayer) {
+        dropWhereItStands();
+    }
+
+    private void dropWhereItStands() {
+        if (carrier != null && isPressedIntoTheWorld()) {
+            position = position.withX(carrier.getPosition().getX());
+        }
+        endCarry();
+        state = SHELLED;
+        velocity = STILL;
+        grounded = false;
+        hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
+        showGeometryForState();
+        positionSprite();
     }
 
     @Override
@@ -210,10 +279,18 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         if (expired) {
             return;
         }
-
         if (hitCooldownTicks > 0) {
             hitCooldownTicks--;
         }
+        if (state == HELD) {
+            tickHeld();
+            return;
+        }
+        if (state == KILLED) {
+            tickKilled();
+            return;
+        }
+
         runWakeUpClock();
 
         if (state == SHELLED) {
@@ -246,13 +323,79 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     }
 
     /**
-     * How far left the shell quad is drawn this frame. {@code Object_ShakeAndCalcSprite} does not add an
-     * offset: it leaves the carry clear on {@code Objects_X - Horz_Scroll} when the shake phase's low bit
-     * is clear, so the sprite comes out a pixel short (dasm prg000.asm:4560-4572). Phase {@code 0} leaves
-     * the carry set, hence the non-zero test.
+     * One tick in the player's hands — {@code ObjState_Held} (dasm prg000 @ PRG000_CE1F), in its order.
      *
-     * @return {@link KoopaTroopaFamilyEnemy#SHELL_JITTER_PIXELS} or {@code 0}
+     * <p>The wake-up clock comes first and can end the carry on its own, which is the detail most
+     * easily lost: {@code Object_ShellDoWakeUp} is called from here exactly as it is from the shelled
+     * state, so <b>a shell held long enough breaks free in your hands</b>. Only if it survives that is
+     * the pad read, and only then is the position assigned.
+     *
+     * <p>Nothing here integrates anything. The position is written outright from the player's, which is
+     * why a carried shell neither falls nor drifts nor collides with terrain.
      */
+    private void tickHeld() {
+        runWakeUpClock();
+        if (wakeUpTicks == 0) {
+            breakFreeOfTheHands();
+            return;
+        }
+        if (carrier == null) {
+            dropWhereItStands();
+            return;
+        }
+        if (!carrier.isCarryButtonHeld()) {
+            carrier.releaseCarriedObject();
+            return;
+        }
+        position = carryAnchorFor(carrier);
+    }
+
+    private void tickKilled() {
+        position = position.steppedY(velocity);
+        applyGravity();
+        positionSprite();
+
+        if (hasFallenOffLevel()) {
+            setExpired(true);
+        }
+    }
+
+    private void breakFreeOfTheHands() {
+        if (isPressedIntoTheWorld()) {
+            endCarry();
+            pendingScoreReward = SCORE_100;
+            state = KILLED;
+            velocity = new FixedPointVelocity(0, CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT);
+            grounded = false;
+            showGeometryForState();
+            positionSprite();
+            return;
+        }
+        // wakeUp() ends the carry itself, as every exit from the held state does.
+        wakeUp();
+    }
+
+    private boolean isPressedIntoTheWorld() {
+        final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
+        final int midRow = position.plusY(BODY_SIZE_PIXELS / 2.0).row();
+        return getCollisionGrid().isWallOrCeilingSolidTile(position.column(), midRow)
+            || getCollisionGrid().isWallOrCeilingSolidTile(position.plusX(BODY_SIZE_PIXELS - 1).column(), midRow)
+            || getCollisionGrid().isWallOrCeilingSolidTile(centerColumn, position.row())
+            || getCollisionGrid().isGroundSolidTile(centerColumn, position.plusY(BODY_SIZE_PIXELS).row());
+    }
+
+    private void endCarry() {
+        final LevelScenePlayer holder = carrier;
+        carrier = null;
+        if (holder == null || holder.getRuntimeState().getCarriedObject() != this) {
+            return;
+        }
+        // The turn-around pose is deliberately left running. PRG008_AF2F reaches the decrement-and-draw
+        // on Player_PipeFace alone, before it tests Player_IsHolding, so a player who lets go two ticks
+        // into the pose keeps facing the camera for the remaining five.
+        holder.getRuntimeState().setCarriedObject(null);
+    }
+
     public int getShellJitterPixels() {
         if (!isShellShaking()) {
             return 0;
@@ -261,34 +404,40 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         return phase != 0 && phase % 2 == 0 ? SHELL_JITTER_PIXELS : 0;
     }
 
-    /**
-     * Whether the waking feet are showing this frame. The ROM simply withholds the two foot sprites on
-     * the off ticks (dasm prg000.asm:2338-2344), leaving the shell drawn either way - which is why this
-     * is a visibility question and not a choice of shell art.
-     *
-     * @return {@code true} on a tick the feet are drawn
-     */
     public boolean isWakingFeetShowing() {
-        if (state != SHELLED || wakeUpTicks >= SHELL_FEET_THRESHOLD_TICKS) {
+        if (!isShellShowing() || state == KILLED || wakeUpTicks >= SHELL_FEET_THRESHOLD_TICKS) {
             return false;
         }
         return (wakeUpTicks & FEET_FLICKER_MASKS[wakeUpTicks >> 4]) != 0;
     }
 
     public boolean isShellShaking() {
-        return state == SHELLED && wakeUpTicks < SHELL_SHAKE_THRESHOLD_TICKS;
+        return (state == SHELLED || state == HELD) && wakeUpTicks < SHELL_SHAKE_THRESHOLD_TICKS;
+    }
+
+    public boolean isShellShowing() {
+        return state != NORMAL;
     }
 
     @Override
     public void positionSprite() {
-        if (state != SHELLED) {
+        positionSpriteAt(position);
+    }
+
+    @Override
+    public void drawCarriedAt(final PixelPosition anchor) {
+        positionSpriteAt(anchor);
+    }
+
+    private void positionSpriteAt(final PixelPosition drawPosition) {
+        if (!isShellShowing()) {
             KoopaTroopaFamilyEnemy.super.positionSprite();
             return;
         }
         if (shellGeometry == null) {
             return;
         }
-        final WorldOffset feetAnchor = pixelToWorldOffset(position);
+        final WorldOffset feetAnchor = pixelToWorldOffset(drawPosition);
         if (feetAnchor == null) {
             return;
         }
@@ -328,7 +477,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
             .of(
                 shellOffset.x() + outwardPixels * PIXELS_TO_GAME_UNITS,
                 shellOffset.y(),
-                Z_DEPTH_ENEMY_FOOT
+                carriedDepthOr(Z_DEPTH_ENEMY_FOOT, Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT)
             )
             .applyTo(footGeometry);
     }
@@ -348,11 +497,26 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
      */
     public WorldOffset shellDrawOffset(final WorldOffset feetAnchor) {
         final float invertedLift = upsideDown ? TILE_SIZE_GAME_UNITS : 0f;
-        return feetAnchor.plus(-getShellJitterPixels() * PIXELS_TO_GAME_UNITS, invertedLift, 0f);
+        return WorldOffset.of(
+            feetAnchor.x() - getShellJitterPixels() * PIXELS_TO_GAME_UNITS,
+            feetAnchor.y() + invertedLift,
+            carriedDepthOr(feetAnchor.z(), 0f)
+        );
+    }
+
+    private float carriedDepthOr(final float ownDepth, final float detailStep) {
+        if (state != HELD || carrier == null) {
+            return ownDepth;
+        }
+        final float holderDepth = carrier.getVisibility().getPlayerZ();
+        final float carriedDepth = carrier.getRuntimeState().isTurningAroundWhileCarrying()
+            ? holderDepth + Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER
+            : holderDepth - Z_OFFSET_CARRIED_BEHIND_PLAYER;
+        return carriedDepth - detailStep;
     }
 
     private void runWakeUpClock() {
-        if (state != SHELLED || wakeUpTicks == 0) {
+        if ((state != SHELLED && state != HELD) || wakeUpTicks == 0) {
             return;
         }
         if (wakeUpTicks >= SHELL_SHAKE_THRESHOLD_TICKS) {
@@ -365,6 +529,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     }
 
     private void wakeUp() {
+        endCarry();
         state = NORMAL;
         upsideDown = false;
         faceClosestPlayer();
@@ -373,6 +538,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     }
 
     private void enterShell() {
+        endCarry();
         state = SHELLED;
         wakeUpTicks = WAKE_UP_TICKS;
         wakeUpHalfTickPhase = false;
@@ -514,10 +680,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         velocity = velocity.falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
     }
 
-    private boolean doesNotRespondToPlayerContact() {
-        return state != NORMAL || hitCooldownTicks != 0;
-    }
-
     private boolean isClosestPlayerOnTheLeft() {
         final double center = position.x() + BODY_SIZE_PIXELS / 2.0;
         return gameEngine
@@ -542,7 +704,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     }
 
     private void showGeometryForState() {
-        final boolean shelled = state == SHELLED;
+        final boolean shelled = isShellShowing();
         setVisible(spriteGeometry, !shelled);
         setVisible(shellGeometry, shelled);
         // The feet are driven per frame by positionSprite; hidden outright whenever the shell is not up.

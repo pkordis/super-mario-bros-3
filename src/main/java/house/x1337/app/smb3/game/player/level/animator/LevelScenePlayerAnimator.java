@@ -5,7 +5,6 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture;
-import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerIdentityAware;
@@ -73,17 +72,28 @@ public interface LevelScenePlayerAnimator<A extends PlayerAnimatorAssets>
         final Texture texture,
         final PlayerOrientationHorizontal orientation
     ) {
-        node.detachAllChildren();
+        rebuildWithTextureDerivedQuad(node, texture, orientation);
+    }
 
+    default void rebuildWithTextureDerivedQuad(
+        final Node node,
+        final Texture texture,
+        final PlayerOrientationHorizontal orientation
+    ) {
         final float widthPixels = texture.getImage().getWidth();
         final float heightPixels = texture.getImage().getHeight();
-        final float quadWidth = widthPixels * PIXELS_TO_GAME_UNITS;
-        final float quadHeight = heightPixels * PIXELS_TO_GAME_UNITS;
-        // Empty space to the right of the left-anchored body; keeps the body
-        // aligned with the collision box when the sprite is flipped to face right.
-        final float rightPadding = (widthPixels - TILE_SPRITE_SIZE) * PIXELS_TO_GAME_UNITS;
+        rebuildWithTexture(
+            node,
+            texture,
+            orientation,
+            widthPixels * PIXELS_TO_GAME_UNITS,
+            heightPixels * PIXELS_TO_GAME_UNITS,
+            rightPaddingFor(widthPixels)
+        );
+    }
 
-        rebuildWithTexture(node, texture, orientation, quadWidth, quadHeight, rightPadding);
+    default float rightPaddingFor(final float quadWidthPixels) {
+        return (quadWidthPixels - TILE_SPRITE_SIZE) * PIXELS_TO_GAME_UNITS;
     }
 
     void setAssets(final A animatorAssets);

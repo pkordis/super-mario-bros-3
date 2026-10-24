@@ -197,7 +197,7 @@ public final class Goomba implements GoombaFamilyEnemy {
 
     @Override
     public void hurt(final LevelScenePlayer levelScenePlayer) {
-        if (!isHittable()) {
+        if (!canHurtPlayer()) {
             return;
         }
         levelScenePlayer.onHurt();

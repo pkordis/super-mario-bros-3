@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -147,6 +148,52 @@ class EnemyMotionManagerTest {
         assertThat(manager.getActiveInstances()).as("population dropped").isEmpty();
     }
 
+    @Test
+    @DisplayName("An enemy the camera has not reached stands still and stays out of the broadphase")
+    void offWindowEnemyIsFrozen() {
+        // Prepare - well outside the fixture's generous active region
+        final StubEnemy enemy = enemyAt(100_000);
+        manager.spawn(enemy);
+
+        // Execute
+        manager.update();
+
+        // Verify
+        assertThat(enemy.motionUpdates).as("not ticked").isZero();
+        assertThat(broadPhase.query(enemy.getBounds())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An object in the player's hands keeps ticking even outside the activation window")
+    void carriedEnemyIsExemptFromTheActivationWindow() {
+        // A carried object is not being simulated, it is being placed, from a player who is on screen by
+        // definition. Skipping its tick would not pause anything, it would leave it behind where the
+        // window lost it and out of the broadphase. Once released it is an ordinary object again, which
+        // is why the second half of this asserts the window takes its authority straight back.
+        // Prepare - well outside the fixture's active region, but carried
+        final StubEnemy enemy = enemyAt(100_000);
+        enemy.setCarried(true);
+        manager.spawn(enemy);
+
+        // Execute
+        manager.update();
+
+        // Verify
+        assertThat(enemy.motionUpdates).as("ticked regardless").isEqualTo(1);
+        assertThat(broadPhase.query(enemy.getBounds()))
+            .as("and still reachable, which the kick and the tail both need")
+            .containsExactly(enemy);
+
+        // Execute - put down out there, and the window resumes its authority
+        enemy.setCarried(false);
+        broadPhase.clear();
+        manager.update();
+
+        // Verify
+        assertThat(enemy.motionUpdates).isEqualTo(1);
+        assertThat(broadPhase.query(enemy.getBounds())).isEmpty();
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
@@ -166,9 +213,12 @@ class EnemyMotionManagerTest {
     /**
      * A 16x16 enemy already in the scene, counting its own ticks. Deliberately not a {@code Goomba}:
      * spawning one needs jME, and the gate under test belongs to the manager, not to any enemy.
+     *
+     * <p>Also carriable, so the activation-window exemption can be exercised without dragging the whole
+     * Koopa Troopa in. Carriability is per state everywhere, which for a stub means a plain flag.
      */
     @Getter
-    private static final class StubEnemy implements EnemyLevelObject {
+    private static final class StubEnemy implements EnemyLevelObject, CarriableLevelObject {
         private final GameEngine gameEngine;
         private final PixelPosition position;
         private final FixedPointVelocity velocity = STILL;
@@ -179,6 +229,8 @@ class EnemyMotionManagerTest {
         private boolean expired;
         @Setter
         private boolean hittable = true;
+        @Setter
+        private boolean carried;
         @Setter
         private Reward pendingScoreReward;
         private int motionUpdates;
@@ -197,6 +249,31 @@ class EnemyMotionManagerTest {
         @Override
         public boolean isHittable() {
             return hittable;
+        }
+
+        @Override
+        public boolean isCarriable() {
+            return !carried;
+        }
+
+        @Override
+        public boolean isCarried() {
+            return carried;
+        }
+
+        @Override
+        public void onCarried(final LevelScenePlayer player) {
+            carried = true;
+        }
+
+        @Override
+        public void onReleased(final LevelScenePlayer player) {
+            carried = false;
+        }
+
+        @Override
+        public void drawCarriedAt(final PixelPosition anchor) {
+            // No sprite to place; the gate under test is the manager's, not any renderer's.
         }
 
         @Override

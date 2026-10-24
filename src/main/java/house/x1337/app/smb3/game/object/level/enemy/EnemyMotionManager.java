@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.object.level.enemy;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.enumeration.Reward;
@@ -46,7 +47,7 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
         final Iterator<E> iterator = activeInstances.iterator();
         while (iterator.hasNext()) {
             final E instance = iterator.next();
-            if (!activeRegion.intersects(instance.getBounds())) {
+            if (!isExemptFromActivationWindow(instance) && !activeRegion.intersects(instance.getBounds())) {
                 continue;
             }
             if (!instance.isSpawnedIntoScene()) {
@@ -116,6 +117,10 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
 
     default int getActivationMarginPixels() {
         return TILE_SPRITE_SIZE * 2;
+    }
+
+    default boolean isExemptFromActivationWindow(final E instance) {
+        return instance instanceof CarriableLevelObject carriable && carriable.isCarried();
     }
 
     default void spawn(final E enemy) {

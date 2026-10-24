@@ -64,7 +64,7 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
     @Override
     public void update(final LevelScenePlayer levelScenePlayer) {
         final Node node = levelScenePlayer.getNode();
-
+        final ShrunkAnimatorAssets assets = getAssets();
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
         final PlayerMovement movement = levelScenePlayer.getRuntimeState().getMovement();
         final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
@@ -76,14 +76,18 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         // so we never check isDucking() here — it will always be false.
         // -----------------------------------------------------------------------
 
+        if (renderCarryPose(node, levelScenePlayer, orientation)) {
+            return;
+        }
+
         if (movement == STILL) {
             renderStill(node, orientation, assets.still());
             return;
         }
 
         if (movement == SKIDDING) {
-            walkAnimTicks = 0;
-            walkFrameIndex = 0;
+            setWalkAnimTicks(0);
+            setWalkFrameIndex(0);
             if (frameChanged(SKIDDING, orientation, -1)) {
                 rebuildWithTexture(node, assets.skid(), orientation);
                 markRendered(SKIDDING, orientation, -1);
@@ -120,8 +124,8 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         }
 
         // Unhandled state — reset so the next handled state forces a rebuild.
-        lastRenderedState = null;
-        lastOrientation = null;
-        lastWalkFrame = -1;
+        setLastRenderedState(null);
+        setLastOrientation(null);
+        setLastWalkFrame(-1);
     }
 }

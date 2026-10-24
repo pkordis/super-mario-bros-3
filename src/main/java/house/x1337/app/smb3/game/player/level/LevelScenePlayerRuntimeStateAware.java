@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.Offset;
@@ -227,6 +228,81 @@ public interface LevelScenePlayerRuntimeStateAware
         final PlayerRuntimeState runtimeState = getRuntimeState();
         return !runtimeState.isHurtInvincible() && !runtimeState.isTransitioning() && !runtimeState.isDying();
     }
+
+    /**
+     * @return whether the player has something in their hands (dasm {@code Player_IsHolding})
+     */
+    default boolean isCarrying() {
+        return getRuntimeState().isCarrying();
+    }
+
+    /**
+     * Whether a carriable object touching the player right now may be taken — the ROM's
+     * {@code Object_HoldKickOrHurtPlayer} guard (dasm prg000 @ PRG000_D343:
+     * {@code LDA Player_ISHolding_OLD / BNE} straight to {@code RTS}).
+     *
+     * <p>Two conjuncts, and they are not the same test. {@code wasCarrying} is the ROM's one-tick lag:
+     * the drop runs in the object loop, this runs afterwards in the player collision pass, so without
+     * the lag the very frame that let go of one shell could take the next. {@code isCarrying()} covers
+     * what the ROM gets from having eight object slots and one flag — two carriables overlapping the
+     * player on the <em>same</em> collision pass. The ROM would put both in {@code OBJSTATE_HELD} and
+     * carry only the one it happened to draw; a single reference here would strand the other in a state
+     * nothing ever leaves.
+     *
+     * @return {@code true} if a pickup is allowed on this tick
+     */
+    default boolean canPickUpCarriable() {
+        return !getRuntimeState().isWasCarrying() && !isCarrying();
+    }
+
+    /**
+     * Takes an object into the player's hands (dasm prg000 @ PRG000_D34F:
+     * {@code LDA #OBJSTATE_HELD / STA Objects_State}).
+     *
+     * @param carriable the object being picked up
+     */
+    default void pickUp(final CarriableLevelObject carriable) {
+        getRuntimeState().setCarriedObject(carriable);
+        carriable.onCarried(asLevelScenePlayer());
+    }
+
+    /**
+     * Lets go of whatever the player is carrying. <b>The single release call site on the player side</b>
+     * — SMB3-10 replaces the drop-in-place behaviour behind {@code onReleased} with the ROM's kick, and
+     * nothing here changes.
+     *
+     * <p>Safe to call unconditionally; an empty-handed player is a no-op. Note that nothing calls it on
+     * the death or transition path, and that is the ROM's behaviour rather than an omission:
+     * {@code ObjState_Held} draws the held object and returns while {@code Player_IsDying} is set (dasm
+     * prg000 @ PRG000_CE1F), so a player who dies holding a shell dies holding it. The whole pipeline is
+     * frozen for the duration either way, and the level restart builds a fresh player and state.
+     */
+    default void releaseCarriedObject() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        final CarriableLevelObject carried = runtimeState.getCarriedObject();
+        if (carried == null) {
+            return;
+        }
+        runtimeState.setCarriedObject(null);
+        carried.onReleased(asLevelScenePlayer());
+    }
+
+    /**
+     * Snapshots the carry state for the ROM's {@code Player_ISHolding_OLD}.
+     *
+     * <p>Advanced at the very top of the player's tick, above every early return, for the same reason
+     * {@code tickTailAttackCountdown} is: a lag flag that stops being updated is a lag flag that lies.
+     * A player who dies holding a shell must not come back able to pick one up on the frame the carry
+     * ended.
+     */
+    default void advanceCarryLag() {
+        getRuntimeState().setWasCarrying(isCarrying());
+    }
+
+    /**
+     * @return this, as the concrete player the carriable hand-off is expressed in terms of
+     */
+    LevelScenePlayer asLevelScenePlayer();
 
     /**
      * Discards an advanced suit, poofing back to {@link PlayerMode#NORMAL} and arming the flashing
