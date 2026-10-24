@@ -55,18 +55,23 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
     @Override
     public void update(final LevelScenePlayer levelScenePlayer) {
         final Node node = levelScenePlayer.getNode();
+        final NormalAnimatorAssets assets = getAssets();
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final PlayerMovement movement = runtimeState.getMovement();
         final int flyTime = runtimeState.getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
+        if (renderCarryPose(node, levelScenePlayer, orientation)) {
+            return;
+        }
+
         if (runtimeState.isDucking()) {
             // Big Mario ducks exactly like raccoon (dasm prg008 PRG008_A72B),
             // minus the tail. Ducking overrides all grounded/air movement
             // states, so it is checked first (mirrors RaccoonAnimator).
-            walkAnimTicks = 0;
-            walkFrameIndex = 0;
+            setWalkAnimTicks(0);
+            setWalkFrameIndex(0);
             if (frameChanged(DUCKING, orientation, -1)) {
                 rebuildWithTexture(node, assets.duck(), orientation);
                 markRendered(DUCKING, orientation, -1);
@@ -80,8 +85,8 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         }
 
         if (movement == SKIDDING) {
-            walkAnimTicks = 0;
-            walkFrameIndex = 0;
+            setWalkAnimTicks(0);
+            setWalkFrameIndex(0);
             if (frameChanged(SKIDDING, orientation, -1)) {
                 rebuildWithTexture(node, assets.skid(), orientation);
                 markRendered(SKIDDING, orientation, -1);
@@ -111,8 +116,8 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         }
 
         // Unhandled state — reset so the next handled state forces a rebuild.
-        lastRenderedState = null;
-        lastOrientation = null;
-        lastWalkFrame = -1;
+        setLastRenderedState(null);
+        setLastOrientation(null);
+        setLastWalkFrame(-1);
     }
 }

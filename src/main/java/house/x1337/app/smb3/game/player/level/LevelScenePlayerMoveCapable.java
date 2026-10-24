@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.GameConstants;
+import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -23,6 +24,7 @@ import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
+import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.TURN_AROUND_FACE_TICKS;
 import static java.lang.Math.abs;
 import static java.lang.Math.floor;
 import static java.lang.Math.min;
@@ -65,10 +67,19 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         // deliberately left running — the ROM's skip covers the facing store only.
         final boolean tailAttacking = runtimeState.getPlayerTailAttackCountdown() > 0;
         if (!tailAttacking) {
+            final PlayerOrientationHorizontal facingBefore = orientation.getHorizontal();
             if (inputLeft) {
                 orientation.setHorizontal(LEFT);
             } else if (inputRight) {
                 orientation.setHorizontal(RIGHT);
+            }
+            // Turning around with something in your hands briefly faces the camera (dasm prg008 @
+            // PRG008_AF2F: Player_FlipBits is compared against Player_FlipBits_OLD while
+            // Player_IsHolding is set, and a difference arms Player_PipeFace = 7). Armed here because
+            // this is the only place the facing is written, so "changed since last tick" and "changed
+            // by this store" are the same question.
+            if (runtimeState.isCarrying() && orientation.getHorizontal() != facingBefore) {
+                runtimeState.setTurnAroundFaceCounter(TURN_AROUND_FACE_TICKS);
             }
         }
 

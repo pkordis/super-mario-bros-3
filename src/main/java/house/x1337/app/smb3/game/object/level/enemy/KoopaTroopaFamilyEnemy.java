@@ -1,12 +1,15 @@
 package house.x1337.app.smb3.game.object.level.enemy;
 
 import com.jme3.scene.Geometry;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.model.game.WorldOffset;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 
-public interface KoopaTroopaFamilyEnemy extends GroundWalkingEnemy {
+public interface KoopaTroopaFamilyEnemy extends GroundWalkingEnemy, CarriableLevelObject {
     int CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT = 16;
+    int CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT = -64;
+
     int SHELL_FEET_THRESHOLD_TICKS = 80;
     int SHELL_FOOT_OUTWARD_OFFSET_PIXELS = 3;
     int SHELL_JITTER_PIXELS = 1;

@@ -1163,3 +1163,277 @@ so every ground walker gets it. `KoopaTroopaShellTest` pins both halves: the lim
 of depth, and the behaviour — a shell at its apex over a one-way platform is left alone and falls past
 it, while one descending onto the same platform from above still lands on it. Both fail without the
 guard.
+
+---
+
+## Carrying (SMB3-9)
+
+### `CarriableLevelObject` is a sibling of `EnemyLevelObject`, not a subtype
+
+Same reasoning as `EnemyLevelObject` beside `RewardLevelObject`, one axis over: carriability and
+enemyhood are orthogonal. An Ice Block and a thrown brick are carriable and are not enemies; a Goomba is
+an enemy and never carriable. `KoopaTroopa` implements both, which is the only reason the two ever meet.
+
+`isCarriable()` is **per state, not per type** — the ROM encodes it as
+`Objects_State == OBJSTATE_SHELLED` inside `Object_HoldKickOrHurtPlayer` (`prg000.asm:4042`), so a
+walking troopa hurts you and only a shelled one goes in your hands. A type-level marker would have let
+the player grab a walking troopa, which is why there is no type-level marker.
+
+The carry *positioning* lives on the interface as a default (`carryAnchorFor`) rather than on the player,
+because that is where the ROM puts it: `ObjState_Held` is the **object's** state routine and it reads
+`Player_X`, `Player_Y` and `Player_Suit` directly (`prg000.asm:3041-3069`). `getCarryAnchorOffset()` is
+the per-object correction on top; the ROM's one user of it is a giant object (`-$02` in place of
+`+$0D`), which is out of scope, so for now every implementation returns zero.
+
+**The turn-around tuck crosses the body towards the new facing, not away from it**, and
+`ObjectHoldXOff`'s index arithmetic hides that. `Y = (facing right ? 0 : 1) + 2 + (PipeFace >= 5 ? 1 : 0)`
+against `{$0B, -$0B, $04, -$04, $04, ...}` gives a right-facing player `-$04` for the first two posed
+ticks and `+$04` for the remaining four: the object starts on the side the player came **from** and
+swings across. Getting this backwards is easy, reads plausibly, and is invisible without the table in
+front of you — it was caught in review, not in testing, which is why both facings and both sides of
+`CARRY_TUCK_SIDE_SWAP_TICKS` are now pinned.
+
+### The `isHittable()` split, finally
+
+The previous section's "`isHittable()` is too coarse" prediction came true exactly as written. It is now
+two questions:
+
+- **`isHittable()`** — reachable in the broad-phase. Its manager inserts it only while this holds, so
+  `false` makes an object untouchable by every path at once.
+- **`canHurtPlayer()`** — whether a body contact costs the player a suit. Defaults to `isHittable()`,
+  because for every enemy up to the shell the two coincided.
+
+A shelled troopa is the first object that is the former without the latter. The old Javadoc argued one
+flag was enough because "a defeated object's state routine never calls `Player_HitEnemy`"; the shelled
+state *does*, and from there `Object_HoldKickOrHurtPlayer` — so it has to stay reachable or it could be
+neither picked up nor kicked nor tail-struck. `KoopaTroopa.canHurtPlayer()` replaced the private
+`doesNotRespondToPlayerContact()` stopgap verbatim (`state == NORMAL && hitCooldownTicks == 0`), and is
+also the stomp gate, deliberately the same expression: the ROM reaches both past one `Objects_Timer2`
+test.
+
+`Obj2Obj_EnByState` (`prg000.asm:6094`) is the authority on which states stay reachable, and it is worth
+reading before adding one: `Normal`, `Shelled`, `Held` and `Kicked` are all **enabled**; `Killed`,
+`Squashed` and `Dying` are not. So `KoopaTroopa.isHittable()` is `state != KILLED` and nothing more —
+and a *held* shell being object-to-object enabled is not an oversight.
+
+One open thread there. `Object_BumpOffOthers` itself (`prg000.asm:2423`) tests `OBJSTATE_NORMAL`, where
+`KoopaTroopa.bouncesOffOtherObjects()` is a constant `true` that SMB3-7 pinned by test with the comment
+"Object_BumpOffOthers in the shell". Either the comment or the ROM reading is wrong. Left exactly as
+SMB3-7 left it rather than reversed here, because the only consequence is a facing flip on a shell whose
+facing is not read again, and widening it into a state-dependent method would change shelled behaviour
+this ticket has no business changing. Worth settling when the kick lands.
+
+### Two player flags, and why the second is not redundant
+
+`Player_IsHolding` ("animation effect only") and `Player_ISHolding_OLD` (smb3.asm:1904-1905). The
+**second** is what gates a new pickup. Ported as `PlayerRuntimeState.carriedObject` (a reference) plus
+`wasCarrying`, snapshotted at the top of `updateFrame` beside `tickTailAttackCountdown` and above every
+early return.
+
+The lag is load-bearing because of the engine's tick order, which matches the ROM's: players update,
+then the object loop runs (`motionUpdate` → `ObjState_Held`, where the release is detected), then the
+player collision pass runs (`onPlayerOverlap` → the pickup test). Release and pickup therefore land in
+that order **within one tick**, and testing the live reference in the second would let the frame that
+dropped one shell take the next.
+
+`canPickUpCarriable()` ANDs the lag flag with `!isCarrying()`, and the second conjunct is **not** in the
+ROM. The ROM gets away with the lag alone because it has eight object slots and a flag: two carriables
+overlapping the player on the same pass both go to `OBJSTATE_HELD` and it carries whichever it draws. A
+single reference cannot — the other object would be stranded in a state nothing ever leaves.
+
+### A reference does not lapse the way a flag does
+
+The ROM re-asserts `Player_IsHolding` every tick from inside `ObjState_Held`, so a carry ends for free
+the moment that routine stops running — a wake-up, a tail strike, anything. A reference does not, and a
+carry still pointing at a troopa that has gone back to walking is a troopa stapled to the player. Hence
+`KoopaTroopa.endCarry()`, called from **every** exit from `HELD`: the release, the wake-up, and
+`enterShell()` (which is how a tail strike on your own held shell takes it off you). Adding a new way
+out of the held state means calling it.
+
+What it deliberately does **not** clear is the turn-around pose. `PRG008_AF2F` reaches the
+decrement-and-draw on `Player_PipeFace` alone, *before* it tests `Player_IsHolding`, so a player who
+drops the shell two ticks in keeps facing the camera for the remaining five — which is why
+`renderCarryPose` tests the pose ahead of the carry rather than inside it.
+
+Nothing releases on the death or transition path, and that is the ROM too: `ObjState_Held` draws the
+held object and returns while `Player_IsDying` is set, so a player who dies holding a shell dies holding
+it. The pipeline is frozen for the duration either way and the restart builds a fresh player and state.
+
+### Carrying, per tick — and per *rendered frame*
+
+The logical position and the sprite are updated at different rates, and conflating them is what makes a
+held object visibly shake.
+
+- **Logical position**: assigned once per simulation tick, in the object's own held routine, from the
+  player's live position. This is what collision reads.
+- **Sprite**: placed once per **rendered frame**, by the player's own visual step
+  (`LevelScenePlayer.interpolateVisualPosition`), from the player's *interpolated* position.
+
+The second is not optional. `GameEngine.simpleUpdate` runs the simulation at a fixed 60 Hz and then
+re-places every player's node from `interpolateBetweenPreviousAndCurrent(alpha)` on every rendered
+frame, so above 60 Hz the player slides smoothly between ticks. An object placed from the simulation
+position lags its holder by up to a tick, which reads exactly as the shell shaking in Mario's hands.
+
+Hence `CarriableLevelObject.carryAnchorFrom(player, x, y)` takes the position rather than reading it off
+the player: the two callers hand it different answers on purpose. And `drawCarriedAt` places the sprite
+without touching the logical position, so the renderer can never feed interpolated values into
+collision. The held routine deliberately does **not** place the sprite — one owner, and it is the
+player's visual step, which is what "update both at once" means here.
+
+The scene-graph alternative — parenting the carried object's quad under the player's node — does not
+work: `rebuildWithTexture` calls `node.detachAllChildren()` on every frame change, so anything attached
+there is thrown away the next time the player's pose changes.
+
+### The wake-up clock keeps running while held
+
+`Object_ShellDoWakeUp` is called from `ObjState_Held` exactly as it is from `ObjState_Shelled`
+(`prg000.asm:3507-3555`), so **hold a shell long enough and it breaks free in your hands**. At zero:
+
+- clear of the world → `OBJSTATE_NORMAL`, facing the player, and the player is now standing inside a
+  live troopa;
+- touching anything → 100 points, `OBJSTATE_KILLED`, `YVel = -$40`, `XVel = 0`.
+
+The probe is `Object_WorldDetectN1`, and the `N1` matters: `A = $FF` is the "no floor-depth limit"
+variant (see the `Object_WorldDetect4` section above for what the limit is and why it exists), so this
+asks only whether the shell is *touching* a surface, not whether it is landing on one. Pressing a shell
+into a wall as it wakes is the case it exists for. `KoopaTroopa.isPressedIntoTheWorld()` is deliberately
+its own probe rather than a reuse of `isGroundBelow`, which has the limit.
+
+Note the carry's own geometry keeps the shell clear of the floor a grounded player is standing on: the
+player's feet are at `Player_Y + 32` either size, and the 16px shell hangs from `+13` (`+15` when
+small), so its bottom edge is a few pixels *above* the feet. Without that it would read as crushed on
+every wake-up.
+
+### Release is a scaffold, and is marked as one
+
+`onReleased` drops the object where it stands. **The ROM kicks it** (`BVC Player_KickObject`,
+`prg000.asm:2819`), and so does a B-not-held contact (`prg000.asm:4042`). Both are SMB3-10, both are
+single call sites, and both are commented as deviations at the site. The drop sets
+`Objects_Timer2 = 8` and `isCarriable()` ANDs in `hitCooldownTicks == 0` — also not the ROM, which
+branches on the state before it reaches the `Timer2` gate — purely so the frame that put the shell down,
+with the player still overlapping it, cannot read as a fresh pickup. When the release becomes a kick the
+shell leaves under its own power and that conjunct can go.
+
+What the drop must **not** do is go through `enterShell()`, which reloads `Objects_Timer3` from `$FF`. A
+released shell resumes with whatever is left on its clock.
+
+The drop does one thing the ROM has no equivalent for: if the release position overlaps terrain, the
+shell is pulled back to the player's own column. Overlapping terrain is harmless while held — the held
+routine probes the world only at wake-up — but a *stationary* shell has nothing to push it out, since
+`moveShellHorizontally` returns immediately while `XVel` is zero and the vertical pass only resolves
+floors and ceilings. Hold a shell against a wall, let go, and without this it settles inside the wall and
+later stands up inside it. The ROM needs no equivalent precisely because its release is a kick, and a
+kicked shell about-faces its way out of anything it starts inside — so this correction goes away with
+the scaffold.
+
+### What holding actually restricts — the audit, because the ticket's list was wrong
+
+prg008 reads `Player_IsHolding` in exactly **six** places. All six:
+
+| site | what it does | here? |
+|---|---|---|
+| `:1376` PRG008_A6F2 | forces ducking off | **yes**, `handleDucking` |
+| `:1713` PRG008_A86C | blocks grabbing a vine | no vines yet |
+| `:2023` `GndMov_Frog` | zeroes `Player_FrogHopCnt` | Frog suit, out of scope |
+| `:2581` PRG008_AC41 | blocks the star-invincibility **backflip** | no star invincibility yet |
+| `:3182` PRG008_AF0F | selects the hold frame | **yes**, the mode animators |
+| `:3213` PRG008_AF2F | arms the turn-around pose | **yes**, `handleHorizontalMovement` |
+
+So, contrary to the ticket's table:
+
+- **The P-meter charges while carrying.** `Player_PowerUpdate` (@ PRG008_A4C7) has no holding test, and
+  neither has the single write of `Player_RunFlag` that feeds it (@ PRG008_AB75 — airborne, sliding, B
+  held, `>= PLAYER_TOPRUNSPEED`, and nothing else). `:2581` is the somersault, not the meter.
+- **A raccoon can fly and tail-wag with a shell in hand.** `Player_JumpFlyFlutter` and
+  `Player_AnimTailWag` have no holding test. `:2023` is the Frog suit's hop counter.
+- **The tail attack is not blocked either.** `Player_TailAttackAnim` (@ PRG008_B0CE) gates the swing on
+  `Pad_Down` and its own countdown. The swing connects while you carry; it is simply never *drawn*,
+  because the hold frame overwrites the frame the swing chose two branches later. The only thing in the
+  ROM that clears `Player_TailAttack` here is the **kick** (@ PRG008_AF52) — which is SMB3-10's, and
+  which is also the one addition the `neutraliseMotionForTransition` Javadoc anticipates.
+
+None of those gates are implemented. The audit is repeated at the head of
+`LevelScenePlayerMoveCapable` so it is read by whoever next wonders.
+
+### Frame selection is a chain of overwrites, so the carry branch goes first
+
+`prg008` picks `Player_Frame` by writing it repeatedly: movement, then duck, then tail attack
+(`Player_TailAttackAnim`), then **hold** (@ PRG008_AF0F), then **face-forward** (@ PRG008_AF2F), then
+kick (@ PRG008_AF52). Later wins. So `renderCarryPose` is tested *first* in every mode animator —
+ahead of ducking and ahead of the tail swing — and the turn-around pose is tested inside it, ahead of
+the hold frames.
+
+Three details that are easy to lose:
+
+- **No new clock.** The beat is the shared `Player_WalkFrame`. It advances while the player moves, and a
+  player who stops dead is **forced to beat 2**, not left on whichever beat the last stride ended on —
+  `PRG008_AE03` writes `#$02` outright when no direction is held and `XVel == 0`, which is the same
+  thing `renderStill` already does on the ordinary path. Beat 2 is `holding_3` for the large suits and
+  `holding_1` for small.
+- **Airborne pins the cycle** to entry 0, or entry 1 when small (@ PRG008_AF15, off
+  `Player_InAir_OLD`). Small Mario's cycle therefore starts on its *second* pose in mid-air.
+- **Carrying is not a `PlayerMovement`**, so `frameChanged(state, orientation, frame)` cannot see the
+  pose change on its own. `wasCarryPosed` is the same device, for the same reason, as
+  `RaccoonAnimator.wasTailAttacking`.
+- **The hold cycle is indexed by its own length.** `walkFrameIndex` is bounded by the *walk* sequence's
+  length, which is four in every mode today and has nothing to do with how many hold poses a bundle
+  ships; `holdFrame` wraps rather than relying on the coincidence.
+
+### The carry frames are not all their mode's size
+
+`normal`'s three hold poses are **16x32**, and `facing_forward.png` is 16x32 in both `normal` and
+`raccoon`; raccoon's hold poses are 24x32 and `shrunk` is 16x16 throughout. Both modes' `QUAD_WIDTH` is
+a fixed 24px, so routing a 16px frame through the mode quad stretches it 1.5x *and* mis-places the
+right-facing flip, since `rightPadding` assumes slack the frame does not have.
+
+The fix is `LevelScenePlayerAnimator.rebuildWithTextureDerivedQuad`, which takes the quad from the image
+and the padding from `width - 16`. That is correct for **every** hold and face-forward frame in all
+three modes with no per-frame table — which is what the alternative,
+`RaccoonAnimator.tailAttackFrameWidth`, is. It has to be a separate method because
+`BaseLevelScenePlayerAnimator` overrides the three-argument `rebuildWithTexture` as `final` to bind it
+to the mode's specifications.
+
+The `kick` frame is **not** covered by this and will need its own handling: it is right-anchored with
+the foot overhanging leftward, which neither `rightPadding` nor the texture-derived padding can express.
+`NormalAnimatorAssetsTest.theKickFrameIsRightAnchored` says so already.
+
+### Z depth, and the camera activation window
+
+**The player is drawn in front of what it carries**, and that is the ROM's ordering rather than a
+preference — the ticket asserted the opposite and was wrong. An object's OAM slot comes from
+`SprRamOffsets` (`prg000.asm:590`), every entry of which is `$40` or higher, while the player is rooted
+at `$28` (`prg008.asm:480`, commented as such). A lower index draws in front on the NES. The hands are
+part of the player's sprite, so this is simply what makes them visible around the shell.
+
+There is one exception, and it explains a line that otherwise looks arbitrary: `ObjState_Held` forces
+`Object_SprRAM = $10` whenever `Player_PipeFace` is non-zero (@ PRG000_CF1A), and `$10` is *below* the
+player's `$28`. So for the seven ticks of the camera-facing turn-around — and in pipes — the carried
+object is held out **in front** of its holder, towards the viewer. Both sides are implemented and
+pinned.
+
+`Z_OFFSET_CARRIED_BEHIND_PLAYER` and `Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER` are **offsets applied to
+`PlayerVisibility.getPlayerZ()`**, not absolute depths, because the player's layer is not fixed: an
+absolute value would leave the shell in front of terrain the player had just gone behind. The behind
+case still lands ahead of `Z_DEPTH_ENEMY`, which is also right — a carried shell passes in front of a
+walking Goomba. `Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT` keeps a waking shell's feet behind the shell
+on either side of the comparison, as `Sprite_RAM+$08`/`+$0C` against `+$00`/`+$04` does
+(`prg000.asm:2398`). And the carry depth composes with the persistent `SPR_VFLIP` lift rather than
+replacing it: **you carry an upside-down shell upside down.**
+
+`EnemyMotionManager.isExemptFromActivationWindow` exists because the window's premise does not hold for
+a carried object. The window is there so an object the camera has not reached is not *simulated*; a
+carried object is not simulating, it is being **placed**, from a player who is on screen by definition.
+Skipping its tick would not pause anything, it would desync it from its holder and drop it out of the
+broad-phase. Once released it is an ordinary object again, so the exemption is scoped to the carry and
+no wider — which is what the second half of `carriedEnemyIsExemptFromTheActivationWindow` pins. The ROM
+reaches the same place differently: `Object_ShellDoWakeUp` pops straight past `Object_DeleteOffScreen`
+for a held object (@ PRG000_D155).
+
+### Deliberately not done
+
+- The **kick**, on release and on a B-not-held contact (SMB3-10), and `Objects_KillTally` with it.
+- Any carriable other than the shelled troopa — but nothing in the interface assumes otherwise.
+- Carrying through pipes (`Level_PipeMove`), Kuribo's shoe, statue form, giant objects.
+- Bob-omb and Ice Block specialisations, and two-player carry.
+- `bouncesOffOtherObjects()` is left as SMB3-7 pinned it — see the `Obj2Obj_EnByState` note above for
+  the open question it leaves.

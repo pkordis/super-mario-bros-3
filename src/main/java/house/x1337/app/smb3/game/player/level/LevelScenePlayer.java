@@ -9,6 +9,7 @@ import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.player.PlayerData;
@@ -153,6 +154,27 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         final double top = position.getY() + (largeStanding ? 5 : 17);
         final double bottom = position.getY() + 30;
         return new AxisAlignedBoundingBox(left, top, right, bottom);
+    }
+
+    /**
+     * Whether the carry button is held down this tick — the ROM's {@code BIT Pad_Holding / BVC} test
+     * on bit 6 ({@code PAD_B}), which both the pickup (dasm prg000 @ PRG000_D346) and the release
+     * (@ PRG000_CE2C) read.
+     *
+     * <p>Deliberately the <em>held</em> state and not {@code consumePress}: the press edge belongs to
+     * the tail swing, and a carry that consumed it would silently cancel the swing. It is also what
+     * makes "B is no longer held" a usable release test, since the input handler exposes no release
+     * edge of its own.
+     *
+     * @return {@code true} while B is down
+     */
+    public boolean isCarryButtonHeld() {
+        return inputHandler.isActive(HANDLER_RUN);
+    }
+
+    @Override
+    public LevelScenePlayer asLevelScenePlayer() {
+        return this;
     }
 
     /**
@@ -323,6 +345,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // tickTailAttackCountdown for what gating it strands.
         tickTailAttackCountdown();
 
+        // Player_ISHolding_OLD, for the same reason and in the same place: a lag flag that stops being
+        // advanced is a lag flag that lies, and this one gates every pickup.
+        advanceCarryLag();
+
         // The death throe owns the tick: it freezes gameplay and plays out its own rise-and-fall off
         // the bottom of the screen (dasm Player_IsDying — the dying routine in prg029 PRG029_D768 owns
         // the Y motion while the rest of the game is halted). Checked first: a dying player runs no
@@ -440,6 +466,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // visibility came from the pre-decrement value, as the ROM's LDA/DEC order gives.
         runtimeState.decrementHurtInvincibility();
 
+        // Player_PipeFace, decremented one instruction after the test that chose the face-forward frame
+        // (dasm prg008 @ PRG008_AF45) — so, like the flash above, after advanceAnimation, because this
+        // tick's pose belonged to the pre-decrement value.
+        runtimeState.decrementTurnAroundFace();
+
         // Advance the vertical camera scroll (locked at the level bottom unless
         // flying/climbing — SMB3 Level_FreeVertScroll mode 0).
         updateVerticalScroll();
@@ -526,8 +557,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
         // Linearly interpolate between previous and current simulation positions
-        final PlayerPosition interpolatedPosition = position
-            .interpolateBetweenPreviousAndCurrent(alpha)
+        final PlayerPosition interpolated = position.interpolateBetweenPreviousAndCurrent(alpha);
+        final PlayerPosition interpolatedPosition = interpolated
             .toTileUnitBased(getLevelScene().getDimensions());
 
         getNode()
@@ -537,9 +568,25 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
                 getVisibility().getPlayerZ()
             );
 
+        // Anything in the player's hands moves in the same breath, off the same interpolated position.
+        // This is the only place a carried object's sprite is placed, and it has to be here: the node
+        // above is re-placed every rendered frame while the simulation advances at a fixed 60 Hz, so a
+        // carried object positioned from the simulation position would lag its holder by up to a tick
+        // and visibly shake. Collision still reads the object's own logical position, which its state
+        // routine assigns once per tick.
+        placeCarriedObject(interpolated);
+
         // Advance the camera's vertical scroll with the same alpha so the Y axis
         // interpolates in lockstep with the node (X follows the node directly).
         verticalScroll.interpolate(alpha);
+    }
+
+    private void placeCarriedObject(final PlayerPosition at) {
+        final CarriableLevelObject carried = runtimeState.getCarriedObject();
+        if (carried == null) {
+            return;
+        }
+        carried.drawCarriedAt(carried.carryAnchorFrom(this, at.getX(), at.getY()));
     }
 
     @Override

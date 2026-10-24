@@ -11,9 +11,7 @@ public interface LevelScenePlayerActionCapable extends LevelScenePlayerMoveCapab
         final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
         final PlayerRuntimeState runtimeState = getRuntimeState();
 
-        if (isSmall()) {
-            // Small Mario cannot duck (dasm prg008 PRG008_A70E: forcefully
-            // disable ducking when small/holding/sliding).
+        if (isSmall() || runtimeState.isCarrying()) {
             runtimeState.standUp();
         } else if (!runtimeState.isInAir()) {
             // Grounded: re-evaluate ducking from pad input each frame.

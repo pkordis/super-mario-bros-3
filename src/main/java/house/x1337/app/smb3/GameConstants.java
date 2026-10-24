@@ -147,6 +147,45 @@ public final class GameConstants {
     // FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
     // still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.
     public static final float Z_DEPTH_ENEMY = 0.07f;
+
+    /**
+     * How far <b>behind</b> its holder an object in the player's hands is drawn, so the hands stay
+     * visible around it.
+     *
+     * <p>This is the ROM's ordering, not a preference. Objects take their OAM slot from
+     * {@code SprRamOffsets} (dasm prg000.asm:590), every entry of which is {@code $40} or higher, while
+     * the player is rooted at {@code $28} ({@code prg008.asm:480}). A lower OAM index draws in front on
+     * the NES, so the player is in front of every object, carried or not.
+     *
+     * <p>Added to the holder's own {@code PlayerVisibility.getPlayerZ()} rather than being an absolute
+     * depth, so the carry survives the player switching foreground layer — an absolute value would put
+     * the shell in front of terrain the player had just gone behind. Note the result still sits ahead of
+     * {@link #Z_DEPTH_ENEMY}, which is also right: a carried shell passes in front of a walking Goomba.
+     */
+    public static final float Z_OFFSET_CARRIED_BEHIND_PLAYER = 0.006f;
+
+    /**
+     * The exception: while the camera-facing turn-around pose is running, the carried object is drawn
+     * <b>in front</b> of its holder.
+     *
+     * <p>{@code ObjState_Held} forces {@code Object_SprRAM = $10} whenever {@code Player_PipeFace} is
+     * non-zero (dasm prg000 @ PRG000_CF1A), and {@code $10} is below the player's {@code $28} — so for
+     * those few ticks, and only those, the object wins. Which is what the pose is: the player turns to
+     * face the viewer and holds the thing out towards them.
+     *
+     * <p>Numerically equal to {@link #Z_OFFSET_CARRIED_BEHIND_PLAYER} and deliberately named apart from
+     * it: they are opposite sides of one comparison and either could be retuned alone.
+     */
+    public static final float Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER = 0.006f;
+
+    /**
+     * How far behind a carried object its own secondary quads sit — a waking shell's flickering feet,
+     * which the ROM puts in the slots after the shell's ({@code Sprite_RAM+$08} and {@code +$0C} against
+     * the shell's {@code +$00} and {@code +$04}, dasm prg000.asm:2398). Applied either side of the
+     * comparison above, so the feet stay behind the shell whichever side of the player it is on.
+     */
+    public static final float Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT = 0.002f;
+
     public static final float Z_DEPTH_BRICK_BLOCK_FRAGMENT = 0.11f;
 
     // -------------------------------------------------------------------------
