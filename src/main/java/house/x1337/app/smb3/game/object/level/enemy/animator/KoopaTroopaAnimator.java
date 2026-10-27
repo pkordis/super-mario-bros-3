@@ -41,6 +41,19 @@ public final class KoopaTroopaAnimator implements EnemyAnimator<KoopaTroopaAnima
         return buildFlippableSprite(koopaTroopa, assetsFor(koopaTroopa).shell(), SHELL_DIMENSIONS);
     }
 
+    public void applyShellFrame(final KoopaTroopa koopaTroopa) {
+        final Geometry shellGeometry = koopaTroopa.getShellGeometry();
+        if (shellGeometry == null) {
+            return;
+        }
+        final KoopaTroopaAnimatorAssets assets = assetsFor(koopaTroopa);
+        final Texture[] spin = assets.shellSpin();
+        final Texture texture = koopaTroopa.isRolling()
+            ? spin[koopaTroopa.getSpinBeat() % spin.length]
+            : assets.shell();
+        shellGeometry.getMaterial().setTexture("ColorMap", texture);
+    }
+
     public Geometry buildShellFootSprite(
         final KoopaTroopa koopaTroopa,
         final boolean leftFoot

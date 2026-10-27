@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.enemy;
+package house.x1337.app.smb3.game.object.level.enemy.spawner;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
@@ -8,7 +8,9 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.service.LevelObjectData;

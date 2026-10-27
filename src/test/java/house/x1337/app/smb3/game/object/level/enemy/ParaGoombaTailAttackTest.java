@@ -9,10 +9,12 @@ import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -60,6 +63,9 @@ class ParaGoombaTailAttackTest {
 
     /** {@code Player_X ± $10} / {@code Player_Y + $10}. */
     private static final double TAIL_OFFSET = 0x10;
+
+    /** {@code ObjectToObject_HitXVel}'s rightward entry, as a carried shell resolves it. */
+    private static final int SHELL_KNOCK_RIGHT = 0x08;
 
     private static final int FLOOR_ROW = 10;
     private static final int REST_ROW = FLOOR_ROW - 1;
@@ -337,6 +343,45 @@ class ParaGoombaTailAttackTest {
     }
 
     // -------------------------------------------------------------------------
+    // The same one-hit kill, dealt by a shell instead of a tail
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("A shell rolled or carried into a Para-Goomba kills it outright, wings and all")
+    void aKickedObjectKillsThroughTheReplacement() {
+        // ObjectKill_SetShellKillVars (prg000.asm:2689-2706) is state-only and knows nothing about what
+        // it is killing, so there is no de-winging branch for it to take either.
+        // Prepare
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+        paraGoomba.faceClosestPlayer();
+
+        // Execute
+        paraGoomba.onStruckByKickedObject(SHELL_KNOCK_RIGHT);
+
+        // Verify
+        final Goomba replacement = captureSpawnedGoomba();
+        assertThat(replacement.getWhamMotion()).as("Struck in the same breath it was handed the slot").isNotNull();
+        assertThat(replacement.isSquished()).as("Thrown, not flattened").isFalse();
+        assertThat(paraGoomba.isDeWinged()).as("The de-winging stomp path was not taken").isFalse();
+        assertThat(paraGoomba.isExpired()).isTrue();
+        assertThat(paraGoomba.isHittable()).as("Intangible from the blow onwards").isFalse();
+    }
+
+    @Test
+    @DisplayName("A Para-Goomba already finished cannot be killed again by a shell")
+    void aFinishedParaGoombaIsNotKilledTwice() {
+        // Prepare - stomped first, so it has already handed its slot over once
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+        paraGoomba.onTailAttack(playerAt((START_COLUMN - 1) * (double) TILE_SPRITE_SIZE));
+
+        // Execute
+        paraGoomba.onStruckByKickedObject(SHELL_KNOCK_RIGHT);
+
+        // Verify - one handover, not two
+        verify(activeObjectGrid, times(1)).spawnEnemy(any());
+    }
+
+    // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
 
@@ -367,7 +412,7 @@ class ParaGoombaTailAttackTest {
         }
     }
 
-    /** A raccoon player on the Para-Goomba's row; only its position is read by either response. */
+    /** A raccoon player on the Para-Goomba's row; its position and its kill chain are read. */
     private static LevelScenePlayer playerAt(final double pixelX) {
         final PlayerPosition position = new PlayerPosition();
         position.setX(pixelX);
@@ -376,6 +421,9 @@ class ParaGoombaTailAttackTest {
 
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getPosition()).thenReturn(position);
+        when(player.getRuntimeState()).thenReturn(new PlayerRuntimeState());
+        doCallRealMethod().when(player).nextKillChainReward();
+        doCallRealMethod().when(player).currentKillChain();
         return player;
     }
 

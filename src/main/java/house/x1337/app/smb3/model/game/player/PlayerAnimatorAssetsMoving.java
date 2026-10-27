@@ -5,6 +5,7 @@ import com.jme3.texture.Texture;
 public interface PlayerAnimatorAssetsMoving extends PlayerAnimatorAssets {
     Texture faceForward();
     Texture[] hold();
+    Texture kick();
     Texture[] walk();
     Texture[] run();
 }

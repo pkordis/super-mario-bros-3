@@ -70,11 +70,9 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
-        // -----------------------------------------------------------------------
-        // Small Mario CANNOT duck (dasm prg008 PRG008_A70E). The flag is
-        // forcefully cleared each frame in LevelScenePlayer.handleDucking(),
-        // so we never check isDucking() here — it will always be false.
-        // -----------------------------------------------------------------------
+        if (renderKickPose(node, levelScenePlayer, orientation)) {
+            return;
+        }
 
         if (renderCarryPose(node, levelScenePlayer, orientation)) {
             return;

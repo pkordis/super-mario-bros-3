@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.object.level.enemy;
 
 import com.jme3.scene.Geometry;
+import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
@@ -8,20 +9,27 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
+import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Getter;
 import lombok.Setter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +37,11 @@ import java.util.List;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
@@ -42,8 +53,10 @@ import static org.mockito.Mockito.when;
  * {@code Player_HitEnemy} — so there is no flag to port, only the equivalent effect to pin.
  */
 class EnemyMotionManagerTest {
+    private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private StubEnemyMotionManager manager;
     private ActiveObjectGrid<ActiveLevelObject> broadPhase;
+    private PlayerData playerData;
     private GameEngine gameEngine;
 
     @BeforeEach
@@ -55,11 +68,29 @@ class EnemyMotionManagerTest {
         when(cameraState.getActiveObjectRegion(anyInt()))
             .thenReturn(new AxisAlignedBoundingBox(-1000, -1000, 1000, 1000));
 
+        playerData = new PlayerData();
         gameEngine = mock(GameEngine.class);
         when(gameEngine.getCameraState()).thenReturn(cameraState);
         when(gameEngine.getActiveObjectGrid()).thenReturn(broadPhase);
+        when(gameEngine.getPlayerData()).thenReturn(playerData);
+
+        // The caption is a prototype bean; a mock is enough, since what it looks like is its own test's
+        // subject and only its presence matters here. Reward.Data is a prototype too, and is what carries
+        // the points and lives this test is about, so that one has to be real.
+        staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(Reward.Data.class))
+            .thenAnswer(invocation -> new Reward.Data());
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(eq(ScorePopupAnimation.class), any(), any(), any()))
+            .thenAnswer(invocation -> mock(ScorePopupAnimation.class));
 
         manager = new StubEnemyMotionManager();
+    }
+
+    @AfterEach
+    void tearDown() {
+        staticBeanFactory.close();
     }
 
     @Test
@@ -195,6 +226,67 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
+    // Awarding, which is where the score actually reaches the player
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("A pending reward credits the player's score and raises a caption, in one pass")
+    void aPendingRewardCreditsTheScore() {
+        // The ROM splits a kill's award in two: the kill calls Score_PopUp, which only QUEUES the value
+        // into Scores_Value, and Scores_GiveAndDraw (dasm prg007.asm:2154-2189) later walks that queue
+        // giving the points and drawing the sprite. postCollision is that walk, so it has to do both -
+        // for a long time it only did the second half and every enemy kill scored nothing.
+        // Prepare
+        final StubEnemy enemy = enemyAt(32);
+        enemy.setPendingScoreReward(Reward.SCORE_400);
+        manager.spawn(enemy);
+
+        // Execute
+        manager.postCollision();
+
+        // Verify
+        assertThat(playerData.getScore()).isEqualTo(400);
+        assertThat(manager.getActiveScorePopups()).as("and the caption went up with it").hasSize(1);
+        assertThat(enemy.getPendingScoreReward()).as("drained, so it pays exactly once").isNull();
+    }
+
+    @Test
+    @DisplayName("The 1-up at the top of the kill ladder grants a life rather than silently paying zero")
+    void theOneUpAtTheTopOfTheLadderGrantsALife() {
+        // add(Reward.Data) and not addPoints: ONE_UP carries a life and no points, so crediting points
+        // alone would swallow the reward a long chain exists to earn (prg007.asm:2135 - the 1-up's own
+        // ScoreAdd entry is $00).
+        // Prepare
+        final StubEnemy enemy = enemyAt(32);
+        enemy.setPendingScoreReward(Reward.ONE_UP);
+        manager.spawn(enemy);
+        final int livesBefore = playerData.getLives();
+
+        // Execute
+        manager.postCollision();
+
+        // Verify
+        assertThat(enemy.getPendingScoreReward()).isNull();
+        assertThat(playerData.getLives()).isEqualTo(livesBefore + 1);
+        assertThat(playerData.getScore()).as("a 1-up is worth no points").isZero();
+    }
+
+    @Test
+    @DisplayName("An enemy with nothing pending credits nothing and raises nothing")
+    void anEnemyWithNoRewardIsLeftAlone() {
+        // Prepare
+        final StubEnemy enemy = enemyAt(32);
+        manager.spawn(enemy);
+
+        // Execute
+        manager.postCollision();
+
+        // Verify
+        assertThat(playerData.getScore()).isZero();
+        assertThat(manager.getActiveScorePopups()).isEmpty();
+    }
+
+    // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
 
@@ -262,12 +354,20 @@ class EnemyMotionManagerTest {
         }
 
         @Override
+        public LevelScenePlayer getCarrier() {
+            return null;
+        }
+
+        @Override
         public void onCarried(final LevelScenePlayer player) {
             carried = true;
         }
 
         @Override
-        public void onReleased(final LevelScenePlayer player) {
+        public void onKicked(
+            final LevelScenePlayer player,
+            final boolean toTheRight
+        ) {
             carried = false;
         }
 
@@ -317,6 +417,15 @@ class EnemyMotionManagerTest {
         public void hurt(final LevelScenePlayer player) {
             // Not exercised here: what a hit costs the player belongs to each enemy, and the gate under
             // test is the manager's broadphase admission.
+        }
+
+        /**
+         * A constant, so the caption's placement does not drag a whole {@code LevelScene} in. The default
+         * reads the scene's row count to flip the Y axis; nothing here asserts where a caption lands.
+         */
+        @Override
+        public WorldOffset getCurrentWorldOffset() {
+            return WorldOffset.of(0f, 0f, 0f);
         }
     }
 }

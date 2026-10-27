@@ -84,9 +84,10 @@ public final class RaccoonAnimator
         final int wagCount = runtimeState.getPlayerWagCount();
         final PlayerPosition position = levelScenePlayer.getPosition();
 
-        // Carrying overwrites every frame the branches below would choose (dasm prg008 @ PRG008_AF0F
-        // runs after Player_TailAttackAnim and writes Player_Frame last), so it is tested first - the
-        // tail swing included. See renderCarryPose.
+        if (renderKickPose(node, levelScenePlayer, orientationHorizontal)) {
+            return;
+        }
+
         if (renderCarryPose(node, levelScenePlayer, orientationHorizontal)) {
             return;
         }

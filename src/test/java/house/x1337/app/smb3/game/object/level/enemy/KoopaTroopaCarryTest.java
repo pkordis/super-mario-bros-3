@@ -5,12 +5,16 @@ import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -35,17 +39,22 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAIN
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.HELD;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KICKED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
 import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_DROP_PIXELS;
 import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_DROP_SMALL_PIXELS;
+import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_HIT_KNOCK_X_VELOCITY_FIXED_POINT;
 import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_SIDE_OFFSET_PIXELS;
 import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_TUCK_SIDE_OFFSET_PIXELS;
 import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.CARRY_TUCK_SIDE_SWAP_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.WAKE_UP_TICKS;
+import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.KICK_HIT_COOLDOWN_TICKS;
+import static house.x1337.app.smb3.game.object.level.CarriableLevelObject.KICK_X_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.SHELL_SHAKE_THRESHOLD_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.WAKE_UP_THROTTLE_MASK_HELD;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.TURN_AROUND_FACE_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -64,10 +73,11 @@ import static org.mockito.Mockito.when;
  * what happens when it is let go.
  *
  * <p>The contact decision is {@code Object_HoldKickOrHurtPlayer} (dasm prg000 @ PRG000_D336) and the
- * carry itself is {@code ObjState_Held} (@ PRG000_CE1F). Two things are deliberately <b>not</b> the
- * ROM's and are called out where they are pinned: releasing B drops the shell where it stands instead
- * of kicking it (SMB3-10 owns the kick), and a shell on its post-stomp hit cooldown cannot be grabbed,
- * which exists only to keep that drop-in-place from reading as a fresh pickup.
+ * carry itself is {@code ObjState_Held} (@ PRG000_CE1F). One thing is deliberately <b>not</b> the ROM's
+ * and is called out where it is pinned: a shell on its post-stomp hit cooldown cannot be grabbed, which
+ * exists only to keep the frame a stomp lands on from reading as a fresh pickup. The kick the release and
+ * the empty-handed contact both end in lives in {@code KoopaTroopaKickTest}; what is asserted here is
+ * that those two paths reach it at all.
  */
 class KoopaTroopaCarryTest {
     private static final double TOLERANCE = 1e-9;
@@ -82,8 +92,15 @@ class KoopaTroopaCarryTest {
     private static final double PLAYER_STANDING_Y = FLOOR_ROW * (double) TILE_SPRITE_SIZE - 2 * TILE_SPRITE_SIZE;
     private static final double PLAYER_X = 5 * TILE_SPRITE_SIZE;
 
-    /** Comfortably past the 415 frames {@code Objects_Timer3} needs, so a stuck carry fails loudly. */
-    private static final int WAKE_UP_CLOCK_FRAME_BUDGET = 600;
+    /**
+     * Comfortably past the 735 frames {@code Objects_Timer3} needs at the held state's quarter rate, so
+     * a stuck carry fails loudly.
+     */
+    private static final int WAKE_UP_CLOCK_FRAME_BUDGET = 900;
+
+    /** Aliased rather than statically imported, which would run past the 120-column limit. */
+    private static final int SHELL_KILL_LAUNCH_Y =
+        KoopaTroopaFamilyEnemy.SHELL_KILL_LAUNCH_Y_VELOCITY_FIXED_POINT;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private StaticEnvironmentCollisionGrid collisionGrid;
@@ -148,7 +165,7 @@ class KoopaTroopaCarryTest {
         assertThat(troopa.isCarriable()).as("walking is not carriable").isFalse();
         assertThat(troopa.getState()).isEqualTo(NORMAL);
         assertThat(player.getRuntimeState().getCarriedObject()).isNull();
-        verify(player).onHurt();
+        verify(player).getHurtBy(troopa);
     }
 
     @Test
@@ -167,26 +184,31 @@ class KoopaTroopaCarryTest {
         assertThat(player.getRuntimeState().getCarriedObject())
             .as("a reference, not a flag - the carry repositions this very object every tick")
             .isSameAs(troopa);
-        verify(player, never()).onHurt();
+        verify(player, never()).getHurtBy(any());
     }
 
     @Test
-    @DisplayName("Without B the contact does nothing at all: no pickup, and no hurt either")
-    void withoutBNothingHappensYet() {
-        // This is SMB3-10's slot. The ROM jumps to Player_KickObject here; until then a shell touched
-        // without B is simply inert, which is the one thing that must not be mistaken for the kick.
+    @DisplayName("Without B the contact kicks the shell instead, and turns the player to face it")
+    void withoutBTheContactKicksIt() {
+        // dasm prg000 @ PRG000_D34C: BIT Pad_Holding / BVS to the hold, otherwise JMP Player_KickObject.
+        // The shell sits at column 5 and the player at column 5 too, but the shell's X is the tile edge
+        // and the player's is the same - Level_ObjCalcXDiffs answers "player is to the right", so it goes
+        // left and the player turns left with it.
         // Prepare
         final KoopaTroopa troopa = grabbableShell();
         final LevelScenePlayer player = player(RIGHT, false, false);
 
         // Execute
         troopa.onPlayerOverlap(player);
-        troopa.onCollisionFromBelow(player);
 
         // Verify
-        assertThat(troopa.getState()).isEqualTo(SHELLED);
-        assertThat(player.getRuntimeState().getCarriedObject()).isNull();
-        verify(player, never()).onHurt();
+        assertThat(troopa.getState()).isEqualTo(KICKED);
+        assertThat(player.getRuntimeState().getCarriedObject()).as("kicked, not carried").isNull();
+        assertThat(player.getOrientation().getHorizontal())
+            .as("PlayerKickFlipBits turns the player towards whatever it kicks")
+            .isEqualTo(LEFT);
+        assertThat(troopa.getVelocity().x()).isEqualTo(-KICK_X_VELOCITY_FIXED_POINT);
+        verify(player, never()).getHurtBy(any());
     }
 
     @Test
@@ -210,8 +232,8 @@ class KoopaTroopaCarryTest {
     @Test
     @DisplayName("A freshly stomped shell is left alone until its hit cooldown expires")
     void theHitCooldownHoldsOffThePickup() {
-        // Deliberately NOT the ROM, which branches on the state before the Objects_Timer2 gate. It is
-        // the drop-in-place scaffold that needs it: see KoopaTroopa#isCarriable.
+        // Deliberately NOT the ROM, which branches on the state before the Objects_Timer2 gate. It keeps
+        // the frame a stomp lands on from reading as a fresh grab: see KoopaTroopa#isCarriable.
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
         troopa.onCollisionFromAbove(descendingPlayer());
@@ -245,7 +267,7 @@ class KoopaTroopaCarryTest {
 
         // Verify
         assertThat(troopa.getState()).as("neither held").isEqualTo(SHELLED);
-        verify(player, never()).onHurt();
+        verify(player, never()).getHurtBy(any());
     }
 
     // -------------------------------------------------------------------------
@@ -374,8 +396,8 @@ class KoopaTroopaCarryTest {
     }
 
     @Test
-    @DisplayName("Dropped, it goes back to the enemy band rather than tracking the player's layer")
-    void aDroppedShellLeavesTheCarriedDepthBand() {
+    @DisplayName("Kicked, it goes back to the enemy band rather than tracking the player's layer")
+    void aKickedShellLeavesTheCarriedDepthBand() {
         // Prepare
         final KoopaTroopa troopa = grabbableShell();
         final LevelScenePlayer player = player(RIGHT, true, false);
@@ -478,7 +500,9 @@ class KoopaTroopaCarryTest {
     @DisplayName("Held long enough, the shell breaks free in your hands and comes up walking")
     void theShellBreaksFreeOfTheHands() {
         // The detail most easily dropped, and a real mechanic: Object_ShellDoWakeUp is called from
-        // ObjState_Held exactly as it is from ObjState_Shelled.
+        // ObjState_Held exactly as it is from ObjState_Shelled - but the central loop swaps the
+        // Counter_1 mask from $01 to $03 for OBJSTATE_HELD (dasm prg000.asm:1889-1894), so the carry
+        // buys roughly twice the stay of a shell left on the floor.
         // Prepare
         final KoopaTroopa troopa = grabbableShell();
         final LevelScenePlayer player = player(RIGHT, true, false);
@@ -489,10 +513,13 @@ class KoopaTroopaCarryTest {
         final int framesHeld = tickWhileHeld(troopa);
 
         // Verify - the player is now standing inside a live troopa
+        final int fullRateUnits = SHELL_SHAKE_THRESHOLD_TICKS - 1;
+        final int throttledUnits = clockOnPickup - fullRateUnits;
+        final int expectedFrames = throttledUnits * (WAKE_UP_THROTTLE_MASK_HELD + 1) + fullRateUnits;
         assertThat(clockOnPickup).as("picked up with most of its clock left").isGreaterThan(200);
         assertThat(framesHeld)
-            .as("the clock really did run for the whole carry, at the shelled state's own rate")
-            .isGreaterThan(clockOnPickup);
+            .as("the held state's own quarter rate: four frames a unit above $60, one below")
+            .isEqualTo(expectedFrames);
         assertThat(troopa.getState()).isEqualTo(NORMAL);
         assertThat(troopa.isUpsideDown()).as("the whole-byte FlipBits write rights it").isFalse();
         assertThat(player.getRuntimeState().getCarriedObject()).isNull();
@@ -539,21 +566,19 @@ class KoopaTroopaCarryTest {
     }
 
     // -------------------------------------------------------------------------
-    // Release
+    // Release, which is a kick
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Releasing B drops the shell where it stands, with the stomp's brief hit cooldown")
-    void releasingBDropsItInPlace() {
-        // DEVIATION FROM THE ROM, and a deliberate one: BVC Player_KickObject kicks it (dasm prg000 @
-        // PRG000_CE2C). SMB3-10 replaces onReleased' body with the kick; this pins the scaffold.
+    @DisplayName("Releasing B kicks the shell away rather than putting it down")
+    void releasingBKicksIt() {
+        // dasm prg000 @ PRG000_CE2C: BIT Pad_Holding / BVC Player_KickObject. The whole of SMB3-9's
+        // drop-in-place scaffold went with this, because the ROM has no other way out of the hands.
         // Prepare
         final KoopaTroopa troopa = grabbableShell();
         final LevelScenePlayer player = player(RIGHT, true, false);
         troopa.onPlayerOverlap(player);
         troopa.motionUpdate();
-        final double carriedX = troopa.getPosition().x();
-        final double carriedY = troopa.getPosition().y();
         final int clockOnRelease = troopa.getWakeUpTicks();
 
         // Execute - B comes up
@@ -561,37 +586,43 @@ class KoopaTroopaCarryTest {
         troopa.motionUpdate();
 
         // Verify
-        assertThat(troopa.getState()).isEqualTo(SHELLED);
+        assertThat(troopa.getState()).isEqualTo(KICKED);
         assertThat(player.getRuntimeState().getCarriedObject()).isNull();
-        assertThat(troopa.getPosition().x()).as("left exactly where it was").isCloseTo(carriedX, within(TOLERANCE));
-        assertThat(troopa.getPosition().y()).isCloseTo(carriedY, within(TOLERANCE));
-        assertThat(troopa.getVelocity().x()).as("no kick: it is simply let go").isZero();
-        assertThat(troopa.getHitCooldownTicks()).isEqualTo(STOMP_HIT_COOLDOWN_TICKS);
+        assertThat(troopa.getVelocity().x())
+            .as("sent away in the direction the player faces, at the base kick speed")
+            .isEqualTo(KICK_X_VELOCITY_FIXED_POINT);
+        assertThat(troopa.getHitCooldownTicks())
+            .as("Objects_Timer2 = $10, so it cannot kill you on the way out of your hands")
+            .isEqualTo(KICK_HIT_COOLDOWN_TICKS);
         assertThat(troopa.getWakeUpTicks())
-            .as("and it resumes with whatever is left on its clock, not a fresh one")
+            .as("the wake-up clock is neither reset nor consulted by the kick")
             .isLessThanOrEqualTo(clockOnRelease);
-        assertThat(troopa.getWakeUpTicks()).isLessThan(WAKE_UP_TICKS);
     }
 
     @Test
-    @DisplayName("A dropped shell resumes its own physics and falls back to the ground")
-    void aDroppedShellResumesItsOwnBehaviour() {
-        // Prepare
+    @DisplayName("A shell kicked out of the hands into an adjacent wall dies there for 100 points")
+    void aShellKickedIntoAWallDiesThere() {
+        // dasm prg000.asm:2905-2932. The token ±1 X velocity exists only so the world detect has a side
+        // to look at; when the answer is "wall", the shell is killed on the spot with the upward death
+        // throw instead of being launched into it.
+        // Prepare - a wall in the column the carried shell reaches
+        solidColumn(6);
         final KoopaTroopa troopa = grabbableShell();
         final LevelScenePlayer player = player(RIGHT, true, false);
         troopa.onPlayerOverlap(player);
         troopa.motionUpdate();
+
+        // Execute
         when(player.isCarryButtonHeld()).thenReturn(false);
         troopa.motionUpdate();
 
-        // Execute
-        tick(troopa, 40);
-
         // Verify
-        assertThat(troopa.isGrounded()).isTrue();
-        assertThat(troopa.getPosition().y())
-            .as("settled on the floor it was dropped above")
-            .isCloseTo(WALK_ROW * (double) TILE_SPRITE_SIZE, within(TOLERANCE));
+        assertThat(troopa.getState()).isEqualTo(KILLED);
+        assertThat(troopa.getPendingScoreReward()).as("a flat 100, not the kill-tally ladder").isEqualTo(SCORE_100);
+        assertThat(troopa.getVelocity().y())
+            .as("thrown upward where it stood")
+            .isEqualTo(CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT);
+        assertThat(troopa.getVelocity().x()).as("the probe velocity is taken straight back off").isZero();
     }
 
     @Test
@@ -624,12 +655,12 @@ class KoopaTroopaCarryTest {
     }
 
     @Test
-    @DisplayName("A shell released while pressed into a wall is pulled clear rather than left inside it")
-    void aShellReleasedIntoAWallIsPulledClear() {
-        // Not the ROM's problem, because the ROM's release is a kick and a kicked shell about-faces its
-        // way back out of whatever it starts inside. A stationary drop has nothing to push it out -
-        // moveShellHorizontally returns immediately while XVel is zero - so it would settle inside the
-        // wall and later stand up inside it.
+    @DisplayName("A shell held inside a wall is kicked out of it, which the ROM's about-face then handles")
+    void aShellHeldInsideAWallIsKickedOutOfIt() {
+        // The scaffold this replaces had to pull a stationary drop clear of the wall by hand, because
+        // nothing would ever have pushed it out. The kick makes that unnecessary twice over: a kick into
+        // an adjacent wall kills the shell outright, and a kick that clears the wall about-faces its way
+        // back out. Pinned here because the fixture holds the shell visibly inside the wall first.
         // Prepare - a wall in the column the carried shell reaches
         solidColumn(6);
         final KoopaTroopa troopa = grabbableShell();
@@ -648,15 +679,132 @@ class KoopaTroopaCarryTest {
         tick(troopa, 40);
 
         // Verify
-        assertThat(troopa.getPosition().x())
-            .as("pulled back to the player's own column, which is legal ground by construction")
-            .isCloseTo(PLAYER_X, within(TOLERANCE));
-        assertThat(troopa.isGrounded()).isTrue();
+        assertThat(troopa.getState()).as("killed against the wall rather than left standing in it").isEqualTo(KILLED);
+        assertThat(troopa.isCarried()).isFalse();
+    }
+
+    // -------------------------------------------------------------------------
+    // Walking the carry into something
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Carrying the shell into another object kills both of them on the spot")
+    void carryingTheShellIntoSomethingKillsBoth() {
+        // dasm ObjState_Held @ PRG000_CF8A: the held object's own ObjectToObject_HitTest, and the block
+        // after it that sets OBJSTATE_KILLED on BOTH slots. A carried shell is a one-use weapon - which
+        // is the whole difference between walking one into an enemy and kicking one through a row of them.
+        // Prepare - a shell in the hands, and something standing where it is held
+        final KoopaTroopa troopa = grabbableShell();
+        final LevelScenePlayer player = player(RIGHT, true, false);
+        troopa.onPlayerOverlap(player);
+        troopa.motionUpdate();
+        final ActiveLevelObject victim = objectAt(troopa.getPosition().x());
+
+        // Execute
+        troopa.onCarriedInto(victim);
+
+        // Verify
+        assertThat(troopa.getState()).isEqualTo(KILLED);
+        assertThat(troopa.getVelocity().y())
+            .as("YVel = -$30, the shell kill's throw rather than the tail strike's -$50")
+            .isEqualTo(SHELL_KILL_LAUNCH_Y);
+        assertThat(troopa.getPendingScoreReward())
+            .as("Score_Get100PlusPts with A = 0: a flat 100, never the kill-tally ladder")
+            .isEqualTo(SCORE_100);
+        assertThat(player.getRuntimeState().getCarriedObject()).as("and your hands are empty").isNull();
+        verify(victim).onStruckByKickedObject(CARRY_HIT_KNOCK_X_VELOCITY_FIXED_POINT);
+    }
+
+    @Test
+    @DisplayName("The object that was hit is knocked away from the player, not away from the shell")
+    void theVictimIsKnockedAwayFromThePlayer() {
+        // TYA / TAX / JSR Level_ObjCalcXDiffs (prg000.asm:3130-3132) re-points the index at the VICTIM
+        // before asking which side of it the player is on, so ObjectToObject_HitXVel = {-$08, $08} is read
+        // against the player's X and not the carried object's.
+        // Prepare - carried on the left, so the victim sits left of the player too
+        final KoopaTroopa troopa = grabbableShell();
+        final LevelScenePlayer player = player(LEFT, true, false);
+        troopa.onPlayerOverlap(player);
+        troopa.motionUpdate();
+        final ActiveLevelObject victim = objectAt(troopa.getPosition().x());
+
+        // Execute
+        troopa.onCarriedInto(victim);
+
+        // Verify
+        verify(victim).onStruckByKickedObject(-CARRY_HIT_KNOCK_X_VELOCITY_FIXED_POINT);
+    }
+
+    @Test
+    @DisplayName("The dying shell keeps the momentum it had in your hands, because that is its velocity")
+    void theDyingShellKeepsThePlayersMomentum() {
+        // Objects_XVel = Player_XVel every tick it is held (prg000.asm:3087-3088), and the kill block only
+        // rewrites Y - so running something over throws the corpse forward and standing still does not.
+        // Prepare - a player jogging right at 2 px/tick
+        final KoopaTroopa troopa = grabbableShell();
+        final LevelScenePlayer player = player(RIGHT, true, false);
+        player.getPosition().setDX(2.0);
+        troopa.onPlayerOverlap(player);
+        troopa.motionUpdate();
+
+        // Execute
+        troopa.onCarriedInto(objectAt(troopa.getPosition().x()));
+
+        // Verify
+        assertThat(troopa.getVelocity().x())
+            .as("2 px/tick is $20 in 4.4 fixed point")
+            .isEqualTo(2 * TILE_SPRITE_SIZE);
+    }
+
+    @Test
+    @DisplayName("Only a shell actually in the hands is a carried hazard")
+    void onlyAHeldShellIsACarriedHazard() {
+        // Obj2Obj_EnByState enables the test for state 4 (Held) and the kicked state runs its own;
+        // a resting shell, a walking troopa and a dead one all reach nothing by being touched.
+        // Prepare
+        final KoopaTroopa resting = grabbableShell();
+        final KoopaTroopa held = grabbableShell();
+        final LevelScenePlayer player = player(RIGHT, true, false);
+
+        // Execute
+        held.onPlayerOverlap(player);
+
+        // Verify
+        assertThat(held.isCarriedHazard()).isTrue();
+        assertThat(resting.isCarriedHazard()).as("a shell on the ground").isFalse();
+        assertThat(troopaAt(5, WALK_ROW).isCarriedHazard()).as("a walking troopa").isFalse();
+    }
+
+    @Test
+    @DisplayName("A shell killed in your hands falls away and retires itself")
+    void theShellKilledInYourHandsFallsAway() {
+        // Prepare
+        final KoopaTroopa troopa = grabbableShell();
+        troopa.onPlayerOverlap(player(RIGHT, true, false));
+        troopa.motionUpdate();
+        troopa.onCarriedInto(objectAt(troopa.getPosition().x()));
+
+        // Execute
+        tick(troopa, 200);
+
+        // Verify
+        assertThat(troopa.isExpired()).isTrue();
     }
 
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
+
+    /** A 16x16 object double occupying the given column of pixels, on the carried shell's own row. */
+    private ActiveLevelObject objectAt(final double left) {
+        final ActiveLevelObject object = mock(ActiveLevelObject.class);
+        when(object.getBounds()).thenReturn(AxisAlignedBoundingBox.ofSize(
+            left,
+            PLAYER_STANDING_Y,
+            new DimensionsPixels(TILE_SPRITE_SIZE, TILE_SPRITE_SIZE)
+        ));
+        return object;
+    }
 
     private KoopaTroopa troopaAt(final int column, final int row) {
         final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(column, row));
@@ -727,6 +875,9 @@ class KoopaTroopaCarryTest {
         doCallRealMethod().when(player).canPickUpCarriable();
         doCallRealMethod().when(player).pickUp(any());
         doCallRealMethod().when(player).releaseCarriedObject();
+        doCallRealMethod().when(player).kickCarriedObject(any());
+        doCallRealMethod().when(player).kickOnContact(any());
+        doCallRealMethod().when(player).kickWithoutPose(any());
         return player;
     }
 

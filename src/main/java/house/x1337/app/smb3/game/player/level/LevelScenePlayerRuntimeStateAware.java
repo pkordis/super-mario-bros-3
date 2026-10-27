@@ -1,7 +1,9 @@
 package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
@@ -24,6 +26,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
+import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INVINCIBILITY_TICKS;
@@ -38,6 +41,19 @@ public interface LevelScenePlayerRuntimeStateAware
         LevelScenePlayerPositionAware,
         Player {
     PlayerRuntimeState getRuntimeState();
+
+    /**
+     * Awards the current kill-chain rung, then advances the chain (dasm prg000 @ PRG000_D2E1:
+     * {@code LDA Kill_Tally / INC Kill_Tally / JSR Score_Get100PlusPts}) - the score is read
+     * <em>before</em> the increment, so the first stomp of a chain pays {@code SCORE_100}.
+     */
+    default Reward nextKillChainReward() {
+        return KILL_TALLY_LADDER[getRuntimeState().nextKillTally()];
+    }
+
+    default Reward currentKillChain() {
+        return getRuntimeState().resolveKillReward();
+    }
 
     default int determineHeightOffset() {
         return (isSmall() || getRuntimeState().isDucking()) ? 20 : 10;
@@ -189,16 +205,7 @@ public interface LevelScenePlayerRuntimeStateAware
         neutraliseMotionForTransition();
     }
 
-    /**
-     * Takes a damaging hit (dasm {@code Player_GetHurt} @ PRG000_DA15). What it costs depends on the
-     * suit: an advanced suit is poofed back to Normal ({@link #loseAdvancedSuit}), a big Normal player
-     * shrinks ({@link #turnToShrunk}), and a small player dies — the one case not yet implemented, so it
-     * is left as a no-op rather than silently shrinking a player who should die.
-     *
-     * <p>The hit is ignored outright while flashing or mid-transition, mirroring the ROM's guard
-     * (PRG000_D9D3 / PRG000_D355 both bail on {@code Player_FlashInv} and the halt flags).
-     */
-    default void onHurt() {
+    default void getHurtBy(final ActiveLevelObject activeLevelObject) {
         if (!isHurtable()) {
             return;
         }
@@ -266,17 +273,6 @@ public interface LevelScenePlayerRuntimeStateAware
         carriable.onCarried(asLevelScenePlayer());
     }
 
-    /**
-     * Lets go of whatever the player is carrying. <b>The single release call site on the player side</b>
-     * — SMB3-10 replaces the drop-in-place behaviour behind {@code onReleased} with the ROM's kick, and
-     * nothing here changes.
-     *
-     * <p>Safe to call unconditionally; an empty-handed player is a no-op. Note that nothing calls it on
-     * the death or transition path, and that is the ROM's behaviour rather than an omission:
-     * {@code ObjState_Held} draws the held object and returns while {@code Player_IsDying} is set (dasm
-     * prg000 @ PRG000_CE1F), so a player who dies holding a shell dies holding it. The whole pipeline is
-     * frozen for the duration either way, and the level restart builds a fresh player and state.
-     */
     default void releaseCarriedObject() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
         final CarriableLevelObject carried = runtimeState.getCarriedObject();
@@ -284,7 +280,7 @@ public interface LevelScenePlayerRuntimeStateAware
             return;
         }
         runtimeState.setCarriedObject(null);
-        carried.onReleased(asLevelScenePlayer());
+        asLevelScenePlayer().kickCarriedObject(carried);
     }
 
     /**

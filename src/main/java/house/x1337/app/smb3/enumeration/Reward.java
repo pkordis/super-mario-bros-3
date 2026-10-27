@@ -13,7 +13,13 @@ public enum Reward {
     SCORE_10,
     SCORE_50,
     SCORE_100,
-    SCORE_1000;
+    SCORE_200,
+    SCORE_400,
+    SCORE_800,
+    SCORE_1000,
+    SCORE_2000,
+    SCORE_4000,
+    SCORE_8000;
 
     @Getter(lazy = true)
     private final Data data = initData();

@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.enemy;
+package house.x1337.app.smb3.game.object.level.enemy.base;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.enumeration.Reward;
@@ -146,6 +146,11 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     @Override
     default double getStompReferenceTop() {
         return getPosition().y();
+    }
+
+    @Override
+    default void expire() {
+        setExpired(true);
     }
 
     @Override

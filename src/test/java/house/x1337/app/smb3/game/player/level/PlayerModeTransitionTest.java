@@ -1,20 +1,28 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
+import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.RACCOON_TRANSITION_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -133,8 +141,91 @@ class PlayerModeTransitionTest {
     }
 
     // -------------------------------------------------------------------------
+    // The transition must not disturb the carry
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Finishing a transition discards the B press held across it, so no swing is armed")
+    void finishingATransitionDiscardsTheHeldPress() {
+        // The ROM arms a swing off Pad_Input - the buttons NEWLY pressed this frame (BIT Pad_Input / BVC,
+        // dasm prg008 @ PRG008_B0D1). consumePress is a latch instead, and nothing reads B while the
+        // player is tailless, so a B held since before a leaf was collected was still sitting unconsumed
+        // when hasTail() turned true - and became an 18-tick swing that tail-struck the shell out of the
+        // player's own hands nine ticks later.
+        // Prepare - one tick left of the poof, with B down for the carry
+        final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
+        runtimeState.setQueuedMode(RACCOON);
+        runtimeState.setPoofCounter(1);
+        final PlayerInputHandler inputHandler = mock(PlayerInputHandler.class);
+        final LevelScenePlayer player = transitioningPlayer(runtimeState, inputHandler);
+
+        // Execute - the tick the suit lands
+        player.tickModeTransition();
+
+        // Verify
+        verify(player).onTransitionComplete(RACCOON);
+        verify(inputHandler).consumePress(HANDLER_RUN);
+    }
+
+    @Test
+    @DisplayName("A transition still running consumes nothing, so a real press mid-grow is not eaten")
+    void aRunningTransitionConsumesNothing() {
+        // Prepare - well short of the end
+        final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
+        runtimeState.setQueuedMode(NORMAL);
+        runtimeState.setGrowShrinkCounter(NORMAL_TRANSITION_TICKS);
+        final PlayerInputHandler inputHandler = mock(PlayerInputHandler.class);
+        final LevelScenePlayer player = transitioningPlayer(runtimeState, inputHandler);
+
+        // Execute
+        player.tickModeTransition();
+
+        // Verify
+        assertThat(runtimeState.getGrowShrinkCounter()).isEqualTo(NORMAL_TRANSITION_TICKS - 1);
+        verify(player, never()).onTransitionComplete(any());
+        verify(inputHandler, never()).consumePress(any());
+    }
+
+    @Test
+    @DisplayName("Neither transition touches what the player is holding")
+    void neitherTransitionTouchesTheCarry() {
+        // The ROM's transitions write Player_QueueSuit, Player_Grow / Player_SuitLost, Player_FlashInv
+        // and Player_Flip - never Player_IsHolding. A shell in your hands at the start of a grow is in
+        // your hands at the end of it.
+        // Prepare
+        final CarriableLevelObject carried = mock(CarriableLevelObject.class);
+        final PlayerRuntimeState growing = new PlayerRuntimeState();
+        growing.setCarriedObject(carried);
+        final PlayerRuntimeState poofing = new PlayerRuntimeState();
+        poofing.setCarriedObject(carried);
+
+        // Execute
+        playerWithRealTransitions(growing, positionWithVelocity(0, 0)).turnToNormal();
+        playerWithRealTransitions(poofing, positionWithVelocity(0, 0)).turnToRaccoon();
+
+        // Verify
+        assertThat(growing.getCarriedObject()).isSameAs(carried);
+        assertThat(poofing.getCarriedObject()).isSameAs(carried);
+        assertThat(growing.isCarrying()).isTrue();
+        assertThat(poofing.isCarrying()).isTrue();
+    }
+
+    // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
+
+    /** A player whose {@code tickModeTransition} runs for real, with the completion hook recorded. */
+    private static LevelScenePlayer transitioningPlayer(
+        final PlayerRuntimeState runtimeState,
+        final PlayerInputHandler inputHandler
+    ) {
+        final LevelScenePlayer player = mock(LevelScenePlayer.class);
+        when(player.getRuntimeState()).thenReturn(runtimeState);
+        when(player.getPosition()).thenReturn(new PlayerPosition());
+        when(player.getInputHandler()).thenReturn(inputHandler);
+        doCallRealMethod().when(player).tickModeTransition();
+        return player;
+    }
 
     /**
      * A player whose transition entry points run for real against the given state, so the neutralisation

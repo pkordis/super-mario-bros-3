@@ -35,6 +35,7 @@ public record RaccoonAnimatorAssets(
             .quadWidth(QUAD_WIDTH)
             .quadHeight(QUAD_HEIGHT)
             .rightPadding(TAIL_OFFSET)
+            .kickLeadingOffset(KICK_LEADING_OFFSET)
             .walkFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .runFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .build()

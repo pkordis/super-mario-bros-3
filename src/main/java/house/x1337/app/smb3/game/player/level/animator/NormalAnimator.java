@@ -62,6 +62,10 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         final int flyTime = runtimeState.getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
+        if (renderKickPose(node, levelScenePlayer, orientation)) {
+            return;
+        }
+
         if (renderCarryPose(node, levelScenePlayer, orientation)) {
             return;
         }

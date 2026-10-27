@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +43,7 @@ class PlayerHurtDemotionTest {
         final LevelScenePlayer player = hurtablePlayer(advancedMode, runtimeState, positionWithVelocity(3.0, 0));
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify
         assertThat(runtimeState.getPoofCounter())
@@ -71,7 +72,7 @@ class PlayerHurtDemotionTest {
         final LevelScenePlayer player = hurtablePlayer(NORMAL, runtimeState, positionWithVelocity(3.0, 0));
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify
         assertThat(runtimeState.getGrowShrinkCounter())
@@ -100,7 +101,7 @@ class PlayerHurtDemotionTest {
         runtimeState.setTo(RUNNING);
         final LevelScenePlayer player = hurtablePlayer(NORMAL, runtimeState, positionWithVelocity(0, 0));
         doCallRealMethod().when(player).tickModeTransition();
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Execute - run the shrink out, watching the flash count down in lockstep with the grow
         int expectedFlash = HURT_INVINCIBILITY_TICKS;
@@ -133,7 +134,7 @@ class PlayerHurtDemotionTest {
         final LevelScenePlayer player = hurtablePlayer(SHRUNK, runtimeState, position);
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify
         assertThat(runtimeState.isDying()).as("the death throe has begun").isTrue();
@@ -156,11 +157,11 @@ class PlayerHurtDemotionTest {
         // Prepare - already dying
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = hurtablePlayer(SHRUNK, runtimeState, positionWithVelocity(0, 0));
-        player.onHurt();
+        player.getHurtBy(null);
         assertThat(runtimeState.isDying()).isTrue();
 
         // Execute - a second hit mid-throe
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify - still a no-op; the throe is one-way
         assertThat(player.isHurtable()).isFalse();
@@ -176,7 +177,7 @@ class PlayerHurtDemotionTest {
         final LevelScenePlayer player = hurtablePlayer(RACCOON, runtimeState, positionWithVelocity(0, 0));
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify
         assertThat(player.isHurtable()).isFalse();
@@ -196,7 +197,7 @@ class PlayerHurtDemotionTest {
         final LevelScenePlayer player = hurtablePlayer(RACCOON, runtimeState, positionWithVelocity(0, 0));
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Verify - the leaf's promotion still completes; the hit changed nothing
         assertThat(player.isHurtable()).isFalse();
@@ -218,7 +219,7 @@ class PlayerHurtDemotionTest {
         // Execute
         hurtablePlayer(SHRUNK, growing, positionWithVelocity(0, 0)).turnToNormal();
         hurtablePlayer(NORMAL, promoted, positionWithVelocity(0, 0)).turnToRaccoon();
-        hurtablePlayer(TANOOKI, demoted, positionWithVelocity(0, 0)).onHurt();
+        hurtablePlayer(TANOOKI, demoted, positionWithVelocity(0, 0)).getHurtBy(null);
 
         // Verify
         assertThat(growing.getGrowShrinkCounter()).isEqualTo(NORMAL_TRANSITION_TICKS);
@@ -240,7 +241,7 @@ class PlayerHurtDemotionTest {
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = hurtablePlayer(RACCOON, runtimeState, positionWithVelocity(0, 0));
         doCallRealMethod().when(player).tickModeTransition();
-        player.onHurt();
+        player.getHurtBy(null);
 
         // Execute - run the poof out
         for (int tick = 0; tick < SUIT_LOSS_TRANSITION_TICKS; tick++) {
@@ -294,7 +295,7 @@ class PlayerHurtDemotionTest {
         doCallRealMethod().when(player).tickModeTransition();
 
         // Execute
-        player.onHurt();
+        player.getHurtBy(null);
         assertThat(position.getDX())
             .as("the hit itself must not brake the player")
             .isEqualTo(3.5);
@@ -322,10 +323,13 @@ class PlayerHurtDemotionTest {
         when(player.getMode()).thenReturn(mode);
         when(player.getRuntimeState()).thenReturn(runtimeState);
         when(player.getPosition()).thenReturn(position);
+        // The transition's completion discards the B press held across it; see
+        // LevelScenePlayerCapabilities#completeTransition.
+        when(player.getInputHandler()).thenReturn(mock(PlayerInputHandler.class));
         doCallRealMethod().when(player).isAdvanced();
         doCallRealMethod().when(player).isLarge();
         doCallRealMethod().when(player).isHurtable();
-        doCallRealMethod().when(player).onHurt();
+        doCallRealMethod().when(player).getHurtBy(null);
         doCallRealMethod().when(player).die();
         doCallRealMethod().when(player).loseAdvancedSuit();
         doCallRealMethod().when(player).turnToShrunk();

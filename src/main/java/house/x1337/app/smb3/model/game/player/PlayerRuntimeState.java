@@ -4,6 +4,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
+import house.x1337.app.smb3.game.object.level.KillTallyAware;
 import lombok.Data;
 
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
@@ -24,12 +25,14 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
  */
 @Data
 @Prototype
-public class PlayerRuntimeState {
+public class PlayerRuntimeState implements KillTallyAware {
+    public static final int HURT_INVINCIBILITY_TICKS = 113;
+    public static final int KICK_POSE_TICKS = 13;
     public static final int NORMAL_TRANSITION_TICKS = 47;
     public static final int RACCOON_TRANSITION_TICKS = 23;
     public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
-    public static final int HURT_INVINCIBILITY_TICKS = 113;
     public static final int TURN_AROUND_FACE_TICKS = 7;
+
     private static final int INVINCIBILITY_BLANK_PHASE_MASK = 2;
     private PlayerMovement movement = STILL;
 
@@ -43,6 +46,8 @@ public class PlayerRuntimeState {
     private int flyTimeToggle;
     private int growShrinkCounter;
     private int hurtInvincibilityCounter;
+    private int kickCountdown;
+    private int killTally;
     private int lowClearanceGrace;
     private int playerFlyTime;
     private int playerTailAttackCountdown;
@@ -91,6 +96,16 @@ public class PlayerRuntimeState {
     public void decrementTurnAroundFace() {
         if (turnAroundFaceCounter > 0) {
             turnAroundFaceCounter--;
+        }
+    }
+
+    public boolean isKicking() {
+        return kickCountdown > 0;
+    }
+
+    public void decrementKick() {
+        if (kickCountdown > 0) {
+            kickCountdown--;
         }
     }
 
@@ -144,6 +159,13 @@ public class PlayerRuntimeState {
         }
     }
 
+    @Override
+    public int nextKillTally() {
+        final int award = killTally;
+        killTally = KillTallyAware.super.nextKillTally();
+        return award;
+    }
+
     /**
      * Engages ducking (dasm: {@code Player_IsDucking = suit value}).
      * Called when the player is grounded and DOWN is held.
@@ -161,12 +183,9 @@ public class PlayerRuntimeState {
         ducking = false;
     }
 
-    /**
-     * Transitions to a grounded state. Defaults to {@link PlayerMovement#STILL}
-     * as a landing state; the tick logic refines it afterward.
-     */
     public void stop() {
         movement = STILL;
+        killTally = 0;
     }
 
     /**

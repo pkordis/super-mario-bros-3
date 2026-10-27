@@ -11,10 +11,12 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -365,12 +368,14 @@ class ParaGoombaStompTest {
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.of(player));
     }
 
-    /** A player falling onto the enemy; only its position is read by the stomp response. */
+    /** A player falling onto the enemy; its position and its kill chain are read by the stomp. */
     private static LevelScenePlayer descendingPlayer() {
         final PlayerPosition position = new PlayerPosition();
         position.setDY(2.0);
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getPosition()).thenReturn(position);
+        when(player.getRuntimeState()).thenReturn(new PlayerRuntimeState());
+        doCallRealMethod().when(player).nextKillChainReward();
         return player;
     }
 

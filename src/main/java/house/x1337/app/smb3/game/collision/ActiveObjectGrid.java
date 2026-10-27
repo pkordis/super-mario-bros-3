@@ -2,8 +2,8 @@ package house.x1337.app.smb3.game.collision;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
-import house.x1337.app.smb3.game.object.level.enemy.EnemyLevelObject;
-import house.x1337.app.smb3.game.object.level.enemy.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.RequiredArgsConstructor;
@@ -68,11 +68,28 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     private final List<T> bouncingObjects = new ArrayList<>();
 
     /**
+     * This tick's {@link ActiveLevelObject#isKickedHazard() kicked} objects, in insertion order — the
+     * candidate killers for {@link #resolveKickedObjectKills()}. Kept alongside {@link #bouncingObjects}
+     * and for the same reason: the lethal pass iterates the one or two shells in flight rather than every
+     * cell in the grid.
+     */
+    private final List<T> kickedObjects = new ArrayList<>();
+
+    /**
+     * This tick's {@link ActiveLevelObject#isCarriedHazard() carried} objects, in insertion order — the
+     * candidates for {@link #resolveCarriedObjectKills()}. There is at most one per player, so this is
+     * the shortest of the three lists and the cheapest pass to run.
+     */
+    private final List<T> carriedObjects = new ArrayList<>();
+
+    /**
      * Empties every bucket. Call once at the start of each tick before re-inserting.
      */
     public void clear() {
         cellsByKey.clear();
         bouncingObjects.clear();
+        kickedObjects.clear();
+        carriedObjects.clear();
     }
 
     /**
@@ -95,6 +112,12 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         }
         if (object.bouncesOffOtherObjects()) {
             bouncingObjects.add(object);
+        }
+        if (object.isKickedHazard()) {
+            kickedObjects.add(object);
+        }
+        if (object.isCarriedHazard()) {
+            carriedObjects.add(object);
         }
     }
 
@@ -202,6 +225,96 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                 }
             }
         }
+    }
+
+    /**
+     * Kills whatever this tick's kicked objects have run into — the lethal half of the object-to-object
+     * story, and {@code ActiveObjectGrid}'s motivating use case (see the class Javadoc's shell bowling
+     * through a row of enemies). The ROM's {@code ObjectToObject_HitTest} from inside
+     * {@code ObjState_Kicked} (dasm prg000 @ PRG000_CD05).
+     *
+     * <p><b>Additive, not folded into {@link #resolveObjectToObjectBumps()}.</b> That pass has one
+     * semantic — overlapping walkers turn away from each other, nothing else — and the ROM keeps the two
+     * apart too: the bump lives in {@code Object_BumpOffOthers}, called from the shared object loop for
+     * everything, while the kill lives in the kicked state's own routine. Teaching the bump to
+     * occasionally kill would make a facing rewrite and a death share one call site for no gain; a kicked
+     * shell is also not required to {@code bouncesOffOtherObjects()}, so it would not even be in that
+     * pass's candidate set.
+     *
+     * <p>Runs in the same phase and for the same reason: every manager has moved and re-inserted its
+     * objects, so no kill is decided against a stale position.
+     *
+     * <p>One ROM detail deliberately dropped: {@code (X + Counter_1) >> 1}'s carry gates the hit test to
+     * roughly every other tick per object slot (@ PRG000_CCFA), a CPU-budget trick that only delays a
+     * kill by a frame. Porting it would make the chain non-deterministic against nothing it buys here.
+     */
+    public void resolveKickedObjectKills() {
+        for (final T object : kickedObjects) {
+            // Re-read rather than trusting the insert-time snapshot: two shells meeting kill each other,
+            // so the second of them may already be dead by the time its own turn comes round.
+            if (!object.isKickedHazard()) {
+                continue;
+            }
+            final AxisAlignedBoundingBox bounds = object.getBounds();
+            for (final T other : query(bounds)) {
+                if (other == object || isNotRammable(other) || !bounds.intersects(other.getBounds())) {
+                    continue;
+                }
+                object.onKickedInto(other);
+                if (!object.isKickedHazard()) {
+                    // It died on that contact (another kicked shell); it kills nothing more this tick.
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Kills whatever this tick's <b>carried</b> objects have been walked into, and the carried object with
+     * it — dasm {@code ObjState_Held}'s own {@code ObjectToObject_HitTest} and the block after it
+     * (prg000.asm:3094-3137).
+     *
+     * <p>Sibling of {@link #resolveKickedObjectKills()} rather than a branch inside it, because the ROM
+     * keeps them in two separate state routines and the outcomes differ: a rolling shell survives
+     * everything it kills and carries on, a carried one dies with its first victim. Folding them together
+     * would put "I live" and "I die" behind one call.
+     *
+     * <p>The first contact ends the pass for that object — it is dead, so {@link
+     * ActiveLevelObject#isCarriedHazard()} is false by the time the next candidate comes round, and the
+     * loop breaks on it. A shell walked into two enemies standing shoulder to shoulder therefore takes
+     * exactly one of them, whichever the broadphase reaches first.
+     */
+    public void resolveCarriedObjectKills() {
+        for (final T object : carriedObjects) {
+            final AxisAlignedBoundingBox bounds = object.getBounds();
+            for (final T other : query(bounds)) {
+                if (other == object || isNotRammable(other) || !bounds.intersects(other.getBounds())) {
+                    continue;
+                }
+                object.onCarriedInto(other);
+                if (!object.isCarriedHazard()) {
+                    // It died on that contact, which is the only outcome: nothing else this tick.
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether a kicked or carried object meeting {@code candidate} is a collision at all — the
+     * {@code OAT_HITNOTKILL} test {@code ObjectToObject_HitTest} applies to every candidate before it
+     * reports one (dasm prg000.asm:6165-6173).
+     *
+     * <p>Shared by both lethal passes because it is one test in one ROM routine, which both state
+     * routines call. The ROM does not report the collision when the flag is set, rather than reporting it
+     * and declining to kill — so the striker is unaffected too, and a shell rolls straight through a
+     * powerup.
+     *
+     * @param candidate the object a hazard is overlapping
+     * @return {@code true} if ramming it resolves to anything
+     */
+    private boolean isNotRammable(final T candidate) {
+        return !candidate.isKilledByRammedObject();
     }
 
     /**

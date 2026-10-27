@@ -7,6 +7,7 @@ import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -28,7 +29,6 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_WING;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
-import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.Dimensions.fullTile;
@@ -127,7 +127,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
             return;
         }
         deWinged = true;
-        pendingScoreReward = SCORE_100;
+        pendingScoreReward = levelScenePlayer.nextKillChainReward();
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
         replaceWithGroundGoomba(STOMP_HIT_COOLDOWN_TICKS);
         setExpired(true);
@@ -149,6 +149,17 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
     }
 
     @Override
+    public void onStruckByKickedObject(final int knockXVelocityFixedPoint) {
+        if (deWinged || tailStruck) {
+            return;
+        }
+        // tailStruck is the family's "already finished" latch, whatever finished it.
+        tailStruck = true;
+        replaceWithGroundGoomba(NO_HIT_COOLDOWN_TICKS).onStruckByKickedObject(knockXVelocityFixedPoint);
+        setExpired(true);
+    }
+
+    @Override
     public void onPlayerOverlap(final LevelScenePlayer levelScenePlayer) {
         hurt(levelScenePlayer);
     }
@@ -163,7 +174,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         if (deWinged || tailStruck) {
             return;
         }
-        levelScenePlayer.onHurt();
+        levelScenePlayer.getHurtBy(this);
     }
 
     /**

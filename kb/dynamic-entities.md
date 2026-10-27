@@ -895,6 +895,28 @@ Default mode is `RED`, which is the more forgiving of the two to get wrong - a t
 edge it should have walked off stays on screen and reportable, whereas the reverse quietly leaves the
 level.
 
+### Where the Koopa Troopa's code lives
+
+The troopa is split over three types by purpose, not by state, and the hierarchy is the shell first:
+
+| type | owns |
+|---|---|
+| `KoopaTroopaShellCapabilities` | the base: everything the shell does - enter/wake, the wake-up clock, resting and bouncing, carry, kick, rolling, chain kills, crush kills - plus the motion helpers the walker shares (`restOn`, `applyGravity`, `faceClosestPlayer`) |
+| `KoopaTroopaFamilyEnemy` | extends the shell with the family's drawing constants and all drawing: the state as the renderer reads it (`isShellShowing`, the shake, the waking feet), the walker, the shell, the feet, carried depth |
+| `KoopaTroopa` | lifecycle (`configure`, `spawnIntoScene`, `detach`), walking and the ledge guard, the answer to each kind of contact, and the per-state tick dispatch |
+
+The family extends the shell and not the other way round because there is no troopa without a shell.
+The shell is a separate type at all because in the ROM it is not the troopa's code: `ObjState_Shelled`,
+`ObjState_Held`, `ObjState_Kicked`, `Player_KickObject`, `ObjState_Killed` and `Object_ShellDoWakeUp`
+are shared object-state handlers in prg000 that every shelled object runs, while only the walk lives in
+the troopa's own prg004 handler.
+
+The shell needs drawing but cannot know how, so it declares `positionSprite` and `showGeometryForState`
+(supplied by the family) and `refreshShellFrame` (supplied by the class, which owns the animator).
+
+The price of mixins is that they reach state through accessors, so `KoopaTroopa` exposes setters for
+its motion and shell fields. They are the family's internals - nothing outside it should call them.
+
 ### Palette: the two folders are a one-colour swap, derived not eyeballed
 
 `sprites/enemy/koopa/troopa/{green,red}/` hold the same two 16x32 frames differing in exactly 43 pixels
@@ -955,8 +977,13 @@ line" below; the art was wrong, not the test.
 | tail wham **on a shell** | `Obj2Obj_EnByState` (`prg000.asm:6094`) enables it | re-launched, re-flipped, **wake-up clock reset to `$FF`** |
 
 So a shell can be juggled on the tail indefinitely. There is no second-hit kill — do not add one.
-Only a kick into a wall removes a troopa, which is why the carry/kick chain exists at all. Until it
-lands, this enemy is unkillable, and that is correct rather than a gap.
+Only a kick removes a troopa, which is why the carry/kick chain exists at all.
+
+**Resolved by SMB3-10**, which is where "the enemy can finally die" became true. See the kicking section
+at the end of this document for the kill paths it brought: a held shell kicked into an adjacent wall, a
+rolling shell striking another object (and two of them meeting), a kicked shell leaving the level, and —
+added just after — a **carried** shell walked into another object, which kills both. Stomping or
+tail-whamming a troopa still only ever shells it.
 
 ### `Objects_Timer3` is NOT decremented once a frame — the biggest trap in this ticket
 
@@ -973,8 +1000,16 @@ Timer3 >= $60, else    -> DEC when Counter_1 & 1 == 0 (shelled: HALF RATE)
 
 160 units (`$FF`..`$60` inclusive, tested before the decrement) at half rate = 320 frames, then 95 at
 full rate = 95. The dasm's own inline comment there ("every 4 ticks") is loose; read the branch. A
-per-object alternating phase reproduces this exactly for one object — `Counter_1` only matters for
+per-object phase counter reproduces this exactly for one object — `Counter_1` only matters for
 cross-object phase alignment, which nothing observes. `KoopaTroopaShellTest` pins 415.
+
+**The `state 4` row of that table is not decoration — it doubles the carry.** A held shell drains at
+*quarter* rate, so the throttled stretch costs 640 frames rather than 320: **735 frames (~12.25 s)**
+against 415 resting. That is what makes walking a shell across a level a plan rather than a gamble, and
+it was the one row the first implementation dropped (see
+`kb/bug-fixes/the-carried-shell-woke-too-soon.md`). The two masks now live as
+`WAKE_UP_THROTTLE_MASK_SHELLED` / `_HELD` on `KoopaTroopaFamilyEnemy`, and the per-object phase is a
+2-bit counter rather than a boolean so it can express both; `KoopaTroopaCarryTest` pins the held total.
 
 Also note the ordering: the loop decrements **before** `Object_DoStateAction`, and
 `Object_ShellDoWakeUp` is the first thing `ObjState_Shelled` does, so the frame the timer reaches zero
@@ -1304,27 +1339,25 @@ player's feet are at `Player_Y + 32` either size, and the 16px shell hangs from 
 small), so its bottom edge is a few pixels *above* the feet. Without that it would read as crushed on
 every wake-up.
 
-### Release is a scaffold, and is marked as one
+### Release is a kick, and SMB3-10 made it one
 
-`onReleased` drops the object where it stands. **The ROM kicks it** (`BVC Player_KickObject`,
-`prg000.asm:2819`), and so does a B-not-held contact (`prg000.asm:4042`). Both are SMB3-10, both are
-single call sites, and both are commented as deviations at the site. The drop sets
-`Objects_Timer2 = 8` and `isCarriable()` ANDs in `hitCooldownTicks == 0` — also not the ROM, which
-branches on the state before it reaches the `Timer2` gate — purely so the frame that put the shell down,
-with the player still overlapping it, cannot read as a fresh pickup. When the release becomes a kick the
-shell leaves under its own power and that conjunct can go.
+`onReleased` is **gone**, along with the drop-in-place it did. There is no "put the shell down" in the
+ROM: `ObjState_Held` falls straight through to `Player_KickObject` the moment B is released
+(`BVC Player_KickObject`, `prg000.asm:2819`), and the B-not-held contact jumps to the same label
+(`prg000.asm:4042`). `CarriableLevelObject.onKicked(player, toTheRight)` replaced it; see the Kicking
+section below.
 
-What the drop must **not** do is go through `enterShell()`, which reloads `Objects_Timer3` from `$FF`. A
-released shell resumes with whatever is left on its clock.
+Two scaffolds went with it. The release no longer sets `Objects_Timer2 = 8` (the kick sets `$10`
+instead), and the correction that pulled a shell released inside terrain back to the player's own
+column is gone — a kick into an adjacent wall kills the shell outright and a kick that clears the wall
+about-faces its way out, so a stationary shell inside a wall is no longer reachable.
 
-The drop does one thing the ROM has no equivalent for: if the release position overlaps terrain, the
-shell is pulled back to the player's own column. Overlapping terrain is harmless while held — the held
-routine probes the world only at wake-up — but a *stationary* shell has nothing to push it out, since
-`moveShellHorizontally` returns immediately while `XVel` is zero and the vertical pass only resolves
-floors and ceilings. Hold a shell against a wall, let go, and without this it settles inside the wall and
-later stands up inside it. The ROM needs no equivalent precisely because its release is a kick, and a
-kicked shell about-faces its way out of anything it starts inside — so this correction goes away with
-the scaffold.
+**What survived** is `isCarriable()`'s `hitCooldownTicks == 0` conjunct, which is still not the ROM
+(which branches on the state before it reaches the `Timer2` gate). It keeps the frame a *stomp* lands on,
+with the player still overlapping the fresh shell, from reading as a pickup.
+
+What a release must still **not** do is go through `enterShell()`, which reloads `Objects_Timer3` from
+`$FF`. A kicked shell keeps whatever is left on its wake-up clock — the kick never touches it.
 
 ### What holding actually restricts — the audit, because the ticket's list was wrong
 
@@ -1431,9 +1464,340 @@ for a held object (@ PRG000_D155).
 
 ### Deliberately not done
 
-- The **kick**, on release and on a B-not-held contact (SMB3-10), and `Objects_KillTally` with it.
 - Any carriable other than the shelled troopa — but nothing in the interface assumes otherwise.
 - Carrying through pipes (`Level_PipeMove`), Kuribo's shoe, statue form, giant objects.
 - Bob-omb and Ice Block specialisations, and two-player carry.
 - `bouncesOffOtherObjects()` is left as SMB3-7 pinned it — see the `Obj2Obj_EnByState` note above for
   the open question it leaves.
+
+---
+
+## Kicking, and the rolling shell (SMB3-10, 2026-10)
+
+### The headline: now the Koopa Troopa can die
+
+SMB3-7 recorded that *nothing* in the game removed a troopa — every defeat path on `$6D` routed back into
+`OBJSTATE_SHELLED`. Kicking is what changes that, and it brings three kill paths with it:
+
+- a held shell kicked into an adjacent wall (`prg000.asm:2905-2932`) — 100 pts, `OBJSTATE_KILLED`,
+  `YVel = -$40`
+- a rolling shell striking another object, and two rolling shells meeting (`prg000.asm:2600-2637`)
+- a kicked shell leaving the bottom of the level, via the pre-existing `hasFallenOffLevel`
+
+### No `KickableLevelObject`, and the ROM is the reason
+
+Three entry points, one routine. Releasing B falls through `ObjState_Held` into `Player_KickObject`
+(`prg000.asm:2817-2819`); a body contact with B *not* held jumps to the same label from
+`Object_HoldKickOrHurtPlayer` (`:4053-4059`); and a stomp on a shelled object calls it outright
+(`:3923`). The ROM has no attribute distinguishing kickable from carriable, so kickability is a property
+of `CarriableLevelObject` rather than a sibling interface. The moment a type needs one without the other
+is the moment to split them.
+
+### `Level_ObjCalcXDiffs` returns "is the player to the RIGHT", and three tables read it
+
+`prg000.asm:6447` — `Y = 0` when `Player_X >= Objects_X`. Getting this backwards silently inverts three
+things at once, so it is worth stating what each table does with it:
+
+| table | `Y = 0` (player right of object) | reads as |
+|---|---|---|
+| `PlayerKickFlipBits = {$00, $40}` | `$00` = **face left** | the player turns *towards* the object |
+| `ObjectKickXVelMoving = {-$30, $30}` | `-$30` = kick left | the object is sent *away* from the player |
+| `ObjKickXvel = {$18, -$18}` | `+$18` = roll right | the stalled roll comes **back at** the player |
+
+Note the third disagrees with the other two in direction, and that is not a transcription error: a kicked
+object that lands with no horizontal speed rolls *toward* the player's side. It is why a shell you
+stopped comes back at you.
+
+`Player_FlipBits` is `$00` facing **left** and `SPR_HFLIP` facing right (`prg008.asm:492` says so in a
+comment). The project's art is authored facing left too, so the two agree.
+
+### The hurt exemption is "is the shell ahead of you", not "are you moving away"
+
+`prg000.asm:4080-4103`, three conjuncts in order: the player must be moving at all, the two must share an
+X-velocity sign, and `Y` from `Level_ObjCalcXDiffs` must **differ** from "is the player moving right".
+Decoded, that last one means the shell is on the *leading* side of the player's motion. Chasing your own
+shell is safe; having it run you down from behind is not.
+
+`Objects_Timer2` is the same counter as the stomp cooldown — `hitCooldownTicks` here — seeded with `$10`
+by the kick rather than the stomp's `$08`. That 16-tick window is the only thing stopping the shell you
+just kicked from killing you while it is still inside your hitbox.
+
+### The re-drop is why a rolling shell is not a glider
+
+Every single time a kicked object touches the ground it is aligned to the floor and immediately pushed
+back off it at `YVel = $0C` (`prg000.asm:2504-2507`). Two details matter:
+
+- the write lands **after** `Object_Move` has already applied gravity, so it *replaces* that tick's
+  gravity rather than stacking on it — hence `tickKicked()`'s odd-looking "move, gravity, then re-drop"
+  order
+- the `XVel == 0` guard around the re-launch is defensive here. No path in this port yet produces a
+  kicked object with zero horizontal speed (every kick writes `±$30`, and the about-face negates it), so
+  `rollLaunchXVelocity()` is tested directly rather than through a tick. The ROM's guard is for the Ice
+  Block and the Bob-omb, both out of scope.
+
+### `Object_BumpOffBlocks` *is* the tail strike, and `Player_BounceObj` has no counterpart
+
+`prg008.asm:5483`'s own header says it works "like the Player tail-attacked whatever block got hit", and
+that is literally the port: `StaticEnvironmentCollisionGrid.resolveTailAttack(player, x, y)`, the same
+single-tile terrain probe. Bricks break and `?` blocks pop whatever the player's size, which is correct —
+a rolling shell is not size-gated.
+
+**`Player_BounceObj` needs nothing written.** It exists in the ROM because a bumped block spawns a bounce
+*object* whose init pushes `Player_YVel` down, and the flag suppresses that when an object rather than the
+player caused the bump (`ObjInit_BounceDU`, `prg001.asm:978-986`). Nothing on this project's block-bump
+path touches player velocity at all — the downward push a player gets from bumping a block comes out of
+their own ceiling collision — so a shell-triggered block cannot bounce the player, by construction rather
+than by a flag. Pinned by a test so it stays that way.
+
+### The kill chain: `Score_Get100PlusPts` is a ladder, not a doubling
+
+`A = tally; A += 5`, indexing `ScoreAdd_L/H` (`prg000.asm:699`, `prg007.asm:2122`). Entry 5 is 100 points,
+so the ladder is **100 / 200 / 400 / 800 / 1000 / 2000 / 4000 / 8000 / 1-up** — doubling *except* at the
+1000 step, which is why `Reward.forKillTally` is a transcribed table and not `100 × 2^tally`. Two caps,
+both in the ROM: `Kill_Tally` is held at 8 (`prg007.asm:2155-2161`) and the score index is clamped at
+`$0D` (`:2174-2178`).
+
+`Objects_KillTally: .ds 5` (`smb3.asm:1784`) is allocated for object slots 0-4 only. That is a RAM budget
+with no analogue here, so the tally lives on the object and every object has one.
+
+**Known gap, worth its own ticket:** an enemy kill's `Reward` only ever becomes a *caption*.
+`EnemyMotionManager.postCollision` spawns a `ScorePopupAnimation` and never calls
+`PlayerData.add(reward.getData())`, which predates this ticket — stomping a Goomba has always shown "100"
+and added nothing. So the chain's escalation is visible and correct, and the 1-up at the top of a long
+chain awards no life, for the same pre-existing reason. Fixing it touches every enemy, not just this one.
+
+### Two kicked shells meeting, and the one place the port simplifies the ROM
+
+The ROM awards **crossed**: our shell's popup gets the *other's* tally at *our* position, and then our
+tally at the *other's* position (`prg000.asm:2616-2637`, via `Score_Get100PlusPtsY`'s `TAX` from a stale
+`Y`). Since `pendingScoreReward` holds one value per object, each shell here pays out its own accumulated
+tally at its own position — same two awards, same two values, uncrossed.
+
+Also dropped deliberately: `(X + Counter_1) >> 1`'s carry gates the object-to-object hit test to roughly
+every other tick per slot (`:2634`). It is a CPU-budget trick that only ever delays a kill by a frame, and
+porting it would make the chain non-deterministic for nothing.
+
+### The lethal pass is additive, and that is a design constraint not a preference
+
+`ActiveObjectGrid.resolveKickedObjectKills()` sits **beside** `resolveObjectToObjectBumps()`. The ROM
+keeps them apart too — the bump is `Object_BumpOffOthers`, called from the shared object loop for
+everything, while the kill is inside the kicked state's own routine. A rolling shell is also not required
+to `bouncesOffOtherObjects()`, so it would not even be in the bump pass's candidate set. The pass
+re-reads `isKickedHazard()` per candidate, because two shells meeting kill each other and the striker can
+stop being a hazard partway through its own list.
+
+### Carrying something into an enemy kills both — and it is a different routine again
+
+`ObjState_Held` runs its *own* `ObjectToObject_HitTest` (`prg000.asm:3094`) and the block after it
+(`:3106-3137`) kills **both slots**: `OBJSTATE_KILLED` and `YVel = -$30` on the victim, the same on the
+object in your hands, a flat 100 points, and `ObjectToObject_HitXVel = {-$08, $08}` on the victim. A
+carried object is a one-use weapon. That is the whole difference from a kicked one, which survives
+everything it kills and carries on, and it is why `resolveCarriedObjectKills()` is a third pass beside
+the other two rather than a branch inside the kicked one: folding them would put "I live" and "I die"
+behind one call.
+
+Three details worth not re-deriving:
+
+- **The knock direction comes from the player, not from the carried object.** `TYA / TAX / JSR
+  Level_ObjCalcXDiffs` (`:3130-3132`) re-points the index at the *victim* before asking which side of it
+  the player is on. The two answers diverge only while the victim's centre sits between the player and
+  what they are holding, which `CARRY_SIDE_OFFSET_PIXELS` leaves eleven pixels of room for.
+- **Flat 100, never the ladder.** `Score_Get100PlusPts` is called with `A = 0` (`:3123`) and
+  `Objects_KillTally` is never touched here. Walking a shell into three enemies in a row pays 100 each
+  time; only a *rolling* shell builds a chain, and this one never gets to roll. The striker banks it, at
+  the striker's slot, so the victim awards nothing.
+- **The corpse keeps your momentum.** `Objects_XVel = Player_XVel` every tick it is held (`:3087-3088`)
+  and the kill block only rewrites Y. Run something over and the body flies forward; stand still and it
+  drops straight up and down. This port does not copy the velocity per tick — a held object's position is
+  assigned outright — so `onKilledByCarryContact` reads it off the carrier at the moment of death instead.
+
+`Objects_Timer2,X = 16` at `:3127-3128` is **deliberately dropped**: the object it guards has just been
+killed and nothing reads the timer again. The *read* of the same timer at `:3097` is kept and is
+currently unreachable, because this project's `isCarriable()` already refuses a shell inside that window
+— the ROM has no such guard on the pickup and relies on the held-state test instead.
+
+### `expire()` is the removal every active object can perform
+
+The ROM writes `OBJSTATE_KILLED` into both slots and is done, which only reads as "killed" for an object
+whose handler understands that state. For an ice block or a P-switch it just means *gone*. So
+`CarriableLevelObject.onCarriedInto` ends on `onKilledByCarryContact()`, whose default is
+`ActiveLevelObject.expire()` — a no-op on the base interface, routed to `setExpired(true)` by both
+`EnemyLevelObject` and `RewardLevelObject`. A Koopa Troopa overrides it with the real death: the state,
+the throw, and the award.
+
+That is the only reason `expire()` exists as a method rather than the two sub-interfaces each declaring
+`setExpired` and callers reaching for `instanceof`: a generic pass needs one way to get rid of something
+it does not recognise. `CarryContactTest` exercises the default against a carriable that is not an enemy,
+since none exists yet.
+
+### What a shell kill does to a Goomba, and why it is the tail strike's death
+
+`ObjectKill_SetShellKillVars` is state-only and knows nothing about what it is killing
+(`prg000.asm:2689-2706`), so every victim dies the same way — and the vertical flip comes from the
+**shared dead-object move** (@ `PRG000_D045`), not from any kill site. Which means a shell kill *is* the
+tail strike's death with two numbers changed: the throw is `-$30` against the tail's `-$50`, and the knock
+arrives already resolved from the striker instead of from the player's side. `EnemyKnockMotion.shellKill`
+is `strikeFrom` with those two substituted; `Goomba.onStruckByKickedObject` is three lines on top.
+
+A **Para-Goomba** dies outright, wings and all: there is no de-winging branch for a state-only kill to
+take. Routed through the ground-Goomba handover anyway, because that is where this family's dying motion
+lives.
+
+Gated on the dying state rather than on `isHittable()`, deliberately: `Obj2Obj_EnByState`
+(`prg000.asm:6095-6103`) disables object-to-object detection for the killed, squashed and dying states and
+says nothing about `Objects_Timer2`, so a Goomba inside its post-spawn cooldown is still shell-food. In
+practice `EnemyMotionManager` only inserts `isHittable()` enemies into the grid at all, so that cooldown
+keeps them out of every object-to-object pass regardless — a pre-existing divergence, noted here rather
+than widened.
+
+### The roll ignores the facing, and its fourth beat ships pre-mirrored
+
+`AND #~SPR_HFLIP` / `ORA ObjShell_AnimFlipBits,Y` (`prg000.asm:2657-2660`) **clears** the facing's
+horizontal flip and rewrites it from the beat table, so a shell rolling left and one rolling right are
+drawn identically — the facing never reaches the quad. The *vertical* flip survives that write untouched,
+which is why an upside-down shell rolls upside down for the rest of its life.
+
+What the beat table then asks for, `{$00, $00, $00, $40}` (`prg000.asm:2709`) — beat 3 is beat 1
+mirrored — is shipped **as art**: `koopa_troopa_shell_spin_3.png` is `koopa_troopa_shell_spin_1.png`
+already flipped. So `shellSpin` is four files for four beats, `applyShellFrame` is a plain index into it,
+and a shell carries no horizontal flip on any beat. `isSpriteMirrored()` reduces to
+`!isShellShowing() && facingRight`.
+
+That lands on the same side of the line as the waking feet and the Para-Goomba wings, which also ship
+their mirrors as art. The line is not facing-versus-beat — it is whether anything downstream has to be
+*told* which way to flip. A facing the renderer already knows; a beat index it does not. An earlier pass
+here kept a `SHELL_SPIN_FLIPS` table on the animator and a three-file `shellSpin` whose fourth entry
+repeated its second, on the reasoning that a per-beat mirror is not worth a PNG. It cost a draw-time
+X-scale that had to stay in lockstep with `mirrorCompensation(quadWidth)`, and two frames of the cycle
+that no longer had their own file. Four files, no flip.
+
+`KoopaTroopaFamilyEnemy.isSpriteMirrored()` stays as the generalisation that let the shell answer
+differently from the walk at all, and `mirrorCompensation(quadWidth)` still follows it rather than the
+facing. For a shell it now answers "no mirror", so the correction is zero — but the pairing is what
+stops the 16 px misplacement that method has always warned about, so it is kept and pinned by a test.
+
+One divergence: the ROM indexes off `Level_NoStopCnt`, a scene-wide counter, so every rolling shell is in
+phase and a fresh kick does not restart the cycle. There is nothing equivalent to read here, so the
+counter is per object and resets on each kick. The 2-tick rate is the same.
+
+> Build note: swapping sprite bytes without changing a filename can leave a stale copy in
+> `target/classes` — Maven's resource copy is timestamp-driven. A roll that plays the right *files* in
+> the wrong *order* is this, not a code bug. `mvnw clean` is the check.
+
+### The kick pose, and the one frame whose slack is on the wrong side
+
+`Player_Kick = $0C` → 12 ticks of a single frame, spent by the frame-selection block at
+`PRG008_AF52`. Three things ride on that one block, which is why they are implemented together:
+
+1. it is the **last** frame write in `prg008`, so the kick beats the carry pose, the camera-facing turn
+   and the tail swing alike — hence `renderKickPose` goes first in every animator
+2. it opens by zeroing `Player_TailAttack` (`prg008.asm:3239-3240`), so the kick cancels a swing in
+   progress. It has to land immediately rather than next tick: the object pass resolves body contact and
+   *then* the tail, so a contact kick decided in the first half would otherwise still be swinging in the
+   second
+3. a **stomp** zeroes `Player_Kick` the instant the kick returns (`prg000.asm:3930-3932`), so this block
+   never runs for it — which costs a stomp the kick frame *and* the tail cancel. Expressed here as
+   simply not arming the pose, which has both consequences without undoing anything. Funnelling every
+   entry point through one pose-arming helper is the mistake to avoid.
+
+`kicking.png` is the only art in the project whose body is not flush to the canvas's left edge: the
+kicking foot extends in the direction of travel, so the overhang falls on the **leading** side (3
+transparent columns for `normal`, 2 for `raccoon`, and none on the right). `rightPadding` models trailing
+slack only, so there is nothing for it to consume and the *unmirrored* draw is the one that has to move —
+by `canvasWidth - bodyWidth`, which is the kick's body box inset. Hence
+`LevelScenePlayerAnimatorSpecifications.kickLeadingOffset`, the mirror of `rightPadding`, applied for
+this pose alone.
+
+Measure that offset from the **body box**, not from the leftmost opaque pixel. The torso does not fill
+its own box edge to edge (it starts 2 px in for `normal`, 1 for `raccoon`) and the foot reaches outside
+it, so neither silhouette edge is the alignment reference. The right edge having *no* slack is what fixes
+the box: it can only be the rightmost 16 columns.
+
+### Deliberately not done
+
+- Bob-omb (`prg000.asm:2844-2878`) and Ice Block kick specialisations.
+- `Level_PipeMove`'s branch: a player moving through a pipe keeps holding and does not kick. Noted at the
+  one site it belongs on; there are no pipes yet.
+- `ShellKillFlash` — `ObjectKill_SetShellKillVars` also seeds a 10-tick flash at the victim's position
+  (`prg000.asm:2698-2704`). The kill and the knock are ported; the flash is not.
+- The player's global stomp chain. `PRG000_D2A2` scores a shell stomp from `Kill_Tally`, which is the
+  *player's* running chain and not the per-object one a rolling shell accumulates. There is no global
+  counter in the project, so a shell stomp pays a flat 100 — `forKillTally(0)` is exactly that, which
+  makes it both right for a chain of one and the place to thread a real counter through.
+- Two-player kick interactions.
+
+---
+
+## Scoring: the player's kill chain, and where points actually land (2026-10)
+
+### A kill's award is given in a *later* pass than the kill
+
+The ROM splits it. The kill calls `Score_PopUp`, which only **queues** the value into `Scores_Value`;
+`Scores_GiveAndDraw` (`prg007.asm:2154-2189`) later walks that queue, *giving the points and drawing the
+sprite* in one sweep. `EnemyMotionManager.postCollision()` is that sweep, which is why it does both:
+
+```java
+instance.setPendingScoreReward(null);
+instance.getGameEngine().getPlayerData().add(reward.getData());
+spawnScorePopupFor(instance, reward);
+```
+
+For a long time it only did the second half, so **every enemy kill was purely cosmetic** — a caption rose
+and the scoreline never moved. The reward objects (coin, mushroom, leaf, brick) were never affected,
+because they credit from their own `onCollisionWith` and only use the managers for the caption.
+
+Two things to keep in mind if this is ever touched:
+
+- **`add(Reward.Data)`, not `addPoints(...getPoints())`.** The top of the kill ladder is `ONE_UP`, which
+  carries a life and no points (`prg007.asm:2135` — the 1-up's own `ScoreAdd` entry is `$00`), so
+  crediting points alone silently swallows the reward a long chain exists to earn. `SuperLeaf` had the
+  same latent bug and was switched over at the same time.
+- **The score comes off `GameEngine`, not off a player.** A kill need not involve one: a kicked shell goes
+  on scoring after the player has walked away, and has no player in hand to ask. There is a single shared
+  `PlayerData`, which is also the instance the HUD renders from — so nothing has to notify the HUD. Its
+  `PlayerData.State` snapshot already diffs score and lives every frame.
+
+### `Kill_Tally` is per **jump**, not per level — and it is the player's, not the shell's
+
+The ROM's own symbol table says it: "a counter that increases with each successful hit of an object
+**without touching the ground**" (`smb3.asm:1782`). Both ground-contact sites zero it in the same breath
+as `Player_InAir` and `Player_YVel` (`prg008.asm:4648-4651` and `:5937-5940`), and that triple is
+`PlayerRuntimeState.stop()` plus the `position.setDY(0)` beside its single call site in
+`StaticEnvironmentCollisionGrid` — so the reset lives in `stop()`.
+
+Consequence, and the thing to actually remember: **two Goombas stomped on one bounce pay 100 then 200;
+land between them and the second pays 100 again.** It is not a running total.
+
+This is the counterpart of the per-shell `Objects_KillTally` that SMB3-10 gave a rolling shell. Both now
+exist and are deliberately separate: one chain per player ended by landing, one chain per shell ended by
+the shell dying. They share only `Reward.forKillTally(int)`, the ladder (whose 800 → **1000** step is why
+it is a transcribed table and not `100 × 2^n`).
+
+### Stomps advance the chain; a tail strike does not
+
+| Event | Reads | Advances | dasm |
+|---|---|---|---|
+| Stomp an ordinary enemy | yes | yes | `LDA Kill_Tally / INC Kill_Tally` @ `PRG000_D2E4` |
+| Stomp a resting shell | yes | yes | same pair, `prg000.asm:3927-3928` |
+| Tail strike / bouncer | yes | **no** | `Enemy_Kill`, `prg000.asm:6018-6019` — no `INC` |
+| Rolling shell's victims | — | the *shell's* own tally | `Objects_KillTally` |
+| Wall crush, carry contact | flat 100 | no | `A = 0` into `Score_Get100PlusPts` |
+
+Hence the two helpers on `LevelScenePlayerRuntimeStateAware`: `nextKillChainReward()` for a stomp and
+`killChainRewardWithoutAdvancing()` for a tail strike. Whack three Goombas with the tail in one jump and
+all three pay the same.
+
+Both caps are the ROM's, and both are already in `Reward`: `Kill_Tally` is held at `8`
+(`prg007.asm:2155-2161`) and the resulting score index is clamped at `$0D`, the 1-up
+(`prg007.asm:2174-2178`). `nextKillTally()` saturates for the same reason rather than letting an `int`
+climb.
+
+Two ROM resets have **no counterpart**, both for want of the feature: entering water, and flying on a
+P-Wing — "P-Wing does not net you 1-ups" (`prg007.asm:1540` and `:1550`).
+
+### A note on which enemies pay at all
+
+A kicked or carried shell's victim awards nothing: the ROM pays the **striker's** slot, so the shell banks
+it and the Goomba dies for free. And a tail strike on a Koopa Troopa pays nothing either — `OA3_DIESHELLED`
+diverts it past the scoring branch at `prg000.asm:6010-6019`, which is the same attribute that makes a
+troopa shell rather than die. Neither is an omission.

@@ -33,6 +33,26 @@ class KoopaTroopaAnimatorAssetsTest {
         "koopa_troopa_shell_foot_right.png"
     );
 
+    /**
+     * The roll cycle: four beats, played in order and wrapped. The ROM's
+     * {@code ObjShell_AnimFrame = {$04, $06, $05, $06}} (dasm prg000.asm:2710) names only three patterns
+     * because it mirrors the fourth beat through {@code ObjShell_AnimFlipBits} (:2709); the fourth file
+     * here is that mirror pre-applied, so the four beats are four files.
+     */
+    private static final List<String> SHELL_SPIN_FILENAMES = List.of(
+        SHELL_FILENAME,
+        "koopa_troopa_shell_spin_1.png",
+        "koopa_troopa_shell_spin_2.png",
+        "koopa_troopa_shell_spin_3.png"
+    );
+
+    /** The three files behind that four-beat cycle, over and above the resting shell. */
+    private static final List<String> SHELL_SPIN_NEW_FILENAMES = List.of(
+        "koopa_troopa_shell_spin_1.png",
+        "koopa_troopa_shell_spin_2.png",
+        "koopa_troopa_shell_spin_3.png"
+    );
+
     /** Tile wide, two tiles tall - the 16x32 block of hardware sprites Troopa_Draw fills. */
     private static final int FRAME_WIDTH = TILE_SPRITE_SIZE;
     private static final int FRAME_HEIGHT = TILE_SPRITE_SIZE * 2;
@@ -87,7 +107,79 @@ class KoopaTroopaAnimatorAssetsTest {
             assertThat(assets.shellFeet())
                 .as("%s waking frames", mode)
                 .hasSize(SHELL_FEET_FILENAMES.size());
+            assertThat(assets.shellSpin())
+                .as("%s roll cycle is the ROM's four beats, not three", mode)
+                .hasSize(SHELL_SPIN_FILENAMES.size());
         }
+    }
+
+    @Test
+    @DisplayName("The roll cycle is four beats over four files, with the resting shell as its first")
+    void theRollCycleIsFourBeatsOverFourFiles() {
+        // Every beat is its own asset reference, so a plain index into the array is the whole animation
+        // and no beat needs a draw-time transform to tell it apart from another.
+        assertThat(SHELL_SPIN_FILENAMES).as("a four-beat cycle").hasSize(4);
+        assertThat(SHELL_SPIN_FILENAMES.getFirst())
+            .as("the first beat is the resting shell's own art, reused rather than copied")
+            .isEqualTo(SHELL_FILENAME);
+        assertThat(SHELL_SPIN_FILENAMES)
+            .as("four distinct files, three of them new")
+            .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("All three spin frames are 16x16 in every colour, as one hardware sprite each")
+    void theSpinFramesAreOneHardwareSpriteEach() throws IOException {
+        // Patterns $D1, $D3 and $D5 all measure fully opaque 8x16 in chr079, so each composed beat is a
+        // solid 16x16 - the same footprint Object_DrawShelled gives the resting shell.
+        for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
+            for (final String filename : SHELL_SPIN_NEW_FILENAMES) {
+                final BufferedImage frame = readFrame(mode, filename);
+
+                assertThat(frame.getWidth())
+                    .as("%s/%s is one tile wide", mode, filename)
+                    .isEqualTo(TILE_SPRITE_SIZE);
+                assertThat(frame.getHeight())
+                    .as("%s/%s is one tile tall", mode, filename)
+                    .isEqualTo(TILE_SPRITE_SIZE);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("The fourth beat ships as the mirror of the second, so no quad is flipped per beat")
+    void theFourthBeatIsThePreMirroredSecond() throws IOException {
+        // ObjShell_AnimFrame = {$04, $06, $05, $06} (prg000.asm:2710) names $06 twice and
+        // ObjShell_AnimFlipBits = {$00, $00, $00, $40} (:2709) mirrors the second of them. Carrying that
+        // mirror as art is the same decision the waking feet make (see theFeetAreAMirrorPair): the
+        // renderer stays free of a per-beat scale sign, and the animation is the asset array in order.
+        for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
+            final BufferedImage secondBeat = readFrame(mode, SHELL_SPIN_FILENAMES.get(1));
+            final BufferedImage fourthBeat = readFrame(mode, SHELL_SPIN_FILENAMES.get(3));
+
+            for (int row = 0; row < secondBeat.getHeight(); row++) {
+                for (int column = 0; column < secondBeat.getWidth(); column++) {
+                    assertThat(fourthBeat.getRGB(column, row))
+                        .as("%s beat 4 pixel (%d, %d) mirrors beat 2", mode, column, row)
+                        .isEqualTo(secondBeat.getRGB(secondBeat.getWidth() - 1 - column, row));
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("The spin beats are distinct art, so the roll is not the resting shell jittering")
+    void theSpinBeatsAreDistinct() throws IOException {
+        // Beat 1 is $D3 + $D5 - two different halves - while beat 2 is $D1 mirrored and beat 3 is beat 1
+        // mirrored, so no two of them can be the same image, and none can be the resting shell.
+        final List<List<Integer>> spinPixels = new ArrayList<>();
+        for (final String filename : SHELL_SPIN_NEW_FILENAMES) {
+            spinPixels.add(pixelsOf(readFrame(RED, filename)));
+        }
+        final List<Integer> resting = pixelsOf(readFrame(RED, SHELL_FILENAME));
+
+        assertThat(spinPixels).as("the three spin beats all differ").doesNotHaveDuplicates();
+        assertThat(spinPixels).as("and none is the resting shell").doesNotContain(resting);
     }
 
     @Test
@@ -97,6 +189,12 @@ class KoopaTroopaAnimatorAssetsTest {
         // prg004.asm:4349). Mirrored art files would be a second copy of something the renderer can
         // produce with a scale sign, so their absence is the point rather than an omission. The shell
         // frames carry "left"/"right" in their names for the rock they draw, not for a facing.
+        //
+        // The roll cycle is the same decision reached again, and the contrast is worth keeping in view:
+        // the walk ships one facing because the mirror is a scale sign the renderer applies, while every
+        // mirrored frame that is NOT a facing - the waking feet, and beat 4 of the roll - ships as art.
+        // The line is whether anything downstream has to decide; a facing it already knows, a beat index
+        // it would have to be told. See theFeetAreAMirrorPair and theFourthBeatIsThePreMirroredSecond.
         assertThat(WALK_FILENAMES)
             .as("No _left/_right walk pairs")
             .noneMatch(filename -> filename.contains("_left") || filename.contains("_right"));
@@ -288,6 +386,7 @@ class KoopaTroopaAnimatorAssetsTest {
         // pixel that is not shell must be byte-identical between the folders.
         final List<String> shellColouredFiles = new ArrayList<>(WALK_FILENAMES);
         shellColouredFiles.add(SHELL_FILENAME);
+        shellColouredFiles.addAll(SHELL_SPIN_NEW_FILENAMES);
 
         for (final String filename : shellColouredFiles) {
             final BufferedImage red = readFrame(RED, filename);
@@ -323,6 +422,7 @@ class KoopaTroopaAnimatorAssetsTest {
         final List<String> filenames = new ArrayList<>(WALK_FILENAMES);
         filenames.add(SHELL_FILENAME);
         filenames.addAll(SHELL_FEET_FILENAMES);
+        filenames.addAll(SHELL_SPIN_FILENAMES);
         return filenames;
     }
 
@@ -370,6 +470,16 @@ class KoopaTroopaAnimatorAssetsTest {
             }
         }
         return opaque;
+    }
+
+    private static List<Integer> pixelsOf(final BufferedImage image) {
+        final List<Integer> pixels = new ArrayList<>();
+        for (int row = 0; row < image.getHeight(); row++) {
+            for (int column = 0; column < image.getWidth(); column++) {
+                pixels.add(image.getRGB(column, row));
+            }
+        }
+        return pixels;
     }
 
     private BufferedImage readFrame(

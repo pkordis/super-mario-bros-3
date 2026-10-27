@@ -6,7 +6,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.enemy.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -163,7 +163,7 @@ class TailStrikeDuringABodyHitTest {
         @Override
         public void onPlayerOverlap(final LevelScenePlayer player) {
             events.add("overlap");
-            player.onHurt();
+            player.getHurtBy(null);
         }
 
         @Override

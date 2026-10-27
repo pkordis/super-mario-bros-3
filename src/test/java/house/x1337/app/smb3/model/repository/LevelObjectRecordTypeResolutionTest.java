@@ -3,7 +3,7 @@ package house.x1337.app.smb3.model.repository;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.enemy.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
