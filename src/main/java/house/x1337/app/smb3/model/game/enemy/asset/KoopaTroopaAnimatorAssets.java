@@ -6,5 +6,6 @@ import house.x1337.app.smb3.model.game.enemy.EnemyAnimatorAssets;
 public record KoopaTroopaAnimatorAssets(
     Texture[] walk,
     Texture shell,
-    Texture[] shellFeet
+    Texture[] shellFeet,
+    Texture[] shellSpin
 ) implements EnemyAnimatorAssets {}

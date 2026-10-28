@@ -32,6 +32,7 @@ public record NormalAnimatorAssets(
             .quadWidth(QUAD_WIDTH)
             .quadHeight(QUAD_HEIGHT)
             .rightPadding(RIGHT_PADDING)
+            .kickLeadingOffset(KICK_LEADING_OFFSET)
             .walkFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .runFrameSequence(WALK_OR_RUN_FRAME_SEQUENCE)
             .build()

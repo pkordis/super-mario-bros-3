@@ -467,9 +467,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         runtimeState.decrementHurtInvincibility();
 
         // Player_PipeFace, decremented one instruction after the test that chose the face-forward frame
-        // (dasm prg008 @ PRG008_AF45) — so, like the flash above, after advanceAnimation, because this
-        // tick's pose belonged to the pre-decrement value.
+        // so, like the flash above, after advanceAnimation, because this tick's pose belonged to the
+        // pre-decrement value.
         runtimeState.decrementTurnAroundFace();
+
+        // Player_Kick, decremented in that same block two instructions after the frame write and so for
+        // the same reason.
+        tickKickPose();
 
         // Advance the vertical camera scroll (locked at the level bottom unless
         // flying/climbing — SMB3 Level_FreeVertScroll mode 0).

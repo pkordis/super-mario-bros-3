@@ -7,11 +7,11 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.util.GameRenderer;
 
 public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
+    ImageResource getImageResource();
     Reward getRewardType();
     boolean isCollected();
     boolean isExpired();
     void setExpired(boolean expired);
-    ImageResource getImageResource();
 
     @Override
     default AxisAlignedBoundingBox getBounds() {
@@ -29,14 +29,17 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
         return true;
     }
 
-    /**
-     * Whether this reward is removed the instant it is collected — the same tick
-     * its score caption spawns — instead of lingering one frame to share a
-     * rendered frame with that caption. Both the mushroom and the leaf vanish on
-     * contact, before the suit-change freeze begins the next tick, so they
-     * override this to {@code true}; the default keeps the shared frame.
-     */
     default boolean detachesOnCollect() {
+        return false;
+    }
+
+    @Override
+    default void expire() {
+        setExpired(true);
+    }
+
+    @Override
+    default boolean isKilledByRammedObject() {
         return false;
     }
 }

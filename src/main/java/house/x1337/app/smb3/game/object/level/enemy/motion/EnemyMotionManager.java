@@ -1,10 +1,11 @@
-package house.x1337.app.smb3.game.object.level.enemy;
+package house.x1337.app.smb3.game.object.level.enemy.motion;
 
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -70,15 +71,6 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
         }
     }
 
-    /**
-     * Awards the kill captions for this tick's collisions, now that the engine's collision pass has run.
-     *
-     * <p>The ROM pops the score from inside the stomp response itself ({@code Score_Get100PlusPts}, dasm
-     * prg000 @ PRG000_D2E4); this is the corresponding moment. Driving it from here rather than from the
-     * enemy's own collision handler keeps the caption's lifecycle with the manager that owns every other
-     * per-tick list, exactly as the reward managers do — and the value stays with the enemy, since the
-     * ROM's award varies by object and kill tally.
-     */
     @Override
     default void postCollision() {
         for (final E instance : getActiveInstances()) {
@@ -88,6 +80,7 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
             }
             // Taken exactly once: the enemy stays in the list for the rest of its death animation.
             instance.setPendingScoreReward(null);
+            instance.getGameEngine().getPlayerData().add(reward.getData());
             spawnScorePopupFor(instance, reward);
         }
     }

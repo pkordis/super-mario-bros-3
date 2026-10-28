@@ -1,4 +1,6 @@
-package house.x1337.app.smb3.game.object.level.enemy;
+package house.x1337.app.smb3.game.object.level.enemy.family;
+
+import house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 

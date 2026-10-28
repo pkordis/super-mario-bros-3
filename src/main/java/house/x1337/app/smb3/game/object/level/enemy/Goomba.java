@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -28,12 +29,12 @@ import lombok.experimental.Accessors;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.LEFT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
+import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.shellKill;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.strikeFrom;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
@@ -149,7 +150,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         }
         squished = true;
         squishTicksRemaining = SQUISH_TICKS;
-        pendingScoreReward = SCORE_100;
+        pendingScoreReward = levelScenePlayer.nextKillChainReward();
         // Halt horizontal movement, as ObjState_Squashed does on touching the ground.
         velocity = velocity.withX(0);
         animator.applyCurrentFrame(this);
@@ -164,7 +165,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         final double playerX = levelScenePlayer.getPosition().getX();
         final boolean playerOnTheLeft = playerX + SPRITE_SIZE_PIXELS / 2.0 < position.x() + SPRITE_SIZE_PIXELS / 2.0;
         whamMotion = strikeFrom(playerOnTheLeft ? LEFT : RIGHT);
-        pendingScoreReward = SCORE_100;
+        pendingScoreReward = levelScenePlayer.currentKillChain();
 
         // Put the flash on the side the Goomba is actually on, so it always lands between the two rather
         // than off the player's far shoulder. Keying off which side was struck rather than off the
@@ -200,7 +201,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         if (!canHurtPlayer()) {
             return;
         }
-        levelScenePlayer.onHurt();
+        levelScenePlayer.getHurtBy(this);
     }
 
     @Override
@@ -208,6 +209,14 @@ public final class Goomba implements GoombaFamilyEnemy {
         final AxisAlignedBoundingBox otherBounds = other.getBounds();
         final double otherCenterX = (otherBounds.left() + otherBounds.right()) / 2.0;
         facingRight = otherCenterX < position.x() + SPRITE_SIZE_PIXELS / 2.0;
+    }
+
+    @Override
+    public void onStruckByKickedObject(final int knockXVelocityFixedPoint) {
+        if (squished || whamMotion != null) {
+            return;
+        }
+        whamMotion = shellKill(knockXVelocityFixedPoint);
     }
 
     void faceClosestPlayer() {

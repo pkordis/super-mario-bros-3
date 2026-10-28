@@ -4,7 +4,7 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.enemy.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -450,6 +450,187 @@ class ActiveObjectGridTest {
         assertThat(last.bumpedFrom).containsExactly(middle);
     }
 
+    // -------------------------------------------------------------------------
+    // The lethal pass, alongside the facing-only one
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a kicked object is handed every object it overlaps, and nothing else is")
+    void theKickedPassDispatchesOnlyForKickedObjects() {
+        // ObjectToObject_HitTest from inside ObjState_Kicked (dasm prg000 @ PRG000_CD05). A second,
+        // lethal interaction beside resolveObjectToObjectBumps rather than folded into it.
+        // Prepare — a rolling shell overlapping one walker, with a second walker out of reach
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject shell = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).kicked();
+        final StubObject touched = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).bouncing();
+        final StubObject distant = new StubObject(AxisAlignedBoundingBox.ofSize(200, 0, dimensions)).bouncing();
+        grid.insert(shell);
+        grid.insert(touched);
+        grid.insert(distant);
+
+        // Execute
+        grid.resolveKickedObjectKills();
+
+        // Verify
+        assertThat(shell.kickedInto).containsExactly(touched);
+        assertThat(touched.kickedInto).as("a walker kicks nothing").isEmpty();
+        assertThat(distant.kickedInto).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the lethal pass is additive: the facing-only bump keeps its own semantics")
+    void theLethalPassLeavesTheFacingBumpAlone() {
+        // AC: resolveObjectToObjectBumps() must still mean exactly "overlapping walkers turn away", for
+        // kicked and non-kicked alike. A rolling shell is not required to bounce off others, so it is not
+        // even in that pass's candidate set.
+        // Prepare
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject shell = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).kicked();
+        final StubObject walker = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).bouncing();
+        grid.insert(shell);
+        grid.insert(walker);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(walker.bumpedFrom).as("the shell does not opt into bouncing, so no facing rewrite").isEmpty();
+        assertThat(shell.kickedInto).as("and the bump pass never kills").isEmpty();
+        assertThat(walker.struckByKick).isZero();
+    }
+
+    @Test
+    @DisplayName("a kicked object that dies on its first contact kills nothing further that tick")
+    void aShellThatDiesMidPassStopsKilling() {
+        // Two kicked shells meeting kill each other (dasm prg000.asm:2610-2627), so the striker can stop
+        // being a hazard partway through its own candidate list - and must not keep mowing down the rest.
+        // Prepare — a shell overlapping two neighbours, which stops being kicked on its first strike
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject shell = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions))
+            .kicked()
+            .diesOnItsFirstStrike();
+        final StubObject first = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions));
+        final StubObject second = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
+        grid.insert(shell);
+        grid.insert(first);
+        grid.insert(second);
+
+        // Execute
+        grid.resolveKickedObjectKills();
+
+        // Verify
+        assertThat(shell.kickedInto).hasSize(1);
+        assertThat(shell.isKickedHazard()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a carried object is handed every object it overlaps, and nothing else is")
+    void theCarriedPassDispatchesOnlyForCarriedObjects() {
+        // ObjState_Held's own ObjectToObject_HitTest (dasm prg000.asm:3094). A third pass beside the
+        // facing bump and the kicked kill, because the ROM keeps all three in separate routines.
+        // Prepare — a held shell overlapping one walker, with a second walker out of reach
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject held = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).carried();
+        final StubObject touched = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).bouncing();
+        final StubObject distant = new StubObject(AxisAlignedBoundingBox.ofSize(200, 0, dimensions)).bouncing();
+        grid.insert(held);
+        grid.insert(touched);
+        grid.insert(distant);
+
+        // Execute
+        grid.resolveCarriedObjectKills();
+
+        // Verify
+        assertThat(held.carriedInto).containsExactly(touched);
+        assertThat(touched.carriedInto).as("a walker carries nothing").isEmpty();
+        assertThat(distant.carriedInto).isEmpty();
+        assertThat(held.kickedInto).as("and the kicked pass is not what ran").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a carried object takes exactly one victim, because the contact kills it too")
+    void aCarriedObjectTakesOnlyOneVictim() {
+        // Both slots get OBJSTATE_KILLED (prg000.asm:3106-3120), so unlike a rolling shell the carried one
+        // cannot go on. Standing between two enemies therefore costs you the shell for one of them.
+        // Prepare — a held shell overlapping two neighbours at once
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject held = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).carried();
+        final StubObject first = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions));
+        final StubObject second = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
+        grid.insert(held);
+        grid.insert(first);
+        grid.insert(second);
+
+        // Execute
+        grid.resolveCarriedObjectKills();
+
+        // Verify
+        assertThat(held.carriedInto).hasSize(1);
+        assertThat(held.isCarriedHazard()).isFalse();
+        assertThat(first.struckByKick + second.struckByKick).as("one of the two, not both").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("the kicked and carried passes select from their own candidate lists only")
+    void theTwoLethalPassesDoNotOverlap() {
+        // The two hazards are different states in the ROM's table and different routines around it, so a
+        // rolling shell must not be swept up by the carried pass nor a held one by the kicked pass.
+        // Prepare
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject rolling = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).kicked();
+        final StubObject held = new StubObject(AxisAlignedBoundingBox.ofSize(10, 0, dimensions)).carried();
+        grid.insert(rolling);
+        grid.insert(held);
+
+        // Execute
+        grid.resolveCarriedObjectKills();
+
+        // Verify
+        assertThat(held.carriedInto).as("the held shell ran into the rolling one").containsExactly(rolling);
+        assertThat(rolling.carriedInto).as("but the rolling one is not in this pass").isEmpty();
+        assertThat(rolling.kickedInto).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a powerup is invisible to both lethal passes, so ramming one costs nothing")
+    void aPowerupIsNotAValidVictim() {
+        // OAT_HITNOTKILL (smb3.asm:3252) names this case outright: "object not killed by being rammed
+        // with held object". ObjectToObject_HitTest tests it on the candidate and does not even report
+        // the collision (prg000.asm:6165-6173), so the striker survives too - which is what lets you
+        // collect a mushroom with a shell in your hands instead of losing the shell to the pickup.
+        // Prepare - a rolling shell and a held one, each overlapping a powerup
+        final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject rolling = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).kicked();
+        final StubObject held = new StubObject(AxisAlignedBoundingBox.ofSize(100, 0, dimensions)).carried();
+        final StubObject powerupAhead = new StubObject(AxisAlignedBoundingBox.ofSize(8, 0, dimensions))
+            .immuneToRamming();
+        final StubObject powerupInHand = new StubObject(AxisAlignedBoundingBox.ofSize(108, 0, dimensions))
+            .immuneToRamming();
+        grid.insert(rolling);
+        grid.insert(held);
+        grid.insert(powerupAhead);
+        grid.insert(powerupInHand);
+
+        // Execute
+        grid.resolveKickedObjectKills();
+        grid.resolveCarriedObjectKills();
+
+        // Verify
+        assertThat(powerupAhead.struckByKick).as("the shell rolled straight through it").isZero();
+        assertThat(powerupInHand.struckByKick).isZero();
+        assertThat(rolling.kickedInto).as("and no collision was reported to either striker").isEmpty();
+        assertThat(held.carriedInto).isEmpty();
+        assertThat(rolling.isKickedHazard()).as("the rolling shell carries on").isTrue();
+        assertThat(held.isCarriedHazard()).as("and the held one stays in your hands").isTrue();
+    }
+
     /**
      * A grid under test. The cell size is the tile constant now, so the only collaborator is the enemy
      * spawner, which nothing here exercises (it is only reached via {@code spawnPlacedEnemies}).
@@ -514,10 +695,18 @@ class ActiveObjectGridTest {
         private final AxisAlignedBoundingBox bounds;
         private final boolean directional;
         private final List<ActiveLevelObject> bumpedFrom = new ArrayList<>();
+        private final List<ActiveLevelObject> kickedInto = new ArrayList<>();
+        private final List<ActiveLevelObject> carriedInto = new ArrayList<>();
         /** Every player interaction this stub received, in dispatch order. */
         private final List<String> events = new ArrayList<>();
         private boolean bouncing;
+        private boolean kicked;
+        private boolean carried;
+        private boolean rammable = true;
+        private boolean diesOnFirstStrike;
         private int collisionCount;
+        private int struckByKick;
+        private int lastKnock;
         private int tailAttackCount;
         private int fromAboveCount;
         private int fromBelowCount;
@@ -536,6 +725,68 @@ class ActiveObjectGridTest {
         private StubObject bouncing() {
             bouncing = true;
             return this;
+        }
+
+        /** Opts this stub into the lethal pass, as a rolling shell does. */
+        private StubObject kicked() {
+            kicked = true;
+            return this;
+        }
+
+        /** Makes this stub stop being a hazard the moment it strikes, as a shell meeting another does. */
+        private StubObject diesOnItsFirstStrike() {
+            diesOnFirstStrike = true;
+            return this;
+        }
+
+        /** Opts this stub into the carried pass, as a shell in the player's hands does. */
+        private StubObject carried() {
+            carried = true;
+            return this;
+        }
+
+        /** Makes this stub an {@code OAT_HITNOTKILL} object, as every powerup is. */
+        private StubObject immuneToRamming() {
+            rammable = false;
+            return this;
+        }
+
+        @Override
+        public boolean isKilledByRammedObject() {
+            return rammable;
+        }
+
+        @Override
+        public boolean isCarriedHazard() {
+            return carried;
+        }
+
+        @Override
+        public void onCarriedInto(final ActiveLevelObject other) {
+            carriedInto.add(other);
+            other.onStruckByKickedObject(0x08);
+            // A carry contact always kills the carried object; there is no surviving branch.
+            carried = false;
+        }
+
+        @Override
+        public boolean isKickedHazard() {
+            return kicked;
+        }
+
+        @Override
+        public void onKickedInto(final ActiveLevelObject other) {
+            kickedInto.add(other);
+            other.onStruckByKickedObject(0x10);
+            if (diesOnFirstStrike) {
+                kicked = false;
+            }
+        }
+
+        @Override
+        public void onStruckByKickedObject(final int knockXVelocityFixedPoint) {
+            struckByKick++;
+            lastKnock = knockXVelocityFixedPoint;
         }
 
         @Override

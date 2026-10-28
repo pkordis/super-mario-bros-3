@@ -6,7 +6,10 @@ import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 
-public interface LevelScenePlayerActionCapable extends LevelScenePlayerMoveCapable {
+public interface LevelScenePlayerActionCapable
+    extends
+        LevelScenePlayerKickCapable,
+        LevelScenePlayerMoveCapable {
     default void handleDucking(final PlayerInputHandler inputHandler) {
         final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
         final PlayerRuntimeState runtimeState = getRuntimeState();

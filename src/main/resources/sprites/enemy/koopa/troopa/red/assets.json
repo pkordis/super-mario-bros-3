@@ -1,5 +1,11 @@
 {
   "walk": ["koopa_troopa_walk_1.png", "koopa_troopa_walk_2.png"],
   "shell": "koopa_troopa_shell.png",
-  "shellFeet": ["koopa_troopa_shell_foot_left.png", "koopa_troopa_shell_foot_right.png"]
+  "shellFeet": ["koopa_troopa_shell_foot_left.png", "koopa_troopa_shell_foot_right.png"],
+  "shellSpin": [
+    "koopa_troopa_shell.png",
+    "koopa_troopa_shell_spin_1.png",
+    "koopa_troopa_shell_spin_2.png",
+    "koopa_troopa_shell_spin_3.png"
+  ]
 }

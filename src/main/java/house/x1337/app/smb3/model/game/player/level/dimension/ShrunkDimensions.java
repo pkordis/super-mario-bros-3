@@ -4,6 +4,7 @@ import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 
 public interface ShrunkDimensions {
+    float KICK_LEADING_OFFSET = 0;
     float SPRITE_HEIGHT_PIXELS = TILE_SPRITE_SIZE;
     float SPRITE_WIDTH_PIXELS = TILE_SPRITE_SIZE;
 

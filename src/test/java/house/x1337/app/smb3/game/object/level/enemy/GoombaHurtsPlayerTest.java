@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -92,7 +94,7 @@ class GoombaHurtsPlayerTest {
         goomba.onPlayerOverlap(player);
 
         // Verify
-        verify(player).onHurt();
+        verify(player).getHurtBy(goomba);
         assertThat(goomba.isSquished()).as("side contact costs the Goomba nothing").isFalse();
         assertThat(goomba.getPendingScoreReward()).as("and earns no points").isNull();
         assertThat(goomba.isHittable()).isTrue();
@@ -109,7 +111,7 @@ class GoombaHurtsPlayerTest {
         goomba.onCollisionFromBelow(player);
 
         // Verify
-        verify(player).onHurt();
+        verify(player).getHurtBy(goomba);
         assertThat(goomba.isSquished()).isFalse();
         assertThat(goomba.getPendingScoreReward()).isNull();
     }
@@ -125,7 +127,7 @@ class GoombaHurtsPlayerTest {
         goomba.onCollisionFromAbove(player);
 
         // Verify - the ROM's stomp branch never reaches the hurt code
-        verify(player, never()).onHurt();
+        verify(player, never()).getHurtBy(any());
         assertThat(goomba.isSquished()).isTrue();
         assertThat(goomba.getPendingScoreReward()).isNotNull();
     }
@@ -146,7 +148,7 @@ class GoombaHurtsPlayerTest {
         goomba.onCollisionFromBelow(secondPlayer);
 
         // Verify
-        verify(secondPlayer, never()).onHurt();
+        verify(secondPlayer, never()).getHurtBy(any());
     }
 
     // -------------------------------------------------------------------------
@@ -166,6 +168,8 @@ class GoombaHurtsPlayerTest {
 
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getPosition()).thenReturn(position);
+        when(player.getRuntimeState()).thenReturn(new PlayerRuntimeState());
+        doCallRealMethod().when(player).nextKillChainReward();
         return player;
     }
 

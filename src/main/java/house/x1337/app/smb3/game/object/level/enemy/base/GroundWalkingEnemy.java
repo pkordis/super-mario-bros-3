@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.enemy;
+package house.x1337.app.smb3.game.object.level.enemy.base;
 
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;

@@ -12,6 +12,7 @@ import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
+import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,16 +31,17 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
-import static house.x1337.app.smb3.game.object.level.enemy.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.SHELL_FEET_THRESHOLD_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.SHELL_SHAKE_THRESHOLD_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.TAIL_STRIKE_HIT_COOLDOWN_TICKS;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaTroopaFamilyEnemy.WAKE_UP_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.SHELL_FEET_THRESHOLD_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.SHELL_SHAKE_THRESHOLD_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.TAIL_STRIKE_HIT_COOLDOWN_TICKS;
+import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.WAKE_UP_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -157,7 +159,7 @@ class KoopaTroopaShellTest {
         troopa.onCollisionFromBelow(player);
 
         // Verify
-        verify(player, times(2)).onHurt();
+        verify(player, times(2)).getHurtBy(troopa);
     }
 
     @Test
@@ -175,7 +177,7 @@ class KoopaTroopaShellTest {
         troopa.onCollisionFromAbove(descendingPlayer());
 
         // Verify
-        verify(player, never()).onHurt();
+        verify(player, never()).getHurtBy(any());
         assertThat(troopa.getPendingScoreReward())
             .as("Object_HoldKickOrHurtPlayer routes a shelled object away from the hurt branch")
             .isNull();
@@ -660,7 +662,7 @@ class KoopaTroopaShellTest {
     void theWakeUpClockIsThrottledWhileTheShellIsStill() {
         // The central object loop gates the Timer3 decrement on Counter_1 while the timer is at or above
         // $60 and the object is not in its normal state (dasm prg000.asm:1879-1897) - so 160 units run at
-        // half rate and the last 95 at full.
+        // half rate and the last 95 at full. The mask is $01 here; a held shell gets $03 instead.
         // Prepare
         final KoopaTroopa troopa = shelledOnTheFloor();
 
@@ -828,12 +830,14 @@ class KoopaTroopaShellTest {
         bumpedBlockCells.add(Offset.of(centerColumn, feetRow));
     }
 
-    /** A player falling onto the troopa; only its position is read by the stomp response. */
+    /** A player falling onto the troopa; its position and its kill chain are read by the stomp. */
     private static LevelScenePlayer descendingPlayer() {
         final PlayerPosition position = new PlayerPosition();
         position.setDY(2.0);
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getPosition()).thenReturn(position);
+        when(player.getRuntimeState()).thenReturn(new PlayerRuntimeState());
+        doCallRealMethod().when(player).nextKillChainReward();
         return player;
     }
 

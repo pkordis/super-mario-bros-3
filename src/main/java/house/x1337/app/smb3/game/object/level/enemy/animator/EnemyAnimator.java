@@ -5,7 +5,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.object.Animator;
-import house.x1337.app.smb3.game.object.level.enemy.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.model.game.asset.loader.AnimatorAssetsLoader;
 import house.x1337.app.smb3.model.game.enemy.EnemyAnimatorAssets;
 import house.x1337.app.smb3.util.GameRenderer;

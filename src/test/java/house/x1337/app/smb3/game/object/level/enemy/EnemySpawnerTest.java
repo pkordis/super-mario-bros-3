@@ -5,6 +5,8 @@ import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
+import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.model.game.Offset;

@@ -18,21 +18,6 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 
-/**
- * Shared behavior for the level-scene sprite animators (small and raccoon
- * Mario). Concrete animators differ only in their sprite dimensions, frame
- * sequences and per-frame texture lookups; the walk/run tick timing, the
- * frame-change bookkeeping and the JME quad-rebuild are identical and live here.
- *
- * <p>All timing constants are ported from the SMB3 disassembly (prg008.asm):
- * {@code Player_WalkAnimTickMax} drives how many NES ticks elapse before the
- * walk frame advances, indexed by {@code abs(Player_XVel) >> 3}.
- *
- * <p>Sprites face left; facing right is a horizontal flip plus an X-shift so the
- * collision-box origin stays aligned (see {@link #rebuildWithTexture}).
- *
- * @param <A> the concrete animator's asset bundle type
- */
 @Data
 public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAssetsMoving>
     implements
@@ -42,6 +27,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     static final int AIRBORNE_HOLD_FRAME = 0;
     static final int AIRBORNE_HOLD_FRAME_SMALL = 1;
     static final int FACE_FORWARD_FRAME = -2;
+    static final int KICK_FRAME = -3;
     static final int STANDING_WALK_FRAME = 2;
 
     private A assets;
@@ -49,6 +35,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     private PlayerMovement lastRenderedState;
     private PlayerOrientationHorizontal lastOrientation;
     private boolean wasCarryPosed;
+    private boolean wasKickPosed;
     private int lastWalkFrame = -1;
     private int walkAnimTicks;
     private int walkFrameIndex;
@@ -133,6 +120,42 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         walkAnimTicks = 0;
         walkFrameIndex = 0;
         wasCarryPosed = false;
+        wasKickPosed = false;
+    }
+
+    protected final boolean renderKickPose(
+        final Node node,
+        final LevelScenePlayer levelScenePlayer,
+        final PlayerOrientationHorizontal orientation
+    ) {
+        if (!levelScenePlayer.getRuntimeState().isKicking()) {
+            if (wasKickPosed) {
+                // The pose that follows may be the very state the kick rendered under, so the dedup cache
+                // has to be invalidated outright or the quad would never be rebuilt.
+                wasKickPosed = false;
+                wasCarryPosed = false;
+                lastRenderedState = null;
+                lastOrientation = null;
+                lastWalkFrame = -1;
+            }
+            return false;
+        }
+
+        final PlayerMovement movement = levelScenePlayer.getRuntimeState().getMovement();
+        if (!wasKickPosed || frameChanged(movement, orientation, KICK_FRAME)) {
+            rebuildWithTexture(
+                node,
+                assets.kick(),
+                orientation,
+                specifications.getQuadWidth(),
+                specifications.getQuadHeight(),
+                0f,
+                specifications.getKickLeadingOffset()
+            );
+            markRendered(movement, orientation, KICK_FRAME);
+        }
+        wasKickPosed = true;
+        return true;
     }
 
     protected final boolean renderCarryPose(

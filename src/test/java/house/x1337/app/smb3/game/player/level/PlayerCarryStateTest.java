@@ -6,6 +6,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,11 +17,14 @@ import org.mockito.MockedStatic;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.TURN_AROUND_FACE_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -145,9 +149,10 @@ class PlayerCarryStateTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Release is one call site: it clears the carry and tells the object exactly once")
+    @DisplayName("Release is one call site: it clears the carry and kicks the object exactly once")
     void theReleaseIsASingleCallSite() {
-        // SMB3-10 replaces what onReleased does and nothing on this side changes.
+        // The single release call site, whose body SMB3-10 replaced outright: there is no drop, only a
+        // kick (dasm prg000 @ PRG000_CE2C, BIT Pad_Holding / BVC Player_KickObject).
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = carryingPlayer(runtimeState);
@@ -161,7 +166,7 @@ class PlayerCarryStateTest {
 
         // Verify
         assertThat(runtimeState.getCarriedObject()).isNull();
-        verify(carried, times(1)).onReleased(player);
+        verify(carried, times(1)).onKicked(eq(player), anyBoolean());
         assertThat(runtimeState.getTurnAroundFaceCounter())
             .as("the camera-facing pose runs out on its own: PRG008_AF2F decrements and draws on "
                 + "Player_PipeFace alone, before it ever tests Player_IsHolding")
@@ -181,7 +186,7 @@ class PlayerCarryStateTest {
 
         // Verify
         assertThat(runtimeState.getCarriedObject()).isNull();
-        verify(neverCarried, never()).onReleased(any());
+        verify(neverCarried, never()).onKicked(any(), anyBoolean());
     }
 
     // -------------------------------------------------------------------------
@@ -289,10 +294,12 @@ class PlayerCarryStateTest {
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
         when(player.getRuntimeState()).thenReturn(runtimeState);
         when(player.asLevelScenePlayer()).thenReturn(player);
+        when(player.getOrientation()).thenReturn(new PlayerOrientation(RIGHT, SUSTAINED));
         doCallRealMethod().when(player).isCarrying();
         doCallRealMethod().when(player).canPickUpCarriable();
         doCallRealMethod().when(player).pickUp(any());
         doCallRealMethod().when(player).releaseCarriedObject();
+        doCallRealMethod().when(player).kickCarriedObject(any());
         doCallRealMethod().when(player).advanceCarryLag();
         return player;
     }
