@@ -11,6 +11,7 @@ import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LAYER_TOGGLE;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
+import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RESET;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_SIZE_TOGGLE;
@@ -33,7 +34,7 @@ import static org.mockito.Mockito.when;
 class PlayerInputHandlerRegistrationTest {
     private static final String[] MAPPINGS = {
         HANDLER_UP, HANDLER_DOWN, HANDLER_LEFT, HANDLER_RIGHT,
-        HANDLER_JUMP, HANDLER_RUN, HANDLER_SIZE_TOGGLE, HANDLER_LAYER_TOGGLE
+        HANDLER_JUMP, HANDLER_RUN, HANDLER_SIZE_TOGGLE, HANDLER_LAYER_TOGGLE, HANDLER_RESET
     };
 
     private InputManager inputManager;

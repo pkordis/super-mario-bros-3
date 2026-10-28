@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayerActionEventListener;
 import house.x1337.app.smb3.model.event.LevelScenePlayerSwitchedLayer;
+import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public final class PlayerInputHandler
     public static final String HANDLER_SIZE_TOGGLE = "PLAYER_SIZE_TOGGLE";
     public static final String HANDLER_LAYER_TOGGLE = "PLAYER_LAYER_TOGGLE";
     public static final String HANDLER_CAPTURE_TOGGLE = "PLAYER_CAPTURE_TOGGLE";
+    public static final String HANDLER_RESET = "LEVEL_RESET";
     public static final String HANDLER_EXIT = "PLAYER_EXIT";
 
     /** Keys currently held down. */
@@ -73,12 +75,20 @@ public final class PlayerInputHandler
         registerMapping(inputManager, HANDLER_RUN, KeyInput.KEY_Z);
         registerMapping(inputManager, HANDLER_SIZE_TOGGLE, KeyInput.KEY_RETURN);
         registerMapping(inputManager, HANDLER_LAYER_TOGGLE, KeyInput.KEY_L);
+        registerMapping(inputManager, HANDLER_RESET, KeyInput.KEY_R);
 
-        inputManager.addListener(this,
-                HANDLER_UP, HANDLER_DOWN, HANDLER_LEFT, HANDLER_RIGHT,
-                HANDLER_JUMP, HANDLER_RUN, HANDLER_SIZE_TOGGLE, HANDLER_LAYER_TOGGLE);
-        //,
-        //        HANDLER_EXIT);
+        inputManager.addListener(
+            this,
+            HANDLER_UP,
+            HANDLER_DOWN,
+            HANDLER_LEFT,
+            HANDLER_RIGHT,
+            HANDLER_JUMP,
+            HANDLER_RUN,
+            HANDLER_SIZE_TOGGLE,
+            HANDLER_LAYER_TOGGLE,
+            HANDLER_RESET
+        );
     }
 
     /**
@@ -146,6 +156,14 @@ public final class PlayerInputHandler
             if (name.equals(HANDLER_LAYER_TOGGLE)) {
                 publish(
                     LevelScenePlayerSwitchedLayer
+                        .builder()
+                        .inputHandlerId(id)
+                        .build()
+                );
+            }
+            if (name.equals(HANDLER_RESET)) {
+                publish(
+                    LevelSceneResetRequested
                         .builder()
                         .inputHandlerId(id)
                         .build()
