@@ -14,12 +14,15 @@ import lombok.RequiredArgsConstructor;
 
 import javax.swing.JPanel;
 import java.awt.Dimension;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Prototype
 @RequiredArgsConstructor
 public class LevelSceneTesterSession implements TestSessionEventListener {
+    private final AtomicBoolean restartPending = new AtomicBoolean(false);
+
     private final LevelSceneEditorTabSystem editorTabs;
     private final DebuggerPanel debuggerPanel;
     private final MiddlePane middlePane;
@@ -68,6 +71,21 @@ public class LevelSceneTesterSession implements TestSessionEventListener {
     @Override
     public void onGameEngineStopped() {
         stop();
+    }
+
+    @Override
+    public void requestLevelSceneRestart() {
+        if (restartPending.compareAndSet(false, true)) {
+            gameEngine.enqueue(this::runPendingRestart);
+        }
+    }
+
+    private void runPendingRestart() {
+        try {
+            onLevelSceneRestart();
+        } finally {
+            restartPending.set(false);
+        }
     }
 
     @Override

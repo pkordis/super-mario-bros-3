@@ -1,8 +1,8 @@
 package house.x1337.app.smb3.event;
 
-import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import house.x1337.app.smb3.model.event.PlayerDied;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -11,10 +11,9 @@ public interface TestSessionEventListener extends GameEventBusAware, GameEngineA
     @PostConstruct
     default void subscribeListeners() {
         final GameEventBus gameEventBus = getGameEventBus();
-        final GameEngine gameEngine = getGameEngine();
-
         gameEventBus.subscribe(GameEngineStopped.class, event -> onGameEngineStopped());
-        gameEventBus.subscribe(PlayerDied.class, event -> gameEngine.enqueue(this::onLevelSceneRestart));
+        gameEventBus.subscribe(PlayerDied.class, event -> requestLevelSceneRestart());
+        gameEventBus.subscribe(LevelSceneResetRequested.class, event -> requestLevelSceneRestart());
     }
 
     @PreDestroy
@@ -24,4 +23,5 @@ public interface TestSessionEventListener extends GameEventBusAware, GameEngineA
 
     void onGameEngineStopped();
     void onLevelSceneRestart();
+    void requestLevelSceneRestart();
 }
