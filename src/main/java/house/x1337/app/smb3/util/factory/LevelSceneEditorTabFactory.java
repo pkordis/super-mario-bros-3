@@ -10,7 +10,7 @@ import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridSta
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
-import house.x1337.app.smb3.ui.service.SelectedTileService;
+import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 
 import java.awt.Dimension;
 import java.util.ArrayList;
@@ -222,7 +222,7 @@ public interface LevelSceneEditorTabFactory {
             LevelSceneEditorTab.class,
             getBean(LevelSceneImportRouter.class),
             getBean(TilePalettePanel.class),
-            getBean(SelectedTileService.class),
+            getBean(PaletteSelectionService.class),
             getBean(EnemyLevelSceneGridStamper.class)
         );
     }

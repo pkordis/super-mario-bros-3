@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.model.ui.tile;
 
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.TileType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@Prototype
 @NoArgsConstructor
 @AllArgsConstructor
 public final class Tile implements TileCapabilities {

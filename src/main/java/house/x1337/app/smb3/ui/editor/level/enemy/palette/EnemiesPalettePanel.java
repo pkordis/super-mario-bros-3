@@ -1,14 +1,18 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 
 import house.x1337.app.smb3.annotation.Singleton;
+import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.service.EnemyStampService;
+import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
-import house.x1337.app.smb3.ui.service.SelectedTileService;
+import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import jakarta.annotation.PostConstruct;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +24,7 @@ import java.awt.Dimension;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyButton.OWNING_LAYER;
 import static java.awt.BorderLayout.CENTER;
 import static java.awt.Font.ITALIC;
 import static java.lang.Integer.MAX_VALUE;
@@ -32,23 +36,27 @@ import static javax.swing.UIManager.getColor;
  * assembled back into the single picture it was imported as. Selecting one arms the level grid to stamp
  * the whole enemy at the clicked cell.
  *
- * <p>An enemy only belongs on the {@code NON_PLAYABLE_CHARACTERS} layer, so every entry here is disabled
- * unless that layer is the active one — and an armed enemy is released the moment the active layer moves
- * away, which stops a stale selection from stamping parts into, say, the static-environment layer. A
- * brand-new blank scene has no NPC layer at all (it starts with Air and Land Decorations), so the palette
- * stays disabled until the scene has one.
+ * <p>An enemy only belongs on the {@code NON_PLAYABLE_CHARACTERS} layer. While another layer is active
+ * every entry here is marked out of the active layer — greyed, but still clickable, and a click switches
+ * to the NPC layer before arming the enemy (see {@link LayerGatedToggleButton}). An armed enemy is released
+ * the moment the active layer moves away, which stops a stale selection from stamping parts into, say, the
+ * static-environment layer. A brand-new blank scene has no NPC layer at all (it starts with Air and Land
+ * Decorations): there is nothing to switch to, so there the entries are disabled outright, with a hint
+ * saying why.
  */
 @Slf4j
 @Singleton
 @RequiredArgsConstructor
 public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
     private final EnemyStampService enemyStampService;
-    private final SelectedTileService selectedTileService;
+    private final PaletteSelectionService paletteSelectionService;
     private final LevelSceneEditorTabSystem tabSystem;
     private final EnemyTilesAssembler enemyTilesAssembler;
 
     private final JPanel enemiesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(enemiesPanel);
+    /** Package-visible so the gating hint can be asserted without building the panel's Swing context. */
+    @Getter(AccessLevel.PACKAGE)
     private final JLabel hintLabel = new JLabel();
     private final Map<String, EnemyButton> buttonsByEnemyId = new LinkedHashMap<>();
 
@@ -86,8 +94,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         }
         final EnemyButton existing = buttonsByEnemyId.get(enemy.getId());
         if (existing != null) {
-            existing.setIcon(enemyTilesAssembler.toIcon(enemy));
-            existing.repaint();
+            existing.setThumbnail(enemyTilesAssembler.toIcon(enemy));
             return;
         }
 
@@ -104,25 +111,40 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
     }
 
     /**
-     * Enables the palette only while the NPC layer is active, and releases an armed enemy when it is not.
+     * Re-gates every entry against the active tab: placeable while the NPC layer is active, out of the
+     * active layer (greyed but clickable) while another layer is, and disabled outright when the scene has
+     * no NPC layer to switch to. An armed enemy is released whenever the NPC layer is not the active one.
      */
     public void syncEnabledState() {
-        final boolean placeable = isNonPlayableCharactersLayerActive();
-        buttonsByEnemyId.values().forEach(button -> button.setEnabled(placeable));
-        if (!placeable && selectedTileService.getSelectedEnemy() != null) {
-            selectedTileService.clearSelection();
+        final LevelSceneEditorTab tab = tabSystem.getActiveTab();
+        final boolean layerExists = hasLayer(tab, OWNING_LAYER);
+        final boolean placeable = isLayerActive(tab, OWNING_LAYER);
+        for (final EnemyButton button : buttonsByEnemyId.values()) {
+            button.setEnabled(layerExists);
+            button.markOutOfActiveLayer(layerExists && !placeable);
         }
-        hintLabel.setText(resolveHint(placeable));
+        if (!placeable && paletteSelectionService.getSelectedEnemy() != null) {
+            paletteSelectionService.clearSelection();
+        }
+        hintLabel.setText(resolveHint(tab, layerExists, placeable));
         hintLabel.setVisible(!placeable || buttonsByEnemyId.isEmpty());
         enemiesPanel.revalidate();
         enemiesPanel.repaint();
     }
 
-    private String resolveHint(final boolean placeable) {
+    private String resolveHint(final LevelSceneEditorTab tab, final boolean layerExists, final boolean placeable) {
+        if (tab == null) {
+            return "<html>Open a level scene to place enemies.</html>";
+        }
+        if (!layerExists) {
+            return "<html>This scene has no<br><b>"
+                + OWNING_LAYER.getLabel()
+                + "</b> layer,<br>so enemies cannot be placed in it.</html>";
+        }
         if (!placeable) {
-            return "<html>Enemies can only be placed on the<br><b>"
-                + NON_PLAYABLE_CHARACTERS.getLabel()
-                + "</b> layer.<br>Switch to it from Level Scene &gt; Active Layer.</html>";
+            return "<html>Enemies are placed on the<br><b>"
+                + OWNING_LAYER.getLabel()
+                + "</b> layer.<br>Clicking one switches to it.</html>";
         }
         if (buttonsByEnemyId.isEmpty()) {
             return "<html>No enemies yet. Build one from<br>"
@@ -131,12 +153,18 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         return " ";
     }
 
-    private boolean isNonPlayableCharactersLayerActive() {
-        final LevelSceneEditorTab tab = tabSystem.getActiveTab();
+    private static boolean hasLayer(final LevelSceneEditorTab tab, final LevelSceneLayerType type) {
+        if (tab == null || tab.getLayers() == null) {
+            return false;
+        }
+        return tab.getLayers().stream().anyMatch(layer -> layer.getType() == type);
+    }
+
+    private static boolean isLayerActive(final LevelSceneEditorTab tab, final LevelSceneLayerType type) {
         if (tab == null) {
             return false;
         }
         final LevelSceneLayer activeLayer = tab.getActiveLayer();
-        return activeLayer != null && activeLayer.getType() == NON_PLAYABLE_CHARACTERS;
+        return activeLayer != null && activeLayer.getType() == type;
     }
 }

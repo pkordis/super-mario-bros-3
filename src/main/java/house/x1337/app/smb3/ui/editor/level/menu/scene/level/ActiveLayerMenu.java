@@ -68,34 +68,40 @@ public class ActiveLayerMenu extends JMenu {
     }
 
     /**
-     * Makes {@code type} the active layer, wherever the request came from — this menu, or the Tiles
-     * palette when a tile belonging to another layer is picked.
+     * Makes {@code type} the active layer, wherever the request came from — this menu, or either palette
+     * when an entry belonging to another layer is picked (see {@code LayerGatedToggleButton}).
      *
      * <p>The single entry point for activation, so the three things that must move together always do:
-     * the tab's active layer, this menu's selected radio item, and both palettes' enabled state. The tile
+     * the tab's active layer, this menu's selected radio item, and both palettes' gating. The tile
      * palette is resolved lazily because it calls back in here, and constructor-injecting both ways would
      * be a cycle.
      *
      * @param type the layer to activate; ignored when the active scene has no such layer
+     * @return {@code true} when the layer exists and is now the active one; {@code false} when there is no
+     *     tab, the tab has no layers, or none of them is of {@code type} — so a palette knows not to arm an
+     *     entry that would otherwise be painted onto whichever layer happens to be active
      */
-    public void activate(final LevelSceneLayerType type) {
+    public boolean activate(final LevelSceneLayerType type) {
         final LevelSceneEditorTab tab = tabSystem.getActiveTab();
         if (tab == null) {
-            return;
+            return false;
         }
         final List<LevelSceneLayer> layers = tab.getLayers();
         if (layers == null) {
-            return;
+            return false;
         }
+        boolean activated = false;
         for (final LevelSceneLayer layer : layers) {
             if (layer.getType() == type) {
                 tab.setActiveLayer(layer);
+                activated = true;
                 break;
             }
         }
         syncFromActiveTab();
         enemiesPalettePanel.syncEnabledState();
         getBean(TilePalettePanel.class).syncEnabledState();
+        return activated;
     }
 
     private void syncFromActiveTab() {

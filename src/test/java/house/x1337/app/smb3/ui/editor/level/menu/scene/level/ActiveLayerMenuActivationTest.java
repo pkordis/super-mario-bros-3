@@ -18,6 +18,7 @@ import java.util.List;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -26,9 +27,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Activation is funnelled through this menu from wherever it is requested — the menu itself, or the Tiles
- * palette when a tile belonging to another layer is picked — so the three things that have to move
- * together always do: the tab's active layer, the menu's own selection, and both palettes.
+ * Activation is funnelled through this menu from wherever it is requested — the menu itself, or either
+ * palette when an entry belonging to another layer is picked — so the three things that have to move
+ * together always do: the tab's active layer, the menu's own selection, and both palettes. It also reports
+ * whether the layer could be activated, which is what stops a palette arming an entry for a layer the scene
+ * does not have.
  */
 class ActiveLayerMenuActivationTest {
     private LevelSceneEditorTabSystem tabSystem;
@@ -91,10 +94,43 @@ class ActiveLayerMenuActivationTest {
         final LevelSceneEditorTab tab = tabWith(air, air);
 
         // Execute
-        menu().activate(NON_PLAYABLE_CHARACTERS);
+        final boolean activated = menu().activate(NON_PLAYABLE_CHARACTERS);
 
         // Verify
         verify(tab, never()).setActiveLayer(any());
+        assertThat(activated)
+            .as("A palette must not arm an entry whose layer could not be activated")
+            .isFalse();
+    }
+
+    @Test
+    @DisplayName("Activating a layer the scene has reports success")
+    void activatingAnExistingLayerReportsSuccess() {
+        // Prepare
+        final LevelSceneLayer air = layer(AIR);
+        tabWith(air, air, layer(NON_PLAYABLE_CHARACTERS));
+
+        // Execute
+        final boolean activated = menu().activate(NON_PLAYABLE_CHARACTERS);
+
+        // Verify
+        assertThat(activated).isTrue();
+    }
+
+    @Test
+    @DisplayName("A tab that has no layers yet reports failure without re-gating the palettes")
+    void aTabWithoutLayersReportsFailure() {
+        // Prepare
+        final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
+        when(tab.getLayers()).thenReturn(null);
+        when(tabSystem.getActiveTab()).thenReturn(tab);
+
+        // Execute
+        final boolean activated = menu().activate(INTERACTIVE_OBJECTS);
+
+        // Verify
+        assertThat(activated).isFalse();
+        verify(enemiesPalettePanel, never()).syncEnabledState();
     }
 
     @Test
@@ -104,9 +140,10 @@ class ActiveLayerMenuActivationTest {
         when(tabSystem.getActiveTab()).thenReturn(null);
 
         // Execute
-        menu().activate(INTERACTIVE_OBJECTS);
+        final boolean activated = menu().activate(INTERACTIVE_OBJECTS);
 
         // Verify
+        assertThat(activated).isFalse();
         verify(enemiesPalettePanel, never()).syncEnabledState();
         verify(tilePalettePanel, never()).syncEnabledState();
     }

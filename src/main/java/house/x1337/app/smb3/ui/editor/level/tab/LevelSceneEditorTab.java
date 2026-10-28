@@ -9,7 +9,7 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
-import house.x1337.app.smb3.ui.service.SelectedTileService;
+import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import house.x1337.app.smb3.util.factory.LevelSceneImportRouter;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -74,7 +74,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private final LevelSceneEditorGrid levelSceneEditorGrid = forTab(this);
     private final LevelSceneImportRouter levelSceneImportRouter;
     private final TilePalettePanel tilePalettePanel;
-    private final SelectedTileService selectedTileService;
+    private final PaletteSelectionService paletteSelectionService;
     private final EnemyLevelSceneGridStamper enemyLevelSceneGridStamper;
 
     @PostConstruct
@@ -170,12 +170,12 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         if (row < 0 || row >= rows || col < 0 || col >= columns) {
             return;
         }
-        final EnemyStamp selectedEnemy = selectedTileService.getSelectedEnemy();
+        final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
             stampEnemy(selectedEnemy, col, row);
             return;
         }
-        final Tile selectedTile = selectedTileService.getSelectedTile();
+        final Tile selectedTile = paletteSelectionService.getSelectedTile();
         if (selectedTile == null) {
             return;
         }
@@ -206,8 +206,9 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
 
     /**
      * Stamps a whole enemy onto the NPC layer, the clicked cell taking the enemy's rendering starter (see
-     * {@link EnemyLevelSceneGridStamper}). Refuses to write anywhere but the NPC layer — the palette already disables
-     * itself off that layer, and this keeps that true even if an enemy is armed by some other path.
+     * {@link EnemyLevelSceneGridStamper}). Refuses to write anywhere but the NPC layer — the palette only arms
+     * an enemy once that layer is active (switching to it on the click if need be) and releases it when the
+     * layer moves away, and this keeps that true even if an enemy is armed by some other path.
      */
     private void stampEnemy(final EnemyStamp enemy, final int col, final int row) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
@@ -219,7 +220,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
 
     public void updateStatus(final int col, final int row) {
         final String pos = (col >= 0 && row >= 0) ? "  |  col=" + col + "  row=" + row : "";
-        final EnemyStamp selectedEnemy = selectedTileService.getSelectedEnemy();
+        final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
             statusLabel.setText(
                 "Enemy: " + selectedEnemy.getEnemyType().getLabel()
@@ -228,7 +229,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
             );
             return;
         }
-        final Tile selectedTile = selectedTileService.getSelectedTile();
+        final Tile selectedTile = paletteSelectionService.getSelectedTile();
         if (selectedTile == null) {
             statusLabel.setText("No tile selected — pick one from the Tiles palette");
             return;
@@ -253,12 +254,12 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     }
 
     public Tile getSelectedTile() {
-        return selectedTileService.getSelectedTile();
+        return paletteSelectionService.getSelectedTile();
     }
 
     /** Whether a grid click has anything to place — a tile from the Tiles palette, or a whole enemy. */
     public boolean hasPlaceableSelection() {
-        return selectedTileService.hasSelection();
+        return paletteSelectionService.hasSelection();
     }
 
     /**
