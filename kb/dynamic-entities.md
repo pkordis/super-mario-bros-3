@@ -244,21 +244,32 @@ section per enemy, headed by the enemy's name (its description, falling back to 
 and showing that enemy's parts re-assembled by `EnemyTilesAssembler` into the picture it was imported as.
 An enemy is placed as a whole, not part by part:
 
-- Selection is armed through `SelectedTileService`, which now owns **two mutually exclusive** kinds of
-  selection — a tile or an enemy. The grid has to know unambiguously whether a click paints one cell or
-  stamps a grid of parts, so that exclusivity has exactly one owner and both palettes route their clicks
-  through it. (It also now clears the selection when a button is toggled *off*, which it previously left
-  armed.)
+- Selection is armed through `PaletteSelectionService` (formerly `SelectedTileService`), which holds the
+  one armed palette entry as a single `LayerGatedToggleButton` — a `TileButton` or an `EnemyButton`. The
+  grid has to know unambiguously whether a click paints one cell or stamps a grid of parts, and a single
+  field makes the two kinds mutually exclusive by construction; `getSelectedTile()` / `getSelectedEnemy()`
+  read it back by type. Both palettes route their clicks through it, so the selection has exactly one
+  owner. (It also clears the selection when a button is toggled *off*, which it once left armed.)
 - `EnemyLevelSceneGridStamper` writes the parts: the clicked cell takes the **rendering-starter** part and the rest fall
   at their stored offsets, clipped at the scene edges rather than wrapped. So the anchor an author chose
   when building the enemy is the cell they click to place it — the same cell the runtime spawner will
   look for.
-- **Enemies are disabled unless the NPC layer is active**, and arming is released the moment the active
-  layer moves away; `stampEnemy` refuses to write to any other layer regardless, so a stale selection
-  cannot leak parts into the static environment. A brand-new blank scene has no NPC layer at all (it
-  starts with Air + Land Decorations), so the palette stays disabled, with an in-panel hint saying why.
-  Creating an enemy from an image is *not* gated on the layer — otherwise no enemy could ever be authored
-  in a fresh scene.
+- **Enemies wear the out-of-layer look unless the NPC layer is active** — greyed thumbnail, dashed
+  border, a tooltip naming the NPCs layer — but stay **clickable**: a click switches the active layer to
+  NPCs through `ActiveLayerMenu.activate` and then arms the enemy, exactly as picking an off-layer tile
+  does. That look and click flow live once, in `LayerGatedToggleButton` (`ui/editor/level/palette`),
+  shared by `TileButton` and `EnemyButton`; `EnemyButton.OWNING_LAYER` comes from
+  `TileType.ENEMY_PART`'s owning layer so the enemy-to-layer binding has one source. Activation runs
+  **before** arming, because the palette re-sync it triggers releases any selection on the layer being
+  left. `activate` returns whether the layer exists: when it does not, the button is un-toggled and
+  nothing is armed (which also stops an off-layer tile in a blank scene being armed and then painted into
+  Air, as it used to be).
+- Arming is released the moment the active layer moves away from NPCs, by the menu or by a tile click;
+  `stampEnemy` refuses to write to any other layer regardless, so a stale selection cannot leak parts into
+  the static environment. A brand-new blank scene has no NPC layer at all (it starts with Air + Land
+  Decorations), so there is nothing to switch to: there the entries are **disabled** outright, with an
+  in-panel hint saying the scene has no NPCs layer. Creating an enemy from an image is *not* gated on the
+  layer — otherwise no enemy could ever be authored in a fresh scene.
 
 **Remaining link (open):** `EnemySpawner` still identifies a placement through
 `LevelObjectRecord.findLevelObjectType()`. To drive it from the authored data instead, look the painted

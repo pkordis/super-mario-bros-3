@@ -7,11 +7,11 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.model.ui.tile.TileGroup;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.menu.scene.level.ActiveLayerMenu;
+import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
-import house.x1337.app.smb3.ui.service.SelectedTileService;
+import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.model.ui.tile.Tile.THUMB_SIZE;
 import static house.x1337.app.smb3.ui.editor.level.tile.palette.TileButton.fromTile;
 import static java.awt.BorderLayout.CENTER;
@@ -40,14 +39,15 @@ import static java.awt.BorderLayout.CENTER;
  * the active one — which is the safeguard against the mistake of, say, dropping brick blocks into the
  * static-environment layer where nothing can break them. Tiles for other layers are greyed rather than
  * disabled, because clicking one is how the user says "switch me to that layer": see
- * {@link #activateLayerOf}. Virtual tiles belong to no layer and are never gated.
+ * {@link LayerGatedToggleButton}, which owns that click flow for this palette and the Enemies one alike.
+ * Virtual tiles belong to no layer and are never gated.
  */
 @Singleton
 @RequiredArgsConstructor
 public final class TilePalettePanel extends JPanel implements ComponentsBuilder {
     private final TileService tileService;
     private final LevelSceneEditorTabSystem tabSystem;
-    private final SelectedTileService selectedTileService;
+    private final PaletteSelectionService paletteSelectionService;
     private final JPanel tilesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(tilesPanel);
     private final VirtualTilesSection virtualTilesSection;
@@ -115,30 +115,12 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
         for (final TileButton button : buttons) {
             button.markOutOfActiveLayer(isOutOfLayer(button, activeLayer));
         }
-        final TileButton selected = selectedTileService.getSelectedTileButton();
-        if (selected != null && isOutOfLayer(selected, activeLayer)) {
-            selectedTileService.clearSelection();
+        if (paletteSelectionService.getSelectedButton() instanceof TileButton selected
+            && isOutOfLayer(selected, activeLayer)) {
+            paletteSelectionService.clearSelection();
         }
         tilesPanel.revalidate();
         tilesPanel.repaint();
-    }
-
-    /**
-     * Switches the active layer to the one the given tile belongs on, so that picking a tile from another
-     * layer's group takes the user there rather than being rejected.
-     *
-     * <p>Routed through {@code ActiveLayerMenu}, which owns activation: it moves the tab's active layer,
-     * re-selects the matching radio item and re-syncs both palettes. Resolved lazily to keep the palette
-     * and the menu from depending on each other at construction.
-     */
-    public void activateLayerOf(final Tile tile) {
-        final LevelSceneLayerType owningLayer = tile.getType() == null
-            ? null
-            : tile.getType().getLevelSceneLayerOwningType();
-        if (owningLayer == null) {
-            return;
-        }
-        getBean(ActiveLayerMenu.class).activate(owningLayer);
     }
 
     private boolean isOutOfLayer(final TileButton button, final LevelSceneLayerType activeLayer) {
