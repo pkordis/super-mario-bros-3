@@ -1,9 +1,10 @@
-package house.x1337.app.smb3.game.object.level.reward;
+package house.x1337.app.smb3.game.object.level.reward.motion;
 
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 

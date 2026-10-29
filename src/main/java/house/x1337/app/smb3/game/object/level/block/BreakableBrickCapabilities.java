@@ -6,7 +6,7 @@ import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockMotionManager;
-import house.x1337.app.smb3.game.object.level.reward.RewardLevelObject;
+import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;

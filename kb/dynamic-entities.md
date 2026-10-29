@@ -79,8 +79,10 @@ an ENTITY manager, not an animation manager — a generic `ActiveObjectManager` 
 - Spawn Y offset from a bumped block (up-hit, `Player_BounceDir = 1`): leaf top-left =
   block top edge `- 14px` (dasm: bump-handler `-1` [`Var2 != 0`] + `ObjInit_SuperLeaf` `-13`).
   Emerges from the block's TOP, not inside its cell.
-- Player hitbox AABB (sprite-px): `left = x+1`, `right = x+15`, `bottom = y+32`,
-  `top = y + (large && !ducking ? 6 : 16)`. Standard AABB overlap test.
+- Player hitbox AABB (sprite-px): `LevelScenePlayer.getObjectCollisionBounds()` ports `Player_BoundBox`
+  (prg000:5190). Large standing: X `[x+3, x+13)`, Y `[y+5, y+30)`. Small or ducking: X `[x+4, x+12)`,
+  Y `[y+17, y+30)`. Half-open, with the ROM's literal extents (see the SMB3-15 note under the mushroom
+  for what that means against the ROM's inclusive `ObjectObject_Intersect`).
 
 ## Bean wiring pattern
 - Entity: `@Prototype @Getter @RequiredArgsConstructor`, final ctor fields (`GameEngine`,
@@ -113,6 +115,19 @@ Two phases inside the single `tick()` (not `PopAnimation` — same reasoning as 
    still (the bumped block still hides it, ~16f). Below `$2d` it creeps up **1 px every 3
    frames** (`Objects_Var1` cycles 2→0, `Objects_Y--` on underflow) — emerges ~one tile.
    Un-collectable until `Objects_Timer2 = $10` elapses (`PowerUp_DoHitTest`).
+   > **CORRECTED 2026-10 (SMB3-15).** The block spawns the mushroom at **block Y − 1**
+   > (prg001.asm:2282-2289), so the 15 px creep ends exactly on the block top. During the hold
+   > `PowerUp_DoRaise` branches out before drawing **and** before `PowerUp_DoHitTest`. `Timer2` runs
+   > out on the last hold frame, so the **first rise frame is already collectable**. No "far enough
+   > out" gate exists: the real limit is the `OAT_BOUNDBOX01` box (`1, 13, 2, 8`), shared by every
+   > block power-up via `RewardLevelObject.powerUpBoundsAt`. A player standing on the block meets it
+   > with exactly 4 px showing (k = 3, tick 23). From below it is never reachable. The ROM's
+   > `ObjectObject_Intersect` is inclusive while `AxisAlignedBoundingBox.intersects` is half-open and
+   > the player box keeps the ROM's literal extents, so the power-up box absorbs both missing pixels:
+   > X `[x, x+15)`, Y `[y+1, y+11)`. `PowerUpBoundsTest` pins it against a transcription of the ROM
+   > test at every whole-pixel offset. The creep also used to land one frame late (timer read before
+   > its decrement); it now moves on the same frame the hit test first runs. The 16-frame protection is
+   > one shared `PowerUpCollectProtection`. See `bug-fixes/the-mushroom-was-collected-inside-the-block.md`.
 2. **Move = `ObjNorm_PUpMush` + `Object_InteractWithWorld`.** Gravity `OBJECT_FALLRATE = $03`/f
    capped at `OBJECT_MAXFALL = $40` (4 px/f). Once grounded with `XVel == 0`,
    `PowerUp_BounceXVel` kicks a constant `$10` (1 px/f) **away from the player** (direction from
@@ -394,6 +409,9 @@ from the constant `Object_BoundBox` table anyway, independent of the frame drawn
 `ActiveLevelObject.getBounds()` is now abstract, `getImageResource()` + the sprite-derived default
 moved down to `RewardLevelObject`, and `EnemyLevelObject` defaults `getBounds()` from
 `DimensionsPixels getBoundsPixels()` (16×16 for a Goomba).
+> **2026-10 (SMB3-15):** that accident was still live for the mushroom and the 1-Up, which inherited
+> the sprite-sized box and could be collected through the block while rising. Every block power-up now
+> overrides `getBounds()` with `RewardLevelObject.powerUpBoundsAt`. `Coin` keeps its own box.
 
 ### The Goomba's two frames are a MIRROR PAIR
 `goomba_left.png` / `goomba_right.png`, 16×16 each (single tile). The ROM's two normal frames are

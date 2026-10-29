@@ -5,15 +5,16 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.reward.core.PowerUpCollectProtection;
+import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.Offset;
-import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import jakarta.annotation.PostConstruct;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -33,12 +34,6 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 public final class SuperLeaf implements RewardLevelObject {
     private static final int INITIAL_Y_VELOCITY_FIXED_POINT = -32;
     private static final int SPAWN_Y_OFFSET_PIXELS = -14;
-    private static final int COLLECT_PROTECTION_FRAMES = 16;
-    // Collection hitbox, inset from the sprite per dasm Object_BoundBox entry 1 (OAT_BOUNDBOX01,
-    // used by OBJ_POWERUP_SUPERLEAF): left +1, width 13 — ObjectObject_Intersect reads byte[1] as a
-    // width added to the left edge, so the right edge sits 2px in from the 16px sprite.
-    private static final int HITBOX_LEFT_INSET = 1;
-    private static final int HITBOX_WIDTH = 13;
     private static final int X_VELOCITY_STEP_FIXED_POINT = 2;
     private static final int X_VELOCITY_LIMIT_FIXED_POINT = 32;
     private static final int[] FLUTTER_Y_VELOCITY_BASE_FIXED_POINT = {10, -10, 8};
@@ -49,9 +44,12 @@ public final class SuperLeaf implements RewardLevelObject {
     /** Points awarded (and captioned) when the leaf is collected — 1000, as in the ROM. */
     private final Reward rewardType = SCORE_1000;
 
+    /** Injected by the bean factory; package-private setter so a test can supply the art without one. */
+    @Setter(AccessLevel.PACKAGE)
     @Value("classpath:/sprites/reward/leaf/leaf_normal.png")
     private ImageResource imageResource;
 
+    private final PowerUpCollectProtection collectProtection = new PowerUpCollectProtection();
     private final GameEngine gameEngine;
     private final Offset offset;
 
@@ -64,7 +62,6 @@ public final class SuperLeaf implements RewardLevelObject {
     private boolean facingRight;
     private boolean rising = true;
     private int oscillationDirectionCounter;
-    private int collectProtectionTimer;
     private PixelPosition position;
     private FixedPointVelocity velocity = STILL;
 
@@ -74,7 +71,6 @@ public final class SuperLeaf implements RewardLevelObject {
             .ofTile(offset)
             .plusY(SPAWN_Y_OFFSET_PIXELS);
         velocity = new FixedPointVelocity(0, INITIAL_Y_VELOCITY_FIXED_POINT);
-        collectProtectionTimer = COLLECT_PROTECTION_FRAMES;
 
         spriteDimensions = new Dimensions(
             "SuperLeaf",
@@ -92,9 +88,7 @@ public final class SuperLeaf implements RewardLevelObject {
             return;
         }
 
-        if (collectProtectionTimer > 0) {
-            collectProtectionTimer--;
-        }
+        collectProtection.tick();
 
         if (rising) {
             position = position.steppedY(velocity);
@@ -169,25 +163,7 @@ public final class SuperLeaf implements RewardLevelObject {
      */
     @Override
     public boolean isCollectable() {
-        return collectProtectionTimer == 0;
-    }
-
-    /**
-     * The leaf's collection hitbox is inset from its sprite, per dasm {@code Object_BoundBox} entry 1
-     * ({@code OAT_BOUNDBOX01}, used by {@code OBJ_POWERUP_SUPERLEAF}): left {@code +1}, width 13, so
-     * the box spans {@code [x+1, x+14]} — the right edge sits 2px in from the 16px sprite.
-     * The default full-sprite box let a leaf swinging back over its spawn column be grabbed by a
-     * player standing flush against the dispensing block; this inset restores the clearance the
-     * original relies on (the ROM's box is {@code Object_CalcBoundBox} / {@code ObjectObject_Intersect}).
-     * The vertical extent is left at the sprite height — the reported issue and the ROM's inset are
-     * horizontal, and the engine's leaf art (16×14) is already cropped vertically.
-     */
-    @Override
-    public AxisAlignedBoundingBox getBounds() {
-        return AxisAlignedBoundingBox.ofSize(
-            position.plusX(HITBOX_LEFT_INSET),
-            new DimensionsPixels(HITBOX_WIDTH, imageResource.getDimensions().height())
-        );
+        return collectProtection.isElapsed();
     }
 
     /**
