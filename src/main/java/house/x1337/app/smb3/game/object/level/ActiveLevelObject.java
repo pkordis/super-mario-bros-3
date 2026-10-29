@@ -9,6 +9,7 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
+import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.model.game.WorldOffset.of;
@@ -77,6 +78,13 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
 
     default void expire() {
         // Do nothing: an object with no expiry of its own has nothing to retire.
+    }
+
+    default boolean hasLeftTheLevelSideways() {
+        final double left = getPosition().x();
+        final double right = left + getSpriteDimensions().width() / PIXELS_TO_GAME_UNITS;
+        final double levelWidthPixels = (double) getLevelScene().getDimensions().columns() * TILE_SPRITE_SIZE;
+        return right <= 0 || left >= levelWidthPixels;
     }
 
     default boolean intersects(final AxisAlignedBoundingBox playerBounds) {

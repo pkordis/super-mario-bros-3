@@ -56,6 +56,13 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
                 instance.spawnIntoScene();
             }
             instance.motionUpdate();
+            // Walking off the side of the level is retired here, once, for every enemy type, rather than
+            // by each enemy's own motion code: the ROM's ground troop reaches Object_DeleteOffScreen
+            // first thing every frame (dasm prg004 ObjNorm_GroundTroop / ObjNorm_RedTroopa), whatever
+            // its state, so where an enemy is decides its retirement, not what it is doing.
+            if (instance.hasLeftTheLevelSideways()) {
+                instance.expire();
+            }
             if (instance.isExpired()) {
                 instance.detach();
                 iterator.remove();

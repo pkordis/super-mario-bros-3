@@ -223,6 +223,83 @@ class GoombaWalkTest {
         assertThat(goomba.getWalkFrameIndex()).as("And back again, for a 16-frame cycle").isZero();
     }
 
+    @Test
+    @DisplayName("Walks on past the level's left edge without turning, until it is fully out of the level")
+    void walksOffTheLeftEdgeOfTheLevel() {
+        // Prepare - one tile in from the left edge, walking left (no player to face)
+        final Goomba goomba = goombaAt(1, WALK_ROW);
+        goomba.faceClosestPlayer();
+        double previousX = goomba.getPosition().x();
+
+        // Execute & Verify - 63 frames is 31.5 px: from x = 16 to x = -15.5, half a pixel still in the level
+        for (int frame = 0; frame < 63; frame++) {
+            tick(goomba, 1);
+            assertThat(goomba.getPosition().x())
+                .as("Frame %d: still heading left, the edge is no wall (Object_DetectTile reads tile $00)", frame)
+                .isLessThan(previousX);
+            previousX = goomba.getPosition().x();
+        }
+        assertThat(goomba.hasLeftTheLevelSideways()).as("Its right edge is still inside the level").isFalse();
+
+        tick(goomba, 1);
+        assertThat(goomba.isFacingRight()).as("No about-face at the boundary").isFalse();
+        assertThat(goomba.getPosition().x())
+            .as("Uninterrupted half-pixel steps: 64 frames x $08/16 px = 32 px")
+            .isCloseTo(-16.0, within(TOLERANCE));
+        assertThat(goomba.hasLeftTheLevelSideways())
+            .as("Its 16 px sprite now lies wholly left of column 0")
+            .isTrue();
+    }
+
+    @Test
+    @DisplayName("Walks on past the level's right edge without turning, until it is fully out of the level")
+    void walksOffTheRightEdgeOfTheLevel() {
+        // Prepare - one tile in from the right edge, facing a player further right
+        final Goomba goomba = goombaAt(COLUMNS - 2, WALK_ROW);
+        givenPlayerAtPixelX(2 * COLUMNS * TILE_SPRITE_SIZE);
+        goomba.faceClosestPlayer();
+        final double levelWidthPixels = COLUMNS * (double) TILE_SPRITE_SIZE;
+        double previousX = goomba.getPosition().x();
+
+        // Execute & Verify - 63 frames leaves its left edge half a pixel inside the last column
+        for (int frame = 0; frame < 63; frame++) {
+            tick(goomba, 1);
+            assertThat(goomba.getPosition().x())
+                .as("Frame %d: still heading right, the edge is no wall", frame)
+                .isGreaterThan(previousX);
+            previousX = goomba.getPosition().x();
+        }
+        assertThat(goomba.hasLeftTheLevelSideways()).as("Its left edge is still inside the level").isFalse();
+
+        tick(goomba, 1);
+        assertThat(goomba.isFacingRight()).as("No about-face at the boundary").isTrue();
+        assertThat(goomba.getPosition().x())
+            .as("Its left edge has reached the level's right edge")
+            .isCloseTo(levelWidthPixels, within(TOLERANCE));
+        assertThat(goomba.hasLeftTheLevelSideways())
+            .as("Its 16 px sprite now lies wholly right of the last column")
+            .isTrue();
+    }
+
+    @Test
+    @DisplayName("A real wall in the level's outermost column still turns it around")
+    void turnsAroundAtAWallInTheOutermostColumn() {
+        // Prepare - the edge being open must not open the terrain next to it
+        solidColumn(0);
+        final Goomba goomba = goombaAt(2, WALK_ROW);
+        goomba.faceClosestPlayer();
+
+        // Execute - 40 frames is 20 px, more than the 16 px of clearance to the wall's face
+        tick(goomba, 40);
+
+        // Verify
+        assertThat(goomba.isFacingRight()).as("The Goomba has turned around").isTrue();
+        assertThat(goomba.getPosition().x())
+            .as("Never overlaps the wall in column 0")
+            .isGreaterThanOrEqualTo((double) TILE_SPRITE_SIZE);
+        assertThat(goomba.hasLeftTheLevelSideways()).isFalse();
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
@@ -261,12 +338,15 @@ class GoombaWalkTest {
         }
     }
 
-    /** Mirrors {@code StaticEnvironmentCollisionGrid#isSolidTile}: outside the level is solid, sky is not. */
+    /**
+     * Mirrors {@code StaticEnvironmentCollisionGrid#isWallOrCeilingSolidTile}: beside the level is open,
+     * below it is solid, above it is sky.
+     */
     private boolean isSolid(final int column, final int row) {
-        if (row < 0) {
+        if (column < 0 || column >= COLUMNS || row < 0) {
             return false;
         }
-        if (row >= ROWS || column < 0 || column >= COLUMNS) {
+        if (row >= ROWS) {
             return true;
         }
         return solids[row][column];

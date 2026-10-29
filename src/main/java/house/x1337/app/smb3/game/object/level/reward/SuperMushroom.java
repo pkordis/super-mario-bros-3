@@ -402,12 +402,9 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         final int leadingColumn = velocity.movingRight()
             ? proposed.plusX(SPRITE_SIZE_PIXELS - 1).column()
             : proposed.column();
-        // The level's left boundary is not a wall for the mushroom: rather than about-facing back
-        // to the right, it keeps rolling left off the edge and expires once fully out of bounds
-        // (see hasFallenOffLevel). Real solid tiles inside the level (column >= 0) still turn it.
-        if (leadingColumn < 0) {
-            return false;
-        }
+        // The level's sides are not a wall for the mushroom (the grid reports them open): rather than
+        // about-facing, it keeps rolling off the edge and expires once fully out of bounds (see
+        // hasFallenOffLevel).
         return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
     }
 
@@ -437,14 +434,13 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * @return {@code true} once the mushroom is gone for good — either it has fallen below the
-     *         level floor, or (having rolled off the left boundary without about-facing) its
-     *         sprite is now completely past the left edge of the level scene.
+     * @return {@code true} once the mushroom is gone for good - either it has fallen below the
+     *         level floor, or (having rolled off a side of the level without about-facing) its
+     *         sprite is now completely past that edge of the level scene.
      */
     private boolean hasFallenOffLevel() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
         final boolean belowFloor = position.y() / TILE_SPRITE_SIZE > rows + 1;
-        final boolean pastLeftEdge = position.x() + SPRITE_SIZE_PIXELS <= 0;
-        return belowFloor || pastLeftEdge;
+        return belowFloor || hasLeftTheLevelSideways();
     }
 }

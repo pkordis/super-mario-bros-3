@@ -126,6 +126,9 @@ those for objects. Instead use the ABSOLUTE-coordinate accessor:
 `grid.getLevelObjectAt(Offset.of(col, row)).isCollidable()`. Fetch the grid lazily from any live
 `LevelScenePlayer` (`gameEngine.getPlayers()` → instanceof → `getCollisionGrid()`); all players
 index identical tiles. Treat out-of-columns / below-world as solid, above-world as open.
+> **CORRECTED 2026-10 (SMB3-1).** Out-of-columns is **open**, not solid, for objects: the ROM's
+> `Object_DetectTile` reads tile `$00` for any X off the level. Only the player's probes
+> (`collidesAtOffset`) keep the sides solid. See `bug-fixes/enemies-bounced-off-the-level-edge.md`.
 Ground probe: solid tile under feet-center (`floor((y+16)/16)` at center column) → snap
 `pixelY = feetRow*16 - 16`, `yVel = 0`, `grounded = true`. Wall probe: solid tile at the
 leading edge (right edge `floor((x+15)/16)` when moving right, else `floor(x/16)`) at vertical
@@ -294,6 +297,12 @@ for the whole level and the camera's `getActiveObjectRegion(2 tiles)` decides wh
 un-reached enemies stand still at their cell, and one that leaves the window freezes instead of
 being destroyed. A level authored in an editor expects a stable population; ROM-accurate respawn
 would need the object list to survive deletion.
+
+**One exception (SMB3-1):** an enemy that walks wholly past the level's left or right edge is
+retired: `EnemyMotionManager.update` expires it, after its tick, when
+`ActiveLevelObject.hasLeftTheLevelSideways()` holds. That is the threshold where the sprite becomes
+invisible, not the ROM's deletion margin (camera −48 / +288). The ROM margin lies beyond the 2-tile
+activation window, so an enemy would freeze before it ever reached it.
 
 Note `hasFallenOffLevel()` (the `Objects_YHi >= 2` delete) **cannot fire today**: the collision grid
 reports below-world rows as solid, so any falling object lands on the level's lower boundary. Kept
