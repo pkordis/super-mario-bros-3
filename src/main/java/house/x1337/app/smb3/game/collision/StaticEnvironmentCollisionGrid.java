@@ -399,6 +399,10 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     /**
      * Checks whether the object at the given {@link Offset} from the player
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
+     *
+     * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(int, int)}, the level's left and
+     * right edges are solid here: the player is held inside the level, the job the ROM gives the
+     * screen-edge clamp in {@code Player_DoScrolling} (dasm prg008 @ PRG008_B1CE).
      */
     public boolean collidesAtOffset(
         final Player player,
@@ -453,13 +457,21 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * tier — {@code Tile_AttrTable[0..3]}, "solid at the ground (i.e. Player can stand on it)"
      * (smb3.asm:2763) — so it includes the jump-through platforms, which is the whole point of them.
      *
-     * <p>Off the left or right edge, and below the world, count as solid so an object cannot escape
-     * sideways or fall through the floor; above the world (negative row) is open sky.
+     * <p>Off the left or right edge is open: the level's sides are not a wall to an object, which walks
+     * on and is retired once it is out of sight (see {@code ActiveLevelObject#hasLeftTheLevelSideways}).
+     * That is the ROM's object tile probe, which reads no tile at all - tile {@code $00}, solid in no
+     * tileset - for any X outside the level (dasm prg000 {@code Object_DetectTile} @ PRG000_C832).
+     * Below the world counts as solid so an object cannot fall through the floor, and above the world
+     * (negative row) is open sky. The player is unaffected: it is held inside the level by
+     * {@link #collidesAtOffset(Player, Offset)}, which keeps both sides solid.
      *
      * @see #isWallOrCeilingSolidTile(int, int) for the head-and-walls tier
      */
     public boolean isGroundSolidTile(final int column, final int row) {
-        if (isOutsideTheLevel(column, row)) {
+        if (isBesideTheLevel(column)) {
+            return false;
+        }
+        if (isAboveOrBelowTheLevel(row)) {
             return row >= 0;
         }
         return getLevelObjectAt(Offset.of(column, row)).isCollidable();
@@ -477,26 +489,32 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * {@code CMP Tile_AttrTable,Y}. So a panel top stops a falling Goomba and is thin air to a hopping
      * Para-Goomba's head and to anything walking into its side — the same thing the player sees.
      *
-     * <p>Bounds behave as in {@link #isGroundSolidTile(int, int)}: the level's sides stay solid so an
-     * object cannot walk out of the world.
+     * <p>Bounds behave as in {@link #isGroundSolidTile(int, int)}: the level's sides are open, so an
+     * object walking into one keeps going instead of turning around at it.
      */
     public boolean isWallOrCeilingSolidTile(final int column, final int row) {
-        if (isOutsideTheLevel(column, row)) {
+        if (isBesideTheLevel(column)) {
+            return false;
+        }
+        if (isAboveOrBelowTheLevel(row)) {
             return row >= 0;
         }
         final LevelObject levelObject = getLevelObjectAt(Offset.of(column, row));
         return levelObject.isCollidable() && !levelObject.isOneWayPlatform();
     }
 
+    /** Whether the column lies off the level's left or right edge. */
+    private boolean isBesideTheLevel(final int column) {
+        return column < 0 || column >= gameEngine.getLevelScene().getDimensions().columns();
+    }
+
     /**
-     * Whether the cell lies outside the level proper. Above the world is <em>not</em> outside in the
-     * sense that matters to the callers — they treat a negative row as open sky — so it is reported here
+     * Whether the row lies above or below the level. Above the world is <em>not</em> outside in the
+     * sense that matters to the callers - they treat a negative row as open sky - so it is reported here
      * and each caller resolves it with {@code row >= 0}.
      */
-    private boolean isOutsideTheLevel(final int column, final int row) {
-        final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final int columns = gameEngine.getLevelScene().getDimensions().columns();
-        return row < 0 || row >= rows || column < 0 || column >= columns;
+    private boolean isAboveOrBelowTheLevel(final int row) {
+        return row < 0 || row >= gameEngine.getLevelScene().getDimensions().rows();
     }
 
     /**

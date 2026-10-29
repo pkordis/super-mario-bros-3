@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -18,6 +19,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -34,6 +36,7 @@ import org.mockito.MockedStatic;
 import java.util.ArrayList;
 import java.util.List;
 
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +56,10 @@ import static org.mockito.Mockito.when;
  * {@code Player_HitEnemy} — so there is no flag to port, only the equivalent effect to pin.
  */
 class EnemyMotionManagerTest {
+    private static final int LEVEL_COLUMNS = 10_000;
+    private static final int LEVEL_ROWS = 15;
+    private static final double LEVEL_WIDTH_PIXELS = LEVEL_COLUMNS * (double) TILE_SPRITE_SIZE;
+
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private StubEnemyMotionManager manager;
     private ActiveObjectGrid<ActiveLevelObject> broadPhase;
@@ -73,6 +80,12 @@ class EnemyMotionManagerTest {
         when(gameEngine.getCameraState()).thenReturn(cameraState);
         when(gameEngine.getActiveObjectGrid()).thenReturn(broadPhase);
         when(gameEngine.getPlayerData()).thenReturn(playerData);
+
+        // Wide enough that every fixture enemy, the carried one far out at x = 100 000 included, is inside
+        // the level unless a test walks it out on purpose.
+        final LevelScene levelScene = mock(LevelScene.class);
+        when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(LEVEL_COLUMNS, LEVEL_ROWS));
+        when(gameEngine.getLevelScene()).thenReturn(levelScene);
 
         // The caption is a prototype bean; a mock is enough, since what it looks like is its own test's
         // subject and only its presence matters here. Reward.Data is a prototype too, and is what carries
@@ -287,8 +300,96 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
+    // Leaving the level sideways (Object_DeleteOffScreen at a clamped camera)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("An enemy that walks wholly past the level's left edge is detached and dropped exactly once")
+    void enemyPastTheLeftEdgeIsRetiredOnce() {
+        // Prepare - its 16 px body one pixel short of clearing column 0, stepping a pixel left per tick
+        final StubEnemy enemy = enemyAt(-15);
+        enemy.setStepPixels(-1);
+        manager.spawn(enemy);
+
+        // Execute - the step that puts its right edge on x = 0
+        manager.update();
+
+        // Verify
+        assertThat(enemy.motionUpdates).as("It moved this tick before being judged").isEqualTo(1);
+        assertThat(enemy.isExpired()).as("Retired through the ordinary expiry path").isTrue();
+        assertThat(enemy.getDetachCount()).as("Its sprite was detached").isEqualTo(1);
+        assertThat(manager.getActiveInstances()).as("And it left the population").isEmpty();
+        assertThat(broadPhase.query(enemy.getBounds())).as("Never offered to the collision pass").isEmpty();
+
+        // Execute - later ticks find nothing left to retire
+        manager.update();
+        manager.update();
+
+        // Verify
+        assertThat(enemy.getDetachCount()).as("Detached once, not once per tick").isEqualTo(1);
+        assertThat(enemy.motionUpdates).as("Not ticked again").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("An enemy that walks wholly past the level's right edge is detached and dropped exactly once")
+    void enemyPastTheRightEdgeIsRetiredOnce() {
+        // Prepare - its left edge one pixel short of the level's right edge, stepping a pixel right per tick
+        givenTheCameraClampedAtTheRightEdge();
+        final StubEnemy enemy = enemyAt(LEVEL_WIDTH_PIXELS - 1);
+        enemy.setStepPixels(1);
+        manager.spawn(enemy);
+
+        // Execute
+        manager.update();
+        manager.update();
+
+        // Verify
+        assertThat(enemy.motionUpdates).as("Ticked once, then gone").isEqualTo(1);
+        assertThat(enemy.isExpired()).isTrue();
+        assertThat(enemy.getDetachCount()).as("Detached once").isEqualTo(1);
+        assertThat(manager.getActiveInstances()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An enemy straddling the level's edge is still visible, so it stays in play")
+    void enemyStraddlingTheEdgeIsKept() {
+        // Prepare - one stepping left that will still have a pixel inside, one stepping right likewise
+        givenTheCameraSpanningTheWholeLevel();
+        final StubEnemy leftward = enemyAt(-14);
+        leftward.setStepPixels(-1);
+        final StubEnemy rightward = enemyAt(LEVEL_WIDTH_PIXELS - 2);
+        rightward.setStepPixels(1);
+        manager.spawn(leftward);
+        manager.spawn(rightward);
+
+        // Execute
+        manager.update();
+
+        // Verify
+        assertThat(leftward.motionUpdates).as("Both were ticked").isEqualTo(1);
+        assertThat(rightward.motionUpdates).isEqualTo(1);
+        assertThat(manager.getActiveInstances()).containsExactly(leftward, rightward);
+        assertThat(leftward.isExpired()).isFalse();
+        assertThat(rightward.isExpired()).isFalse();
+        assertThat(leftward.getDetachCount()).isZero();
+        assertThat(rightward.getDetachCount()).isZero();
+        assertThat(broadPhase.query(leftward.getBounds())).as("And still collidable").containsExactly(leftward);
+        assertThat(broadPhase.query(rightward.getBounds())).containsExactly(rightward);
+    }
+
+    // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
+
+    private void givenTheCameraClampedAtTheRightEdge() {
+        when(gameEngine.getCameraState().getActiveObjectRegion(anyInt()))
+            .thenReturn(new AxisAlignedBoundingBox(LEVEL_WIDTH_PIXELS - 288, -1000, LEVEL_WIDTH_PIXELS + 32, 1000));
+    }
+
+    private void givenTheCameraSpanningTheWholeLevel() {
+        when(gameEngine.getCameraState().getActiveObjectRegion(anyInt()))
+            .thenReturn(new AxisAlignedBoundingBox(-1000, -1000, LEVEL_WIDTH_PIXELS + 1000, 1000));
+    }
 
     private StubEnemy enemyAt(final double pixelX) {
         return new StubEnemy(gameEngine, pixelX);
@@ -307,16 +408,19 @@ class EnemyMotionManagerTest {
      * spawning one needs jME, and the gate under test belongs to the manager, not to any enemy.
      *
      * <p>Also carriable, so the activation-window exemption can be exercised without dragging the whole
-     * Koopa Troopa in. Carriability is per state everywhere, which for a stub means a plain flag.
+     * Koopa Troopa in. Carriability is per state everywhere, which for a stub means a plain flag. It moves
+     * by a fixed {@code stepPixels} per tick (none by default), so it can be walked off the level.
      */
     @Getter
     private static final class StubEnemy implements EnemyLevelObject, CarriableLevelObject {
         private final GameEngine gameEngine;
-        private final PixelPosition position;
         private final FixedPointVelocity velocity = STILL;
         private final EnemyMode mode = NORMAL;
         private final boolean spawnedIntoScene = true;
         private final DimensionsPixels boundsPixels = new DimensionsPixels(16, 16);
+        private PixelPosition position;
+        @Setter
+        private double stepPixels;
         @Setter
         private boolean expired;
         @Setter
@@ -336,6 +440,7 @@ class EnemyMotionManagerTest {
         @Override
         public void motionUpdate() {
             motionUpdates++;
+            position = position.plusX(stepPixels);
         }
 
         @Override
