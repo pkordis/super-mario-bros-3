@@ -119,6 +119,28 @@ class GoombaStompTest {
     }
 
     @Test
+    @DisplayName("A stomp makes the Goomba defeated, so leaving the screen squashed does not bring it back")
+    void aStompedGoombaIsDefeated() {
+        // Prepare
+        final Goomba goomba = goombaAt(5, WALK_ROW);
+        goomba.faceClosestPlayer();
+        assertThat(goomba.isDefeated()).as("Alive while it walks").isFalse();
+
+        // Execute - the stomp, then the whole squash
+        goomba.onCollisionFromAbove(descendingPlayer());
+        final boolean defeatedByTheStomp = goomba.isDefeated();
+        for (int frame = 0; frame < SQUISH_FRAMES; frame++) {
+            goomba.motionUpdate();
+        }
+
+        // Verify - ObjState_Squashed never calls Object_DeleteOffScreen and ends in Object_SetDeadEmpty, so
+        // the manager lets the squash play out wherever it is and keeps the placement spent afterwards
+        assertThat(defeatedByTheStomp).as("Dead from the stomp on").isTrue();
+        assertThat(goomba.isExpired()).isTrue();
+        assertThat(goomba.isDefeated()).as("And still dead when it expires").isTrue();
+    }
+
+    @Test
     @DisplayName("A flattened Goomba stops walking but still obeys gravity")
     void squishedGoombaStopsWalkingAndFalls() {
         // Prepare - stomped in mid-air, one row above the floor

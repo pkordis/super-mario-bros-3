@@ -107,11 +107,4 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
             : proposed.column();
         return getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
     }
-
-    default boolean hasFallenOffLevel() {
-        final int rows = getLevelScene().getDimensions().rows();
-        // Compared as a real number of tiles rather than via PixelPosition.row(): flooring first
-        // would keep an enemy alive for the final fractional tile of its fall.
-        return getPosition().y() / TILE_SPRITE_SIZE > rows + 1;
-    }
 }

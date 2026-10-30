@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.game.object.level.enemy.spawner;
+package house.x1337.app.smb3.game.object.level.enemy.placement;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
 import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -21,25 +22,48 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static java.lang.Math.floor;
+import static java.lang.Math.floorDiv;
 
 @Slf4j
 @Getter
 @Prototype
 @RequiredArgsConstructor
 public final class EnemySpawner implements GameEngineAware, CastCapable {
+    private static final int LOOK_AHEAD_LEFT_PIXELS = 32;
+    private static final int LOOK_AHEAD_RIGHT_PIXELS = 16;
+
     private final Animator.Registry animatorRegistry = getBean(Animator.Registry.class);
     private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
+    private final List<EnemyPlacement> placements = new ArrayList<>();
+    private final Map<EnemyLevelObject, EnemyPlacement> placementsByEnemy = new IdentityHashMap<>();
     private final GameEngine gameEngine;
 
+    private boolean openingScreenSpawned;
+    private boolean scrolledLeft;
+    private int lastScreenLeft;
+
+    /**
+     * Reads the level's enemy placements, after dropping the previous level's enemies. Nothing is
+     * instantiated here: the first {@link #spawnPlacementsComingIntoView()} spawns the opening screen's
+     * enemies, and later ones spawn as the scroll reaches their column.
+     */
     public void spawn() {
         resetEnemies();
+        placements.clear();
+        placementsByEnemy.clear();
+        openingScreenSpawned = false;
 
         final LevelScene.LevelSceneLayer layer = gameEngine.getLevelScene().getNonPlayableCharactersLayer();
         if (layer == null || layer.getTiles() == null) {
@@ -49,8 +73,86 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         final Tile[][] tiles = layer.getTiles();
         for (int row = 0; row < tiles.length; row++) {
             for (int column = 0; column < tiles[row].length; column++) {
-                spawnAt(tiles[row][column], row, column);
+                recordPlacementAt(tiles[row][column], row, column);
             }
+        }
+    }
+
+    public void spawnPlacementsComingIntoView() {
+        if (placements.isEmpty()) {
+            return;
+        }
+        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
+        final int screenLeft = (int) floor(screen.left());
+        final int screenRight = (int) floor(screen.right());
+        if (!openingScreenSpawned) {
+            openingScreenSpawned = true;
+            lastScreenLeft = screenLeft;
+            scrolledLeft = true;
+            final int firstColumn = floorDiv(screenLeft - LOOK_AHEAD_LEFT_PIXELS, TILE_SPRITE_SIZE);
+            final int lastColumn = floorDiv(screenRight + LOOK_AHEAD_RIGHT_PIXELS, TILE_SPRITE_SIZE);
+            for (int column = firstColumn; column <= lastColumn; column++) {
+                spawnColumn(column);
+            }
+            return;
+        }
+        if (screenLeft != lastScreenLeft) {
+            scrolledLeft = screenLeft < lastScreenLeft;
+            lastScreenLeft = screenLeft;
+        }
+        final int lookAhead = scrolledLeft
+            ? screenLeft - LOOK_AHEAD_LEFT_PIXELS
+            : screenRight + LOOK_AHEAD_RIGHT_PIXELS;
+        spawnColumn(floorDiv(lookAhead, TILE_SPRITE_SIZE));
+    }
+
+    /** Spawns every placement in the column that has no instance out in the level. */
+    private void spawnColumn(final int column) {
+        for (final EnemyPlacement placement : placements) {
+            if (placement.column() == column && !placement.isSpawned()) {
+                spawnFrom(placement);
+            }
+        }
+    }
+
+    /**
+     * Gives the enemy's placement back, so it spawns again the next time the look-ahead reaches its
+     * column. This is {@code Object_Delete}: a live enemy that left the screen or the level.
+     *
+     * @param enemy the instance being thrown away; one without a placement is ignored
+     */
+    public void releasePlacementOf(final EnemyLevelObject enemy) {
+        final EnemyPlacement placement = placementsByEnemy.remove(enemy);
+        if (placement != null) {
+            placement.release();
+        }
+    }
+
+    /**
+     * Forgets the enemy but keeps its placement spent, so it never spawns again this level. This is
+     * {@code Object_SetDeadEmpty}: an enemy that died.
+     *
+     * @param enemy the instance being thrown away; one without a placement is ignored
+     */
+    public void retirePlacementOf(final EnemyLevelObject enemy) {
+        placementsByEnemy.remove(enemy);
+    }
+
+    /**
+     * Moves a placement from one instance to the instance taking over its slot. The ROM rewrites
+     * {@code Level_ObjectID} in place and leaves {@code Objects_SpawnIdx} as it was, so the newcomer
+     * answers for the predecessor's placement.
+     *
+     * @param predecessor the instance giving up its slot
+     * @param successor   the instance taking it over
+     */
+    public void handOverPlacement(
+        final EnemyLevelObject predecessor,
+        final EnemyLevelObject successor
+    ) {
+        final EnemyPlacement placement = placementsByEnemy.remove(predecessor);
+        if (placement != null) {
+            placementsByEnemy.put(successor, placement);
         }
     }
 
@@ -61,7 +163,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      * resetting every enemy manager and animator, which is exactly wrong mid-level - it would wipe the
      * population the newcomer is joining. Nothing else is needed to bring it to life, because the
      * manager's per-tick pass builds its sprite the first time the camera reaches it and inserts it into
-     * the broadphase from then on.
+     * the broad-phase from then on.
      *
      * <p>The one caller today is the Para-Goomba's de-winging stomp, which is the ROM rewriting
      * {@code Level_ObjectID,X} in place rather than spawning anything - so the replacement must slot
@@ -75,23 +177,18 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     }
 
     /**
-     * Spawns the enemy an author placed on this cell, if any. A level places an enemy by painting its
+     * Records the enemy an author placed on this cell, if any. A level places an enemy by painting its
      * {@code ENEMY_PART} tiles, anchored by the enemy's <em>rendering-starter</em> tile
      * ({@code EnemyStamper}); this is the runtime half of that placement, so it keys on the same anchor.
      *
      * <p>The anchor tile identifies the {@link EnemyStamp} through
      * {@link EnemyStampService#findByRenderingStarterTileId(int)}, and the record's {@link EnemyType} names
-     * both the runtime {@link LevelObjectType} to instantiate ({@code EnemyType.GOOMBA} →
-     * {@code LevelObjectTypeMultiTiled.GOOMBA} → {@code Goomba}) and the {@code EnemyMode} the author
-     * picked, which is handed to the instance as its one placement attribute. The instance itself is
-     * built exactly as {@code LevelObjectRecordCapabilities#toLevelObject} builds a multi-tiled object —
-     * {@code gameEngine} plus its placement {@link Offset} — and handed to the manager that drives its
-     * type.
+     * both the runtime {@link LevelObjectType} to instantiate and the {@code EnemyMode} the author picked.
      *
-     * <p>A non-anchor part of a multi-tile enemy resolves to no record here and spawns nothing: it is
+     * <p>A non-anchor part of a multi-tile enemy resolves to no record here and places nothing: it is
      * drawn by the layer but the whole actor is spawned once, from its anchor.
      */
-    private void spawnAt(
+    private void recordPlacementAt(
         final Tile tile,
         final int row,
         final int column
@@ -104,13 +201,24 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
             warnAboutUnclassifiedEnemyTile(enemyStampService, tile, row, column);
             return;
         }
+        placements.add(new EnemyPlacement(enemy.orElseThrow().getEnemyType(), Offset.of(column, row)));
+    }
 
-        final EnemyType enemyType = enemy.orElseThrow().getEnemyType();
+    /**
+     * Builds the placement's enemy and hands it to the manager that drives its type. The instance is
+     * built exactly as {@code LevelObjectRecordCapabilities#toLevelObject} builds a multi-tiled object
+     * ({@code gameEngine} plus its placement {@link Offset}, then its mode as its one attribute):
+     * {@code EnemyType.GOOMBA} → {@code LevelObjectTypeMultiTiled.GOOMBA} → {@code Goomba}.
+     */
+    private void spawnFrom(final EnemyPlacement placement) {
+        final EnemyType enemyType = placement.getEnemyType();
         final LevelObjectType type = enemyType.getLevelObjectType();
-        final LevelObject levelObject = getBean(type.getInstanceType(), gameEngine, Offset.of(column, row));
+        final LevelObject levelObject = getBean(type.getInstanceType(), gameEngine, placement.getAnchor());
         levelObject.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, enemyType.getMode().name())));
         if (levelObject instanceof final EnemyLevelObject enemyLevelObject) {
             spawnEnemy(enemyLevelObject);
+            placement.markSpawned();
+            placementsByEnemy.put(enemyLevelObject, placement);
         }
     }
 
@@ -151,8 +259,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
 
     /**
      * Hands a freshly placed enemy to the manager that owns its type — the enemy equivalent of
-     * {@code Animator.Registry#findSuitableAnimator}. Called once per placed enemy while
-     * the level is being set up, so a linear scan over the handful of managers is ample.
+     * {@code Animator.Registry#findSuitableAnimator}. Called each time a placement spawns or an enemy
+     * comes into being mid-level, so a linear scan over the handful of managers is ample.
      *
      * @param enemy the enemy to hand over
      * @throws IllegalStateException if no manager claims the enemy's type

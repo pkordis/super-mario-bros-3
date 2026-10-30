@@ -187,9 +187,10 @@ and no player**. Consequences, all of them non-negotiable:
 
 - `@PostConstruct init()` may only set `pixelX/pixelY` from the offset. Nothing else.
 - The rest of `ObjInit_*` moves into `spawnIntoScene()` (interface method): face the player, build +
-  attach the quad, erase the placement tile. The manager calls it once, when the enemy first enters
-  the camera activation region — which is also exactly when the ROM's `Level_LoadObjects` loads an
-  object into a slot as the level scrolls.
+  attach the quad, erase the placement tile. The manager calls it once per instance, on its first tick,
+  which is the ROM's `ObjState_Initializing` moment. Since SMB3-3 an instance is only built when the
+  scroll's look-ahead reaches its placement's column (see "Off-screen lifecycle"), and a respawned one
+  goes through `spawnIntoScene()` again (the erase repeats harmlessly).
 - Anything touching `gameEngine.getCollisionGrid()` in `init()` NPEs (the grid is the very thing
   being constructed). `findClosestPlayerTo` in particular.
 
@@ -220,7 +221,9 @@ activeObjectGrid.spawnPlacedEnemies(this);               // dynamic actors  <- t
 
 `ActiveObjectGrid.spawnPlacedEnemies` is the entry point because an enemy belongs to the active-object
 world; the scan itself lives with the enemies (`EnemySpawner`) so the broadphase stays a
-broadphase. The scan walks the NPC layer, and a tile is a placement when its record resolves to a type
+broadphase. Since SMB3-3 the scan only records placements; instances are built as the scroll reaches
+their columns (see "Off-screen lifecycle" below). The scan walks the NPC layer, and a tile is a placement
+when its record resolves to a type
 whose `getInstanceType()` is an `EnemyLevelObject`; an ENEMY-category tile without such a record logs a
 warning rather than vanishing silently. World collision is then each entity's own business, resolved
 against the terrain the grid publishes (`isSolidTile`) — never by being indexed in it.
@@ -305,23 +308,62 @@ blanket reset here would undo the registration `toCollisionGrid` has just done. 
 extends its reset to clear `GoombaAnimator`'s per-mode asset cache (those textures belong to the
 outgoing scene's asset manager).
 
-### Activation window replaces `Object_DeleteOffScreen`
-The ROM streams enemies: spawn on scroll-in, `Object_DeleteOffScreen` (prg000 `$D3E0`, the FIRST
-thing `ObjNorm_GroundTroop` calls) throws them away on scroll-out. Here all placed instances live
-for the whole level and the camera's `getActiveObjectRegion(2 tiles)` decides which of them tick:
-un-reached enemies stand still at their cell, and one that leaves the window freezes instead of
-being destroyed. A level authored in an editor expects a stable population; ROM-accurate respawn
-would need the object list to survive deletion.
+### Off-screen lifecycle: delete and respawn, as `Object_DeleteOffScreen` does (SMB3-3)
+The ROM streams enemies, and so does this port. Before SMB3-3 every placed instance lived for the
+whole level and froze when it left a 2-tile activation window. That has been replaced by the ROM's
+model, with the ROM's thresholds:
 
-**One exception (SMB3-1):** an enemy that walks wholly past the level's left or right edge is
-retired: `EnemyMotionManager.update` expires it, after its tick, when
-`ActiveLevelObject.hasLeftTheLevelSideways()` holds. That is the threshold where the sprite becomes
-invisible, not the ROM's deletion margin (camera −48 / +288). The ROM margin lies beyond the 2-tile
-activation window, so an enemy would freeze before it ever reached it.
+- **Placements outlive instances.** `EnemySpawner.spawn()` only *reads* the NPC layer into
+  `EnemyPlacement`s (the ROM's `Level_Objects` + bit 7 of `Level_ObjectsSpawned`). Nothing is
+  instantiated at setup.
+- **Opening screen.** The first `ActiveObjectGrid.spawnEnemiesComingIntoView()` (run by `GameEngine`
+  every tick, before the managers) is the ROM's start-of-level pass (prg005 `PRG005_BF49`): it spawns
+  every unspawned placement whose column lies from 32 px left of the screen to 16 px right of it, and
+  leaves `Scroll_LastDir` at "left".
+- **Look-ahead column, every tick.** After that, `Level_ObjectsSpawnByScroll` looks at ONE column only:
+  16 px past the screen's right edge if the screen last moved right, 32 px past the left edge if it
+  last moved left (`LOSBS_LookAhead`). Every unspawned placement in that column spawns. Only the column
+  counts, whatever the row. The check runs even while the screen holds still, so a placement released
+  while it sits in the look-ahead column spawns again at once. One released anywhere else waits until
+  the scroll brings the look-ahead onto its column.
+- **Delete off screen.** `EnemyMotionManager.update` deletes a live enemy, before its tick, once its X is
+  `<= screen left - 48` or `> screen right + 32` (`PRG000_D3CC`), and **releases** its placement
+  (`Object_SetDeadAndNotSpawned`). In a non-vertical level the ROM's test is X only, so an enemy above
+  or below the screen keeps running. There is no separate level-edge rule: at a level's edge the camera
+  is clamped, and this same test removes an enemy that walks out of the level sideways.
+- **Fallen out of the level.** Also before the tick: `Y >= 512` (`Objects_YHi >= 2`) deletes a live enemy
+  and releases its placement (`Object_Delete`), or retires a defeated one (`Object_FallAndDelete`). A
+  non-vertical SMB3 level is at most 27 rows (432 px), so the line is always below it; for a taller
+  authored level the line drops to the level's bottom edge (`ActiveLevelObject.hasFallenBelowTheLevel`).
+- **The dead stay dead.** A defeated enemy (`EnemyLevelObject.isDefeated()`: squashed, tail-struck,
+  shell-killed) is exempt from the off-screen deletion and plays its death out wherever it is; when it
+  ends, the placement is **retired** (stays spawned). This is `ObjState_Squashed` / `ObjState_Killed` →
+  `Object_SetDeadEmpty`, which never clears the bit. Carried shells are exempt too (`ObjState_Held`).
+- **Slot hand-over.** The Para-Goomba's Goomba inherits its placement (`handOverPlacement`), because the
+  ROM rewrites `Level_ObjectID` and leaves `Objects_SpawnIdx` alone. If that Goomba leaves the screen
+  alive, a Para-Goomba comes back.
 
-Note `hasFallenOffLevel()` (the `Objects_YHi >= 2` delete) **cannot fire today**: the collision grid
-reports below-world rows as solid, so any falling object lands on the level's lower boundary. Kept
-deliberately, for the day real pits exist. Same latent situation as `SuperMushroom`.
+The right-hand thresholds are measured from the screen's right edge rather than as `Horz_Scroll + $110`
+/ `+ $120`, which is identical at the NES's 256 px and keeps a wider window from spawning in view.
+`Scroll_LastDir` is taken from the camera's own movement; the ROM sets it in `Player_DoScrolling` even on
+a frame where the clamp then holds the screen still, a difference that only matters at the level's ends.
+
+Not ported: the one-spawn-per-call limit and the five general object slots (`PRG005_B911`), the
+`Counter_1` throttle that tests each side of the delete only every fourth frame, the narrow
+`Objects_UseShortHTest` variant, and vertical levels. One timing difference remains: the ROM keeps
+spawning and deleting while `Player_HaltGame` is set (the spawn call precedes the halt check at
+prg000:1835), where this port freezes the whole pipeline. With no slot limit and no throttle that is not
+observable here (see the SMB3-3 bug-fix note).
+
+A freshly spawned instance gets the ROM's init frame (`ObjState_Initializing`): on its first tick it only
+runs `spawnIntoScene()` and moves from the next. The Para-Goomba's Goomba has none
+(`EnemyLevelObject.hasAdoptedASlot()`), because the ROM only rewrites `Level_ObjectID`.
+
+The lifecycle is pinned by `EnemyMotionManagerTest` (the manager's decisions) and `EnemySpawnerTest`
+(the placements).
+
+Below-world rows are still solid to the collision grid, so a *live* walker inside the level's columns
+never actually falls out of the bottom; the rule is there for corpses and for the day real pits exist.
 
 ### Goomba motion (dasm prg004 `ObjInit_GroundTroop` :3753 / `ObjNorm_GroundTroop` :4001)
 `OBJ_GOOMBA = $72` shares the ground-troop handlers with the Buzzy Beetle and the troopas.

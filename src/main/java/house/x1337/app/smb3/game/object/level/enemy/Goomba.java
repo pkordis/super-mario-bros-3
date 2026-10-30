@@ -4,6 +4,7 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
+import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -101,11 +102,11 @@ public final class Goomba implements GoombaFamilyEnemy {
         this.position = paraGoomba.getPosition();
         this.facingRight = paraGoomba.isFacingRight();
         this.hitCooldownTicks = hitCooldownTicks;
-        // Deliberately not the Para-Goomba's velocity: the ROM zeroes YVel on the hand-over
-        // (PRG000_D31E) and the walk reloads XVel from the facing on its first frame anyway.
         this.velocity = STILL.directedX(facingRight, WALK_SPEED_FIXED_POINT);
         this.adoptedSlot = true;
-        gameEngine.getActiveObjectGrid().spawnEnemy(this);
+        final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = gameEngine.getActiveObjectGrid();
+        activeObjectGrid.spawnEnemy(this);
+        activeObjectGrid.handOverPlacement(paraGoomba, this);
     }
 
     /**
@@ -197,6 +198,16 @@ public final class Goomba implements GoombaFamilyEnemy {
     }
 
     @Override
+    public boolean isDefeated() {
+        return squished || whamMotion != null;
+    }
+
+    @Override
+    public boolean hasAdoptedASlot() {
+        return adoptedSlot;
+    }
+
+    @Override
     public void hurt(final LevelScenePlayer levelScenePlayer) {
         if (!canHurtPlayer()) {
             return;
@@ -258,10 +269,6 @@ public final class Goomba implements GoombaFamilyEnemy {
         moveVertically();
         applyGravity();
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     private void tickSquish() {
@@ -270,7 +277,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         positionSprite();
 
         squishTicksRemaining--;
-        if (squishTicksRemaining <= 0 || hasFallenOffLevel()) {
+        if (squishTicksRemaining <= 0) {
             setExpired(true);
         }
     }
@@ -279,10 +286,6 @@ public final class Goomba implements GoombaFamilyEnemy {
         whamMotion.advance();
         position = position.stepped(whamMotion.getStepVelocity());
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     private void advanceWalkFrame() {

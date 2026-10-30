@@ -550,7 +550,7 @@ class KoopaTroopaCarryTest {
     }
 
     @Test
-    @DisplayName("A killed shell tumbles off the bottom of the level and retires itself")
+    @DisplayName("A killed shell tumbles out of the bottom of the level still defeated")
     void theKilledShellFallsAway() {
         // Prepare
         solidColumn(6);
@@ -561,8 +561,9 @@ class KoopaTroopaCarryTest {
         // Execute
         tick(troopa, 200);
 
-        // Verify
-        assertThat(troopa.isExpired()).isTrue();
+        // Verify - the manager retires it from there, for good, since it is dead (EnemyMotionManagerTest)
+        assertThat(troopa.hasFallenBelowTheLevel()).isTrue();
+        assertThat(troopa.isDefeated()).isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -776,7 +777,7 @@ class KoopaTroopaCarryTest {
     }
 
     @Test
-    @DisplayName("A shell killed in your hands falls away and retires itself")
+    @DisplayName("A shell killed in your hands falls out of the bottom of the level still defeated")
     void theShellKilledInYourHandsFallsAway() {
         // Prepare
         final KoopaTroopa troopa = grabbableShell();
@@ -788,7 +789,8 @@ class KoopaTroopaCarryTest {
         tick(troopa, 200);
 
         // Verify
-        assertThat(troopa.isExpired()).isTrue();
+        assertThat(troopa.hasFallenBelowTheLevel()).isTrue();
+        assertThat(troopa.isDefeated()).isTrue();
     }
 
     // -------------------------------------------------------------------------

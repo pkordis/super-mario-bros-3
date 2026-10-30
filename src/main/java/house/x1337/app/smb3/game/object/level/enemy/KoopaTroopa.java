@@ -213,6 +213,11 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     }
 
     @Override
+    public boolean isDefeated() {
+        return state == KILLED;
+    }
+
+    @Override
     public void hurt(final LevelScenePlayer levelScenePlayer) {
         if (!canHurtPlayer()) {
             return;
@@ -279,10 +284,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         applyGravity();
         reactToBlockBumpBelow();
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     private void advanceWalkFrame() {

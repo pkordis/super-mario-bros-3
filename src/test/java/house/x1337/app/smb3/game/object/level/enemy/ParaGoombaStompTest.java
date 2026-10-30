@@ -266,6 +266,21 @@ class ParaGoombaStompTest {
     }
 
     @Test
+    @DisplayName("The Goomba taking the slot inherits the Para-Goomba's placement")
+    void theReplacementInheritsThePlacement() {
+        // Prepare
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+
+        // Execute
+        paraGoomba.onCollisionFromAbove(descendingPlayer());
+
+        // Verify - Objects_SpawnIdx survives the Level_ObjectID rewrite, so if this Goomba leaves the screen
+        // alive it is a Para-Goomba that comes back at the placement
+        final Goomba replacement = captureSpawnedGoomba();
+        verify(activeObjectGrid).handOverPlacement(paraGoomba, replacement);
+    }
+
+    @Test
     @DisplayName("The Para-Goomba expires exactly once, leaving exactly one Goomba")
     void stompExpiresTheParaGoombaExactlyOnce() {
         // Prepare

@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.object.level.reward.motion;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
-import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -15,14 +15,10 @@ import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends MotionManager {
+public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends ActiveLevelObjectMotionManager<C> {
     float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
     float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
     float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
-
-    List<C> getActiveInstances();
-    List<ScorePopupAnimation> getActiveScorePopups();
-    Class<C> getType();
 
     @Override
     default void postCollision() {
@@ -121,18 +117,6 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
 
     default int getActivationMarginPixels() {
         return TILE_SPRITE_SIZE * 2;
-    }
-
-    private void tickScorePopups() {
-        final Iterator<ScorePopupAnimation> scorePopupIterator = getActiveScorePopups().iterator();
-        while (scorePopupIterator.hasNext()) {
-            final ScorePopupAnimation scorePopup = scorePopupIterator.next();
-            scorePopup.tick();
-            if (scorePopup.isExpired()) {
-                scorePopup.detach();
-                scorePopupIterator.remove();
-            }
-        }
     }
 
     default void spawn(final C newLevelObject) {

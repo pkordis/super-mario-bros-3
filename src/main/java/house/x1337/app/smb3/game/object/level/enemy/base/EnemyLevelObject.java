@@ -40,6 +40,14 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
         return isHittable();
     }
 
+    default boolean isDefeated() {
+        return false;
+    }
+
+    default boolean hasAdoptedASlot() {
+        return false;
+    }
+
     default Reward getPendingScoreReward() {
         return null;
     }

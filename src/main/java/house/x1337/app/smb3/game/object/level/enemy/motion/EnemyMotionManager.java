@@ -3,8 +3,8 @@ package house.x1337.app.smb3.game.object.level.enemy.motion;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
-import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.enumeration.Reward;
@@ -17,14 +17,12 @@ import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionManager {
+public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLevelObjectMotionManager<E> {
+    int DELETE_PAST_LEFT_EDGE_PIXELS = 48;
+    int DELETE_PAST_RIGHT_EDGE_PIXELS = 32;
     float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
     float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
     float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
-
-    List<E> getActiveInstances();
-    List<ScorePopupAnimation> getActiveScorePopups();
-    Class<E> getType();
 
     @Override
     default void update() {
@@ -40,38 +38,41 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
 
         // Every instance belongs to the running scene, so any of them yields its GameEngine.
         final GameEngine gameEngine = activeInstances.getFirst().getGameEngine();
-        final AxisAlignedBoundingBox activeRegion = gameEngine
-            .getCameraState()
-            .getActiveObjectRegion(getActivationMarginPixels());
+        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
         final ActiveObjectGrid<ActiveLevelObject> broadPhase = gameEngine.getActiveObjectGrid();
 
         final Iterator<E> iterator = activeInstances.iterator();
         while (iterator.hasNext()) {
             final E instance = iterator.next();
-            if (!isExemptFromActivationWindow(instance) && !activeRegion.intersects(instance.getBounds())) {
+            if (!instance.isSpawnedIntoScene()) {
+                instance.spawnIntoScene();
+                if (!instance.hasAdoptedASlot()) {
+                    continue;
+                }
+            }
+            if (instance.hasFallenBelowTheLevel()) {
+                remove(instance, iterator);
+                if (instance.isDefeated()) {
+                    broadPhase.retirePlacementOf(instance);
+                } else {
+                    broadPhase.releasePlacementOf(instance);
+                }
                 continue;
             }
-            if (!instance.isSpawnedIntoScene()) {
-                // First time the camera has reached it: the ROM's Level_LoadObjects + ObjInit_* moment.
-                instance.spawnIntoScene();
+            if (!isExemptFromDeletionOffScreen(instance) && isPastTheDeletionEdge(instance, screen)) {
+                remove(instance, iterator);
+                broadPhase.releasePlacementOf(instance);
+                continue;
             }
             instance.motionUpdate();
-            // Walking off the side of the level is retired here, once, for every enemy type, rather than
-            // by each enemy's own motion code: the ROM's ground troop reaches Object_DeleteOffScreen
-            // first thing every frame (dasm prg004 ObjNorm_GroundTroop / ObjNorm_RedTroopa), whatever
-            // its state, so where an enemy is decides its retirement, not what it is doing.
-            if (instance.hasLeftTheLevelSideways()) {
-                instance.expire();
-            }
             if (instance.isExpired()) {
-                instance.detach();
-                iterator.remove();
+                remove(instance, iterator);
+                broadPhase.retirePlacementOf(instance);
                 continue;
             }
             // Feed the shared broad-phase so the engine's collision pass can test this enemy against the
-            // players after every manager has inserted (the ROM's object loop reaching Player_HitEnemy).
-            // Only live, on-screen enemies go in — an off-screen one cannot hit an on-screen player, and
-            // a defeated one is intangible for the rest of its death animation.
+            // players after every manager has inserted. A defeated one is left out: it is intangible for
+            // the rest of its death animation.
             if (instance.isHittable()) {
                 broadPhase.insert(instance);
             }
@@ -115,16 +116,31 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
         getActiveScorePopups().clear();
     }
 
-    default int getActivationMarginPixels() {
-        return TILE_SPRITE_SIZE * 2;
-    }
-
-    default boolean isExemptFromActivationWindow(final E instance) {
-        return instance instanceof CarriableLevelObject carriable && carriable.isCarried();
+    default boolean isExemptFromDeletionOffScreen(final E instance) {
+        return instance.isDefeated()
+            || (instance instanceof final CarriableLevelObject carriable && carriable.isCarried());
     }
 
     default void spawn(final E enemy) {
         getActiveInstances().add(enemy);
+    }
+
+    private boolean isPastTheDeletionEdge(
+        final E instance,
+        final AxisAlignedBoundingBox screen
+    ) {
+        final double x = instance.getPosition().x();
+        return x <= screen.left() - DELETE_PAST_LEFT_EDGE_PIXELS
+            || x > screen.right() + DELETE_PAST_RIGHT_EDGE_PIXELS;
+    }
+
+    private void remove(
+        final E instance,
+        final Iterator<E> iterator
+    ) {
+        instance.expire();
+        instance.detach();
+        iterator.remove();
     }
 
     /** Spawns the caption above the enemy that earned it. */
@@ -138,17 +154,5 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends MotionMa
         animation.setWorldOffset(instance.getCurrentWorldOffset().plus(0f, SCORE_CAPTION_ABOVE_INSTANCE_LIFT, 0f));
         animation.start();
         getActiveScorePopups().add(animation);
-    }
-
-    private void tickScorePopups() {
-        final Iterator<ScorePopupAnimation> iterator = getActiveScorePopups().iterator();
-        while (iterator.hasNext()) {
-            final ScorePopupAnimation scorePopup = iterator.next();
-            scorePopup.tick();
-            if (scorePopup.isExpired()) {
-                scorePopup.detach();
-                iterator.remove();
-            }
-        }
     }
 }

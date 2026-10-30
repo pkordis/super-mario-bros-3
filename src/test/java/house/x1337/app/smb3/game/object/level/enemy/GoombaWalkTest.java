@@ -282,6 +282,25 @@ class GoombaWalkTest {
     }
 
     @Test
+    @DisplayName("Having walked out of the level sideways it is still alive and does not retire itself")
+    void aGoombaThatWalkedOutOfTheLevelIsStillLive() {
+        // Prepare - one tile in from the right edge, facing a player further right
+        final Goomba goomba = goombaAt(COLUMNS - 2, WALK_ROW);
+        givenPlayerAtPixelX(2 * COLUMNS * TILE_SPRITE_SIZE);
+        goomba.faceClosestPlayer();
+
+        // Execute - well past the fully-off frame (64)
+        tick(goomba, 80);
+
+        // Verify - removing it is EnemyMotionManager's job, through the ordinary off-screen deletion (the
+        // camera is clamped at the level's edge); what the Goomba owes it is to still count as alive, which
+        // is what makes the manager release the placement (Object_Delete) rather than spend it
+        assertThat(goomba.hasLeftTheLevelSideways()).as("Out of the level").isTrue();
+        assertThat(goomba.isDefeated()).as("But alive").isFalse();
+        assertThat(goomba.isExpired()).as("And it does not retire itself").isFalse();
+    }
+
+    @Test
     @DisplayName("A real wall in the level's outermost column still turns it around")
     void turnsAroundAtAWallInTheOutermostColumn() {
         // Prepare - the edge being open must not open the terrain next to it

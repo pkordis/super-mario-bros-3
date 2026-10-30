@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.collision;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
-import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.RequiredArgsConstructor;
@@ -156,11 +156,50 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
-     * Spawns the enemies that were placed in the level by the author. This is a one-time call at
-     * level load time.
+     * Reads the enemies that were placed in the level by the author. A one-time call at level load
+     * time; the enemies themselves spawn as the scroll reaches their columns.
      */
     public void spawnPlacedEnemies() {
         enemySpawner.spawn();
+    }
+
+    /**
+     * Spawns the opening screen's placed enemies on the first tick, and after that every unspawned one
+     * in the scroll's look-ahead column. Call once per tick, before the managers tick.
+     */
+    public void spawnEnemiesComingIntoView() {
+        enemySpawner.spawnPlacementsComingIntoView();
+    }
+
+    /**
+     * A live enemy has left the screen or the level: its placement may spawn it again.
+     *
+     * @param enemy the enemy being thrown away
+     */
+    public void releasePlacementOf(final EnemyLevelObject enemy) {
+        enemySpawner.releasePlacementOf(enemy);
+    }
+
+    /**
+     * An enemy has died: its placement stays spent for the rest of the level.
+     *
+     * @param enemy the enemy being thrown away
+     */
+    public void retirePlacementOf(final EnemyLevelObject enemy) {
+        enemySpawner.retirePlacementOf(enemy);
+    }
+
+    /**
+     * Moves a placement to the enemy taking over another's slot (the Para-Goomba's Goomba).
+     *
+     * @param predecessor the enemy giving up its slot
+     * @param successor   the enemy taking it over
+     */
+    public void handOverPlacement(
+        final EnemyLevelObject predecessor,
+        final EnemyLevelObject successor
+    ) {
+        enemySpawner.handOverPlacement(predecessor, successor);
     }
 
     /**
