@@ -29,8 +29,10 @@ its own bounds check and never went through the object queries.
 - **Expiry, in one place:** `ActiveLevelObject.hasLeftTheLevelSideways()` is true once the sprite lies
   wholly beyond either edge. `EnemyMotionManager.update` checks it after every tick and calls
   `expire()`, so the existing retire path detaches the enemy and removes it from the list exactly once.
-  No enemy class has its own copy. Vertical `hasFallenOffLevel` stays where it was; SMB3-3 is the
-  ticket for centralising the rest.
+  No enemy class has its own copy. **Superseded by SMB3-3** (`kb/dynamic-entities.md`, "Off-screen
+  lifecycle"): enemies no longer use `hasLeftTheLevelSideways()` at all. The ROM's own off-screen
+  deletion, against the clamped camera, removes them 48 px beyond the left edge or more than 32 px beyond
+  the right one, and releases the placement so they can respawn.
 - **Super Mushroom:** it had worked around the left wall with a `leadingColumn < 0` special case, and
   expired only past the left edge. The grid made the special case redundant, and the right edge
   is now open too. Its expiry uses the shared predicate so it also retires off the right edge. Without
@@ -45,14 +47,13 @@ its own bounds check and never went through the object queries.
 - **A held shell at the edge is no longer "pressed into the world"** and is not crushed when it wakes,
   because the off-level cell is empty to `isPressedIntoTheWorld` as well.
 
-## Why not the ROM's deletion margin
+## Why not the ROM's deletion margin (at the time)
 
 `Object_DeleteOffScreen` deletes at `x <= camera - 48` or `x > camera + 288`, which is two tiles beyond
-fully off screen when the camera is clamped at an edge. Here the camera's activation window is only
-two tiles (`getActivationMarginPixels`), and a Goomba's bounds (`x+1 .. x+14`) leave it at `x = -46`. The
-enemy would freeze two pixels short of `-48` and never be deleted. The ticket's threshold ("fully off-screen past
-the level bounds") sits inside the window, so it always fires. The ROM also only tests each side every
-fourth frame per slot (`Counter_1` throttle); that is CPU budgeting and was not ported.
+fully off screen when the camera is clamped at an edge. At the time, enemies outside a two-tile
+activation window froze instead of being deleted, and a Goomba's bounds (`x+1 .. x+14`) left it at
+`x = -46`, so it would have frozen two pixels short of `-48` and never been deleted. SMB3-3 replaced the
+freeze with the ROM's deletion, so the ROM's margin now applies and this section is history.
 
 ## Tests
 

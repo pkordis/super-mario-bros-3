@@ -258,23 +258,22 @@ class GoombaTailAttackTest {
     }
 
     @Test
-    @DisplayName("It expires once it has fallen off the bottom of the level")
-    void killedGoombaExpiresBelowTheLevel() {
+    @DisplayName("It falls out of the bottom of the level still defeated, for its manager to retire for good")
+    void killedGoombaFallsOutOfTheLevel() {
         // Prepare
         final Goomba goomba = goombaAt(5, WALK_ROW);
         goomba.faceClosestPlayer();
         goomba.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
 
-        // Execute - Object_FallAndDelete removes it once it is far below the level
-        for (int tick = 0; tick < 200; tick++) {
+        // Execute - Object_FallAndDelete drops it once it is far below the level
+        for (int tick = 0; tick < 400 && !goomba.hasFallenBelowTheLevel(); tick++) {
             goomba.motionUpdate();
-            if (goomba.isExpired()) {
-                break;
-            }
         }
 
-        // Verify
-        assertThat(goomba.isExpired()).isTrue();
+        // Verify - leaving the level is the manager's call (EnemyMotionManagerTest); the Goomba only has to
+        // get there, and still count as dead when it does, so its placement is not released
+        assertThat(goomba.hasFallenBelowTheLevel()).as("It fell clean out of the level").isTrue();
+        assertThat(goomba.isDefeated()).as("Still a corpse, so it does not come back").isTrue();
     }
 
     @Test

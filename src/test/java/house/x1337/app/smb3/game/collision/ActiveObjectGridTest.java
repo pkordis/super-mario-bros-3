@@ -4,7 +4,8 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
-import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @DisplayName("ActiveObjectGrid uniform-grid broadphase")
@@ -631,9 +633,51 @@ class ActiveObjectGridTest {
         assertThat(held.isCarriedHazard()).as("and the held one stays in your hands").isTrue();
     }
 
+    // -------------------------------------------------------------------------
+    // Placement lifecycle (SMB3-3): the grid is where enemies reach the spawner
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Each tick's spawn pass and every placement decision reach the level's spawner")
+    void placementDecisionsReachTheSpawner() {
+        // Prepare
+        final EnemySpawner enemySpawner = mock(EnemySpawner.class);
+        final ActiveObjectGrid<StubObject> grid = new ActiveObjectGrid<>(enemySpawner);
+        final EnemyLevelObject leftTheScreen = mock(EnemyLevelObject.class);
+        final EnemyLevelObject died = mock(EnemyLevelObject.class);
+        final EnemyLevelObject predecessor = mock(EnemyLevelObject.class);
+        final EnemyLevelObject successor = mock(EnemyLevelObject.class);
+
+        // Execute
+        grid.spawnEnemiesComingIntoView();
+        grid.releasePlacementOf(leftTheScreen);
+        grid.retirePlacementOf(died);
+        grid.handOverPlacement(predecessor, successor);
+
+        // Verify
+        verify(enemySpawner).spawnPlacementsComingIntoView();
+        verify(enemySpawner).releasePlacementOf(leftTheScreen);
+        verify(enemySpawner).retirePlacementOf(died);
+        verify(enemySpawner).handOverPlacement(predecessor, successor);
+    }
+
+    @Test
+    @DisplayName("Clearing the broadphase leaves the placements alone, so a deleted enemy can still respawn")
+    void clearingTheBroadphaseDoesNotTouchPlacements() {
+        // Prepare - the broadphase is rebuilt every tick; the placement flags must outlive that
+        final EnemySpawner enemySpawner = mock(EnemySpawner.class);
+        final ActiveObjectGrid<StubObject> grid = new ActiveObjectGrid<>(enemySpawner);
+
+        // Execute
+        grid.clear();
+
+        // Verify
+        verifyNoInteractions(enemySpawner);
+    }
+
     /**
      * A grid under test. The cell size is the tile constant now, so the only collaborator is the enemy
-     * spawner, which nothing here exercises (it is only reached via {@code spawnPlacedEnemies}).
+     * spawner, which the broadphase tests do not exercise.
      */
     private static ActiveObjectGrid<StubObject> newGrid() {
         return new ActiveObjectGrid<>(mock(EnemySpawner.class));

@@ -310,10 +310,6 @@ public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, Carria
         }
         advanceSpinFrame();
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     default int rollLaunchXVelocity() {
@@ -438,10 +434,6 @@ public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, Carria
         setPosition(getPosition().stepped(getVelocity()));
         applyGravity();
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     default void faceClosestPlayer() {

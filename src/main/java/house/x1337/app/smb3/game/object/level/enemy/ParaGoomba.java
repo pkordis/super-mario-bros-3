@@ -210,10 +210,6 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
             onGroundContact();
         }
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     void faceClosestPlayer() {

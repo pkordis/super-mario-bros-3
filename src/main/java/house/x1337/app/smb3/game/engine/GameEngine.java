@@ -271,7 +271,8 @@ public final class GameEngine extends GameEngineCapabilities {
                 playerData.getPlayerTimer().tick();
 
                 // Active-object tick, split into phases so a single scene-wide broadphase can serve
-                // every manager: (1) clear the shared grid; (2) each manager ticks its objects and
+                // every manager: (1) clear the shared grid and spawn the placed enemies the scroll's
+                // look-ahead has reached; (2) each manager ticks its objects and
                 // inserts the live ones; (3) overlapping walkers turn away from each other;
                 // (4) one collision pass over the union dispatches onCollisionWith; (5) managers react
                 // to this tick's collisions (e.g. spawn a score caption) on the same frame the
@@ -280,6 +281,7 @@ public final class GameEngine extends GameEngineCapabilities {
                 // Phase 3 sits after every insert because an object-vs-object test needs the whole
                 // scene present; asking mid-move would only see the managers that ran first.
                 activeObjectGrid.clear();
+                activeObjectGrid.spawnEnemiesComingIntoView();
                 motionManagers.forEach(MotionManager::update);
                 activeObjectGrid.resolveObjectToObjectBumps();
                 activeObjectGrid.resolveKickedObjectKills();

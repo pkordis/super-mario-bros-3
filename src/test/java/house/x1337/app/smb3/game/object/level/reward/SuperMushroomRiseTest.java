@@ -14,7 +14,7 @@ import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
-import house.x1337.app.smb3.game.object.level.enemy.spawner.EnemySpawner;
+import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.motion.SuperMushroomMotionManager;
 import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.game.player.PlayerData;

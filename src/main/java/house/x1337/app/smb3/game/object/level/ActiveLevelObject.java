@@ -29,6 +29,8 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
  * the player against fixed, tile-aligned solids, whereas this concerns moving-object overlap.
  */
 public interface ActiveLevelObject extends LevelObject, GameEngineAware {
+    double FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS = 512;
+
     PixelPosition getPosition();
     FixedPointVelocity getVelocity();
     Dimensions getSpriteDimensions();
@@ -85,6 +87,11 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         final double right = left + getSpriteDimensions().width() / PIXELS_TO_GAME_UNITS;
         final double levelWidthPixels = (double) getLevelScene().getDimensions().columns() * TILE_SPRITE_SIZE;
         return right <= 0 || left >= levelWidthPixels;
+    }
+
+    default boolean hasFallenBelowTheLevel() {
+        final double levelHeightPixels = (double) getLevelScene().getDimensions().rows() * TILE_SPRITE_SIZE;
+        return getPosition().y() >= Math.max(FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS, levelHeightPixels);
     }
 
     default boolean intersects(final AxisAlignedBoundingBox playerBounds) {
