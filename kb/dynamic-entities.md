@@ -365,6 +365,29 @@ The lifecycle is pinned by `EnemyMotionManagerTest` (the manager's decisions) an
 Below-world rows are still solid to the collision grid, so a *live* walker inside the level's columns
 never actually falls out of the bottom; the rule is there for corpses and for the day real pits exist.
 
+### Power-ups use the same delete, and never come back (SMB3-17)
+Every power-up's normal routine calls `Object_DeleteOffScreen` each frame, after moving and before its
+hit test: prg001 `ObjNorm_PUpMush`, `ObjNorm_PUp1UpMush`, `ObjNorm_SuperLeaf` (and the unported
+`ObjNorm_StarOrSuit`, `ObjNorm_FireFlower`). So `RewardLevelObjectMotionManager.update` now ticks every
+reward wherever it is (the 2-tile activation window is gone, as it went for enemies) and then deletes it
+past the same edges, `ActiveLevelObjectMotionManager.isPastTheDeletionEdge` (48 px left / more than 32 px
+right of the screen, shared with `EnemyMotionManager`), or at `hasFallenBelowTheLevel()`. The rewards'
+own `hasFallenOffLevel()` checks are gone; a mushroom that rolls out of the level sideways is removed by
+the same test through the clamped camera.
+
+- **Gone for good.** A block power-up always goes in slot 5 (`ObjNorm_BounceDU` @ PRG001_A56F) and is
+  not spawned from a placement: slot 5's `Objects_SpawnIdx` is `$FF` (reset at PRG000_C9B6 whenever a
+  slot empties), so `Object_SetDeadAndNotSpawned` falls straight through to `Object_SetDeadEmpty`. Its
+  block is already used. The port's rewards have no placement either, so deleting one is final: no
+  caption, no points.
+- **The hold is exempt.** `PowerUp_DoRaise` jumps to PRG001_A93D while the timer is `>= $2d`, past the
+  delete at PRG001_A937, so a mushroom held in its block for its first 16 frames is kept
+  (`RewardLevelObject.isExemptFromDeletionOffScreen`). From the first rise frame it can be deleted.
+- Not ported, as for enemies (SMB3-16): the `Counter_1` throttle and deleting while `Player_HaltGame` is
+  set.
+
+Pinned by `PowerUpOffScreenDeletionTest`.
+
 ### Goomba motion (dasm prg004 `ObjInit_GroundTroop` :3753 / `ObjNorm_GroundTroop` :4001)
 `OBJ_GOOMBA = $72` shares the ground-troop handlers with the Buzzy Beetle and the troopas.
 

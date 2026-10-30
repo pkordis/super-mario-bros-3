@@ -18,8 +18,6 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLevelObjectMotionManager<E> {
-    int DELETE_PAST_LEFT_EDGE_PIXELS = 48;
-    int DELETE_PAST_RIGHT_EDGE_PIXELS = 32;
     float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
     float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
     float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
@@ -123,15 +121,6 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLe
 
     default void spawn(final E enemy) {
         getActiveInstances().add(enemy);
-    }
-
-    private boolean isPastTheDeletionEdge(
-        final E instance,
-        final AxisAlignedBoundingBox screen
-    ) {
-        final double x = instance.getPosition().x();
-        return x <= screen.left() - DELETE_PAST_LEFT_EDGE_PIXELS
-            || x > screen.right() + DELETE_PAST_RIGHT_EDGE_PIXELS;
     }
 
     private void remove(

@@ -182,6 +182,11 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         return rising && riseTimer >= RISE_MOVEMENT_THRESHOLD;
     }
 
+    @Override
+    public boolean isExemptFromDeletionOffScreen() {
+        return isHoldingInTheBlock();
+    }
+
     /**
      * Walking phase (dasm {@code ObjNorm_PUpMush} + {@code Object_InteractWithWorld}): apply the
      * constant ground speed once resting, then gravity, then move and collide against the static
@@ -204,10 +209,6 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         reactToBlockBumpBelow();
 
         positionSprite();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     /**
@@ -416,8 +417,8 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
             ? proposed.plusX(SPRITE_SIZE_PIXELS - 1).column()
             : proposed.column();
         // The level's sides are not a wall for the mushroom (the grid reports them open): rather than
-        // about-facing, it keeps rolling off the edge and expires once fully out of bounds (see
-        // hasFallenOffLevel).
+        // about-facing, it keeps rolling off the edge, and its manager deletes it once it is past the
+        // screen's delete edge (the camera is clamped at the level's ends).
         return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
     }
 
@@ -444,16 +445,5 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
             .findClosestPlayerTo(position.x(), position.y())
             .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0)
             .orElse(position.x() + SPRITE_SIZE_PIXELS / 2.0);
-    }
-
-    /**
-     * @return {@code true} once the mushroom is gone for good - either it has fallen below the
-     *         level floor, or (having rolled off a side of the level without about-facing) its
-     *         sprite is now completely past that edge of the level scene.
-     */
-    private boolean hasFallenOffLevel() {
-        final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        final boolean belowFloor = position.y() / TILE_SPRITE_SIZE > rows + 1;
-        return belowFloor || hasLeftTheLevelSideways();
     }
 }
