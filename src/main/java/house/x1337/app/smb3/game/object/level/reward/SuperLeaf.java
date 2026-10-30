@@ -119,10 +119,6 @@ public final class SuperLeaf implements RewardLevelObject {
         position = position.stepped(velocity);
 
         updateFacingAndPosition();
-
-        if (hasFallenOffLevel()) {
-            setExpired(true);
-        }
     }
 
     /**
@@ -201,10 +197,5 @@ public final class SuperLeaf implements RewardLevelObject {
             spriteGeometry.setLocalScale(1f, 1f, 1f);
             spriteGeometry.setLocalTranslation(worldX, worldY, Z_DEPTH_ITEM_REWARD);
         }
-    }
-
-    private boolean hasFallenOffLevel() {
-        final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        return position.y() / TILE_SPRITE_SIZE > rows + 1;
     }
 }

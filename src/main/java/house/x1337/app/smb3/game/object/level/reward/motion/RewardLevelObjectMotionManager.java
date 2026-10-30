@@ -76,11 +76,9 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
             return;
         }
 
-        // Every active leaf belongs to the running scene, so any of them yields its GameEngine.
+        // Every active reward belongs to the running scene, so any of them yields its GameEngine.
         final GameEngine gameEngine = activeInstances.getFirst().getGameEngine();
-        final AxisAlignedBoundingBox activeRegion = gameEngine
-            .getCameraState()
-            .getActiveObjectRegion(getActivationMarginPixels());
+        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
         final ActiveObjectGrid<ActiveLevelObject> broadPhase = gameEngine.getActiveObjectGrid();
         final Iterator<C> iterator = activeInstances.iterator();
         while (iterator.hasNext()) {
@@ -94,29 +92,30 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
                 continue;
             }
 
-            final boolean active = activeRegion.intersects(instance.getBounds());
-            if (active) {
-                instance.motionUpdate();
-            }
+            // Like the ROM's power-ups, a reward runs wherever it is: there is no activation window.
+            instance.motionUpdate();
 
-            if (instance.isExpired()) {
-                // Fell off the level — no reward, no caption.
+            if (instance.isExpired() || isDeletedOffScreen(instance, screen)) {
+                instance.expire();
                 instance.detach();
                 iterator.remove();
                 continue;
             }
 
-            if (active && instance.isCollectable()) {
-                // Feed the shared broadphase; the engine's collision pass queries it after every
-                // manager has inserted. Off-screen leaves stay out — they cannot hit an on-screen
-                // player.
+            if (instance.isCollectable()) {
+                // Feed the shared broad-phase; the engine's collision pass queries it after every
+                // manager has inserted.
                 broadPhase.insert(instance);
             }
         }
     }
 
-    default int getActivationMarginPixels() {
-        return TILE_SPRITE_SIZE * 2;
+    private boolean isDeletedOffScreen(
+        final C instance,
+        final AxisAlignedBoundingBox screen
+    ) {
+        return !instance.isExemptFromDeletionOffScreen()
+            && (instance.hasFallenBelowTheLevel() || isPastTheDeletionEdge(instance, screen));
     }
 
     default void spawn(final C newLevelObject) {

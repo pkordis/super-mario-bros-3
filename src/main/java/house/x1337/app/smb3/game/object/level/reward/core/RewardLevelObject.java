@@ -44,6 +44,10 @@ public interface RewardLevelObject extends ActiveLevelObject, GameRenderer {
         return false;
     }
 
+    default boolean isExemptFromDeletionOffScreen() {
+        return false;
+    }
+
     @Override
     default void expire() {
         setExpired(true);
