@@ -7,9 +7,9 @@ import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import house.x1337.app.smb3.service.LevelObjectService;
 import house.x1337.app.smb3.service.TileService;
+import house.x1337.app.smb3.ui.editor.level.component.CustomDataTablePanel;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -18,18 +18,14 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.util.HashMap;
 import java.util.Map;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -53,12 +49,7 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
     private final JTextField descriptionField = new JTextField(20);
     private int[] originalArgbData;
     private CustomLevelObjectTileEditorPanel tileEditorPanel;
-
-    // Custom data table
-    private final DefaultTableModel customDataModel = new DefaultTableModel(
-        new String[]{"Key", "Value"}, 0
-    );
-    private final JTable customDataTable = new JTable(customDataModel);
+    private CustomDataTablePanel customDataPanel;
 
     // Actions
     private final JButton createButton = new JButton("Create");
@@ -72,6 +63,8 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         this.originalArgbData = originalArgbData;
         this.tileEditorPanel = getBean(CustomLevelObjectTileEditorPanel.class);
         this.tileEditorPanel.render(originalArgbData);
+        this.customDataPanel = getBean(CustomDataTablePanel.class);
+        this.customDataPanel.render("Custom Data");
         setTitle("Create Custom Level Object – Single Tiled");
         setModal(true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -84,7 +77,7 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         final JSplitPane mainSplit = new JSplitPane(
             JSplitPane.HORIZONTAL_SPLIT,
             buildLeftPanel(),
-            buildRightPanel()
+            customDataPanel
         );
         mainSplit.setDividerLocation(380);
         mainSplit.setResizeWeight(0.5);
@@ -147,43 +140,6 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         return panel;
     }
 
-    private JPanel buildRightPanel() {
-        final JPanel panel = new JPanel(new BorderLayout(8, 8));
-        panel.setBorder(createTitledBorder("Custom Data"));
-
-        // Table for key-value pairs
-        customDataTable.setRowHeight(24);
-        customDataTable.getColumnModel().getColumn(0).setPreferredWidth(120);
-        customDataTable.getColumnModel().getColumn(1).setPreferredWidth(180);
-
-        final JScrollPane tableScroll = new JScrollPane(customDataTable);
-        tableScroll.setPreferredSize(new Dimension(300, 200));
-
-        // Buttons for adding/removing rows
-        final JPanel tableButtons = createTableButtons();
-
-        panel.add(tableScroll, CENTER);
-        panel.add(tableButtons, SOUTH);
-
-        return panel;
-    }
-
-    private @NonNull JPanel createTableButtons() {
-        final JPanel tableButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        final JButton addRowButton = new JButton("Add");
-        addRowButton.addActionListener(e -> customDataModel.addRow(new String[]{"", ""}));
-        final JButton removeRowButton = new JButton("Remove");
-        removeRowButton.addActionListener(e -> {
-            final int selectedRow = customDataTable.getSelectedRow();
-            if (selectedRow >= 0) {
-                customDataModel.removeRow(selectedRow);
-            }
-        });
-        tableButtons.add(addRowButton);
-        tableButtons.add(removeRowButton);
-        return tableButtons;
-    }
-
     private JPanel buildFooter() {
         final JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
@@ -222,14 +178,18 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
             return;
         }
 
+        if (customDataPanel.warnAboutDuplicateKeys(this)) {
+            return;
+        }
+
         // Get description
         final String description = descriptionField.getText().trim();
 
         // Get edited tile data
         final int[] editedArgbData = tileEditorPanel.getWorkingPixels();
 
-        // Build custom data map
-        final Map<String, Object> customData = buildCustomDataMap();
+        // Read the custom data, committing a cell still being edited
+        final Map<String, Object> customData = customDataPanel.getData();
 
         // Create the tile record
         final TileRecord tileRecord = tileService.createCustomTile(
@@ -264,18 +224,6 @@ public final class CreateCustomLevelObjectWindow extends JDialog {
         );
 
         dispose();
-    }
-
-    private Map<String, Object> buildCustomDataMap() {
-        final Map<String, Object> data = new HashMap<>();
-        for (int i = 0; i < customDataModel.getRowCount(); i++) {
-            final String key = (String) customDataModel.getValueAt(i, 0);
-            final String value = (String) customDataModel.getValueAt(i, 1);
-            if (key != null && !key.trim().isEmpty()) {
-                data.put(key.trim(), value != null ? value.trim() : "");
-            }
-        }
-        return data;
     }
 
     private void updateCreateButtonState() {

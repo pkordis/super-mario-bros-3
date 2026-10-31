@@ -5,6 +5,9 @@ import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.extractor.TilesExtractor;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 
 /**
@@ -32,6 +35,7 @@ public interface EnemyConverter extends TilesExtractor {
             .renderingStarterRow(record.getRenderingStarterRow())
             .renderingStarterColumn(record.getRenderingStarterColumn())
             .updatedAt(record.getUpdatedAt())
+            .data(copyOf(record.getData()))
             .build();
     }
 
@@ -50,7 +54,17 @@ public interface EnemyConverter extends TilesExtractor {
             .renderingStarterRow(enemy.getRenderingStarterRow())
             .renderingStarterColumn(enemy.getRenderingStarterColumn())
             .updatedAt(enemy.getUpdatedAt())
+            .data(copyOf(enemy.getData()))
             .build();
+    }
+
+    /**
+     * A mutable copy of a {@code data} map, with {@code null} read as empty. An enemy document saved
+     * before the field existed has no {@code data}, and {@code @Builder.Default} does not apply on the
+     * no-args deserialization path, so the stored side may be {@code null}.
+     */
+    private static Map<String, Object> copyOf(final Map<String, Object> data) {
+        return data == null ? new HashMap<>() : new HashMap<>(data);
     }
 
     /**

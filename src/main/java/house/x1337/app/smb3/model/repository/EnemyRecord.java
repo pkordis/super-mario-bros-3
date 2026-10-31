@@ -9,6 +9,8 @@ import org.dizitart.no2.repository.annotations.Entity;
 import org.dizitart.no2.repository.annotations.Id;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity(
     value = "enemies"
@@ -28,4 +30,7 @@ public final class EnemyRecord implements Serializable {
     private int renderingStarterRow;
     private int renderingStarterColumn;
     private long updatedAt;
+
+    @Builder.Default
+    private Map<String, Object> data = new HashMap<>();
 }

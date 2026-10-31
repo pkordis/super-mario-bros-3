@@ -13,23 +13,28 @@ import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -372,18 +377,82 @@ class EnemySpawnerTest {
         assertThat(goombaMotionManager.getActiveInstances()).isEmpty();
     }
 
+    @Test
+    @DisplayName("The enemy's stored custom data reaches configure, together with its type's mode")
+    void storedDataReachesConfigure() {
+        // Prepare
+        givenAPlacedGoombaAt(PLACED_COLUMN, Map.of("speed", "fast"));
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        assertThat(configuredData()).containsOnly(
+            entry("speed", "fast"),
+            entry(MODE_ATTRIBUTE, GOOMBA_NORMAL.getMode().name())
+        );
+    }
+
+    @Test
+    @DisplayName("The enemy type's mode overrides a mode entry in the stored custom data")
+    void theTypesModeOverridesAStoredMode() {
+        // Prepare - a stored mode, which the editor refuses to save, naming something else
+        givenAPlacedGoombaAt(PLACED_COLUMN, Map.of(MODE_ATTRIBUTE, "SOMETHING_ELSE", "speed", "fast"));
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        assertThat(configuredData())
+            .as("The EnemyType is the single source of truth for the mode")
+            .containsEntry(MODE_ATTRIBUTE, GOOMBA_NORMAL.getMode().name())
+            .containsEntry("speed", "fast");
+    }
+
+    @Test
+    @DisplayName("An enemy with no stored custom data is configured with its type's mode alone")
+    void noStoredDataConfiguresTheModeAlone() {
+        // Prepare - a stamp whose data is null, as an unconverted legacy stamp could be
+        givenAPlacedGoombaAt(PLACED_COLUMN, null);
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        assertThat(configuredData()).containsOnly(entry(MODE_ATTRIBUTE, GOOMBA_NORMAL.getMode().name()));
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
 
     /** Paints a Goomba's anchor in the given column of the NPC layer; each spawn from it builds a new Goomba. */
     private void givenAPlacedGoombaAt(final int column) {
+        givenAPlacedGoombaAt(column, Map.of());
+    }
+
+    /** As {@link #givenAPlacedGoombaAt(int)}, for a Goomba stamp carrying the given custom data. */
+    private void givenAPlacedGoombaAt(final int column, final Map<String, Object> data) {
         tiles[PLACED_ROW][column] = enemyPartTile(ANCHOR_TILE_ID);
-        when(enemyStampService.findByRenderingStarterTileId(ANCHOR_TILE_ID))
-            .thenReturn(Optional.of(EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA_NORMAL).build()));
+        final EnemyStamp stamp = EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA_NORMAL).data(data).build();
+        when(enemyStampService.findByRenderingStarterTileId(ANCHOR_TILE_ID)).thenReturn(Optional.of(stamp));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, at(column)))
             .thenAnswer(invocation -> mock(Goomba.class));
+    }
+
+    /** The attributes the one spawned Goomba was configured with. */
+    private Map<String, Object> configuredData() {
+        assertThat(goombaMotionManager.getActiveInstances()).hasSize(1);
+        final ArgumentCaptor<LevelObjectData> captor = ArgumentCaptor.forClass(LevelObjectData.class);
+        verify(goombaMotionManager.getActiveInstances().getFirst()).configure(captor.capture());
+        return captor.getValue().asMap();
     }
 
     /** The screen, 256 px wide like the NES's, with its left edge at the given sprite-pixel X. */
