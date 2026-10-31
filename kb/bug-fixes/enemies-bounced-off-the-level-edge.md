@@ -25,7 +25,8 @@ its own bounds check and never went through the object queries.
 
 - **Grid:** off the level's sides is now open (`false`) in both object queries, at every row, including
   below the world. Inside the level's columns nothing changed: below the world is solid, above it is sky.
-  `collidesAtOffset` is untouched, so the player is still blocked.
+  `collidesAtOffset` is untouched, so the player is still blocked. **Superseded by SMB3-14**
+  (`the-level-bottom-was-an-invisible-floor.md`): below the level is now open in every column.
 - **Expiry, in one place:** `ActiveLevelObject.hasLeftTheLevelSideways()` is true once the sprite lies
   wholly beyond either edge. `EnemyMotionManager.update` checks it after every tick and calls
   `expire()`, so the existing retire path detaches the enemy and removes it from the list exactly once.

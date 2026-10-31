@@ -10,6 +10,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.function.DoubleSupplier;
 import static house.x1337.app.smb3.GameConstants.FRUSTUM;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static java.lang.Math.max;
 import static java.lang.Math.round;
 
 @Slf4j
@@ -214,6 +216,12 @@ public class CameraState extends BaseAppState {
         final double bottomPixels = (pendingRows - (position.y - halfHeightUnits)) * TILE_SPRITE_SIZE + marginPixels;
 
         return new AxisAlignedBoundingBox(leftPixels, topPixels, rightPixels, bottomPixels);
+    }
+
+    public boolean isBelowVisibleBottom(final PlayerPosition playerPosition) {
+        final double levelBottomPixels = (double) getPendingRows() * TILE_SPRITE_SIZE;
+        final double viewBottomPixels = getActiveObjectRegion(0).bottom();
+        return playerPosition.getY() >= max(levelBottomPixels, viewBottomPixels);
     }
 
     private Camera initializeCamera(final Camera camera) {

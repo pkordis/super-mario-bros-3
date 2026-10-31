@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
@@ -15,6 +16,8 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
+import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
+import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
@@ -40,6 +43,8 @@ public interface LevelScenePlayerRuntimeStateAware
         LevelScenePlayerOrientationAware,
         LevelScenePlayerPositionAware,
         Player {
+    void announceDeath(PlayerDeathKind kind);
+    LevelScenePlayer asLevelScenePlayer();
     PlayerRuntimeState getRuntimeState();
 
     /**
@@ -220,6 +225,9 @@ public interface LevelScenePlayerRuntimeStateAware
 
     default void die() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
+        if (runtimeState.isDying()) {
+            return;
+        }
         final PlayerPosition position = getPosition();
         runtimeState.startDying();
         runtimeState.setDeathPauseCounter(PLAYER_DEATH_PAUSE_TICKS);
@@ -229,6 +237,40 @@ public interface LevelScenePlayerRuntimeStateAware
         runtimeState.setPlayerTailAttackCountdown(0);
         position.setDX(0);
         position.setDY(PLAYER_DEATH_RISE_YVEL);
+        announceDeath(THROE);
+    }
+
+    /**
+     * Kills the player for falling into a pit (dasm prg008 @ PRG008_A3FA, lines 847-863): {@code Player_Die},
+     * then {@code Event_Countdown = $C0} and {@code Player_IsDying = 2}, which "jumps the initial part of the
+     * death sequence". So there is no pause, no pop-up and no fall: {@code Player_Die_FellOff} (prg029) moves
+     * nothing, draws nothing, and only waits for the countdown, which here is the death music's end
+     * ({@code PlayerDeathSequence}).
+     *
+     * <p>It deliberately skips {@link #isHurtable()}. The ROM's pit check reads neither
+     * {@code Player_FlashInv} nor the suit, and sets the suit to small first, so a flashing, large or
+     * Raccoon player dies here as well. Like {@code Player_Die} it clears the flashing invincibility and
+     * stops the player; {@code Player_YVel = -64} is written too, but the fell-off routine never applies it,
+     * so the port leaves the player still. The suit is not reset here because the restart respawns the
+     * player small anyway.
+     *
+     * <p>A player who is already dying is left alone, so one death is announced once.
+     */
+    default void dieByFallingOff() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        if (runtimeState.isDying()) {
+            return;
+        }
+        final PlayerPosition position = getPosition();
+        runtimeState.startFallingOffDeath();
+        runtimeState.standUp();
+        runtimeState.setPlayerFlyTime(0);
+        runtimeState.setPlayerWagCount(0);
+        runtimeState.setPlayerTailAttackCountdown(0);
+        runtimeState.setHurtInvincibilityCounter(0);
+        position.setDX(0);
+        position.setDY(0);
+        announceDeath(FELL_OFF);
     }
 
     default boolean isHurtable() {
@@ -294,11 +336,6 @@ public interface LevelScenePlayerRuntimeStateAware
     default void advanceCarryLag() {
         getRuntimeState().setWasCarrying(isCarrying());
     }
-
-    /**
-     * @return this, as the concrete player the carriable hand-off is expressed in terms of
-     */
-    LevelScenePlayer asLevelScenePlayer();
 
     /**
      * Discards an advanced suit, poofing back to {@link PlayerMode#NORMAL} and arming the flashing

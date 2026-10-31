@@ -263,6 +263,14 @@ public final class GameConstants {
      */
     public static final double PLAYER_DEATH_FALL_MAX = 4.0;
 
+    /**
+     * Ticks a player who fell into a pit waits, unseen, before the level ends (dasm prg008 @ PRG008_A3FA,
+     * lines 860-861: {@code LDA #$c0 / STA Event_Countdown}, counted down by {@code Player_Die_FellOff} in
+     * prg029). {@code $C0 = 192} ticks is how long the death music plays, which is what the wait stands
+     * for: {@code DeathMusicStandIn} counts it until a sound engine reports the real track's end.
+     */
+    public static final int PLAYER_PIT_DEATH_COUNTDOWN_TICKS = 192;
+
     public static final int PMETER_LEVELS = 7;
     public static final int PMETER_CHARGE_FRAMES = 8;
     public static final int PMETER_DRAIN_FRAMES = 24;

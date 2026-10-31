@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.player.level;
 
 import com.jme3.scene.Node;
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
@@ -16,6 +17,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.PlayerDeathStarted;
 import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
@@ -481,6 +483,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
         // Sync visual
         updateVisualPosition();
+
+        // Fall in a pit and die
+        if (gameEngine.getCameraState().isBelowVisibleBottom(position)) {
+            dieByFallingOff();
+            applyHurtFlashVisibility();
+        }
     }
 
     private void handleSizeToggle() {
@@ -497,6 +505,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     private void tickDeath() {
         position.snapshotPrevious();
+
+        // A pit death has no throe (dasm prg029 Player_Die_FellOff): nothing moves and nothing is drawn
+        // while the ROM waits out Event_Countdown. That wait is the death music, so the level's end comes
+        // from PlayerDeathSequence when the music finishes, not from here.
+        if (runtimeState.isDyingByFallingOff()) {
+            applyHurtFlashVisibility();
+            return;
+        }
 
         // Pre-launch pause (dasm Event_Countdown seeded to $30): the dead sprite is drawn in place with
         // no motion while the countdown runs; the rise-and-fall begins only once it reaches zero. This
@@ -533,6 +549,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public boolean isHaltingGameplay() {
         return runtimeState.isTransitioning() || runtimeState.isDying();
+    }
+
+    @Override
+    public void announceDeath(final PlayerDeathKind kind) {
+        gameEngine.publish(new PlayerDeathStarted(kind));
     }
 
     @Override

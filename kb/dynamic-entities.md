@@ -362,8 +362,9 @@ runs `spawnIntoScene()` and moves from the next. The Para-Goomba's Goomba has no
 The lifecycle is pinned by `EnemyMotionManagerTest` (the manager's decisions) and `EnemySpawnerTest`
 (the placements).
 
-Below-world rows are still solid to the collision grid, so a *live* walker inside the level's columns
-never actually falls out of the bottom; the rule is there for corpses and for the day real pits exist.
+Since SMB3-14 the level's bottom edge is open to the terrain queries (see "The level's bottom is open"
+below), so a live walker that walks into a pit really does fall out of the level and is deleted by this
+rule, with its placement released.
 
 ### Power-ups use the same delete, and never come back (SMB3-17)
 Every power-up's normal routine calls `Object_DeleteOffScreen` each frame, after moving and before its
@@ -387,6 +388,36 @@ the same test through the clamped camera.
   set.
 
 Pinned by `PowerUpOffScreenDeletionTest`.
+
+### The level's bottom is open, and the player dies in pits (SMB3-14)
+Nothing below the level is terrain. `collidesAtOffset` (the player) and `isGroundSolidTile` /
+`isWallOrCeilingSolidTile` (objects) all answer "open" for a row at or past the level's bottom, as the
+ROM's probes do: `Player_GetTileAndSlope` returns before fetching a tile (prg008 @ PRG008_B406-B414) and
+the object probe jumps to "no tile" (prg000 @ PRG000_C7F1). The left and right edges keep their SMB3-1
+rules: a wall to the player, open to objects.
+
+- **Objects** that fall through are deleted by the existing `hasFallenBelowTheLevel()` (`Y >= 512`, or the
+  level's bottom in a taller level). No new rule was added for them.
+- **The player** dies once the sprite's top reaches `CameraState.isBelowVisibleBottom`: the lower of the
+  level's bottom and the view's bottom. That is the ROM's `Player_SpriteY & $F0 = $C0` (prg008 @
+  PRG008_A3FA), screen line 192, and the `max` keeps it from firing over solid ground while the camera is
+  scrolled up. It runs on `updateFrame`'s normal path only (not while dying or halted).
+- **Two lines on purpose.** The ROM measures the player against the screen and objects against
+  `Objects_YHi`, so the player and the objects do not share one predicate. The gap between them is never
+  visible.
+- **No throe.** `dieByFallingOff()` sets `PlayerDeathKind.FELL_OFF` (`Player_IsDying = 2`), whatever the suit
+  and even while flashing: it skips `isHurtable()`. Nothing moves and nothing is drawn
+  (`isSpriteDrawnThisTick()` is false) while the game is halted.
+- **Event-driven end.** The ROM waits `Event_Countdown = $C0` while the death music plays. Here
+  `PlayerDeathStarted(FELL_OFF)` arms `DeathMusicStandIn`, which publishes `PlayerDeathMusicFinished` 192
+  ticks later; `PlayerDeathSequence` turns that into one `PlayerDied`. The stand-in is a `MotionManager`
+  for its clock (`updateWhileHalted`) and its reset (every level build). Both are singletons, so
+  `GameEngine.simpleInitApp` subscribes them once per engine; `@PostConstruct` would be deaf after the first
+  engine purges the bus. Delete the stand-in when a sound engine publishes the event. The hurt throe still
+  ends itself with `PlayerDied` when the body clears the level.
+
+Pinned by `CollisionGridLevelBottomTest`, `PitFallTest`, `CameraStateVisibleBottomTest`,
+`PlayerPitDeathTest`, `PlayerPitFallTest` and `PlayerDeathEventChainTest`.
 
 ### Goomba motion (dasm prg004 `ObjInit_GroundTroop` :3753 / `ObjNorm_GroundTroop` :4001)
 `OBJ_GOOMBA = $72` shares the ground-troop handlers with the Buzzy Beetle and the troopas.
@@ -1585,7 +1616,8 @@ SMB3-7 recorded that *nothing* in the game removed a troopa — every defeat pat
 - a held shell kicked into an adjacent wall (`prg000.asm:2905-2932`) — 100 pts, `OBJSTATE_KILLED`,
   `YVel = -$40`
 - a rolling shell striking another object, and two rolling shells meeting (`prg000.asm:2600-2637`)
-- a kicked shell leaving the bottom of the level, via the pre-existing `hasFallenOffLevel`
+- a kicked shell leaving the bottom of the level, through `hasFallenBelowTheLevel` (since SMB3-14 a rolling
+  shell also falls into pits)
 
 ### No `KickableLevelObject`, and the ROM is the reason
 
