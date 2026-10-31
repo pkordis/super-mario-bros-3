@@ -532,7 +532,8 @@ and it belongs in the animator. The only other Goomba frame in the ROM is the sq
 `EnemyLevelObject.onCollisionWith` is a documented no-op and enemy managers **never insert into
 `ActiveObjectGrid`** — an enemy currently walks through the player. `Player_HitEnemy`, the squash
 state, stomping and the bump-from-below are the next slice of work. Z is `Z_DEPTH_ENEMY = 0.07f`
-(in front of items at `0.06`, behind the player at `0.1`).
+(in front of items at `0.06`, behind the player at `0.1`). Since SMB3-19 that is only the lowest of 64
+per-enemy base depths; see `bug-fixes/enemy-parts-interleaved-across-enemies.md`.
 
 ### Testing note
 The entity is written so `motionUpdate()` never touches the scene graph (`positionSprite()` no-ops
@@ -808,8 +809,9 @@ and varying rates, so baked frames would fuse two clocks the ROM keeps apart.
 - Two wing patterns only: `$CD` raised, `$CF` lowered, chosen by `Var3 & $08` (**set** = raised).
 - Each wing is one 8x16 sprite, **10 px above** the body's sprite top and **2 px outward** from each of
   the body's two 8x16 halves: left at `bodyX - 2`, right at `bodyX + 8 + 2`.
-- New `Z_DEPTH_ENEMY_WING = 0.065f` (between items at `0.06` and enemies at `0.07`) so the wings pass
-  **behind** the body, as OAM slots 2/3 do behind 0/1.
+- The wings sit at `depthBehindBody()`, just behind the Para-Goomba's own base depth, so they pass
+  **behind** the body, as OAM slots 2/3 do behind 0/1. (Originally a global `Z_DEPTH_ENEMY_WING`, which
+  let wings interleave with other enemies; fixed in SMB3-19.)
 - The art ships all **four** wing files rather than two-plus-a-quad-flip, keeping `ParaGoombaAnimator`
   flip-free exactly as `GoombaAnimator` is. `ParaGoombaAnimatorAssetsTest` pins the mirror in pixels.
 - `ParaGoomba` overrides `detach()`: the `ActiveLevelObject` default only knows about the body quad.
@@ -1263,9 +1265,10 @@ Two further things fall out of the ROM and are worth not re-deriving:
   Horizontally they do take the ROM's offsets — `Sprite_RAM+$03 - 3` and `Sprite_RAM+$07 + 3`, i.e.
   three pixels past each side of the shell for a 22 px silhouette.
 
-Depth: `Z_DEPTH_ENEMY_FOOT` aliases `Z_DEPTH_ENEMY_WING`, because the feet are in the same two OAM slots
+Depth: the feet sit at the shell's own `depthBehindBody()`, because they are in the same two OAM slots
 behind the body that the wings are (`Sprite_RAM+$08` / `+$0C` against `+$00` / `+$04`) and a lower slot
-wins on the NES.
+wins on the NES. Until SMB3-19 this was a global `Z_DEPTH_ENEMY_FOOT`; see
+`bug-fixes/enemy-parts-interleaved-across-enemies.md` for why each enemy now has its own base depth.
 
 Visibility is `CullHint.Always`/`Inherit` rather than attach/detach — the feet flicker several times a
 second and the walk/shell swap happens on every tail strike, so the scene graph has no business churning

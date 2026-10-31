@@ -18,15 +18,14 @@ import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 
 import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_WING;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
@@ -34,7 +33,7 @@ import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.Dimensions.fullTile;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
-@Getter
+@Data
 @Prototype
 @RequiredArgsConstructor
 public final class ParaGoomba implements GoombaFamilyEnemy {
@@ -53,26 +52,25 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
     private Geometry rightWingGeometry;
     private GoombaMode mode = NORMAL;
 
-    @Setter
-    private boolean expired;
-    @Setter
+    private FixedPointVelocity velocity = STILL;
+    private PixelPosition position;
     private Reward pendingScoreReward;
     private boolean ceilingContact;
     private boolean deWinged;
+    private boolean expired;
     private boolean facingRight;
     private boolean groundContact;
     private boolean grounded;
     private boolean spawnedIntoScene;
     private boolean tailStruck;
     private boolean wingUp;
+    private float baseDepth = Z_DEPTH_ENEMY;
     private int hopCooldownTicks;
     private int hopCounter;
     private int refaceClock;
     private int walkFrameIndex;
     private int walkFrameTicks;
     private int wingClock;
-    private PixelPosition position;
-    private FixedPointVelocity velocity = STILL;
 
     @PostConstruct
     void init() {
@@ -373,8 +371,9 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
         final float leftWingWorldX = bodyWorldOffset.x() - (float) WING_OUTWARD_OFFSET_PIXELS / TILE_SPRITE_SIZE;
         final float rightWingWorldX = bodyWorldOffset.x()
             + (float) (BODY_RIGHT_SPRITE_OFFSET_PIXELS + WING_OUTWARD_OFFSET_PIXELS) / TILE_SPRITE_SIZE;
-        leftWingGeometry.setLocalTranslation(leftWingWorldX, wingWorldY, Z_DEPTH_ENEMY_WING);
-        rightWingGeometry.setLocalTranslation(rightWingWorldX, wingWorldY, Z_DEPTH_ENEMY_WING);
+        final float wingDepth = depthBehindBody();
+        leftWingGeometry.setLocalTranslation(leftWingWorldX, wingWorldY, wingDepth);
+        rightWingGeometry.setLocalTranslation(rightWingWorldX, wingWorldY, wingDepth);
     }
 
     private void detachWings() {

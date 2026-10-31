@@ -48,6 +48,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
 
     private final Animator.Registry animatorRegistry = getBean(Animator.Registry.class);
     private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
+    private final EnemyDepthAllocator depthAllocator = new EnemyDepthAllocator();
     private final List<EnemyPlacement> placements = new ArrayList<>();
     private final Map<EnemyLevelObject, EnemyPlacement> placementsByEnemy = new IdentityHashMap<>();
     private final GameEngine gameEngine;
@@ -65,6 +66,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         resetEnemies();
         placements.clear();
         placementsByEnemy.clear();
+        depthAllocator.reset();
         openingScreenSpawned = false;
 
         final LevelScene.LevelSceneLayer layer = gameEngine.getLevelScene().getNonPlayableCharactersLayer();
@@ -216,6 +218,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         data.put(MODE_ATTRIBUTE, enemyType.getMode().name());
         levelObject.configure(new LevelObjectData(data));
         if (levelObject instanceof final EnemyLevelObject enemyLevelObject) {
+            enemyLevelObject.setBaseDepth(depthAllocator.next());
             spawnEnemy(enemyLevelObject);
             placement.markSpawned();
             placementsByEnemy.put(enemyLevelObject, placement);

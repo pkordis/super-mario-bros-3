@@ -4,7 +4,6 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 
 /**
  * The world-collision probes and shared constants every enemy that walks on the terrain needs.
@@ -37,7 +36,8 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
      * from the same point.
      *
      * @param position the enemy's current sprite-pixel position
-     * @return the world offset to translate the sprite to, or {@code null} if it has no geometry yet
+     * @return the world offset to translate the sprite to, at the enemy's own base depth, or {@code null}
+     *         if it has no geometry yet
      */
     default WorldOffset pixelToWorldOffset(final PixelPosition position) {
         if (getSpriteGeometry() == null) {
@@ -52,7 +52,7 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
         return WorldOffset.of(
             worldX,
             worldY,
-            Z_DEPTH_ENEMY
+            getBaseDepth()
         );
     }
 

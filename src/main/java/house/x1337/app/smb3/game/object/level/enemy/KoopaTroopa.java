@@ -28,6 +28,7 @@ import lombok.experimental.Accessors;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
@@ -72,30 +73,30 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     private final GameEngine gameEngine;
     private final Offset offset;
 
-    private Geometry spriteGeometry;
-    private Geometry shellGeometry;
+    private FixedPointVelocity velocity = STILL;
     private Geometry leftShellFootGeometry;
     private Geometry rightShellFootGeometry;
+    private Geometry shellGeometry;
+    private Geometry spriteGeometry;
     private KoopaTroopaMode mode = RED;
     private KoopaTroopaState state = NORMAL;
-
-    private boolean expired;
+    private LevelScenePlayer carrier;
+    private PixelPosition position;
     private Reward pendingScoreReward;
+    private boolean expired;
     private boolean facingRight;
     private boolean grounded;
     private boolean ledgeTurned;
     private boolean spawnedIntoScene;
     private boolean upsideDown;
+    private float baseDepth = Z_DEPTH_ENEMY;
     private int hitCooldownTicks;
     private int killTally;
     private int spinTicks;
-    private int wakeUpTicks;
     private int wakeUpThrottlePhase;
+    private int wakeUpTicks;
     private int walkFrameIndex;
     private int walkFrameTicks;
-    private LevelScenePlayer carrier;
-    private PixelPosition position;
-    private FixedPointVelocity velocity = STILL;
 
     /**
      * Only the position may be derived here. An enemy is constructed while {@code GameEngine.setupLevel}
