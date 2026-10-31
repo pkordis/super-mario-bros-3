@@ -1,28 +1,21 @@
 package house.x1337.app.smb3.model.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.KillTallyAware;
 import lombok.Data;
 
+import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
+import static house.x1337.app.smb3.enumeration.PlayerDeathKind.NONE;
+import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 
-/**
- * Holds the live, mutable runtime state of a player.
- *
- * <p>The player is always in exactly one {@link PlayerMovement} mode
- * (STILL, WALKING, RUNNING, JUMPING, FALLING, FLYING, etc.). Ducking is
- * tracked as a separate flag ({@link #ducking}) that persists independently
- * of the movement mode — matching the original NES implementation where
- * {@code Player_IsDucking} is a standalone variable that freezes once
- * airborne (dasm prg008 PRG008_A715: if already ducking when in air, the
- * flag is preserved; it is only re-evaluated on the ground).
- */
 @Data
 @Prototype
 public class PlayerRuntimeState implements KillTallyAware {
@@ -37,9 +30,9 @@ public class PlayerRuntimeState implements KillTallyAware {
     private PlayerMovement movement = STILL;
 
     private CarriableLevelObject carriedObject;
+    private PlayerDeathKind deathKind = NONE;
     private PlayerMode queuedMode;
     private boolean ducking;
-    private boolean dying;
     private boolean running;
     private boolean wasCarrying;
     private int deathPauseCounter;
@@ -64,11 +57,23 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     public void startDying() {
-        dying = true;
+        deathKind = THROE;
+    }
+
+    public void startFallingOffDeath() {
+        deathKind = FELL_OFF;
+    }
+
+    public boolean isDying() {
+        return deathKind != NONE;
+    }
+
+    public boolean isDyingByFallingOff() {
+        return deathKind == FELL_OFF;
     }
 
     public boolean isDeathPausing() {
-        return dying && deathPauseCounter > 0;
+        return deathKind == THROE && deathPauseCounter > 0;
     }
 
     public void decrementDeathPause() {
@@ -146,9 +151,15 @@ public class PlayerRuntimeState implements KillTallyAware {
      * belongs to the pre-decrement value. {@link #decrementHurtInvincibility} is therefore called after
      * this, not before.
      *
+     * <p>A player who fell into a pit is never drawn: {@code Player_Die_FellOff} (prg029) only waits out
+     * its countdown.
+     *
      * @return {@code true} to draw the player, {@code false} to skip it this tick
      */
     public boolean isSpriteDrawnThisTick() {
+        if (isDyingByFallingOff()) {
+            return false;
+        }
         return !isHurtInvincible() || (hurtInvincibilityCounter & INVINCIBILITY_BLANK_PHASE_MASK) == 0;
     }
 

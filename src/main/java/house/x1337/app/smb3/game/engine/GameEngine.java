@@ -17,6 +17,8 @@ import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.player.level.death.DeathMusicStandIn;
+import house.x1337.app.smb3.game.player.level.death.PlayerDeathSequence;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -136,6 +138,12 @@ public final class GameEngine extends GameEngineCapabilities {
 
         stateManager.attach(cameraState);
         viewPort.setBackgroundColor(BLACK);
+
+        // The pit death ends when the death music ends (PlayerDeathStarted -> PlayerDeathMusicFinished ->
+        // PlayerDied). Both pieces are singletons that outlive this engine, and destroy() purges the bus,
+        // so each engine subscribes them once here rather than in @PostConstruct.
+        getBean(DeathMusicStandIn.class).subscribe();
+        getBean(PlayerDeathSequence.class).subscribe();
 
         // Make the Z_DEPTH_* ladder decide what covers what, instead of jME's camera-distance sort -
         // which, for a 2D scene, is really a distance-from-screen-centre sort and reorders two sprites

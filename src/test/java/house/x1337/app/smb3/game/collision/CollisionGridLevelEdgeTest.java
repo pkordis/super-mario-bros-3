@@ -82,11 +82,11 @@ class CollisionGridLevelEdgeTest {
     }
 
     @Test
-    @DisplayName("Within the level's columns, below the world stays solid and above it stays sky")
-    void verticalBoundsAreUnchanged() {
-        // Execute & Verify
-        assertThat(grid.isGroundSolidTile(0, ROWS)).as("Below the world is a floor").isTrue();
-        assertThat(grid.isWallOrCeilingSolidTile(COLUMNS - 1, ROWS)).as("And a wall").isTrue();
+    @DisplayName("Within the level's columns, below the level is open, like the sky above it")
+    void aboveAndBelowTheLevelAreOpen() {
+        // Execute & Verify - the bottom edge opened in SMB3-14 (CollisionGridLevelBottomTest)
+        assertThat(grid.isGroundSolidTile(0, ROWS)).as("Below the level is no floor").isFalse();
+        assertThat(grid.isWallOrCeilingSolidTile(COLUMNS - 1, ROWS)).as("Nor a wall").isFalse();
         assertThat(grid.isGroundSolidTile(0, -1)).as("Above the world is open").isFalse();
         assertThat(grid.isWallOrCeilingSolidTile(COLUMNS - 1, -1)).as("For a head as well").isFalse();
     }
