@@ -29,6 +29,7 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -278,6 +279,26 @@ class ParaGoombaStompTest {
         // alive it is a Para-Goomba that comes back at the placement
         final Goomba replacement = captureSpawnedGoomba();
         verify(activeObjectGrid).handOverPlacement(paraGoomba, replacement);
+    }
+
+    @Test
+    @DisplayName("The Goomba taking the slot is drawn at the Para-Goomba's depth, not a fresh one")
+    void theReplacementInheritsTheDepth() {
+        // Prepare - a depth no fresh enemy would have, so an inherited one is unmistakable
+        final float paraGoombaDepth = baseDepthOfSlot(11);
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+        paraGoomba.setBaseDepth(paraGoombaDepth);
+        paraGoomba.onCollisionFromAbove(descendingPlayer());
+        final Goomba replacement = captureSpawnedGoomba();
+
+        // Execute
+        replacement.spawnIntoScene();
+
+        // Verify - the hand-over keeps it where it was against every other enemy
+        assertThat(replacement.getBaseDepth()).isCloseTo(paraGoombaDepth, within(1e-7f));
+        assertThat(replacement.getSpriteGeometry().getLocalTranslation().z)
+            .as("And its body quad is placed there")
+            .isCloseTo(paraGoombaDepth, within(1e-7f));
     }
 
     @Test

@@ -33,6 +33,7 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -342,6 +343,43 @@ class EnemySpawnerTest {
 
         // Verify
         assertThat(goombaMotionManager.getActiveInstances()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Each spawn takes the next base depth, so the newest enemy is drawn in front")
+    void eachSpawnTakesTheNextBaseDepth() {
+        // Prepare - two placements on the opening screen, left to right
+        givenAPlacedGoombaAt(2);
+        givenAPlacedGoombaAt(4);
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        final List<Goomba> spawned = goombaMotionManager.getActiveInstances();
+        assertThat(spawned).hasSize(2);
+        verify(spawned.get(0)).setBaseDepth(baseDepthOfSlot(0));
+        verify(spawned.get(1)).setBaseDepth(baseDepthOfSlot(1));
+    }
+
+    @Test
+    @DisplayName("Reading a new level restarts the depth sequence from the bottom of the band")
+    void aNewLevelRestartsTheDepthSequence() {
+        // Prepare - one level played with a Goomba, then the same level read again
+        givenAPlacedGoombaAt(PLACED_COLUMN);
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+        enemySpawner.spawnPlacementsComingIntoView();
+        goombaMotionManager.getActiveInstances().clear();
+        enemySpawner.spawn();
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        verify(goombaMotionManager.getActiveInstances().getFirst()).setBaseDepth(baseDepthOfSlot(0));
     }
 
     @Test

@@ -22,13 +22,13 @@ import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.Accessors;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
@@ -39,7 +39,7 @@ import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMoti
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.strikeFrom;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
-@Getter
+@Data
 @Prototype
 @RequiredArgsConstructor
 public final class Goomba implements GoombaFamilyEnemy {
@@ -63,25 +63,23 @@ public final class Goomba implements GoombaFamilyEnemy {
     private final GameEngine gameEngine;
     private final Offset offset;
 
+    private EnemyKnockMotion whamMotion;
+    private FixedPointVelocity velocity = STILL;
     private Geometry spriteGeometry;
     private GoombaMode mode = NORMAL;
-
-    @Setter
-    private boolean expired;
-    @Setter
+    private PixelPosition position;
     private Reward pendingScoreReward;
-    private EnemyKnockMotion whamMotion;
     private boolean adoptedSlot;
+    private boolean expired;
     private boolean facingRight;
     private boolean grounded;
     private boolean spawnedIntoScene;
     private boolean squished;
+    private float baseDepth = Z_DEPTH_ENEMY;
     private int hitCooldownTicks;
     private int squishTicksRemaining;
     private int walkFrameIndex;
     private int walkFrameTicks;
-    private PixelPosition position;
-    private FixedPointVelocity velocity = STILL;
 
     @PostConstruct
     void init() {
@@ -104,6 +102,7 @@ public final class Goomba implements GoombaFamilyEnemy {
         this.hitCooldownTicks = hitCooldownTicks;
         this.velocity = STILL.directedX(facingRight, WALK_SPEED_FIXED_POINT);
         this.adoptedSlot = true;
+        this.baseDepth = paraGoomba.getBaseDepth();
         final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = gameEngine.getActiveObjectGrid();
         activeObjectGrid.spawnEnemy(this);
         activeObjectGrid.handOverPlacement(paraGoomba, this);

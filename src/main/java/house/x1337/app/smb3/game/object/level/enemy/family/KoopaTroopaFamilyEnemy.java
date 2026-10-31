@@ -11,7 +11,6 @@ import static com.jme3.scene.Spatial.CullHint.Always;
 import static com.jme3.scene.Spatial.CullHint.Inherit;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
-import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_FOOT;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_BEHIND_PLAYER;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER;
@@ -179,7 +178,8 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
 
     /**
      * Hangs one foot three pixels past its side of the shell, inverted with it, and shows it only on the
-     * ticks the flicker says.
+     * ticks the flicker says. Drawn just behind this shell's own depth, never at a depth shared with
+     * other enemies, so the feet go wherever their shell goes in the draw order.
      */
     private void positionWakingFoot(
         final Geometry footGeometry,
@@ -198,7 +198,7 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
             .of(
                 shellOffset.x() + outwardPixels * PIXELS_TO_GAME_UNITS,
                 shellOffset.y(),
-                carriedDepthOr(Z_DEPTH_ENEMY_FOOT, Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT)
+                carriedDepthOr(depthBehindBody(), Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT)
             )
             .applyTo(footGeometry);
     }

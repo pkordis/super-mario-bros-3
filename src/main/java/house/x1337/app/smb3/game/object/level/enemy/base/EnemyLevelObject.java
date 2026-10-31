@@ -19,6 +19,8 @@ import house.x1337.app.smb3.service.EnemyStampService;
 import java.util.ArrayList;
 import java.util.List;
 
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
+import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 
@@ -53,6 +55,17 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     }
 
     default void setPendingScoreReward(final Reward reward) {
+    }
+
+    default float getBaseDepth() {
+        return Z_DEPTH_ENEMY;
+    }
+
+    default void setBaseDepth(final float baseDepth) {
+    }
+
+    default float depthBehindBody() {
+        return getBaseDepth() - Z_OFFSET_ENEMY_DETAIL;
     }
 
     @Override

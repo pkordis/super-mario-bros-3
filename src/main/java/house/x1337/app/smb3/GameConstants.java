@@ -137,16 +137,43 @@ public final class GameConstants {
     public static final float Z_DEPTH_POOF = 0.045f;
     public static final float Z_DEPTH_BRICK_BLOCK_BOUNCE = 0.05f;
     public static final float Z_DEPTH_ITEM_REWARD = 0.06f;
-    // A Para-Goomba's wings are OAM slots 2 and 3 where its body is 0 and 1, and a lower slot wins on
-    // the NES, so the wings pass behind the body. They still sit in front of the reward items.
-    public static final float Z_DEPTH_ENEMY_WING = 0.065f;
-    // A waking Koopa Troopa's feet are in the same two slots behind its shell (Sprite_RAM+$08 and +$0C
-    // against the shell's +$00 and +$04), so they share the wings' depth for the same reason.
-    public static final float Z_DEPTH_ENEMY_FOOT = Z_DEPTH_ENEMY_WING;
-    // Enemies sit just in front of the reward items and just behind the player (PlayerVisibility
-    // FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
-    // still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.
+
+    /**
+     * The lowest base depth an enemy is given, and the depth of one that was never given its own (an
+     * enemy built by hand, as tests do).
+     *
+     * <p>Enemies sit in front of the reward items and behind the player ({@code PlayerVisibility}
+     * FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
+     * still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.
+     *
+     * <p>This is not a depth every enemy shares. Each enemy spawned from a placement takes its own base
+     * from {@code EnemyDepthAllocator}, {@link #Z_STEP_BETWEEN_ENEMIES} apart, and draws all of its
+     * quads within {@link #Z_OFFSET_ENEMY_DETAIL} of it.
+     */
     public static final float Z_DEPTH_ENEMY = 0.07f;
+
+    /**
+     * How far apart two enemies' base depths are.
+     *
+     * <p>The ROM gives each object its own contiguous {@code Sprite_RAM} block ({@code SprRamOffsets},
+     * dasm prg000.asm:590, stored to {@code Object_SprRAM,X} at prg000.asm:1908), so one object's sprites
+     * always sort as a unit against another's. A step per enemy, with every part of the enemy kept within
+     * {@link #Z_OFFSET_ENEMY_DETAIL} of its base, is the same guarantee in depth terms.
+     */
+    public static final float Z_STEP_BETWEEN_ENEMIES = 0.0003f;
+
+    /**
+     * How far an enemy's secondary quads sit from its own base depth. Well under half of
+     * {@link #Z_STEP_BETWEEN_ENEMIES}, so no other enemy's quad can fall between two parts of one enemy.
+     *
+     * <p>Behind the base: a Para-Goomba's wings ({@code Sprite_RAM+$08}/{@code +$0C} against the body's
+     * {@code +$00}/{@code +$04}, {@code ParaGoomba_Draw}, dasm prg004.asm:3130) and a waking shell's feet
+     * (the same slots, prg000.asm:2398). A lower slot wins on the NES, so both pass behind their body.
+     *
+     * <p>In front of the base: a Troopa's head tip and a Paratroopa's wing, which {@code Troopa_Draw}
+     * writes to the slots <em>before</em> the body (prg004.asm:4323-4331, :4375, :4391-4433).
+     */
+    public static final float Z_OFFSET_ENEMY_DETAIL = 0.0001f;
 
     /**
      * How far <b>behind</b> its holder an object in the player's hands is drawn, so the hands stay
