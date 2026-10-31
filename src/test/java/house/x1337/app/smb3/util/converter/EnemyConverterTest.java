@@ -15,6 +15,7 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /**
  * Pins the enemy's domain/persistence mapping: an {@link EnemyStamp} carries resolved {@link Tile}s, an
@@ -98,6 +99,40 @@ class EnemyConverterTest {
         assertThat(restored.getTileIds()).containsExactly(1, 2, 3, 11, 12, 13);
         assertThat(restored.getRows()).isEqualTo(2);
         assertThat(restored.getColumns()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Custom data survives the stamp to record to stamp round trip")
+    void roundTripsCustomData() {
+        // Prepare
+        final EnemyStamp original = converter.toEnemy(record(1, 1, new int[] {1}, 0, 0));
+        original.setData(Map.of("speed", "fast", "colour", "red"));
+
+        // Execute
+        final EnemyRecord stored = converter.toEnemyRecord(original);
+        final EnemyStamp restored = converter.toEnemy(stored);
+
+        // Verify
+        assertThat(stored.getData()).containsOnly(entry("speed", "fast"), entry("colour", "red"));
+        assertThat(restored.getData()).containsOnly(entry("speed", "fast"), entry("colour", "red"));
+        assertThat(restored.getData())
+            .as("The stamp gets its own copy, not the document's map")
+            .isNotSameAs(stored.getData());
+    }
+
+    @Test
+    @DisplayName("An enemy saved before custom data existed loads with empty data")
+    void legacyRecordWithoutDataLoadsEmpty() {
+        // Prepare - a document deserialized without a data field leaves it null
+        final EnemyRecord legacy = record(1, 1, new int[] {1}, 0, 0);
+        legacy.setData(null);
+
+        // Execute
+        final EnemyStamp enemy = converter.toEnemy(legacy);
+
+        // Verify
+        assertThat(enemy.getData()).isNotNull().isEmpty();
+        assertThat(converter.toEnemyRecord(enemy).getData()).isNotNull().isEmpty();
     }
 
     // -------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import house.x1337.app.smb3.enumeration.enemy.EnemyType;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.service.TileService;
+import house.x1337.app.smb3.ui.editor.level.component.CustomDataTablePanel;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -27,10 +29,12 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.NORTH;
 import static java.awt.BorderLayout.SOUTH;
@@ -40,7 +44,9 @@ import static java.lang.System.currentTimeMillis;
 import static javax.swing.BorderFactory.createEmptyBorder;
 import static javax.swing.BorderFactory.createTitledBorder;
 import static javax.swing.JOptionPane.INFORMATION_MESSAGE;
+import static javax.swing.JOptionPane.WARNING_MESSAGE;
 import static javax.swing.JOptionPane.showMessageDialog;
+import static javax.swing.JSplitPane.HORIZONTAL_SPLIT;
 
 @Slf4j
 @Prototype
@@ -50,6 +56,7 @@ public final class CreateEnemyFromImageWindow extends JDialog {
 
     private int[][][] partPixels;
     private EnemyTilesGridPanel gridPanel;
+    private CustomDataTablePanel dataPanel;
 
     private final JComboBox<EnemyType> enemyTypeCombo = new JComboBox<>(EnemyType.values());
     private final JTextField descriptionField = new JTextField(24);
@@ -64,20 +71,25 @@ public final class CreateEnemyFromImageWindow extends JDialog {
         this.partPixels = splitIntoParts(image);
         this.gridPanel = getBean(EnemyTilesGridPanel.class);
         this.gridPanel.render(partPixels);
+        this.dataPanel = getBean(CustomDataTablePanel.class);
+        this.dataPanel.render("Custom Data");
 
         setTitle("Create Enemy from Image");
         setModal(true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setResizable(true);
 
+        final JSplitPane mainSplit = new JSplitPane(HORIZONTAL_SPLIT, buildGridPanel(), dataPanel);
+        mainSplit.setResizeWeight(0.5);
+
         final JPanel content = new JPanel(new BorderLayout(10, 10));
         content.setBorder(createEmptyBorder(10, 10, 10, 10));
         content.add(buildPropertiesPanel(), NORTH);
-        content.add(buildGridPanel(), CENTER);
+        content.add(mainSplit, CENTER);
         content.add(buildFooter(), SOUTH);
 
         setContentPane(content);
-        setMinimumSize(new Dimension(520, 420));
+        setMinimumSize(new Dimension(760, 480));
         pack();
         setLocationRelativeTo(getParent());
     }
@@ -133,6 +145,11 @@ public final class CreateEnemyFromImageWindow extends JDialog {
     }
 
     private void handleSave() {
+        if (dataPanel.warnAboutDuplicateKeys(this) || warnAboutModeEntry()) {
+            return;
+        }
+        final Map<String, Object> data = dataPanel.getData();
+
         final EnemyType enemyType = (EnemyType) enemyTypeCombo.getSelectedItem();
         final String typed = descriptionField.getText().trim();
         final String description = typed.isEmpty() ? null : typed;
@@ -150,6 +167,7 @@ public final class CreateEnemyFromImageWindow extends JDialog {
             .renderingStarterRow(gridPanel.getRenderingStarterRow())
             .renderingStarterColumn(gridPanel.getRenderingStarterColumn())
             .updatedAt(currentTimeMillis())
+            .data(data)
             .build();
 
         enemyStampService.upsert(enemy);
@@ -159,14 +177,15 @@ public final class CreateEnemyFromImageWindow extends JDialog {
         assert enemyType != null;
         showMessageDialog(
             this,
-            "Enemy saved.\n\nType: %s\nTiles: %d x %d\nRendering starter: row %d, column %d (tile id %d)"
+            "Enemy saved.\n\nType: %s\nTiles: %d x %d\nRendering starter: row %d, column %d (tile id %d)\n%s"
                 .formatted(
                     enemyType.getLabel(),
                     columns,
                     rows,
                     enemy.getRenderingStarterRow(),
                     enemy.getRenderingStarterColumn(),
-                    enemy.renderingStarterTileId()
+                    enemy.renderingStarterTileId(),
+                    describe(data)
                 ),
             "Enemy Created",
             INFORMATION_MESSAGE
@@ -175,11 +194,29 @@ public final class CreateEnemyFromImageWindow extends JDialog {
         dispose();
     }
 
-    /**
-     * Puts the freshly saved parts into the tile palette so the author can paint the enemy into a level
-     * straight away, exactly as classifying a tile in the new-tiles review does. {@code addTile} ignores
-     * ids it already holds, so a part reused from an earlier enemy is not duplicated.
-     */
+    private boolean warnAboutModeEntry() {
+        if (!dataPanel.getData().containsKey(MODE_ATTRIBUTE)) {
+            return false;
+        }
+        showMessageDialog(
+            this,
+            "The \"%s\" key comes from the Enemy Type and is ignored in custom data.\n\nRemove that row to save."
+                .formatted(MODE_ATTRIBUTE),
+            "Reserved Custom Data Key",
+            WARNING_MESSAGE
+        );
+        return true;
+    }
+
+    private static String describe(final Map<String, Object> data) {
+        if (data.isEmpty()) {
+            return "Custom data: none";
+        }
+        final StringBuilder summary = new StringBuilder("Custom data:");
+        data.forEach((key, value) -> summary.append("\n  ").append(key).append(" = ").append(value));
+        return summary.toString();
+    }
+
     private void publishPartsToPalette(final int[] tileIds) {
         final TilePalettePanel palette = getBean(TilePalettePanel.class);
         for (final int tileId : tileIds) {

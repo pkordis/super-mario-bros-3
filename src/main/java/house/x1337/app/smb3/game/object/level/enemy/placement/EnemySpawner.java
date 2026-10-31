@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static java.lang.Math.floor;
 import static java.lang.Math.floorDiv;
+import static java.util.Collections.unmodifiableMap;
 
 @Slf4j
 @Getter
@@ -129,8 +131,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     }
 
     /**
-     * Forgets the enemy but keeps its placement spent, so it never spawns again this level. This is
-     * {@code Object_SetDeadEmpty}: an enemy that died.
+     * Forgets the enemy but keeps its placement spent, so it never spawns again this level.
      *
      * @param enemy the instance being thrown away; one without a placement is ignored
      */
@@ -139,9 +140,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     }
 
     /**
-     * Moves a placement from one instance to the instance taking over its slot. The ROM rewrites
-     * {@code Level_ObjectID} in place and leaves {@code Objects_SpawnIdx} as it was, so the newcomer
-     * answers for the predecessor's placement.
+     * Moves a placement from one instance to the instance taking over its slot.
      *
      * @param predecessor the instance giving up its slot
      * @param successor   the instance taking it over
@@ -158,16 +157,6 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
 
     /**
      * Hands a single enemy that came into being <em>during</em> play to the manager that owns its type.
-     *
-     * <p>Deliberately separate from {@link #spawn()}: that is the level-setup pass and opens by
-     * resetting every enemy manager and animator, which is exactly wrong mid-level - it would wipe the
-     * population the newcomer is joining. Nothing else is needed to bring it to life, because the
-     * manager's per-tick pass builds its sprite the first time the camera reaches it and inserts it into
-     * the broad-phase from then on.
-     *
-     * <p>The one caller today is the Para-Goomba's de-winging stomp, which is the ROM rewriting
-     * {@code Level_ObjectID,X} in place rather than spawning anything - so the replacement must slot
-     * into the live population without disturbing it.
      *
      * @param enemy the enemy to register
      * @throws IllegalStateException if no manager claims the enemy's type
@@ -201,20 +190,31 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
             warnAboutUnclassifiedEnemyTile(enemyStampService, tile, row, column);
             return;
         }
-        placements.add(new EnemyPlacement(enemy.orElseThrow().getEnemyType(), Offset.of(column, row)));
+        final EnemyStamp stamp = enemy.orElseThrow();
+        placements.add(new EnemyPlacement(stamp.getEnemyType(), Offset.of(column, row), dataOf(stamp)));
+    }
+
+    private static Map<String, Object> dataOf(final EnemyStamp stamp) {
+        return stamp.getData() == null ? Map.of() : unmodifiableMap(new HashMap<>(stamp.getData()));
     }
 
     /**
      * Builds the placement's enemy and hands it to the manager that drives its type. The instance is
      * built exactly as {@code LevelObjectRecordCapabilities#toLevelObject} builds a multi-tiled object
-     * ({@code gameEngine} plus its placement {@link Offset}, then its mode as its one attribute):
+     * ({@code gameEngine} plus its placement {@link Offset}, then its attributes):
      * {@code EnemyType.GOOMBA} → {@code LevelObjectTypeMultiTiled.GOOMBA} → {@code Goomba}.
+     *
+     * <p>The attributes are the enemy's stored custom data with the {@link EnemyType}'s mode written
+     * <em>last</em> under {@code MODE_ATTRIBUTE}, so the type is the single source of truth for the mode:
+     * a stored {@code mode} entry, which the editor refuses to save anyway, never overrides it.
      */
     private void spawnFrom(final EnemyPlacement placement) {
         final EnemyType enemyType = placement.getEnemyType();
         final LevelObjectType type = enemyType.getLevelObjectType();
         final LevelObject levelObject = getBean(type.getInstanceType(), gameEngine, placement.getAnchor());
-        levelObject.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, enemyType.getMode().name())));
+        final Map<String, Object> data = new HashMap<>(placement.getData());
+        data.put(MODE_ATTRIBUTE, enemyType.getMode().name());
+        levelObject.configure(new LevelObjectData(data));
         if (levelObject instanceof final EnemyLevelObject enemyLevelObject) {
             spawnEnemy(enemyLevelObject);
             placement.markSpawned();

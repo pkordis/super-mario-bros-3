@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -24,4 +26,7 @@ public final class EnemyStamp implements EnemyCapabilities {
     private int renderingStarterRow;
     private int renderingStarterColumn;
     private long updatedAt;
+
+    @Builder.Default
+    private Map<String, Object> data = new HashMap<>();
 }

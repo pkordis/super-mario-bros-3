@@ -259,6 +259,15 @@ PNG (validated as whole 16x16 tiles)  ->  CreateEnemyFromImageWindow
   are the VIRTUAL ones, declared first, whose `ordinal()` is their persisted id.)
 - Nothing is written until Save, so an abandoned import leaves no tiles behind. Saved parts are pushed
   into `TilePalettePanel` immediately (`addTile` is idempotent), so they can be painted at once.
+- **Custom data (SMB3-12):** the dialog has a *Custom Data* key/value section beside the tile grid, the
+  same `CustomDataTablePanel` (`ui/editor/level/component`) the *Create Custom Level Object* dialog uses
+  for `LevelObjectRecord.data`. It commits a cell still being edited before every read, trims keys and
+  values, skips blank keys, and both dialogs refuse to save while a key appears twice. The result is
+  `EnemyStamp.data` / `EnemyRecord.data` (`Map<String, Object>`, string values). Documents saved before
+  the field existed have no `data`; `EnemyConverter` reads `null` as empty both ways.
+- **The `EnemyType` wins for `mode`.** `EnemySpawner` configures each spawned enemy with the stored data
+  and then writes `EnemyMode.MODE_ATTRIBUTE` from the type *last*, so a stored `mode` never overrides it.
+  The enemy dialog refuses to save a `mode` row at all, so stored data never carries one.
 
 **Placing an enemy — the Enemies palette:** the left pane has a second tab beside Tiles, listing one
 section per enemy, headed by the enemy's name (its description, falling back to the `EnemyType` label)
