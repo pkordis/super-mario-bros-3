@@ -5,6 +5,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
@@ -34,6 +35,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_P
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
 import static house.x1337.app.smb3.model.game.Dimensions.doubleTileHeight;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
@@ -46,15 +48,20 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private static final int WING_HEIGHT_PIXELS = 16;
     public static final int BACK_COLUMN_OFFSET_PIXELS = 8;
     public static final int CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT = 1;
+    public static final int FLIGHT_ACCELERATION_PERIOD_MASK = 3;
+    public static final int FLIGHT_HOLD_TICKS = 48;
+    public static final int FLYING_WALK_FRAME_SHIFT = 3;
     public static final int HOP_Y_VELOCITY_FIXED_POINT = -48;
     public static final int WALK_FRAME_SHIFT = 2;
     public static final int WING_ABOVE_MIDDLE_ROW_PIXELS = 8;
     public static final int WING_LIFT_FIXED_POINT = 1;
     public static final int WING_PHASE_BIT = 4;
     public static final int WING_PHASE_OFFSET = 3;
+    private static final int[] FLIGHT_ACCELERATION = {1, -1};
+    private static final int[] FLIGHT_SPEED_LIMIT = {16, -16};
     public static final int[] MIDDLE_ROW_CANVAS_TOP = {11, 9};
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
-    private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaParatroopa");
+    private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaParaTroopa");
 
     @Accessors(fluent = true)
     private final boolean bouncesOffOtherObjects = true;
@@ -82,6 +89,9 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private boolean wingUp;
     private float baseDepth = Z_DEPTH_ENEMY;
     private int animationClock;
+    private int flightDirection;
+    private int flightTicks;
+    private int flightTimer;
     private int walkFrameIndex;
 
     @PostConstruct
@@ -184,8 +194,20 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     }
 
     @Override
+    public void onSideCollisionWith(final ActiveLevelObject other) {
+        if (mode == RED) {
+            return;
+        }
+        KoopaTroopaBody.super.onSideCollisionWith(other);
+    }
+
+    @Override
     public void motionUpdate() {
         if (expired) {
+            return;
+        }
+        if (mode == RED) {
+            fly();
             return;
         }
         updatePose();
@@ -223,6 +245,32 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         );
     }
 
+    private void fly() {
+        if (flightTimer > 0) {
+            flightTimer--;
+        }
+        updatePose();
+        animationClock = (animationClock + 1) & BYTE_MASK;
+        position = position.steppedY(velocity);
+        if (flightTimer == 0) {
+            accelerateFlight();
+        }
+        positionSprite();
+    }
+
+    private void accelerateFlight() {
+        flightTicks = (flightTicks + 1) & BYTE_MASK;
+        if ((flightTicks & FLIGHT_ACCELERATION_PERIOD_MASK) != 0) {
+            return;
+        }
+        final int direction = flightDirection & 1;
+        velocity = velocity.plusY(FLIGHT_ACCELERATION[direction]);
+        if (velocity.y() == FLIGHT_SPEED_LIMIT[direction]) {
+            flightDirection = (flightDirection + 1) & BYTE_MASK;
+            flightTimer = FLIGHT_HOLD_TICKS;
+        }
+    }
+
     private void onBumpedFromBelow() {
         handedOver = true;
         final KoopaTroopa troopa = handOverToKoopaTroopa(NO_HIT_COOLDOWN_TICKS);
@@ -247,11 +295,13 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
             Map.of(MODE_ATTRIBUTE, mode.name())
         ));
         troopa.replace(this, hitCooldownTicks);
+        troopa.setLedgeTurned(flightTicks != 0);
         return troopa;
     }
 
     private void updatePose() {
-        final int frame = (animationClock >> WALK_FRAME_SHIFT) & 1;
+        final int walkFrameShift = mode == RED ? FLYING_WALK_FRAME_SHIFT : WALK_FRAME_SHIFT;
+        final int frame = (animationClock >> walkFrameShift) & 1;
         if (frame != walkFrameIndex) {
             walkFrameIndex = frame;
             animator.applyCurrentFrame(this);

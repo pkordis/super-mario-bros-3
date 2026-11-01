@@ -1992,7 +1992,7 @@ read before this frame's `Var5++`, because the draw runs before `Object_Move`. R
   to the middle row **as the port's art draws it**, not to `Troopa_YOffByFrame`: the middle row (`$C2`/`$C4`)
   starts at canvas row 11 in `walk_1` and 9 in `walk_2` (matched against `CHR/chr079.pcx`), so the wing
   spans canvas rows 3..18 and 1..16. The walk frames meet the bob halfway (see above), so deriving the height
-  from the ROM's offsets alone put the wing a pixel off. `KoopaParatroopa.MIDDLE_ROW_CANVAS_TOP` holds the two
+  from the ROM's offsets alone put the wing a pixel off. `KoopaParaTroopa.MIDDLE_ROW_CANVAS_TOP` holds the two
   rows, and `KoopaParaTroopaAnimatorAssetsTest` checks them against the art.
 - **Flip:** the wing copies the attribute of the body sprite it sits on, so it is `SPR_HFLIP`ped exactly
   when the troopa faces right. The Para-Goomba's `*_right.png` is the unflipped file (its right wing's
@@ -2037,6 +2037,64 @@ bump still pays nothing.
 
 ### Not ported
 
-The red flyer `$6F` (SMB3-21; `KoopaTroopaMode.RED` currently only selects the art folder, and there is no
-red folder or `EnemyType` yet), the green left/right flyer `$80`, the giant hopper `$7E`, water, bounce-block
-velocities (`Objects_TargetingXVal`), and `GroundTroop_BumpOffOthers`'s every-other-frame throttle.
+The green left/right flyer `$80`, the giant hopper `$7E`, water, bounce-block velocities
+(`Objects_TargetingXVal`), and `GroundTroop_BumpOffOthers`'s every-other-frame throttle. The red flyer `$6F`
+landed in SMB3-21 (below).
+
+---
+
+## Red Koopa Paratroopa - `OBJ_FLYINGREDPARATROOPA = $6F` (SMB3-21, 2026-11)
+
+### A second motion branch on the same class
+
+`$6F` is the `RED` mode of `KoopaParaTroopa`, configured from `EnemyType.KOOPA_PARATROOPA_RED`. It shares
+`ObjInit_GroundTroop` (face the nearest player, prg004.asm:3753) and `Troopa_Draw` with the hopper, but its
+handler, `ObjNorm_FlyingRedTroopa` (prg004.asm:3939-3985), is its own: `motionUpdate` branches to `fly()`.
+
+Each frame, in ROM order:
+
+1. The object loop decrements `Objects_Timer` **before** the handler runs (prg000.asm:1855).
+2. `Var5++`, every frame. Body frame `(Var5 >> 3) & 1`, so 8 frames per body frame like the hopper, but the
+   wing's `(Var5 + 3) & 4` now beats **4 up / 4 down**, twice as fast.
+3. `Object_ApplyYVel_NoLimit`: Y only. No X movement, no gravity, no terrain detection: it flies through
+   blocks, and walls never turn it.
+4. Only while the timer is 0: `Var4++`, and when `Var4 & 3 == 0`, `YVel += ParaTroopaFly_Accel[Var3 & 1]`
+   (`$01, $FF`). Reaching `ParaTroopaFly_Limit[Var3 & 1]` (`$10, $F0`) does `Var3++` and `Timer = $30`.
+5. `Player_HitEnemy`. There is no `Object_HandleBumpUnderneath`, so a block bump cannot touch it.
+
+The port keeps the three counters as `flightTicks` (`Var4`), `flightDirection` (`Var3`) and `flightTimer`,
+not a derived table. `ObjInit_GroundTroop` never sets `YVel`; the `LDA #$10 / STA YVel` just before it
+(prg004.asm:3745) is marked dead code.
+
+### The track: 350 frames, spawn height to 111 px below
+
+The ticket estimated a 352-frame period and a 112 px drop. Working the counters through gives less, and a
+Python run of the ROM logic agrees with the port:
+
+- The timer is set on the limit frame and the loop decrements it before the handler, so the handler skips
+  47 frames, not 48. `Var4` then needs 4 more increments to reach a multiple of 4. The first change of
+  speed comes 51 frames after the limit frame.
+- Half a period is 47 + 32 x 4 = 175 frames; the full period is 350.
+- The acceleration from 0 covers 4 x (0 + 1 + ... + 15) / 16 = 30 px, not 32. The low point is
+  30 + 51 + 30 = 111 px below the spawn, and the high point is the spawn height itself. It moves down first.
+
+`KoopaParaTroopaFlightTest` pins the checkpoints (tick, `YVel`, drop) and the 350-frame repeat.
+
+### Other objects
+
+It carries `OAT_BOUNCEOFFOTHERS` (prg000.asm:409), so walking enemies turn away from it. Its own handler
+never calls `GroundTroop_BumpOffOthers`, so `KoopaParaTroopa.onSideCollisionWith` does nothing in `RED`
+mode. The hopper still turns.
+
+### Defeat and the ledge latch
+
+The collide entry is `OCSPECIAL_KILLCHANGETO | OBJ_REDTROOPA` (prg004.asm:115). The stomp, tail and shell
+hand-overs are the hopper's, so the replacement is a red `KoopaTroopa` and the outcomes match the table above.
+There is no block-bump hand-over.
+
+`PRG000_D2B4` changes only `Level_ObjectID` and zeroes `YVel` (prg000.asm:3995, 4020-4023). `Var4` survives.
+`ObjNorm_RedTroopa`'s ledge guard (prg004.asm:3829-3857) turns only when there is no ground under the feet
+**and** `Var4 == 0`, so a troopa de-winged in mid-air falls with the guard latched, walking on at `±$08`,
+and clears it on landing. The port carries the value over: `troopa.setLedgeTurned(flightTicks != 0)`.
+`flightTicks` is non-zero on every frame except before the first tick and once every 256 increments. In
+those cases the ROM's troopa does ledge-turn in mid-air, and so does the port's.

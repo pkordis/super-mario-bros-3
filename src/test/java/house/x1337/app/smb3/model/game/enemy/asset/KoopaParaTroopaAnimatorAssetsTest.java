@@ -13,16 +13,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopa.MIDDLE_ROW_CANVAS_TOP;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa.MIDDLE_ROW_CANVAS_TOP;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the green Koopa Paratroopa's bundle. {@code Troopa_Draw} draws the walking troopa's own body for the
+ * Pins the Koopa Paratroopa's bundles. {@code Troopa_Draw} draws the walking troopa's own body for the
  * paratroopa (dasm prg004.asm:4323), so the body frames stay pixel-for-pixel copies of the troopa's. The
  * wing files are the ROM's own {@code $CD}/{@code $CF} patterns, at the rows they occupy in their sprite.
  */
 class KoopaParaTroopaAnimatorAssetsTest {
     private static final String GREEN_CONTEXT = "sprites/enemy/koopa/paratroopa/green/";
+    private static final String RED_CONTEXT = "sprites/enemy/koopa/paratroopa/red/";
+    private static final String RED_TROOPA_CONTEXT = "sprites/enemy/koopa/troopa/red/";
     private static final String TROOPA_CONTEXT = "sprites/enemy/koopa/troopa/green/";
 
     private static final List<String> WALK_FILENAMES = List.of(
@@ -46,7 +48,7 @@ class KoopaParaTroopaAnimatorAssetsTest {
             }
         );
 
-        // Verify - the flipped file first in each pair, as KoopaParatroopaAnimator.FLIPPED_WING says
+        // Verify - the flipped file first in each pair, as KoopaParaTroopaAnimator.FLIPPED_WING says
         assertThat(requested).containsExactly(
             "koopa_paratroopa_walk_1.png",
             "koopa_paratroopa_walk_2.png",
@@ -125,7 +127,7 @@ class KoopaParaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("The middle body row the wing hangs from starts where KoopaParatroopa says, in both frames")
+    @DisplayName("The middle body row the wing hangs from starts where KoopaParaTroopa says, in both frames")
     void theMiddleRowMatchesTheWalkArt() throws IOException {
         for (int frame = 0; frame < WALK_FILENAMES.size(); frame++) {
             // Prepare - the back column holds only $C4 above the feet, and $C4's first row has art
@@ -136,6 +138,63 @@ class KoopaParaTroopaAnimatorAssetsTest {
 
             // Verify
             assertThat(middleRowTop).as("walk_%d", frame + 1).isEqualTo(MIDDLE_ROW_CANVAS_TOP[frame]);
+        }
+    }
+
+    @Test
+    @DisplayName("The red bundle names the same files as the green one")
+    void theRedDescriptorMatchesTheGreenOne() {
+        // Prepare
+        final List<String> green = new ArrayList<>();
+        final List<String> red = new ArrayList<>();
+
+        // Execute
+        AnimatorAssetsLoader.load(KoopaParaTroopaAnimatorAssets.class, GREEN_CONTEXT, filename -> {
+            green.add(filename);
+            return null;
+        });
+        AnimatorAssetsLoader.load(KoopaParaTroopaAnimatorAssets.class, RED_CONTEXT, filename -> {
+            red.add(filename);
+            return null;
+        });
+
+        // Verify
+        assertThat(red).isEqualTo(green);
+    }
+
+    @Test
+    @DisplayName("The red body frames are the walking red troopa's frames, unchanged")
+    void theRedBodyIsTheWalkingRedTroopa() throws IOException {
+        for (int frame = 0; frame < WALK_FILENAMES.size(); frame++) {
+            // Prepare
+            final BufferedImage source = read(RED_TROOPA_CONTEXT + "koopa_troopa_walk_%d.png".formatted(frame + 1));
+
+            // Execute
+            final BufferedImage copy = read(RED_CONTEXT + WALK_FILENAMES.get(frame));
+
+            // Verify
+            assertSamePixels(copy, source, WALK_FILENAMES.get(frame));
+            assertThat(firstArtRow(copy, TILE_SPRITE_SIZE / 2, TILE_SPRITE_SIZE))
+                .as("The wing hangs off the same middle row as the green one's")
+                .isEqualTo(MIDDLE_ROW_CANVAS_TOP[frame]);
+        }
+    }
+
+    @Test
+    @DisplayName("The red wing is the green wing: both are drawn with SPR_PAL1")
+    void theRedWingIsTheGreenWing() throws IOException {
+        for (final String pose : List.of("up", "down")) {
+            for (final String side : List.of("left", "right")) {
+                // Prepare
+                final String name = "koopa_paratroopa_wing_%s_%s.png".formatted(pose, side);
+                final BufferedImage green = read(GREEN_CONTEXT + name);
+
+                // Execute
+                final BufferedImage red = read(RED_CONTEXT + name);
+
+                // Verify
+                assertSamePixels(red, green, name);
+            }
         }
     }
 

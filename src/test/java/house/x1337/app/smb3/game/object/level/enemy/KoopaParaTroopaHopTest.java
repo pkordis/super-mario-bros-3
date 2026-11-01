@@ -11,11 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopa.HOP_Y_VELOCITY_FIXED_POINT;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.FLOOR_ROW;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.REST_ROW;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.REST_ROW_PIXEL_Y;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.START_COLUMN;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa.HOP_Y_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.FLOOR_ROW;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.REST_ROW;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.REST_ROW_PIXEL_Y;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.START_COLUMN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
  * {@code $6E}. It walks exactly as the green troopa does, plus two things: {@code YVel = -$30} on every
  * landing (prg004.asm:4131) and {@code DEC YVel} on every airborne frame (prg004.asm:4111).
  */
-class KoopaParatroopaHopTest {
+class KoopaParaTroopaHopTest {
     private static final double TOLERANCE = 1e-9;
     private static final int WALK_SPEED = 8;
     private static final int NET_AIRBORNE_GRAVITY = 2;
@@ -38,11 +38,11 @@ class KoopaParatroopaHopTest {
     /** {@code (48 + 46 + ... + 2) / 16} = 37.5 px. */
     private static final double HOP_HEIGHT_PIXELS = 37.5;
 
-    private KoopaParatroopaTestWorld world;
+    private KoopaParaTroopaTestWorld world;
 
     @BeforeEach
     void prepare() {
-        world = new KoopaParatroopaTestWorld();
+        world = new KoopaParaTroopaTestWorld();
     }
 
     @AfterEach
@@ -59,7 +59,7 @@ class KoopaParatroopaHopTest {
     void facesThePlayerOnceAtSpawn() {
         // Prepare - the player on the right
         world.playerAtPixelX((START_COLUMN + 6) * (double) TILE_SPRITE_SIZE);
-        final KoopaParatroopa paratroopa = world.spawnedParatroopa();
+        final KoopaParaTroopa paratroopa = world.spawnedParatroopa();
         assertThat(paratroopa.isFacingRight()).as("ObjInit_GroundTroop faces the player").isTrue();
 
         // Execute - the player moves to the far left, and the paratroopa keeps hopping for 300 frames
@@ -78,7 +78,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("It walks at $08 in the direction it faces, half a pixel a frame")
     void walksAtTheTroopasSpeed() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(true);
         final double startX = paratroopa.getPosition().x();
 
@@ -95,7 +95,7 @@ class KoopaParatroopaHopTest {
     void turnsAtAWall() {
         // Prepare - a wall two tiles to the right
         world.solidColumn(START_COLUMN + 2);
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(true);
 
         // Execute
@@ -110,7 +110,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("It turns away from another enemy it meets side-on")
     void turnsAwayFromAnotherEnemy() {
         // Prepare - another walker overlapping its right side
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(true);
         final double x = paratroopa.getPosition().x();
         final ActiveLevelObject other = mock(ActiveLevelObject.class);
@@ -130,7 +130,7 @@ class KoopaParatroopaHopTest {
     void walksOffLedges() {
         // Prepare - the floor ends two tiles to the right
         world.openFloorFrom(START_COLUMN + 2);
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(true);
 
         // Execute
@@ -151,7 +151,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("Every landing launches a hop of -$30, with no counter and no cooldown")
     void hopsOnEveryLanding() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         final List<Integer> landings = new ArrayList<>();
 
         // Execute
@@ -179,7 +179,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("A hop peaks 37.5 px above the floor")
     void aHopPeaksAtThirtySevenAndAHalfPixels() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         double highest = paratroopa.getPosition().y();
 
         // Execute
@@ -196,7 +196,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("In the air it gains a net +$02 a frame: +$03 gravity less the wing's DEC")
     void floatsAtANetTwoAFrame() {
         // Prepare - launched off the floor
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.motionUpdate();
 
         // Execute & Verify
@@ -214,7 +214,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("Falling from a height it tops out at $3F, because the DEC comes after the $40 cap")
     void fallsAtATerminalOfThreeF() {
         // Prepare - dropped from the top of the level
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, 0);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, 0);
         int fastest = 0;
 
         // Execute
@@ -235,7 +235,7 @@ class KoopaParatroopaHopTest {
     void aCeilingStopsTheRise() {
         // Prepare - a ceiling two rows above, well inside the 37.5 px hop
         world.solidRow(REST_ROW - 2);
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
 
         // Execute
         paratroopa.motionUpdate();
@@ -264,7 +264,7 @@ class KoopaParatroopaHopTest {
     @DisplayName("The body keeps its 8-tick walk cycle in the air, where a plain troopa would freeze")
     void keepsAnimatingInTheAir() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         final List<Integer> frameChanges = new ArrayList<>();
         int frame = paratroopa.getWalkFrameIndex();
         boolean changedInTheAir = false;

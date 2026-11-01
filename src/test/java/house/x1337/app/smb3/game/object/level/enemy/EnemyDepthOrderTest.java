@@ -7,7 +7,7 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
-import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParatroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator;
@@ -99,9 +99,9 @@ class EnemyDepthOrderTest {
         when(koopaTroopaAnimator.buildShellSprite(any())).thenAnswer(invocation -> quad("Shell"));
         when(koopaTroopaAnimator.buildShellFootSprite(any(), anyBoolean())).thenAnswer(invocation -> quad("Foot"));
 
-        final KoopaParatroopaAnimator koopaParatroopaAnimator = mock(KoopaParatroopaAnimator.class);
+        final KoopaParaTroopaAnimator koopaParatroopaAnimator = mock(KoopaParaTroopaAnimator.class);
         when(koopaParatroopaAnimator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
-        when(koopaParatroopaAnimator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaParatroopa"));
+        when(koopaParatroopaAnimator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaParaTroopa"));
         when(koopaParatroopaAnimator.buildWingSprite(any())).thenAnswer(invocation -> quad("TroopaWing"));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
@@ -112,7 +112,7 @@ class EnemyDepthOrderTest {
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
             .thenReturn(koopaTroopaAnimator);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(KoopaParatroopaAnimator.class))
+            .when(() -> StaticBeanFactory.getBean(KoopaParaTroopaAnimator.class))
             .thenReturn(koopaParatroopaAnimator);
     }
 
@@ -131,7 +131,7 @@ class EnemyDepthOrderTest {
         // Prepare - the paratroopa's wing is the one part drawn in front of its body (Troopa_Draw writes it
         // to Sprite_RAM-$08), so it is the one most able to cover another enemy's parts
         final EnemyDepthAllocator allocator = new EnemyDepthAllocator();
-        final KoopaParatroopa paratroopa = new KoopaParatroopa(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
+        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
         paratroopa.init();
         paratroopa.setBaseDepth(allocator.next());
         paratroopa.spawnIntoScene();

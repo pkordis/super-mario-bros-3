@@ -3,7 +3,7 @@ package house.x1337.app.smb3.game.object.level.enemy;
 import com.jme3.material.Material;
 import com.jme3.scene.Geometry;
 import com.jme3.texture.Texture;
-import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParatroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.enemy.asset.KoopaParaTroopaAnimatorAssets;
 import org.junit.jupiter.api.AfterEach;
@@ -17,9 +17,9 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopa.MIDDLE_ROW_CANVAS_TOP;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.REST_ROW;
-import static house.x1337.app.smb3.game.object.level.enemy.KoopaParatroopaTestWorld.START_COLUMN;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa.MIDDLE_ROW_CANVAS_TOP;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.REST_ROW;
+import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.START_COLUMN;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -32,16 +32,16 @@ import static org.mockito.Mockito.when;
  * opposite the head, 8 px above the middle body row, flipped with the body, beating off the walk's own
  * {@code Var5}, and drawn in front of the body because it is written to the slots before it.
  */
-class KoopaParatroopaWingTest {
+class KoopaParaTroopaWingTest {
     private static final float TOLERANCE = 1e-6f;
     private static final float BACK_COLUMN = 8 * PIXELS_TO_GAME_UNITS;
     private static final WorldOffset FEET_ANCHOR = WorldOffset.of(5f, 2f, baseDepthOfSlot(0));
 
-    private KoopaParatroopaTestWorld world;
+    private KoopaParaTroopaTestWorld world;
 
     @BeforeEach
     void prepare() {
-        world = new KoopaParatroopaTestWorld();
+        world = new KoopaParaTroopaTestWorld();
     }
 
     @AfterEach
@@ -57,7 +57,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("The wing beats 8 ticks up and 8 ticks down")
     void beatsEightUpEightDown() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         final List<Integer> beats = new ArrayList<>();
         boolean wingUp = paratroopa.isWingUp();
 
@@ -81,7 +81,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("It runs off the walk's own counter: every beat lands 2 ticks after a body frame change")
     void sharesTheWalkCounter() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         final List<Integer> frameChanges = new ArrayList<>();
         final List<Integer> beats = new ArrayList<>();
         int frame = paratroopa.getWalkFrameIndex();
@@ -115,7 +115,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("Facing left, the wing is on the right column, the one opposite the head")
     void facingLeftTheWingIsOnTheRight() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(false);
 
         // Execute
@@ -129,7 +129,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("Facing right, the head swaps sides and the wing is on the left column")
     void facingRightTheWingIsOnTheLeft() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setFacingRight(true);
 
         // Execute
@@ -143,7 +143,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("The wing's top is 8 px above the middle body row as each walk frame draws it")
     void theWingHangsOffTheMiddleRow() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         final float evenBody = paratroopa.spriteDrawOffset(FEET_ANCHOR).y();
         final float evenWing = paratroopa.wingDrawOffset(FEET_ANCHOR).y();
         while (paratroopa.getWalkFrameIndex() == 0) {
@@ -167,7 +167,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("The wing is drawn just in front of its own body, at its own depth")
     void theWingIsInFrontOfItsBody() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.setBaseDepth(baseDepthOfSlot(9));
         paratroopa.spawnIntoScene();
 
@@ -188,7 +188,7 @@ class KoopaParatroopaWingTest {
     @DisplayName("The placed wing quad lands where wingDrawOffset says, for the body's own anchor")
     void thePlacedQuadMatchesTheOffset() {
         // Prepare
-        final KoopaParatroopa paratroopa = world.spawnedParatroopa();
+        final KoopaParaTroopa paratroopa = world.spawnedParatroopa();
 
         // Execute
         world.tick(paratroopa, 7);
@@ -213,12 +213,12 @@ class KoopaParatroopaWingTest {
         // Prepare - a real animator over stand-in textures
         final Texture[] up = {mock(Texture.class), mock(Texture.class)};
         final Texture[] down = {mock(Texture.class), mock(Texture.class)};
-        final KoopaParatroopaAnimator animator = new KoopaParatroopaAnimator();
+        final KoopaParaTroopaAnimator animator = new KoopaParaTroopaAnimator();
         animator.getAssetsByMode().put(GREEN, new KoopaParaTroopaAnimatorAssets(new Texture[2], up, down));
         final Material material = mock(Material.class);
         final Geometry wingGeometry = mock(Geometry.class);
         when(wingGeometry.getMaterial()).thenReturn(material);
-        final KoopaParatroopa paratroopa = mock(KoopaParatroopa.class);
+        final KoopaParaTroopa paratroopa = mock(KoopaParaTroopa.class);
         when(paratroopa.getMode()).thenReturn(GREEN);
         when(paratroopa.getWingGeometry()).thenReturn(wingGeometry);
         when(paratroopa.isWingUp()).thenReturn(true);
@@ -226,14 +226,14 @@ class KoopaParatroopaWingTest {
         // Execute & Verify - the wing copies the back body sprite's attribute (prg004.asm:4431-4434)
         when(paratroopa.isFacingRight()).thenReturn(false);
         animator.applyWingFrame(paratroopa);
-        verify(material).setTexture("ColorMap", up[KoopaParatroopaAnimator.UNFLIPPED_WING]);
+        verify(material).setTexture("ColorMap", up[KoopaParaTroopaAnimator.UNFLIPPED_WING]);
 
         when(paratroopa.isFacingRight()).thenReturn(true);
         animator.applyWingFrame(paratroopa);
-        verify(material).setTexture("ColorMap", up[KoopaParatroopaAnimator.FLIPPED_WING]);
+        verify(material).setTexture("ColorMap", up[KoopaParaTroopaAnimator.FLIPPED_WING]);
 
         when(paratroopa.isWingUp()).thenReturn(false);
         animator.applyWingFrame(paratroopa);
-        verify(material).setTexture("ColorMap", down[KoopaParatroopaAnimator.FLIPPED_WING]);
+        verify(material).setTexture("ColorMap", down[KoopaParaTroopaAnimator.FLIPPED_WING]);
     }
 }
