@@ -68,6 +68,28 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
         return getBaseDepth() - Z_OFFSET_ENEMY_DETAIL;
     }
 
+    default float depthInFrontOfBody() {
+        return getBaseDepth() + Z_OFFSET_ENEMY_DETAIL;
+    }
+
+    default void placePart(
+        final Geometry part,
+        final float worldX,
+        final float worldY,
+        final float depth
+    ) {
+        if (part != null) {
+            part.setLocalTranslation(worldX, worldY, depth);
+        }
+    }
+
+    default Geometry detachPart(final Geometry part) {
+        if (part != null) {
+            getGameEngine().getRootNode().detachChild(part);
+        }
+        return null;
+    }
+
     @Override
     default AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(getPosition(), getBoundsPixels());

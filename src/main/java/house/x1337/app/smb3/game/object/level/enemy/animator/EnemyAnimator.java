@@ -6,6 +6,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.asset.loader.AnimatorAssetsLoader;
 import house.x1337.app.smb3.model.game.enemy.EnemyAnimatorAssets;
 import house.x1337.app.smb3.util.GameRenderer;
@@ -16,12 +17,14 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static com.jme3.texture.Texture.MagFilter.Nearest;
 import static com.jme3.texture.Texture.MinFilter.NearestNoMipMaps;
 import static com.jme3.texture.Texture.WrapMode.EdgeClamp;
+import static house.x1337.app.smb3.model.game.Dimensions.halfTileWidth;
 
 public interface EnemyAnimator<A extends EnemyAnimatorAssets, E extends EnemyLevelObject>
     extends
         Animator,
         GameRenderer {
     String SPRITES_CONTEXT = "sprites/enemy/%s/%s/";
+    Dimensions WING_DIMENSIONS = halfTileWidth("EnemyWing");
 
     String getFramesPath();
     Class<A> getAssetsType();
@@ -37,6 +40,19 @@ public interface EnemyAnimator<A extends EnemyAnimatorAssets, E extends EnemyLev
         // Enemies are mirrored by negative X scale when a mode needs it, which reverses the winding.
         geometry.getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
         return geometry;
+    }
+
+    default Geometry buildWingQuad(final E enemy, final Texture texture) {
+        final Geometry geometry = fromTexture(enemy.getAssetManager(), texture, WING_DIMENSIONS);
+        geometry.getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
+        return geometry;
+    }
+
+    default void applyWingTexture(final Geometry wingGeometry, final Texture texture) {
+        if (wingGeometry == null) {
+            return;
+        }
+        wingGeometry.getMaterial().setTexture("ColorMap", texture);
     }
 
     default void applyCurrentFrame(final E enemy) {

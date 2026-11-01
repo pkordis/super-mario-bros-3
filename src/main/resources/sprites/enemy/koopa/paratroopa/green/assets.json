@@ -1,0 +1,5 @@
+{
+  "walk": ["koopa_paratroopa_walk_1.png", "koopa_paratroopa_walk_2.png"],
+  "wingUp": ["koopa_paratroopa_wing_up_left.png", "koopa_paratroopa_wing_up_right.png"],
+  "wingDown": ["koopa_paratroopa_wing_down_left.png", "koopa_paratroopa_wing_down_right.png"]
+}

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_PARATROOPA;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
 
@@ -13,6 +14,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GO
 public enum EnemyType {
     GOOMBA_NORMAL("Goomba - Normal", GOOMBA, GoombaMode.NORMAL),
     GOOMBA_RED("Goomba - Red", GOOMBA, GoombaMode.RED),
+    KOOPA_PARATROOPA_GREEN("Koopa Paratroopa - Green", KOOPA_PARATROOPA, KoopaTroopaMode.GREEN),
     KOOPA_TROOPA_GREEN("Koopa Troopa - Green", KOOPA_TROOPA, KoopaTroopaMode.GREEN),
     KOOPA_TROOPA_RED("Koopa Troopa - Red", KOOPA_TROOPA, KoopaTroopaMode.RED),
     PARA_GOOMBA_NORMAL("Para-Goomba - Normal", PARA_GOOMBA, GoombaMode.NORMAL),

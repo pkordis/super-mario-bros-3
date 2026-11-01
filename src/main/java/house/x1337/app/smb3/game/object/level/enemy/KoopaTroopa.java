@@ -7,10 +7,11 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode;
 import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
+import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -58,7 +59,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
+public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor {
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaTroopa");
     private static final int LEDGE_RECOVERY_STEPS = 2;
@@ -83,6 +84,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
     private LevelScenePlayer carrier;
     private PixelPosition position;
     private Reward pendingScoreReward;
+    private boolean adoptedSlot;
     private boolean expired;
     private boolean facingRight;
     private boolean grounded;
@@ -130,7 +132,9 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         }
         final Node rootNode = gameEngine.getRootNode();
         spawnedIntoScene = true;
-        faceClosestPlayer();
+        if (!adoptedSlot) {
+            faceClosestPlayer();
+        }
 
         spriteGeometry = animator.buildSprite(this);
         shellGeometry = animator.buildShellSprite(this);
@@ -141,17 +145,36 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         rootNode.attachChild(leftShellFootGeometry);
         rootNode.attachChild(rightShellFootGeometry);
 
-        erasePlacementFromBakedTexture();
+        if (!adoptedSlot) {
+            erasePlacementFromBakedTexture();
+        }
         showGeometryForState();
         positionSprite();
     }
 
     @Override
+    public void adoptSlotOf(
+        final SlotPredecessor predecessor,
+        final int hitCooldownTicks
+    ) {
+        this.position = predecessor.getPosition();
+        this.facingRight = predecessor.isFacingRight();
+        this.hitCooldownTicks = hitCooldownTicks;
+        this.velocity = STILL.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        this.adoptedSlot = true;
+    }
+
+    @Override
+    public boolean hasAdoptedASlot() {
+        return adoptedSlot;
+    }
+
+    @Override
     public void detach() {
         KoopaTroopaFamilyEnemy.super.detach();
-        shellGeometry = detached(shellGeometry);
-        leftShellFootGeometry = detached(leftShellFootGeometry);
-        rightShellFootGeometry = detached(rightShellFootGeometry);
+        shellGeometry = detachPart(shellGeometry);
+        leftShellFootGeometry = detachPart(leftShellFootGeometry);
+        rightShellFootGeometry = detachPart(rightShellFootGeometry);
     }
 
     @Override
@@ -229,13 +252,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         levelScenePlayer.getHurtBy(this);
     }
 
-    @Override
-    public void onSideCollisionWith(final ActiveLevelObject other) {
-        final AxisAlignedBoundingBox otherBounds = other.getBounds();
-        final double otherCenterX = (otherBounds.left() + otherBounds.right()) / 2.0;
-        facingRight = otherCenterX < position.x() + BODY_SIZE_PIXELS / 2.0;
-    }
-
     private void getShellStompedBy(final LevelScenePlayer levelScenePlayer) {
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
         levelScenePlayer.kickWithoutPose(this);
@@ -276,7 +292,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
             velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
 
             advanceWalkFrame();
-            moveHorizontally();
+            stepWalkHorizontally();
             moveVertically();
             if (mode == RED) {
                 guardAgainstLedge();
@@ -295,15 +311,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         walkFrameTicks = 0;
         walkFrameIndex = (walkFrameIndex + 1) % animator.walkFrameCount(this);
         animator.applyCurrentFrame(this);
-    }
-
-    private void moveHorizontally() {
-        final PixelPosition proposed = position.steppedX(velocity);
-        if (isWallAhead(proposed)) {
-            facingRight = !facingRight;
-            return;
-        }
-        position = proposed;
     }
 
     private void moveVertically() {
@@ -344,6 +351,10 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
         if (!gameEngine.getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
             return;
         }
+        onBumpedFromBelow();
+    }
+
+    public void onBumpedFromBelow() {
         launchAwayFromPlayer(BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT, isClosestPlayerOnTheLeft());
         upsideDown = true;
         facingRight = false;
@@ -374,12 +385,5 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy {
                 levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
             )
         );
-    }
-
-    private Geometry detached(final Geometry geometry) {
-        if (geometry != null) {
-            gameEngine.getRootNode().detachChild(geometry);
-        }
-        return null;
     }
 }

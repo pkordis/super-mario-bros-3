@@ -4,12 +4,13 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
-import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
+import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -42,7 +43,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class Goomba implements GoombaFamilyEnemy {
+public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
     private static final int BOUND_BOX_HEIGHT = 8;
     private static final int BOUND_BOX_LEFT_OFFSET = 1;
@@ -93,29 +94,18 @@ public final class Goomba implements GoombaFamilyEnemy {
             .orElse(NORMAL);
     }
 
-    public void replace(
-        final ParaGoomba paraGoomba,
+    @Override
+    public void adoptSlotOf(
+        final SlotPredecessor predecessor,
         final int hitCooldownTicks
     ) {
-        this.position = paraGoomba.getPosition();
-        this.facingRight = paraGoomba.isFacingRight();
+        this.position = predecessor.getPosition();
+        this.facingRight = predecessor.isFacingRight();
         this.hitCooldownTicks = hitCooldownTicks;
         this.velocity = STILL.directedX(facingRight, WALK_SPEED_FIXED_POINT);
         this.adoptedSlot = true;
-        this.baseDepth = paraGoomba.getBaseDepth();
-        final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid = gameEngine.getActiveObjectGrid();
-        activeObjectGrid.spawnEnemy(this);
-        activeObjectGrid.handOverPlacement(paraGoomba, this);
     }
 
-    /**
-     * The Goomba's collision box, inset from its 16x16 sprite to the ROM's {@code Object_BoundBox} row
-     * 01 (dasm prg000: left {@code +1}, width 13, top {@code +2}, height 8). Overridden rather than left
-     * to the full-tile default so object overlap engages where the ROM's does - a touch narrower, and far
-     * shorter, than the sprite.
-     *
-     * @return the box spanning X {@code [x+1, x+14]}, Y {@code [y+2, y+10]}
-     */
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
@@ -169,8 +159,8 @@ public final class Goomba implements GoombaFamilyEnemy {
 
         // Put the flash on the side the Goomba is actually on, so it always lands between the two rather
         // than off the player's far shoulder. Keying off which side was struck rather than off the
-        // player's facing keeps it right even when the two disagree - the tail sweeps through a full arc,
-        // so a Goomba can legitimately be clipped behind a player who is already turning away.
+        // player's facing keeps it right even when the two disagree - the tail sweeps through a full arc.
+        // So a Goomba can legitimately be clipped behind a player who is already turning away.
         final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
         getBean(TailAttackFlashMotionManager.class).spawn(
             gameEngine,

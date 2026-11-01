@@ -1046,9 +1046,10 @@ The troopa is split over three types by purpose, not by state, and the hierarchy
 
 | type | owns |
 |---|---|
-| `KoopaTroopaShellCapabilities` | the base: everything the shell does - enter/wake, the wake-up clock, resting and bouncing, carry, kick, rolling, chain kills, crush kills - plus the motion helpers the walker shares (`restOn`, `applyGravity`, `faceClosestPlayer`) |
-| `KoopaTroopaFamilyEnemy` | extends the shell with the family's drawing constants and all drawing: the state as the renderer reads it (`isShellShowing`, the shake, the waking feet), the walker, the shell, the feet, carried depth |
-| `KoopaTroopa` | lifecycle (`configure`, `spawnIntoScene`, `detach`), walking and the ledge guard, the answer to each kind of contact, and the per-state tick dispatch |
+| `KoopaTroopaBody` | (since SMB3-20) the walker shared with the Koopa Paratroopa: facing, `faceClosestPlayer`, the wall turn (`stepWalkHorizontally`), the side bump off other walkers, `restOn`, `applyGravity`, and the 16x32 walker quad (`spriteDrawOffset`, the mirror compensation, the walk bob) |
+| `KoopaTroopaShellCapabilities` | extends the body: everything the shell does - enter/wake, the wake-up clock, resting and bouncing, carry, kick, rolling, chain kills, crush kills |
+| `KoopaTroopaFamilyEnemy` | extends the shell with the family's drawing constants and all drawing: the state as the renderer reads it (`isShellShowing`, the shake, the waking feet), the shell, the feet, carried depth, and the narrowing of `isSpriteMirrored` to the walker only |
+| `KoopaTroopa` | lifecycle (`configure`, `spawnIntoScene`, `detach`), the vertical walk and the ledge guard, the answer to each kind of contact, and the per-state tick dispatch |
 
 The family extends the shell and not the other way round because there is no troopa without a shell.
 The shell is a separate type at all because in the ROM it is not the troopa's code: `ObjState_Shelled`,
@@ -1078,7 +1079,7 @@ re-extraction of one folder cannot silently drift from the other.
 
 `Troopa_YOffByFrame = {$06, $05}` (`prg004.asm:4266`) draws the odd walk frame one pixel *lower* than
 the even one, and this project reproduces that as a draw-time quad offset
-(`KoopaTroopaFamilyEnemy#walkFrameBob`). The art is **not** authored identically between the two frames,
+(`KoopaTroopaBody#walkFrameBob` since SMB3-20). The art is **not** authored identically between the two frames,
 and that is correct rather than a defect: `koopa_troopa_walk_2.png`'s silhouette sits one row higher in
 its own canvas (rows 4-30 against `walk_1`'s 6-31), so the draw-time drop cancels at the feet and both
 frames plant them on the quad's bottom edge. What survives the cancellation is the bob itself — the odd
@@ -1948,3 +1949,94 @@ A kicked or carried shell's victim awards nothing: the ROM pays the **striker's*
 it and the Goomba dies for free. And a tail strike on a Koopa Troopa pays nothing either — `OA3_DIESHELLED`
 diverts it past the scoring branch at `prg000.asm:6010-6019`, which is the same attribute that makes a
 troopa shell rather than die. Neither is an omission.
+
+---
+
+## Koopa Paratroopa - `OBJ_PARATROOPAGREENHOP = $6E` (SMB3-20, 2026-10)
+
+### It is the walking green troopa with two ID checks
+
+`$6E` runs the walking green troopa's own handler, `ObjNorm_GroundTroop` (prg004.asm:4001-4150), and is
+drawn by the same `Troopa_Draw` (prg004.asm:4323). What makes it a hopper is two `CPY #OBJ_PARATROOPAGREENHOP`
+tests inside the handler, and the wing is a third inside the draw:
+
+| site | what `$6E` gets |
+|---|---|
+| prg004.asm:4097-4111 | `DEC YVel` on every airborne frame: net gravity `+$02`, terminal `$3F` (the `DEC` lands after the `$40` cap) |
+| prg004.asm:4120-4139 | `YVel = -$30` on **every** landing (`-$18` in water, not ported). No hop counter, no cooldown - that is the Para-Goomba's machine, not this one |
+| prg004.asm:4104-4106 | skipped: the store that freezes a plain troopa's `Var5` in the air, so the hopper keeps animating |
+| prg004.asm:4396-4434 | one wing |
+
+So the port shares the walker with `KoopaTroopa` through a new mixin, `KoopaTroopaBody` (see "Where the
+Koopa Troopa's code lives"), and `KoopaParaTroopa` adds only the hop, the float, the clock and the wing.
+It does **not** implement the shell interfaces: it is never shelled, carried or kicked itself.
+
+A hop is exactly 49 frames (24 up from `-$30` by 2, one still frame at the apex, 24 down) and 37.5 px
+high. `KoopaParaTroopaHopTest` pins both.
+
+**Ceiling:** the handler stores `YVel = $01` (prg004.asm:4093) and then falls through to the same `DEC`,
+so the velocity left at the end of a ceiling frame is `$00`, not `$01`.
+
+### One clock for the body and the wing
+
+`Objects_Var5` advances once every two frames (`Var7 += $80`, carry into `Var5`, prg004.asm:4071-4078).
+The body frame is `(Var5 >> 2) & 1` and the wing is up when `(Var5 + 2 + C) & 4 == 0`, where `C` is the
+carry out of the `SUB #$08` just before (set unless the middle row is in the top 8 screen lines). Both are
+read before this frame's `Var5++`, because the draw runs before `Object_Move`. Result: the body flips every
+8 frames, the wing beats 8 up / 8 down, each wing beat 2 frames after a body flip.
+
+### The wing's placement
+
+- **Column:** opposite the head. `TYA / EOR #$04` (prg004.asm:4392): `x + 8` facing left, `x` facing right.
+- **Height:** the wing's top is the middle body row's Y less 8 (`SUB #$08`, prg004.asm:4405). It is anchored
+  to the middle row **as the port's art draws it**, not to `Troopa_YOffByFrame`: the middle row (`$C2`/`$C4`)
+  starts at canvas row 11 in `walk_1` and 9 in `walk_2` (matched against `CHR/chr079.pcx`), so the wing
+  spans canvas rows 3..18 and 1..16. The walk frames meet the bob halfway (see above), so deriving the height
+  from the ROM's offsets alone put the wing a pixel off. `KoopaParatroopa.MIDDLE_ROW_CANVAS_TOP` holds the two
+  rows, and `KoopaParaTroopaAnimatorAssetsTest` checks them against the art.
+- **Flip:** the wing copies the attribute of the body sprite it sits on, so it is `SPR_HFLIP`ped exactly
+  when the troopa faces right. The Para-Goomba's `*_right.png` is the unflipped file (its right wing's
+  attribute is `$02`, the left's `$42`, prg004.asm:3165-3171), so facing left shows `*_right.png`.
+- **Depth:** the wing goes to `Sprite_RAM-$08`, before the body's slots, so it is in front of its own body:
+  `depthInFrontOfBody()` from SMB3-19. `EnemyDepthOrderTest` checks it still sorts as one unit with its body.
+
+The body art is copied from the walking green troopa, and a test checks it pixel for pixel. The wing art is
+**not** the Para-Goomba's (fixed after review, the wing "floated" with sky showing beneath it). Those files
+carry the right shapes but sit 2 px (raised) and 4 px (lowered) higher in their 8x16 canvas than the ROM's
+patterns do. The paratroopa's four wing files are therefore generated straight from `CHR/chr079.pcx`:
+`$CC/$CD` has art on rows 2..14 and `$CE/$CF` on rows 7..15, colour 1 black and colour 2 white.
+`KoopaParaTroopaAnimatorAssetsTest` pins those rows and the left/right mirroring. The Para-Goomba's own
+files may have the same offset against `ParaGoomba_Draw`'s `SUB #10`; that has not been checked.
+
+### Defeat: the slot becomes a `KoopaTroopa`
+
+The collide entry is `OCSPECIAL_KILLCHANGETO | OBJ_GREENTROOPA` (prg004.asm:114). The port has one class
+per object, so a successor is built and handed what the slot would keep. That contract is now shared:
+`SlotPredecessor` (`ParaGoomba`, `KoopaParaTroopa`) and `SlotSuccessor` (`Goomba`, `KoopaTroopa`), whose
+default `replace` copies the depth, registers the successor and hands over the placement. Each successor
+implements `adoptSlotOf` (position, facing, walking `XVel`, `YVel = 0`, cooldown, `adoptedSlot`).
+
+| defeat | port | outcome |
+|---|---|---|
+| stomp | the paratroopa pays the chain score, bounces the player, hands over with `Timer2 = 8` | a walking troopa; the cooldown stops the same stomp shelling it |
+| tail | hand over, then `troopa.onTailAttack` | upside-down shell, `-$50`/`±$08`, no score |
+| block bump | hand over, `SCORE_100` on the troopa, then `troopa.onBumpedFromBelow` | upside-down shell, `-$30`/`±$08`, facing wiped |
+| kicked or carried shell | hand over, then `troopa.onStruckByKickedObject` | killed; the ROM draws it with `KILLACT_JUSTDRAWMIRROR` (`Object_ShakeAndDrawMirrored`, no wing), which is what the troopa's own kill draws |
+
+Two details worth keeping:
+
+- **The bump only catches it on a landing.** `Object_HandleBumpUnderneath` tests `Object_TileFeet2`, which is
+  only the bumped block's tile on the frame the feet land in it, and the paratroopa leaves again that frame.
+  So it is checked on ground-contact frames only, not with `KoopaTroopa`'s "while grounded" test.
+- **The bump's 100 points ride on the troopa.** The bump is detected inside `motionUpdate`, and an enemy that
+  expires there is removed by its manager before `postCollision` collects scores. A stomp is detected in the
+  collision pass, after the managers have run, so the stomp's score can stay on the paratroopa.
+
+`KoopaTroopa#onBumpedFromBelow` was extracted from its own polling for this, unchanged; the plain troopa's
+bump still pays nothing.
+
+### Not ported
+
+The red flyer `$6F` (SMB3-21; `KoopaTroopaMode.RED` currently only selects the art folder, and there is no
+red folder or `EnemyType` yet), the green left/right flyer `$80`, the giant hopper `$7E`, water, bounce-block
+velocities (`Objects_TargetingXVal`), and `GroundTroop_BumpOffOthers`'s every-other-frame throttle.

@@ -5,7 +5,6 @@ import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.KillTallyAware;
-import house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -26,7 +25,7 @@ import static java.lang.Math.round;
  * Everything a shell does: going into it and waking out of it, resting and bouncing, being picked up,
  * carried and kicked, rolling, and the kills it deals and takes on the way.
  */
-public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, CarriableLevelObject, KillTallyAware {
+public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, CarriableLevelObject, KillTallyAware {
     int CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT = 16;
     int CRUSH_LAUNCH_Y_VELOCITY_FIXED_POINT = -64;
     int SHELL_CHAIN_KNOCK_X_VELOCITY_FIXED_POINT = 16;
@@ -44,7 +43,6 @@ public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, Carria
     int WAKE_UP_TICKS = 255;
 
     KoopaTroopaState getState();
-    boolean isFacingRight();
     boolean isUpsideDown();
     int getHitCooldownTicks();
     int getSpinTicks();
@@ -53,16 +51,12 @@ public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, Carria
     void positionSprite();
     void refreshShellFrame();
     void setCarrier(LevelScenePlayer carrier);
-    void setFacingRight(boolean facingRight);
-    void setGrounded(boolean grounded);
     void setHitCooldownTicks(int hitCooldownTicks);
     void setKillTally(int killTally);
     void setLedgeTurned(boolean ledgeTurned);
-    void setPosition(PixelPosition position);
     void setSpinTicks(int spinTicks);
     void setState(KoopaTroopaState state);
     void setUpsideDown(boolean upsideDown);
-    void setVelocity(FixedPointVelocity velocity);
     void setWakeUpThrottlePhase(int wakeUpThrottlePhase);
     void setWakeUpTicks(int wakeUpTicks);
     void showGeometryForState();
@@ -434,34 +428,6 @@ public interface KoopaTroopaShellCapabilities extends GroundWalkingEnemy, Carria
         setPosition(getPosition().stepped(getVelocity()));
         applyGravity();
         positionSprite();
-    }
-
-    default void faceClosestPlayer() {
-        final PixelPosition position = getPosition();
-        final double center = position.x() + BODY_SIZE_PIXELS / 2.0;
-        setFacingRight(getCollisionGrid()
-            .findClosestPlayerTo(position.x(), position.y())
-            .map(closestPlayer -> closestPlayer.getPosition().getX() + BODY_SIZE_PIXELS / 2.0 >= center)
-            .orElse(false));
-    }
-
-    default boolean isClosestPlayerOnTheLeft() {
-        final PixelPosition position = getPosition();
-        final double center = position.x() + BODY_SIZE_PIXELS / 2.0;
-        return getCollisionGrid()
-            .findClosestPlayerTo(position.x(), position.y())
-            .map(closestPlayer -> closestPlayer.getPosition().getX() + BODY_SIZE_PIXELS / 2.0 < center)
-            .orElse(false);
-    }
-
-    default void restOn(final double groundAlignedY) {
-        setPosition(getPosition().withY(groundAlignedY));
-        setVelocity(getVelocity().withY(0));
-        setGrounded(true);
-    }
-
-    default void applyGravity() {
-        setVelocity(getVelocity().falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT));
     }
 
     /**
