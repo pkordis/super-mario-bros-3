@@ -5,7 +5,6 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
 import house.x1337.app.smb3.game.object.level.enemy.ParaGoomba;
-import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.enemy.asset.ParaGoombaAnimatorAssets;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,14 +12,10 @@ import lombok.RequiredArgsConstructor;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.jme3.material.RenderState.FaceCullMode.Off;
-
 @Getter
 @Singleton
 @RequiredArgsConstructor
 public final class ParaGoombaAnimator implements EnemyAnimator<ParaGoombaAnimatorAssets, ParaGoomba> {
-    public static final Dimensions WING_DIMENSIONS = Dimensions.halfTileWidth("ParaGoombaWing");
-
     private final String framesPath = "paragoomba";
     private final Class<ParaGoombaAnimatorAssets> assetsType = ParaGoombaAnimatorAssets.class;
     private final Map<EnemyMode, ParaGoombaAnimatorAssets> assetsByMode = new HashMap<>();
@@ -38,29 +33,12 @@ public final class ParaGoombaAnimator implements EnemyAnimator<ParaGoombaAnimato
         final ParaGoomba paraGoomba,
         final boolean leftWing
     ) {
-        final Geometry geometry = fromTexture(
-            paraGoomba.getAssetManager(),
-            wingTexture(paraGoomba, leftWing),
-            WING_DIMENSIONS
-        );
-        geometry.getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
-        return geometry;
+        return buildWingQuad(paraGoomba, wingTexture(paraGoomba, leftWing));
     }
 
     public void applyCurrentWingFrames(final ParaGoomba paraGoomba) {
-        applyWingFrame(paraGoomba, paraGoomba.getLeftWingGeometry(), true);
-        applyWingFrame(paraGoomba, paraGoomba.getRightWingGeometry(), false);
-    }
-
-    private void applyWingFrame(
-        final ParaGoomba paraGoomba,
-        final Geometry wingGeometry,
-        final boolean leftWing
-    ) {
-        if (wingGeometry == null) {
-            return;
-        }
-        wingGeometry.getMaterial().setTexture("ColorMap", wingTexture(paraGoomba, leftWing));
+        applyWingTexture(paraGoomba.getLeftWingGeometry(), wingTexture(paraGoomba, true));
+        applyWingTexture(paraGoomba.getRightWingGeometry(), wingTexture(paraGoomba, false));
     }
 
     private Texture wingTexture(

@@ -2,7 +2,6 @@ package house.x1337.app.smb3.game.object.level.enemy.family;
 
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState;
-import house.x1337.app.smb3.game.object.level.enemy.Goomba;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
@@ -30,7 +29,6 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
     int SHELL_RIGHT_SPRITE_OFFSET_PIXELS = 8;
     int TAIL_STRIKE_HIT_COOLDOWN_TICKS = 12;
 
-    int getWalkFrameIndex();
     Geometry getShellGeometry();
     Geometry getLeftShellFootGeometry();
     Geometry getRightShellFootGeometry();
@@ -61,6 +59,7 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
     }
 
     /** Only the walker is mirrored by its facing; a shell's art is the same whichever way it travels. */
+    @Override
     default boolean isSpriteMirrored() {
         return !isShellShowing() && isFacingRight();
     }
@@ -95,21 +94,6 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
     }
 
     /**
-     * Where the walking quad is actually translated to, given the feet anchor the position maps to:
-     * mirrored when the Koopa Troopa faces right, nudged down a pixel on the odd walk frame.
-     *
-     * <p>Split out from {@link #positionSprite()} because the mirror compensation is exactly the kind of
-     * off-by-one-quad-width that silently misplaces a sprite by 16 px, and is worth being able to assert
-     * on without a scene graph.
-     *
-     * @param feetAnchor the quad's unmirrored bottom-left corner, from {@code pixelToWorldOffset}
-     * @return the translation to apply
-     */
-    default WorldOffset spriteDrawOffset(final WorldOffset feetAnchor) {
-        return feetAnchor.plus(mirrorCompensation(getSpriteDimensions().width()), -walkFrameBob(), 0f);
-    }
-
-    /**
      * Where the shell quad is translated to: shifted for the mirror, jittered while it shakes, lifted a
      * tile when it is upside down (the flip turns the quad about its bottom edge), and drawn in front of
      * or behind its holder while carried.
@@ -126,23 +110,6 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
             feetAnchor.y() + invertedLift,
             carriedDepthOr(feetAnchor.z(), 0f)
         );
-    }
-
-    /**
-     * The Koopa Troopa faces right by being mirrored rather than by swapping to a second set of art.
-     *
-     * <p>A negative X scale mirrors the quad about its own origin, and jME puts that origin at the quad's
-     * <b>bottom-left</b> corner - so the mirrored sprite would hang a full width to the <em>left</em> of
-     * its anchor. Adding one quad width back puts it over the same column it started in. This is the
-     * horizontal twin of the vertical flip a tail-struck {@link Goomba} uses, and it relies on the same
-     * {@code FaceCullMode.Off} that {@code EnemyAnimator#buildSprite} already sets, since a negative
-     * scale reverses the winding.
-     *
-     * @param quadWidth the width of the quad being placed, in game units
-     * @return the X correction to add to the anchor, or zero when the quad is not mirrored
-     */
-    default float mirrorCompensation(final float quadWidth) {
-        return isSpriteMirrored() ? quadWidth : 0f;
     }
 
     private void positionSpriteAt(final PixelPosition drawPosition) {
@@ -164,16 +131,6 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
 
         positionWakingFoot(getLeftShellFootGeometry(), shellOffset, true);
         positionWakingFoot(getRightShellFootGeometry(), shellOffset, false);
-    }
-
-    private void positionWalkingSprite() {
-        final WorldOffset feetAnchor = pixelToWorldOffset(getPosition());
-        if (feetAnchor == null) {
-            return;
-        }
-        final Geometry spriteGeometry = getSpriteGeometry();
-        spriteGeometry.setLocalScale(isSpriteMirrored() ? -1f : 1f, 1f, 1f);
-        spriteDrawOffset(feetAnchor).applyTo(spriteGeometry);
     }
 
     /**
@@ -213,11 +170,6 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
             ? holderDepth + Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER
             : holderDepth - Z_OFFSET_CARRIED_BEHIND_PLAYER;
         return carriedDepth - detailStep;
-    }
-
-    /** The odd walk frame is drawn one pixel lower. World Y grows upward, so the caller subtracts this. */
-    private float walkFrameBob() {
-        return getWalkFrameIndex() % 2 == 0 ? 0f : PIXELS_TO_GAME_UNITS;
     }
 
     private void setVisible(final Geometry geometry, final boolean visible) {

@@ -7,6 +7,7 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParatroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator;
@@ -98,6 +99,11 @@ class EnemyDepthOrderTest {
         when(koopaTroopaAnimator.buildShellSprite(any())).thenAnswer(invocation -> quad("Shell"));
         when(koopaTroopaAnimator.buildShellFootSprite(any(), anyBoolean())).thenAnswer(invocation -> quad("Foot"));
 
+        final KoopaParatroopaAnimator koopaParatroopaAnimator = mock(KoopaParatroopaAnimator.class);
+        when(koopaParatroopaAnimator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
+        when(koopaParatroopaAnimator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaParatroopa"));
+        when(koopaParatroopaAnimator.buildWingSprite(any())).thenAnswer(invocation -> quad("TroopaWing"));
+
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(ParaGoombaAnimator.class))
@@ -105,6 +111,9 @@ class EnemyDepthOrderTest {
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
             .thenReturn(koopaTroopaAnimator);
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(KoopaParatroopaAnimator.class))
+            .thenReturn(koopaParatroopaAnimator);
     }
 
     @AfterEach
@@ -115,6 +124,30 @@ class EnemyDepthOrderTest {
     // -------------------------------------------------------------------------
     // Two overlapping enemies sort as units
     // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("A Koopa Paratroopa's wing is in front of its own body, and the pair sorts as one unit")
+    void aParatroopaAndAParaGoombaNeverInterleave() {
+        // Prepare - the paratroopa's wing is the one part drawn in front of its body (Troopa_Draw writes it
+        // to Sprite_RAM-$08), so it is the one most able to cover another enemy's parts
+        final EnemyDepthAllocator allocator = new EnemyDepthAllocator();
+        final KoopaParatroopa paratroopa = new KoopaParatroopa(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
+        paratroopa.init();
+        paratroopa.setBaseDepth(allocator.next());
+        paratroopa.spawnIntoScene();
+        final ParaGoomba paraGoomba = paraGoombaWithDepth(allocator.next());
+
+        // Execute
+        final List<Object> drawOrder = drawOrderOf(Map.of(
+            paratroopa, List.of(paratroopa.getSpriteGeometry(), paratroopa.getWingGeometry()),
+            paraGoomba, paraGoombaQuads(paraGoomba)
+        ));
+
+        // Verify
+        assertThat(drawOrder).containsExactly(paratroopa, paratroopa, paraGoomba, paraGoomba, paraGoomba);
+        assertThat(depthOf(paratroopa.getWingGeometry()))
+            .isCloseTo(paratroopa.getBaseDepth() + Z_OFFSET_ENEMY_DETAIL, within(TOLERANCE));
+    }
 
     @Test
     @DisplayName("Two overlapping Para-Goombas each draw their body and wings as one unit")

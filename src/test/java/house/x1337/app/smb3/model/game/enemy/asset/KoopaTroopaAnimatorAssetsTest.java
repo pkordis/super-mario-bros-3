@@ -61,7 +61,7 @@ class KoopaTroopaAnimatorAssetsTest {
     private static final int ART_HEIGHT = 27;
 
     /**
-     * The one pixel {@code KoopaTroopaFamilyEnemy#walkFrameBob} drops the odd walk frame by -
+     * The one pixel {@code KoopaTroopaBody#walkFrameBob} drops the odd walk frame by -
      * {@code Troopa_YOffByFrame = {$06, $05}} (dasm prg004.asm:4266) as a draw-time offset.
      *
      * <p>The art meets it halfway, which is the thing to understand before touching either: the odd

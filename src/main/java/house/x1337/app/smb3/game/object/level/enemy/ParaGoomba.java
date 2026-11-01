@@ -7,6 +7,7 @@ import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -36,7 +37,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class ParaGoomba implements GoombaFamilyEnemy {
+public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = fullTile("ParaGoomba");
 
@@ -364,26 +365,16 @@ public final class ParaGoomba implements GoombaFamilyEnemy {
      * 8x16 halves. World Y grows upward where sprite pixels grow downward, hence the addition.
      */
     private void positionWings(final WorldOffset bodyWorldOffset) {
-        if (leftWingGeometry == null || rightWingGeometry == null) {
-            return;
-        }
         final float wingWorldY = bodyWorldOffset.y() + (float) WING_LIFT_PIXELS / TILE_SPRITE_SIZE;
         final float leftWingWorldX = bodyWorldOffset.x() - (float) WING_OUTWARD_OFFSET_PIXELS / TILE_SPRITE_SIZE;
         final float rightWingWorldX = bodyWorldOffset.x()
             + (float) (BODY_RIGHT_SPRITE_OFFSET_PIXELS + WING_OUTWARD_OFFSET_PIXELS) / TILE_SPRITE_SIZE;
-        final float wingDepth = depthBehindBody();
-        leftWingGeometry.setLocalTranslation(leftWingWorldX, wingWorldY, wingDepth);
-        rightWingGeometry.setLocalTranslation(rightWingWorldX, wingWorldY, wingDepth);
+        placePart(leftWingGeometry, leftWingWorldX, wingWorldY, depthBehindBody());
+        placePart(rightWingGeometry, rightWingWorldX, wingWorldY, depthBehindBody());
     }
 
     private void detachWings() {
-        if (leftWingGeometry != null) {
-            gameEngine.getRootNode().detachChild(leftWingGeometry);
-            leftWingGeometry = null;
-        }
-        if (rightWingGeometry != null) {
-            gameEngine.getRootNode().detachChild(rightWingGeometry);
-            rightWingGeometry = null;
-        }
+        leftWingGeometry = detachPart(leftWingGeometry);
+        rightWingGeometry = detachPart(rightWingGeometry);
     }
 }
