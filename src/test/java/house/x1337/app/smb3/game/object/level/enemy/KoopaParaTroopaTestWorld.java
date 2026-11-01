@@ -10,7 +10,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
-import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParatroopaAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -18,16 +18,20 @@ import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
+import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.Getter;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -47,7 +51,7 @@ import static org.mockito.Mockito.when;
  * state rather than a mock's.
  */
 @Getter
-final class KoopaParatroopaTestWorld implements AutoCloseable {
+final class KoopaParaTroopaTestWorld implements AutoCloseable {
     static final int COLUMNS = 40;
     static final int ROWS = 12;
     static final int FLOOR_ROW = 10;
@@ -62,13 +66,13 @@ final class KoopaParatroopaTestWorld implements AutoCloseable {
     private final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid;
     private final GameEngine gameEngine = mock(GameEngine.class);
     private final Node rootNode = new Node("root");
-    private final KoopaParatroopaAnimator animator = mock(KoopaParatroopaAnimator.class);
+    private final KoopaParaTroopaAnimator animator = mock(KoopaParaTroopaAnimator.class);
     private final KoopaTroopaAnimator troopaAnimator = mock(KoopaTroopaAnimator.class);
     private final TailAttackFlashMotionManager tailAttackFlashMotionManager = mock(TailAttackFlashMotionManager.class);
     private final MockedStatic<StaticBeanFactory> staticBeanFactory;
 
     @SuppressWarnings("unchecked")
-    KoopaParatroopaTestWorld() {
+    KoopaParaTroopaTestWorld() {
         for (int column = 0; column < COLUMNS; column++) {
             solids[FLOOR_ROW][column] = true;
         }
@@ -94,7 +98,7 @@ final class KoopaParatroopaTestWorld implements AutoCloseable {
         when(gameEngine.getRootNode()).thenReturn(rootNode);
 
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
-        when(animator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaParatroopa"));
+        when(animator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaParaTroopa"));
         when(animator.buildWingSprite(any())).thenAnswer(invocation -> quad("Wing"));
         when(troopaAnimator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         when(troopaAnimator.buildSprite(any())).thenAnswer(invocation -> quad("KoopaTroopa"));
@@ -103,7 +107,7 @@ final class KoopaParatroopaTestWorld implements AutoCloseable {
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(KoopaParatroopaAnimator.class))
+            .when(() -> StaticBeanFactory.getBean(KoopaParaTroopaAnimator.class))
             .thenReturn(animator);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
@@ -125,20 +129,27 @@ final class KoopaParatroopaTestWorld implements AutoCloseable {
         staticBeanFactory.close();
     }
 
-    KoopaParatroopa paratroopaAt(final int column, final int row) {
-        final KoopaParatroopa paratroopa = new KoopaParatroopa(gameEngine, Offset.of(column, row));
+    KoopaParaTroopa paratroopaAt(final int column, final int row) {
+        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, Offset.of(column, row));
         paratroopa.init();
         return paratroopa;
     }
 
+    /** The red, flying paratroopa: the same class, configured as the spawner configures it. */
+    KoopaParaTroopa redParatroopaAt(final int column, final int row) {
+        final KoopaParaTroopa paratroopa = paratroopaAt(column, row);
+        paratroopa.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, RED.name())));
+        return paratroopa;
+    }
+
     /** A paratroopa resting on the floor and in the scene, so it has a body and a wing to place. */
-    KoopaParatroopa spawnedParatroopa() {
-        final KoopaParatroopa paratroopa = paratroopaAt(START_COLUMN, REST_ROW);
+    KoopaParaTroopa spawnedParatroopa() {
+        final KoopaParaTroopa paratroopa = paratroopaAt(START_COLUMN, REST_ROW);
         paratroopa.spawnIntoScene();
         return paratroopa;
     }
 
-    void tick(final KoopaParatroopa paratroopa, final int ticks) {
+    void tick(final KoopaParaTroopa paratroopa, final int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
             paratroopa.motionUpdate();
         }
@@ -153,7 +164,7 @@ final class KoopaParatroopaTestWorld implements AutoCloseable {
     }
 
     /** Marks the cell under the paratroopa's feet as carrying a live block bounce. */
-    void bumpTheBlockUnder(final KoopaParatroopa paratroopa) {
+    void bumpTheBlockUnder(final KoopaParaTroopa paratroopa) {
         final int centerColumn = paratroopa.getPosition().plusX(TILE_SPRITE_SIZE / 2.0).column();
         final int feetRow = paratroopa.getPosition().plusY(TILE_SPRITE_SIZE).row();
         bumpedBlockCells.add(Offset.of(centerColumn, feetRow));

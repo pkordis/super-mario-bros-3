@@ -15,6 +15,7 @@ public enum EnemyType {
     GOOMBA_NORMAL("Goomba - Normal", GOOMBA, GoombaMode.NORMAL),
     GOOMBA_RED("Goomba - Red", GOOMBA, GoombaMode.RED),
     KOOPA_PARATROOPA_GREEN("Koopa Paratroopa - Green", KOOPA_PARATROOPA, KoopaTroopaMode.GREEN),
+    KOOPA_PARATROOPA_RED("Koopa Paratroopa - Red", KOOPA_PARATROOPA, KoopaTroopaMode.RED),
     KOOPA_TROOPA_GREEN("Koopa Troopa - Green", KOOPA_TROOPA, KoopaTroopaMode.GREEN),
     KOOPA_TROOPA_RED("Koopa Troopa - Red", KOOPA_TROOPA, KoopaTroopaMode.RED),
     PARA_GOOMBA_NORMAL("Para-Goomba - Normal", PARA_GOOMBA, GoombaMode.NORMAL),
