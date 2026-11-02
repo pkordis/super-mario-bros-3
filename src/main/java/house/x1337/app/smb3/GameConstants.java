@@ -131,6 +131,14 @@ public final class GameConstants {
     public static final ColorRGBA BLACK = new ColorRGBA(0, 0, 0, 0);
 
     public static final float Z_STEP_BETWEEN_LAYERS = 0.01f;
+    /**
+     * The pipe plants (Piranha Plant, Venus Fire Trap) are drawn among the <b>baked layers</b>, in their
+     * {@code Transparent} bucket, between {@code DECORATIONS_LAND} (0.02) and {@code STATIC_ENVIRONMENT}
+     * (0.03). The pipe layer is drawn after them and covers whatever part is inside the pipe, which is
+     * what the ROM gets from its behind-background mask sprites (dasm prg005.asm:1432-1488). Every
+     * sprite, which lives in the later {@code Translucent} bucket, is drawn in front of them.
+     */
+    public static final float Z_DEPTH_PIPE_PLANT = 0.025f;
     // The poof cloud sits between the baked interactive-objects layer (order 4 -> 0.04, where the
     // switch block is painted) and the block bounce (0.05), so it covers the switch block it spawns
     // with while still passing behind the empty block bouncing out of the spawner.

@@ -1,74 +1,83 @@
 package house.x1337.app.smb3.model.game.effect;
 
+import java.util.List;
+
 import static java.lang.Math.clamp;
 
 /**
- * The frame-selection policy shared by SMB3's two "poof" cloud effects.
+ * The frame-selection policy shared by SMB3's three "poof" cloud effects.
  *
- * <p>Both effects draw the same four sprites and index the same four-entry pattern table, which the
- * ROM happens to store twice:
+ * <p>All three draw the same four sprites. Two of them index the same four-entry pattern table, which
+ * the ROM happens to store twice, and the third has a table of its own in a different order.
  *
- * <pre>
- * prg007.asm:5247  Poof_Patterns:          .byte $47, $45, $43, $41   (SObj_Poof)
- * prg029.asm:2262  SuitLost_Poof_Patterns: .byte $47, $45, $43, $41   (Player_SuitLost_DoPoof)
- * </pre>
- *
- * <p>The shared sprite set at {@code sprites/effect/poof/frame_{0,3}.png} is stored in that <b>table
- * order</b> — {@code frame_0} = $47 (small dust) through {@code frame_3} = $41 (big puff) — so each
- * effect's own index arithmetic maps onto it directly:
- *
- * <ul>
- *   <li><b>{@link #oneShot}</b> — the switch-block puff. {@code SObj_Poof} seeds
- *       {@code SpecialObj_Data} with $20, decrements it once per tick and picks the pattern with
- *       {@code data >> 3}: four frames of 8 ticks, read <em>descending</em> (big puff first, fading to
- *       dust), then the object is removed.</li>
- *   <li><b>{@link #wrapping}</b> — the suit-change puff. {@code Player_SuitLost_DoPoof} picks with
- *       {@code (Player_SuitLost & $0C) >> 2}: four frames of 4 ticks that <em>cycle</em>, so over the
- *       $17-tick suit change the sequence repeats.</li>
- * </ul>
- *
- * <p>What differs beyond this policy — where the cloud is anchored, and how it is drawn — is
- * deliberately left to each call site: the switch puff is a one-shot at a fixed level cell with its
- * own geometry, while the suit puff replaces the player's own sprite and follows them.
- *
- * @param ticksPerFrame how many ticks each frame is held
- * @param cycling       {@code true} to cycle the four frames, {@code false} to clamp at the ends
+ * @param ticksPerFrame     how many ticks each frame is held
+ * @param cycling           {@code true} to cycle the four frames, {@code false} to clamp at the ends
+ * @param flipPeriodTicks   the counter bit that sets the vertical flip
+ * @param frameByStep       the shared frame shown for each step of the ROM's own pattern table
+ * @param startTicks        the counter a cloud drawn with this policy starts from
+ * @param lowestDrawnTicks  the lowest counter at which the cloud is drawn
+ * @param highestDrawnTicks the highest counter at which the cloud is drawn
  */
-public record PoofSequence(int ticksPerFrame, boolean cycling) {
-    /** Classpath directory holding the shared poof frames, in ROM table order. */
+public record PoofSequence(
+    int ticksPerFrame,
+    boolean cycling,
+    int flipPeriodTicks,
+    List<Integer> frameByStep,
+    int startTicks,
+    int lowestDrawnTicks,
+    int highestDrawnTicks
+) {
     public static final String POOF_FRAMES_CONTEXT = "sprites/effect/poof/";
-
-    /** Number of poof sprites, i.e. the length of the ROM's pattern table. */
-    public static final int FRAME_COUNT = 4;
-
-    /**
-     * How often the ROM toggles the cloud's vertical flip: {@code SObj_Poof} derives it from
-     * {@code Level_NoStopCnt} with {@code LSR A x3 / ROR A / AND #SPR_VFLIP}, which keeps bit 2 — so it
-     * alternates every 4 ticks.
-     */
+    private static final List<Integer> POOF_DEATH_ORDER = List.of(0, 1, 3, 2);
+    private static final List<Integer> TABLE_ORDER = List.of(0, 1, 2, 3);
     private static final int FLIP_PERIOD_TICKS = 4;
-
-    /** Total lifetime of the switch-block puff: {@code LATP_PSwitch} seeds the counter with $20. */
-    public static final int ONE_SHOT_TICKS = 0x20;
+    private static final int POOF_DEATH_FLIP_PERIOD_TICKS = 2;
+    private static final int POOF_DEATH_HIGHEST_DRAWN_TICKS = 30;
+    public static final int FRAME_COUNT = 4;
+    public static final int ONE_SHOT_TICKS = 32;
+    public static final int POOF_DEATH_TICKS = 32;
 
     /**
-     * The switch-block puff: 4 frames of 8 ticks, played once and read descending
-     * ({@code SObj_Poof}: {@code SpecialObj_Data >> 3}).
+     * The switch-block puff: 4 frames of 8 ticks, played once and read descending.
      *
      * @return a one-shot sequence
      */
     public static PoofSequence oneShot() {
-        return new PoofSequence(ONE_SHOT_TICKS / FRAME_COUNT, false);
+        return new PoofSequence(
+            ONE_SHOT_TICKS / FRAME_COUNT,
+            false,
+            FLIP_PERIOD_TICKS,
+            TABLE_ORDER,
+            ONE_SHOT_TICKS,
+            0,
+            ONE_SHOT_TICKS
+        );
     }
 
     /**
-     * The suit-change puff: 4 frames of 4 ticks, cycling
-     * ({@code Player_SuitLost_DoPoof}: {@code (counter & $0C) >> 2}).
+     * The suit-change puff: 4 frames of 4 ticks, cycling.
      *
      * @return a wrapping sequence
      */
     public static PoofSequence wrapping() {
-        return new PoofSequence(FLIP_PERIOD_TICKS, true);
+        return new PoofSequence(FLIP_PERIOD_TICKS, true, FLIP_PERIOD_TICKS, TABLE_ORDER, 0, 0, Integer.MAX_VALUE);
+    }
+
+    /**
+     * The enemy poof death: 4 frames of 8 ticks in {@code PoofDeath_Pats} order, played once.
+     *
+     * @return a poof-death sequence
+     */
+    public static PoofSequence poofDeath() {
+        return new PoofSequence(
+            ONE_SHOT_TICKS / FRAME_COUNT,
+            false,
+            POOF_DEATH_FLIP_PERIOD_TICKS,
+            POOF_DEATH_ORDER,
+            POOF_DEATH_TICKS,
+            1,
+            POOF_DEATH_HIGHEST_DRAWN_TICKS
+        );
     }
 
     /**
@@ -79,23 +88,27 @@ public record PoofSequence(int ticksPerFrame, boolean cycling) {
      */
     public int frameIndexFor(final int counter) {
         final int step = counter / ticksPerFrame;
-        return cycling
+        final int tableIndex = cycling
             ? step & (FRAME_COUNT - 1)
             : clamp(step, 0, FRAME_COUNT - 1);
+        return frameByStep.get(tableIndex);
     }
 
     /**
      * Whether the cloud is drawn vertically flipped on this tick.
      *
-     * <p>The ROM draws the 16x16 puff as two 8x16 sprites whose attributes differ by
-     * {@code EOR (SPR_HFLIP | SPR_VFLIP)}, and toggles the left half's V-flip every 4 ticks. Those two
-     * states are exact vertical mirrors of one another, so flipping the assembled tile reproduces the
-     * original rather than approximating it.
-     *
      * @param counter the effect's remaining-ticks counter
      * @return {@code true} when the flipped state is showing
      */
     public boolean isFlippedVerticallyAt(final int counter) {
-        return (counter & FLIP_PERIOD_TICKS) != 0;
+        return (counter & flipPeriodTicks) != 0;
+    }
+
+    /**
+     * @param counter the effect's remaining-ticks counter
+     * @return {@code true} if the cloud is on screen at this counter
+     */
+    public boolean isDrawnAt(final int counter) {
+        return counter >= lowestDrawnTicks && counter <= highestDrawnTicks;
     }
 }

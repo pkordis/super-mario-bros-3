@@ -10,16 +10,14 @@ import house.x1337.app.smb3.game.object.level.Animation;
 import house.x1337.app.smb3.model.AnimationImageResource;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.effect.PoofSequence;
 import lombok.Getter;
 
+import static com.jme3.scene.Spatial.CullHint.Always;
+import static com.jme3.scene.Spatial.CullHint.Inherit;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
-import static house.x1337.app.smb3.model.game.effect.PoofSequence.ONE_SHOT_TICKS;
-import static house.x1337.app.smb3.model.game.effect.PoofSequence.oneShot;
 
 @Getter
 @Prototype
@@ -31,36 +29,36 @@ public final class PoofAnimation implements Animation {
     );
     private static final DimensionsPixels POOF_PIXELS = new DimensionsPixels(TILE_SPRITE_SIZE, TILE_SPRITE_SIZE);
 
-    private final PoofSequence sequence = oneShot();
-    private final Node rootNode;
-    private final Geometry spriteGeometry;
-    private final Material material;
-    private final Texture[][] framesByFlip;
-    private final WorldOffset worldOffset;
-
-    private int counter = ONE_SHOT_TICKS;
+    private Geometry spriteGeometry;
+    private Material material;
+    private Node rootNode;
+    private PoofSequence sequence;
+    private Texture[][] framesByFlip;
+    private WorldOffset worldOffset;
+    private int counter;
     private int lastFrameIndex = -1;
     private boolean lastFlipped;
     private boolean expired;
 
     /**
-     * Starts a puff at {@code offset}.
+     * Starts a cloud whose quad's bottom-left corner is {@code worldOffset}, played by {@code sequence}.
+     * The one constructor, so the bean factory always resolves it; {@code PoofMotionManager} turns a level
+     * cell or a pixel position into the world offset.
      *
      * @param gameEngine      the game engine
-     * @param offset          the level cell the puff covers
+     * @param worldOffset     where the cloud's quad goes, at the depth it is drawn
      * @param animationFrames the shared poof frames, in ROM table order
      */
-    public PoofAnimation(
+    public void configure(
         final GameEngine gameEngine,
-        final Offset offset,
-        final AnimationImageResource animationFrames
+        final WorldOffset worldOffset,
+        final AnimationImageResource animationFrames,
+        final PoofSequence sequence
     ) {
+        this.sequence = sequence;
+        this.counter = sequence.startTicks();
         this.rootNode = gameEngine.getRootNode();
-        this.worldOffset = WorldOffset.of(
-            offset.x(),
-            gameEngine.getLevelScene().getDimensions().rows() - 1 - offset.y(),
-            Z_DEPTH_POOF
-        );
+        this.worldOffset = worldOffset;
         this.framesByFlip = buildTextures(animationFrames);
         this.spriteGeometry = fromTexture(
             gameEngine.getAssetManager(),
@@ -93,6 +91,7 @@ public final class PoofAnimation implements Animation {
     }
 
     private void applyCurrentFrame() {
+        spriteGeometry.setCullHint(sequence.isDrawnAt(counter) ? Inherit : Always);
         final int frameIndex = sequence.frameIndexFor(counter);
         final boolean flipped = sequence.isFlippedVerticallyAt(counter);
         if (frameIndex == lastFrameIndex && flipped == lastFlipped) {

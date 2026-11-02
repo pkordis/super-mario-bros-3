@@ -8,6 +8,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_PARATROOPA;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PIRANHA_PLANT;
 
 @Getter
 @RequiredArgsConstructor
@@ -19,7 +20,9 @@ public enum EnemyType {
     KOOPA_TROOPA_GREEN("Koopa Troopa - Green", KOOPA_TROOPA, KoopaTroopaMode.GREEN),
     KOOPA_TROOPA_RED("Koopa Troopa - Red", KOOPA_TROOPA, KoopaTroopaMode.RED),
     PARA_GOOMBA_NORMAL("Para-Goomba - Normal", PARA_GOOMBA, GoombaMode.NORMAL),
-    PARA_GOOMBA_RED("Para-Goomba - Red", PARA_GOOMBA, GoombaMode.RED);
+    PARA_GOOMBA_RED("Para-Goomba - Red", PARA_GOOMBA, GoombaMode.RED),
+    PIRANHA_PLANT_GREEN("Piranha Plant - Green", PIRANHA_PLANT, PiranhaPlantMode.GREEN),
+    PIRANHA_PLANT_RED("Piranha Plant - Red", PIRANHA_PLANT, PiranhaPlantMode.RED);
 
     private final String label;
     private final LevelObjectType levelObjectType;

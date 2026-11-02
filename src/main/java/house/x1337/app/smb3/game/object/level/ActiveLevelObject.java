@@ -46,6 +46,10 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         return getBounds().top();
     }
 
+    default boolean canBeStomped() {
+        return true;
+    }
+
     default boolean bouncesOffOtherObjects() {
         return false;
     }
