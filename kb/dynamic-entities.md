@@ -2098,3 +2098,99 @@ There is no block-bump hand-over.
 and clears it on landing. The port carries the value over: `troopa.setLedgeTurned(flightTicks != 0)`.
 `flightTicks` is non-zero on every frame except before the first tick and once every 256 increments. In
 those cases the ROM's troopa does ledge-turn in mid-air, and so does the port's.
+
+---
+
+## Piranha Plant - `OBJ_GREENPIRANHA = $A0` and `OBJ_REDPIRANHA = $A2` (SMB3-22, 2026-11)
+
+### One class, and a family for the Venus Fire Trap
+
+`PiranhaPlant` holds the state; the behaviour is the mixin `PiranhaPlantFamilyEnemy`, a port of
+`ObjNorm_Piranha` (prg005.asm:1285-1690), the one handler the ROM runs for all eight pipe-plant IDs.
+`PiranhaPlantMode` carries what green and red differ in: rise 25 / 33 px (`ObjInit_*Piranha`,
+prg005.asm:1235-1265) and box height 24 / 20 (`OAT_BOUNDBOX02` / `OAT_BOUNDBOX10`, prg000.asm:278, 286; the
+red box really is the shorter one). The Venus Fire Trap is meant to reuse the family and override
+`getStateWaitTicks()` (`$60` for fire plants) and `stayOut()`.
+
+### The cycle
+
+The four states are `Var4 & 3` (`PiranhaPlantState`), and every change is `PRG005_A824`: `Var4++` and
+`Objects_Timer = $30`. The object loop decrements the timer before the handler (prg000.asm:1855), so a wait
+of `$30` is 48 ticks to the tick. Each tick: timer, head frame read off `Var3` (`(Var3 >> 3) & 1`, every 8
+ticks), `Var3++`, then the state routine.
+
+| state | routine | per tick |
+|---|---|---|
+| `HIDDEN` | `Piranha_HideInPipe` | once the timer is 0, advance unless the player is within 27 px |
+| `EMERGING` | `Piranha_Emerge` | advance if `Y <= origin - rise`, else 1 px up |
+| `OUT` | `Piranha_Attack` | advance once the timer is 0 |
+| `RETRACTING` | `Piranha_Retract` | advance if `Y + 1 >= origin`, else 1 px down |
+
+At spawn it is hidden with the timer at 0, so it comes out on tick 1. The retract stops at `origin - 1`,
+so every rise after the first is one pixel shorter. Green, with nobody near: out at tick 27, retracting at 75,
+hidden at 100, then a 146-tick cycle (48 in, 25 up, 48 out, 25 down, counting each change tick).
+`PiranhaPlantCycleTest` pins it tick for tick.
+
+**Proximity:** `Level_ObjCalcXDiffs` is `Player_X - Objects_X` (both left edges, the plant's already
+centred), and the plant stays in while `(diff + $1B) & $FF < $37`: -27..27 px. Only the low byte is
+compared, so the ROM's check repeats every 256 px; the port uses the true difference. It only ever stops a
+hidden plant coming out; `Piranha_Attack`'s own check only runs for a V-flipped floor plant, which cannot
+exist, so it is not ported.
+
+### Placement
+
+The stamp is 32x32 and shows the plant standing on its pipe: its two columns are the pipe's two columns and
+its bottom row sits on the pipe. The rendering starter is the stamp's lower-left cell, the editor's default
+(decided in review, 2026-11), so the pipe's top-left tile is the cell below it. That tile is where the ROM
+object sits; init keeps its Y as the origin and moves X 8 px right, onto the middle of the 32-px pipe.
+A starter on the stamp's right column would put the plant 16 px too far right. Fully out, a red plant
+(33 px, drawn 1 px low) fills the stamp's two rows exactly; a green one shows its head and 8 px of stem.
+
+### Hiding inside the pipe
+
+The ROM draws two behind-background mask sprites over the pipe mouth and swaps the stem for a blank tile
+(prg005.asm:1432-1488). The port instead draws the plant's two 16x16 quads (head over stem) in the baked
+layers' `Transparent` bucket at `Z_DEPTH_PIPE_PLANT = 0.025`, between `DECORATIONS_LAND` (0.02) and
+`STATIC_ENVIRONMENT` (0.03). The pipe layer is drawn after the plant and covers it wherever the pipe is
+opaque. This still holds with a background player, because `updateForegroundLayerBuckets` moves the
+foreground layers into `Translucent`, which is drawn after `Transparent`. Consequences: every sprite draws
+in front of a plant, and the plant draws in front of `DECORATIONS_LAND`. In state 0 both quads are culled.
+The plant ignores its allocated enemy depth (two plants never overlap).
+
+### Collision and defeat
+
+- `OA3_NOTSTOMPABLE` sends every contact to the hurt path (prg000.asm:3855-3870). `ActiveLevelObject` grew
+  `isStompable()`, and `ActiveObjectGrid#dispatchDirectionalPlayerCollision` sends any contact with a
+  not-stompable object to `onPlayerOverlap`. That covers the player rising past its top, which the grid
+  otherwise ignores.
+- `Player_HitEnemy` runs in every state, so a hidden plant stays in the broad-phase and can hurt (its box is
+  then inside the pipe).
+- Tail: `Player_TailAttackDo` skips an object with a sprite off screen, and state 0 sets
+  `Objects_SprHVis = 1`, so a hidden plant is immune. A visible one gets the tail flash, the chain score read
+  with `currentKillChain()` (as the Goomba does) and the poof death.
+- Shells: `isKilledByRammedObject()` is `isExposed()`, so the shell pass skips a hidden plant and pays
+  nothing for it. A shell that does kill one keeps its own score, as everywhere else.
+
+### Poof death
+
+`KILLACT_POOFDEATH`: on the tick after the kill, `ObjState_Killed` runs `Object_PoofDie` (`Timer = $1F`,
+prg000.asm:3219-3224), and `ObjState_PoofDying` draws `PoofDeath_Pats[Timer >> 3]` with
+`PoofDeath_Pats = $47, $45, $41, $43` (prg000.asm:2090-2140). Counting down, that reads `$43`, `$41`, `$45`,
+`$47`: 7, 8, 8 and 7 ticks. That is not `SObj_Poof`'s order, so `PoofSequence` gained a third policy,
+`poofDeath()`, and the record now carries its own frame map, flip bit (bit 1 of the counter here, against
+the switch puff's bit 2), start counter and drawn range. `PoofAnimation` now takes a world offset and a policy in its one constructor (a `@Prototype` with two
+constructors trips Spring's constructor autowiring), and `PoofMotionManager` builds both clouds: `spawn`
+turns the switch block's level cell into a world offset with `oneShot()`, and `spawnPoofDeath` starts a
+pixel-anchored `poofDeath()`.
+
+The cloud is started on the kill tick with the counter at `$20`, after every manager has ticked, so the
+order of the managers cannot shift it. It is culled on the kill tick (the plant is still drawn) and on the
+next one (`Object_PoofDie`), shows its 30 frames, and is culled at 0. The plant expires the tick after the
+kill. The ROM's V-flip uses the global `Level_NoStopCnt`, so the port's flip phase is the cloud's own.
+
+### Not ported
+
+The ceiling plants `$A1` / `$A3` (`Piranha_Style` bit 0), the fire plants, star / fireball / hammer kills,
+and the real art: the PNGs under `sprites/enemy/piranha/plant/` are placeholders. `Object_DeleteOffScreen`
+needs no per-plant code: `EnemyMotionManager#update` already applies the central deletion edge (SMB3-3) to
+every enemy, the plant included, and releases the placement so it respawns.

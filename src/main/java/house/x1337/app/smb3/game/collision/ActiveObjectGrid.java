@@ -460,6 +460,11 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         final ActiveLevelObject object,
         final LevelScenePlayer player
     ) {
+        if (!object.canBeStomped()) {
+            // No stomp to tell apart from a side hit, and no bounce to let the player rise out of.
+            object.onPlayerOverlap(player);
+            return;
+        }
         final double objectTop = object.getStompReferenceTop();
         final boolean withinStompRange = player.getPosition().getY() <= objectTop - STOMP_RANGE_PIXELS;
         final boolean playerRising = player.getPosition().getDY() < 0;

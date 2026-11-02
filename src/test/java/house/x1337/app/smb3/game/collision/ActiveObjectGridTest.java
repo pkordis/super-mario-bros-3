@@ -314,6 +314,40 @@ class ActiveObjectGridTest {
     }
 
     @Test
+    @DisplayName("A not-stompable object takes a landing from above as a body hit")
+    void aNotStompableObjectTakesALandingAsABodyHit() {
+        // Prepare - the stomp geometry of stompTriggersOnCollisionFromAbove
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject plant = enemyAt(20, 80).notStompable();
+        grid.insert(plant);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify - OA3_NOTSTOMPABLE jumps straight to the hurt path (PRG000_D267)
+        assertThat(plant.overlapCount).isEqualTo(1);
+        assertThat(plant.fromAboveCount).isZero();
+    }
+
+    @Test
+    @DisplayName("A not-stompable object hurts a player rising past its top, where a stompable one is left alone")
+    void aNotStompableObjectHurtsARisingPlayer() {
+        // Prepare - the geometry of risingWhileAboveDispatchesNothing
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject plant = enemyAt(20, 80).notStompable();
+        grid.insert(plant);
+        final LevelScenePlayer player = playerAt(20, 55, -4.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(plant.overlapCount).isEqualTo(1);
+        assertThat(plant.fromBelowCount).isZero();
+    }
+
+    @Test
     @DisplayName("an object that does not opt in gets only the undirected onCollisionWith")
     void nonOptInObjectGetsOnlyUndirectedCollision() {
         // Prepare — a reward-like object (directional == false) landed on from above.
@@ -747,6 +781,7 @@ class ActiveObjectGridTest {
         private boolean kicked;
         private boolean carried;
         private boolean rammable = true;
+        private boolean stompable = true;
         private boolean diesOnFirstStrike;
         private int collisionCount;
         private int struckByKick;
@@ -781,6 +816,17 @@ class ActiveObjectGridTest {
         private StubObject diesOnItsFirstStrike() {
             diesOnFirstStrike = true;
             return this;
+        }
+
+        /** Marks this stub {@code OA3_NOTSTOMPABLE}, as a pipe plant is. */
+        private StubObject notStompable() {
+            stompable = false;
+            return this;
+        }
+
+        @Override
+        public boolean canBeStomped() {
+            return stompable;
         }
 
         /** Opts this stub into the carried pass, as a shell in the player's hands does. */
