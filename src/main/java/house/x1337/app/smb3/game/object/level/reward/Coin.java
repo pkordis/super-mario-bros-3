@@ -22,7 +22,7 @@ import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
@@ -35,7 +35,7 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_50;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
-@Getter
+@Data
 @Prototype
 @RequiredArgsConstructor
 public final class Coin implements AnimatableLevelObject, BreakableBrickCapabilities, RewardLevelObject {
@@ -43,7 +43,6 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
     private final LevelObjectType type = COIN_FLIPPING;
     private final Reward rewardType = SCORE_50;
-    private final Geometry spriteGeometry = null; // Not individually attached
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
     private final Offset offset;
@@ -51,6 +50,7 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     /** A coin never moves: it is collected where it was placed. */
     private final FixedPointVelocity velocity = STILL;
 
+    private Geometry spriteGeometry = null; // Not individually attached
     private Dimensions spriteDimensions;
     private CoinType coinType;
 

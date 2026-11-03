@@ -31,6 +31,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     void setExpired(boolean expired);
     void spawnIntoScene();
     boolean isSpawnedIntoScene();
+    void setSpawnedIntoScene(boolean spawnedIntoScene);
     DimensionsPixels getBoundsPixels();
     void hurt(LevelScenePlayer levelScenePlayer);
 

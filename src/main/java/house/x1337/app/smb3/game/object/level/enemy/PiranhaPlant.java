@@ -78,22 +78,6 @@ public final class PiranhaPlant implements PiranhaPlantFamilyEnemy {
     }
 
     @Override
-    public void spawnIntoScene() {
-        if (spawnedIntoScene) {
-            return;
-        }
-        spawnedIntoScene = true;
-
-        spriteGeometry = animator.buildSprite(this);
-        stemGeometry = animator.buildStemSprite(this);
-        gameEngine.getRootNode().attachChild(spriteGeometry);
-        gameEngine.getRootNode().attachChild(stemGeometry);
-
-        erasePlacementFromBakedTexture();
-        positionPlantSprites();
-    }
-
-    @Override
     public void refreshHeadFrame() {
         animator.applyCurrentFrame(this);
     }

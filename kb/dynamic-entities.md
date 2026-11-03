@@ -2109,8 +2109,8 @@ those cases the ROM's troopa does ledge-turn in mid-air, and so does the port's.
 `ObjNorm_Piranha` (prg005.asm:1285-1690), the one handler the ROM runs for all eight pipe-plant IDs.
 `PiranhaPlantMode` carries what green and red differ in: rise 25 / 33 px (`ObjInit_*Piranha`,
 prg005.asm:1235-1265) and box height 24 / 20 (`OAT_BOUNDBOX02` / `OAT_BOUNDBOX10`, prg000.asm:278, 286; the
-red box really is the shorter one). The Venus Fire Trap is meant to reuse the family and override
-`getStateWaitTicks()` (`$60` for fire plants) and `stayOut()`.
+red box really is the shorter one). The Venus Fire Trap (SMB3-24) reuses the family through the hooks
+`getStateWaitTicks()` (`$60` for fire plants), `faceThePlayer()`, `attackWhileOut()` and `placeHead()`.
 
 ### The cycle
 
@@ -2241,11 +2241,89 @@ prg030.asm:2455-2469), so a fireball a plant spits moves on the tick it is spat.
 
 ### Art
 
-`sprites/projectile/piranha_fireball/`, loaded through `assets.json` (`frames`). The first art drop was the
-ROM's `$65` / `$67` mirrored left to right (checked against `CHR/chr004.pcx` tiles `$24-$27`); the files
-must be the patterns as the ROM stores them, because the code adds the mirror for a leftward fireball.
+`sprites/projectile/piranha_fireball/`, loaded through `assets.json` (`frames`). The files must be `$65` /
+`$67` exactly as the ROM stores them (`CHR/chr004.pcx` tiles `$24-$27`), because the code adds every mirror
+itself. The first art drop was mirrored left to right and shipped that way in SMB3-23, which made the
+fireball spin clockwise instead of anticlockwise. A mirrored frame swaps which of the four poses looks
+like the next quarter turn, so the whole sequence plays in reverse. The PNGs were flipped back in SMB3-24,
+and `PiranhaFireballAnimatorAssetsTest` now compares them pixel for pixel with the ROM patterns.
 
 ### Not ported
 
 Star and Hammer-suit immunity, the `SOBJ_POOF` conversion, the other fireballs (Nipper, Fire Bro, Fire
 Chomp, the player's), and the diagonal auto-scroll wrap compensation.
+
+---
+
+## Venus Fire Trap - `OBJ_GREENPIRANHA_FIRE = $A4` and `OBJ_VENUSFIRETRAP = $A6` (SMB3-24, 2026-11)
+
+### One class on the pipe-plant family
+
+`VenusFireTrap` is the Piranha Plant's state plus four overrides of `PiranhaPlantFamilyEnemy` hooks. It reuses
+`PiranhaPlantMode`: `$A4` runs `ObjInit_GreenPiranha` and `$A6` runs `ObjInit_RedPiranha` (prg005.asm:43-50),
+so the colours differ in rise (25 / 33 px), box and art only. Placed as "Venus Fire Trap - Green" / "- Red"
+(`LevelObjectTypeMultiTiled.VENUS_FIRE_TRAP`). Art: `sprites/enemy/piranha/venus/{green,red}/`.
+
+| hook | ROM | what the fire plant does |
+|---|---|---|
+| `getStateWaitTicks()` | `PRG005_A824` (prg005.asm:1618-1630) | `$30 << 1 = 96` for every ID from `$A4` on, hidden and out alike |
+| `faceThePlayer()` | prg005.asm:1307-1314, 1393-1425 | sets the head's H / V flip, every tick, after the timer and before the frame read |
+| `attackWhileOut()` | `Piranha_Attack` (prg005.asm:1560-1597) | `Var3 = 0`, then spits on the right timer values; runs before the out-wait check |
+| `placeHead()` | | draws the head with negative scales; the stem keeps `placePart` |
+
+### Facing
+
+`Level_ObjCalcXDiffs` gives Y = 1 only when `Player_X - X` is negative, and `Piranha_FacePlayerFlip =
+SPR_HFLIP, $00`. The head therefore faces right (H-flipped, since the art faces left) when the player is
+level with it or to the right. `Level_ObjCalcYDiffs` gives Y = 1 only when `Player_Y < Y` (the plant's top),
+and `Piranha_VFlip = $00, SPR_VFLIP` is written to the two head sprites only, so the head looks up
+(V-flipped, since the art looks down) exactly then. The stem's attributes are rewritten to the fixed mirrored
+pair, so it never flips. The port computes the flips before the state routine moves the plant, as the ROM's
+draw does, and keeps the last pose when there is no player.
+
+### Mouth
+
+The frame is read off `Var3` before `Var3++` and the state routine, and `Piranha_Attack` clears `Var3`. The
+first out tick therefore still shows the frame read before the clear (frame 1 for a green plant, whose rise
+ends on tick 27); every later out tick shows frame 0. Sinking starts with `Var3 = 0`, so the head alternates
+0, 1, 0... every 8 ticks from the first retract tick.
+
+### Firing
+
+The timer counts down from `$60`, after the object loop's decrement. World 1 (`World_Num == 0`) spits on
+`$28` only, 56 ticks after reaching the top. Every other world spits on `$40` and `$10`, 32 and 80 ticks after.
+The world is `gameEngine.getPlayerData().getWorld()` (1-based). Nothing sets it yet, so it is the default 1
+and the level tester always plays the World 1 schedule.
+
+`Piranha_SpitFire` (prg005.asm:1692-1773), as `VenusFireTrap#spitFire`:
+
+- `SpecialObj_FindEmptyAbortY` with Y = 3 looks through slots 3 to 0, and when it finds one it runs
+  `Object_AnySprOffscreen` (prg000.asm:670-687). Either a full set of slots or any sprite off screen
+  aborts the spit silently. The port's slot search is `PiranhaFireballMotionManager#spawn`, which returns
+  `false` when full.
+- Off screen (`isAnySpriteOffScreen`) is `Objects_SprHVis | Objects_SprVVis` for `OA1_WIDTH16 |
+  OA1_HEIGHT32` (prg000.asm:5061-5182). `Object_DetermineHorzVis` tests three columns, X, X + 8 and
+  **X + 16**, each within 256 px of `Horz_Scroll`. `Object_DetermineVertVis` tests the bottom of each
+  16-px row, Y + 16 and Y + 32, within 0-239 of `Level_VertScroll`. The port measures from the camera
+  view's left and top, as the fireball's removal does.
+- The fireball's top-left is `(X + 3, Y)`. Near is `(dx + $50) & $FF < $A0`, i.e. -80 to 79 px, with the
+  true difference in the port. Speeds are `PiranhaFireball_XVel = $0B, $0E` and `_YVel = $0B, $05`,
+  indexed near / far. X is negated for a player on the left and Y for a player above the plant's top.
+  `VenusFireTrap.aimAt` is the pure function.
+- There is no sound in the ROM, and the port has no sound system yet.
+
+A plant spits from `EnemyMotionManager#update`, and the fireball manager works in `postCollision`, so a
+fireball moves on the tick it is spat.
+
+### Art
+
+The heads were decoded from `CHR/chr079.pcx` (the bank `OPTS_SETPT6 | $4F` maps to sprite tiles
+`$C0-$FF`). In 8x16 mode pattern `n` is tiles `n & $FE` over `n | 1`, so `$F1 $F3` are tiles `$30-$33`
+and `$F5 $F7` are `$34-$37`. Colour index 2 is white (lips and spots) and 3 is the head colour, the same
+as the plain plant's tiles. The colours are the plain plant PNGs': green `#5FF124`, red `#D82800`. Both
+folders' stems are a copy of the plain plant's green stem.
+
+### Not ported
+
+The ceiling fire plants `$A5` / `$A7` (they fire from `Piranha_HideInPipe`, prg005.asm:1635-1667), and
+star, fireball and hammer kills.

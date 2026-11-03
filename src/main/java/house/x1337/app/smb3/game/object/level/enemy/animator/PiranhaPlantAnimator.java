@@ -17,7 +17,9 @@ import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 @Getter
 @Singleton
 @RequiredArgsConstructor
-public final class PiranhaPlantAnimator implements EnemyAnimator<PiranhaPlantAnimatorAssets, PiranhaPlant> {
+public final class PiranhaPlantAnimator
+    implements
+        PiranhaPlantFamilyAnimator<PiranhaPlantAnimatorAssets, PiranhaPlant> {
     private final String framesPath = "piranha/plant";
     private final Class<PiranhaPlantAnimatorAssets> assetsType = PiranhaPlantAnimatorAssets.class;
     private final Map<EnemyMode, PiranhaPlantAnimatorAssets> assetsByMode = new HashMap<>();
@@ -29,7 +31,7 @@ public final class PiranhaPlantAnimator implements EnemyAnimator<PiranhaPlantAni
 
     @Override
     public Geometry buildSprite(final PiranhaPlant piranhaPlant) {
-        final Geometry head = EnemyAnimator.super.buildSprite(piranhaPlant);
+        final Geometry head = PiranhaPlantFamilyAnimator.super.buildSprite(piranhaPlant);
         head.setQueueBucket(Transparent);
         return head;
     }

@@ -14,10 +14,7 @@ import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import jakarta.annotation.PostConstruct;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Value;
 
 import static com.jme3.material.RenderState.FaceCullMode.Off;
@@ -28,7 +25,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SUPER_
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
-@Getter
+@Data
 @Prototype
 @RequiredArgsConstructor
 public final class SuperLeaf implements RewardLevelObject {

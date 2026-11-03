@@ -192,6 +192,10 @@ class TailStrikeDuringABodyHitTest {
         }
 
         @Override
+        public void setSpriteGeometry(final Geometry spriteGeometry) {
+        }
+
+        @Override
         public Offset getOffset() {
             return null;
         }
