@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa;
 import house.x1337.app.smb3.game.object.level.enemy.KoopaTroopa;
 import house.x1337.app.smb3.game.object.level.enemy.ParaGoomba;
 import house.x1337.app.smb3.game.object.level.enemy.PiranhaPlant;
+import house.x1337.app.smb3.game.object.level.projectile.PiranhaFireball;
 import house.x1337.app.smb3.game.object.level.variant.ConfigurableVariant;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,10 @@ public enum LevelObjectTypeMultiTiled implements LevelObjectType {
     KOOPA_PARATROOPA("Koopa Paratroopa", KoopaParaTroopa.class),
     KOOPA_TROOPA("Koopa Troopa", KoopaTroopa.class),
     PARA_GOOMBA("Para-Goomba", ParaGoomba.class),
-    PIRANHA_PLANT("Piranha Plant", PiranhaPlant.class);
+    PIRANHA_PLANT("Piranha Plant", PiranhaPlant.class),
+
+    // Projectiles
+    PIRANHA_FIREBALL("Piranha Fireball", PiranhaFireball.class);
 
     private final boolean singleTiled = false;
     private final String label;
