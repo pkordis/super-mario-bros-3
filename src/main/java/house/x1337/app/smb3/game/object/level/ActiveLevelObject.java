@@ -36,6 +36,7 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
     Dimensions getSpriteDimensions();
     AxisAlignedBoundingBox getBounds();
     Geometry getSpriteGeometry();
+    void setSpriteGeometry(Geometry spriteGeometry);
     void onCollisionWith(LevelScenePlayer player);
 
     default boolean resolvesDirectionalPlayerCollision() {

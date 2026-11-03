@@ -4,6 +4,8 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.enumeration.enemy.PiranhaPlantState;
 import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
+import house.x1337.app.smb3.game.object.level.enemy.animator.PiranhaPlantFamilyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Offset;
@@ -11,6 +13,7 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
+import house.x1337.app.smb3.util.CastCapable;
 
 import static com.jme3.scene.Spatial.CullHint.Always;
 import static com.jme3.scene.Spatial.CullHint.Inherit;
@@ -22,7 +25,7 @@ import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantState.HIDDEN;
 import static java.lang.Math.abs;
 import static java.lang.Math.floor;
 
-public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject {
+public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
     int ANIMATION_COUNTER_MASK = 255;
     int BOUND_BOX_LEFT_OFFSET = 2;
     int BOUND_BOX_TOP_OFFSET = 2;
@@ -51,11 +54,46 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject {
     void setPosition(PixelPosition position);
     void setVelocity(FixedPointVelocity velocity);
     Geometry getStemGeometry();
+    void setStemGeometry(Geometry stemGeometry);
     void refreshHeadFrame();
 
     default int getStateWaitTicks() {
         return STATE_WAIT_TICKS;
     }
+
+    default void faceThePlayer() {
+        // Do nothing by default
+    }
+
+    default void attackWhileOut() {
+        // Do nothing by default
+    }
+
+    @Override
+    default void spawnIntoScene() {
+        if (isSpawnedIntoScene()) {
+            return;
+        }
+        final EnemyAnimator<?, ? extends PiranhaPlantFamilyEnemy> enemyAnimator = getAnimator();
+        if (enemyAnimator instanceof PiranhaPlantFamilyAnimator<?, ? extends PiranhaPlantFamilyEnemy> animator) {
+            final PiranhaPlantFamilyAnimator<?, PiranhaPlantFamilyEnemy> castedAnimator = checkedCast(animator);
+            setSpawnedIntoScene(true);
+
+            setSpriteGeometry(castedAnimator.buildSprite(this));
+            setStemGeometry(castedAnimator.buildStemSprite(this));
+            getGameEngine().getRootNode().attachChild(getSpriteGeometry());
+            getGameEngine().getRootNode().attachChild(getStemGeometry());
+
+            erasePlacementFromBakedTexture();
+            positionPlantSprites();
+        } else {
+            throw new IllegalStateException(
+                "Instances of this interface must have animators for the PiranhaPlantFamilyEnemy"
+            );
+        }
+    }
+
+    <T extends EnemyAnimator<?, ? extends PiranhaPlantFamilyEnemy>> T getAnimator();
 
     @Override
     default void motionUpdate() {
@@ -74,6 +112,7 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject {
         if (getStateTimer() > 0) {
             setStateTimer(getStateTimer() - 1);
         }
+        faceThePlayer();
         final int headFrame = (getAnimationCounter() >> HEAD_FRAME_SHIFT) & 1;
         if (headFrame != getHeadFrameIndex()) {
             setHeadFrameIndex(headFrame);
@@ -105,6 +144,7 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject {
     }
 
     default void stayOut() {
+        attackWhileOut();
         if (getStateTimer() != 0) {
             return;
         }
@@ -240,8 +280,16 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject {
         final double top = getPosition().y();
         final WorldOffset headOffset = partWorldOffset(top, Z_DEPTH_PIPE_PLANT);
         final WorldOffset stemOffset = partWorldOffset(top + PART_SIZE_PIXELS, Z_DEPTH_PIPE_PLANT);
-        placePart(head, headOffset.x(), headOffset.y(), headOffset.z());
+        placeHead(head, headOffset);
         placePart(stem, stemOffset.x(), stemOffset.y(), stemOffset.z());
+    }
+
+    /**
+     * Puts the head quad at its offset. The fire plant overrides it to flip the head alone; the stem is
+     * never flipped.
+     */
+    default void placeHead(final Geometry head, final WorldOffset offset) {
+        placePart(head, offset.x(), offset.y(), offset.z());
     }
 
     default WorldOffset partWorldOffset(final double pixelTop, final float depth) {

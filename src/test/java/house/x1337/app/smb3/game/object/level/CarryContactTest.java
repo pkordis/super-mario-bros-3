@@ -174,6 +174,10 @@ class CarryContactTest {
         }
 
         @Override
+        public void setSpriteGeometry(final Geometry spriteGeometry) {
+        }
+
+        @Override
         public void onCollisionWith(final LevelScenePlayer player) {
             throw doNotCall();
         }

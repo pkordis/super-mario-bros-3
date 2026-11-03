@@ -24,6 +24,38 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PiranhaFireballAnimatorAssetsTest {
     private static final List<String> FILES = List.of("piranha_fireball_1.png", "piranha_fireball_2.png");
+    private static final String TOP_ROWS = "........\n........\n........\n";
+    private static final String BOTTOM_ROWS = "........\n........\n........\n........\n";
+
+    /**
+     * {@code $65} and {@code $67} as {@code CHR/chr004.pcx} stores them (tiles {@code $24-$27}): {@code R} the
+     * red border, {@code W} the white fill. The code adds every mirror itself, so a file drawn mirrored
+     * reverses the direction the fireball spins in.
+     */
+    private static final List<String> ROM_PATTERNS = List.of(
+        TOP_ROWS
+            + "........\n"
+            + "..RRRR..\n"
+            + ".RRWWWR.\n"
+            + ".RWWWWWR\n"
+            + "RRRWWWWR\n"
+            + "R..RWWWR\n"
+            + ".R.RWWRR\n"
+            + "R...RRR.\n"
+            + "..R.....\n"
+            + BOTTOM_ROWS,
+        TOP_ROWS
+            + "..R.....\n"
+            + ".R.RRR..\n"
+            + "..R.RRR.\n"
+            + "R...RWRR\n"
+            + "..RRWWWR\n"
+            + ".RWWWWWR\n"
+            + ".RWWWWWR\n"
+            + ".RRWWWR.\n"
+            + "..RRRR..\n"
+            + BOTTOM_ROWS
+    );
 
     @Test
     @DisplayName("assets.json names $65 then $67")
@@ -72,6 +104,37 @@ class PiranhaFireballAnimatorAssetsTest {
                 .as("%s: the border is red", file)
                 .allMatch(argb -> ((argb >> 16) & 0xFF) > 2 * ((argb >> 8) & 0xFF));
         }
+    }
+
+    @Test
+    @DisplayName("Both frames are the ROM's patterns as stored, not mirrored, so the fireball spins the ROM's way")
+    void bothFramesAreTheRomPatternsAsStored() throws IOException {
+        for (int frame = 0; frame < FILES.size(); frame++) {
+            // Prepare
+            final BufferedImage image = read(FRAMES_CONTEXT + FILES.get(frame));
+
+            // Execute
+            final String pattern = asPattern(image);
+
+            // Verify
+            assertThat(pattern).as(FILES.get(frame)).isEqualTo(ROM_PATTERNS.get(frame));
+        }
+    }
+
+    private static String asPattern(final BufferedImage image) {
+        final StringBuilder pattern = new StringBuilder();
+        for (int row = 0; row < image.getHeight(); row++) {
+            for (int column = 0; column < image.getWidth(); column++) {
+                final int argb = image.getRGB(column, row);
+                if ((argb >>> 24) == 0) {
+                    pattern.append('.');
+                } else {
+                    pattern.append(argb == 0xFFFFFFFF ? 'W' : 'R');
+                }
+            }
+            pattern.append('\n');
+        }
+        return pattern.toString();
     }
 
     private BufferedImage read(final String path) throws IOException {

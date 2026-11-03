@@ -728,6 +728,10 @@ class EnemyMotionManagerTest {
         }
 
         @Override
+        public void setSpriteGeometry(final Geometry spriteGeometry) {
+        }
+
+        @Override
         public void detach() {
             // Records the call rather than touching the scene graph (no sprite was ever attached) so the
             // manager's reset can be shown to detach each live enemy.
