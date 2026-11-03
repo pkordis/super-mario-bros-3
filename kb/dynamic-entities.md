@@ -2194,3 +2194,58 @@ The ceiling plants `$A1` / `$A3` (`Piranha_Style` bit 0), the fire plants, star 
 and the real art: the PNGs under `sprites/enemy/piranha/plant/` are placeholders. `Object_DeleteOffScreen`
 needs no per-plant code: `EnemyMotionManager#update` already applies the central deletion edge (SMB3-3) to
 every enemy, the plant included, and releases the placement so it respawns.
+
+---
+
+## Piranha fireball - `SOBJ_PIRANHAFIREBALL = $05`, the first projectile (SMB3-23, 2026-11)
+
+### Where it lives
+
+`game.object.level.projectile`: `PiranhaFireball` (an `ActiveLevelObject` only so `getHurtBy` takes it),
+`PiranhaFireballMotionManager` (a plain `MotionManager`, not an enemy manager) and `PiranhaFireballAnimator`.
+`LevelObjectTypeMultiTiled.PIRANHA_FIREBALL` gives it a type. It is never inserted into the broad-phase,
+so the tail, shells and enemies cannot see it. The manager runs its own player test.
+
+### The tick is in `postCollision`
+
+The ROM updates the special objects after the player and the object loop (`Gameplay_UpdateAndDrawMisc`,
+prg030.asm:2455-2469), so a fireball a plant spits moves on the tick it is spat. Doing the work in
+`postCollision` keeps that true whatever order the motion managers run in; `update()` is empty.
+`updateWhileHalted` runs only the off-screen removal, which in the ROM comes before the halt check.
+
+### Behaviour (prg007.asm)
+
+- **Movement** (`SObj_Fireball`, 5121-5164): `SObj_AddXVelFrac` / `SObj_AddYVelFrac` only. No gravity, no
+  `SObj_CheckHitSolid`, no lifetime. `PixelPosition.stepped` with a `FixedPointVelocity` matches the ROM's
+  whole pixel plus fraction byte exactly; the test runs both side by side.
+- **Animation:** `Var1++`, frame `(Var1 >> 2) & 3` over `$65`, `$67`, `$65` rotated, `$67` rotated, then
+  the H-flip XORed with `XVel < 0`. Flips are negative quad scales, so no mirrored art is needed: a
+  texture swap or a scale change costs the same. `Var1` starts at 0 (the ROM never resets it).
+- **Drawing:** one 8x16 quad at the whole-pixel position, 1 px low as every sprite, at
+  `Z_DEPTH_PROJECTILE = 0.065`: in front of the rewards, behind every enemy. The ROM borrows sprites from a
+  rotating object block, so it has no fixed order.
+- **Player test** (`SObj_PlayerCollide`, 4772-4838): small or ducking `0 <= Y + 8 - Player_Y - 18 < $10`,
+  otherwise `- 10 < $16`; `0 <= X + 6 - Player_X < 16`. Only on ticks where `slot + Counter_1` is odd; the
+  manager's `frameCounter` stands in for `Counter_1` and also runs during a halt. The ROM compares low
+  bytes; the port compares true differences. The player's own `isHurtable()` covers flashing, a grow or
+  shrink, and dying; a `BACKGROUND` player is skipped (`Player_Behind_En`). `Player_OffScreen` is not
+  ported. A hit does not remove the fireball.
+- **Removal** (3122-3152, before moving): `X - Horz_Scroll >= 248` as a byte, which removes it 8 px before
+  the right edge and as it crosses the left one; and `Y + 16` off the vertical screen. Mapped to the
+  camera view's left and top in pixels, with true differences (the same for anything under 8 px a tick).
+  Also on level reset.
+- **Cap:** four slots, 3 down to 0 (`SpecialObj_FindEmptyAbortY`). A spawn with all four taken returns
+  `false` and does nothing.
+- **Hook:** `PiranhaFireball#isDestroyedBy` is where star power and a ducking Hammer-suit player will turn
+  the fireball into a poof (`PRG007_B844`). It returns `false` for now.
+
+### Art
+
+`sprites/projectile/piranha_fireball/`, loaded through `assets.json` (`frames`). The first art drop was the
+ROM's `$65` / `$67` mirrored left to right (checked against `CHR/chr004.pcx` tiles `$24-$27`); the files
+must be the patterns as the ROM stores them, because the code adds the mirror for a leftward fireball.
+
+### Not ported
+
+Star and Hammer-suit immunity, the `SOBJ_POOF` conversion, the other fireballs (Nipper, Fire Bro, Fire
+Chomp, the player's), and the diagonal auto-scroll wrap compensation.
