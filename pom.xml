@@ -33,6 +33,7 @@
         <jmonkeyengine.version>3.6.1-stable</jmonkeyengine.version>
         <!-- JDK 26 (class file major version 70) support was added in Lombok 1.18.46. -->
         <lombok.version>1.18.46</lombok.version>
+        <nitrite.version>5.4.2</nitrite.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -60,17 +61,17 @@
         <dependency>
             <groupId>org.dizitart</groupId>
             <artifactId>nitrite</artifactId>
-            <version>4.3.2</version>
+            <version>${nitrite.version}</version>
         </dependency>
         <dependency>
             <groupId>org.dizitart</groupId>
             <artifactId>nitrite-mvstore-adapter</artifactId>
-            <version>4.3.2</version>
+            <version>${nitrite.version}</version>
         </dependency>
         <dependency>
             <groupId>org.dizitart</groupId>
             <artifactId>nitrite-jackson-mapper</artifactId>
-            <version>4.3.2</version>
+            <version>${nitrite.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>

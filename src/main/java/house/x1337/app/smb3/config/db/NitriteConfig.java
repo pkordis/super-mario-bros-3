@@ -5,7 +5,6 @@ import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import org.dizitart.no2.Nitrite;
-import org.dizitart.no2.mapper.jackson.JacksonMapperModule;
 import org.dizitart.no2.mvstore.MVStoreModule;
 import org.dizitart.no2.repository.ObjectRepository;
 import org.dizitart.no2.store.StoreModule;
@@ -13,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import static org.dizitart.no2.common.module.NitriteModule.module;
 
 @Configuration
 @ConditionalOnProperty(name = "db.provider", havingValue = "NITRITE", matchIfMissing = true)
@@ -32,7 +33,7 @@ public class NitriteConfig {
     Nitrite nitrite(final StoreModule storeModule) {
         return Nitrite.builder()
             .loadModule(storeModule)
-            .loadModule(new JacksonMapperModule())
+            .loadModule(module(new NitriteJacksonMapper()))
             .openOrCreate("Mario", "1337");
     }
 
