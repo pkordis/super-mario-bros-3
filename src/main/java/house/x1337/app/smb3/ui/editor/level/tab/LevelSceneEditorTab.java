@@ -34,7 +34,6 @@ import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_X;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_Y;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.TileType.RENDERING_STARTER;
 import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
@@ -43,6 +42,7 @@ import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.SOUTH;
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
+import static java.util.Comparator.comparingInt;
 import static javax.swing.BorderFactory.createEmptyBorder;
 
 @Data
@@ -140,19 +140,23 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         return spawnPointRow >= 0 && spawnPointColumn >= 0;
     }
 
+    /**
+     * Gives a blank scene one empty, visible layer per {@link LevelSceneLayerType}, bottom to top, so every
+     * layer is editable from the start, as it is for loaded and imported scenes. Air is the active one.
+     */
     private void initLayers() {
-        final LevelSceneLayer airLayer = LevelSceneLayer.builder()
-            .type(AIR)
-            .visible(true)
-            .tiles(emptyTiles(rows, columns))
-            .build();
-        final LevelSceneLayer decorationsLayer = LevelSceneLayer.builder()
-            .type(DECORATIONS_LAND)
-            .visible(true)
-            .tiles(emptyTiles(rows, columns))
-            .build();
-        layers = new ArrayList<>(List.of(airLayer, decorationsLayer));
-        activeLayer = airLayer;
+        layers = new ArrayList<>(Arrays.stream(LevelSceneLayerType.values())
+            .sorted(comparingInt(LevelSceneLayerType::getOrder))
+            .map(type -> LevelSceneLayer.builder()
+                .type(type)
+                .visible(true)
+                .tiles(emptyTiles(rows, columns))
+                .build())
+            .toList());
+        activeLayer = layers.stream()
+            .filter(layer -> layer.getType() == AIR)
+            .findFirst()
+            .orElseThrow();
     }
 
     private static Tile[][] emptyTiles(

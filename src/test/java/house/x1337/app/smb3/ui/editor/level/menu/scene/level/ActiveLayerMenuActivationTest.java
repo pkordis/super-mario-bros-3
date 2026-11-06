@@ -89,7 +89,7 @@ class ActiveLayerMenuActivationTest {
     @Test
     @DisplayName("Asking for a layer the scene does not have leaves the active one alone")
     void aMissingLayerIsNotActivated() {
-        // Prepare - a blank scene starts without an NPC layer
+        // Prepare - a scene that has no NPC layer
         final LevelSceneLayer air = layer(AIR);
         final LevelSceneEditorTab tab = tabWith(air, air);
 

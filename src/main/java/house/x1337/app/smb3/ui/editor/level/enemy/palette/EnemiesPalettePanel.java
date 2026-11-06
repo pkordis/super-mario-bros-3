@@ -40,9 +40,8 @@ import static javax.swing.UIManager.getColor;
  * every entry here is marked out of the active layer — greyed, but still clickable, and a click switches
  * to the NPC layer before arming the enemy (see {@link LayerGatedToggleButton}). An armed enemy is released
  * the moment the active layer moves away, which stops a stale selection from stamping parts into, say, the
- * static-environment layer. A brand-new blank scene has no NPC layer at all (it starts with Air and Land
- * Decorations): there is nothing to switch to, so there the entries are disabled outright, with a hint
- * saying why.
+ * static-environment layer. Every scene the editor builds has an NPC layer, but should a tab lack one there
+ * is nothing to switch to, so there the entries are disabled outright, with a hint saying why.
  */
 @Slf4j
 @Singleton
