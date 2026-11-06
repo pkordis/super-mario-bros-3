@@ -3,12 +3,18 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
+import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.PipePortalDetails;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.PipePortalPrompt;
 import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import house.x1337.app.smb3.util.factory.LevelSceneImportRouter;
 import jakarta.annotation.PostConstruct;
@@ -28,13 +34,16 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_X;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_Y;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 import static house.x1337.app.smb3.enumeration.TileType.RENDERING_STARTER;
 import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
 import static house.x1337.app.smb3.util.factory.LevelSceneEditorTabFactory.forTab;
@@ -61,6 +70,12 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private String sceneTitle = null;
     private String sceneDescription = null;
     private String sceneId = null;
+
+    /**
+     * The scene's pipe portals. They are not tiles: they are drawn over the NPC layer and copied to and from
+     * {@code LevelScene.pipePortals} by {@code LevelSceneEditorTabFactory}.
+     */
+    private List<PipePortal> pipePortals = new ArrayList<>();
 
     /**
      * Raw {@code Tile[][]} as produced by a PNG import, kept so the layers can be re-routed every time
@@ -102,13 +117,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         rows = newRows;
         columns = newCols;
         initLayers();
-        renderingStarterRow = -1;
-        renderingStarterColumn = -1;
-        spawnPointRow = -1;
-        spawnPointColumn = -1;
-        sceneTitle = null;
-        sceneDescription = null;
-        sceneId = null;
+        resetData();
         levelSceneEditorGrid.setPreferredSize(new Dimension(columns * TILE_SIZE, rows * TILE_SIZE));
         levelSceneEditorGrid.revalidate();
         levelSceneEditorGrid.repaint();
@@ -121,6 +130,12 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
                 Arrays.fill(row, NULL_TILE);
             }
         }
+        resetData();
+        levelSceneEditorGrid.repaint();
+        updateStatus(-1, -1);
+    }
+
+    private void resetData() {
         renderingStarterRow = -1;
         renderingStarterColumn = -1;
         spawnPointRow = -1;
@@ -128,8 +143,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         sceneTitle = null;
         sceneDescription = null;
         sceneId = null;
-        levelSceneEditorGrid.repaint();
-        updateStatus(-1, -1);
+        pipePortals = new ArrayList<>();
     }
 
     public boolean hasRenderingStarter() {
@@ -174,6 +188,11 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         if (row < 0 || row >= rows || col < 0 || col >= columns) {
             return;
         }
+        final VirtualObjectType selectedVirtualObject = paletteSelectionService.getSelectedVirtualObject();
+        if (selectedVirtualObject != null) {
+            placePipePortal(selectedVirtualObject, col, row);
+            return;
+        }
         final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
             stampEnemy(selectedEnemy, col, row);
@@ -201,11 +220,78 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         levelSceneEditorGrid.repaint();
     }
 
+    /**
+     * Clears a cell of the active layer. On the NPC layer, a cell covered by a pipe portal removes that portal instead
+     * and leaves the layer's tiles alone.
+     */
     public void eraseTile(final int col, final int row) {
         if (row >= 0 && row < rows && col >= 0 && col < columns) {
+            if (removePipePortalAt(col, row)) {
+                levelSceneEditorGrid.repaint();
+                return;
+            }
             activeLayer.getTiles()[row][col] = NULL_TILE;
             levelSceneEditorGrid.repaint();
         }
+    }
+
+    /** Whether a virtual object is armed, which places on a click only, never on a drag. */
+    public boolean isPlacingVirtualObject() {
+        return paletteSelectionService.getSelectedVirtualObject() != null;
+    }
+
+    /**
+     * Places a pipe portal anchored on the clicked cell, which becomes its lowest leftmost cell. The placement must
+     * pass {@code PipePortalPlacementRules}; otherwise the author is told why and nothing is placed. The author then
+     * picks the portal's type and description, and cancelling places nothing.
+     */
+    private void placePipePortal(final VirtualObjectType type, final int col, final int row) {
+        if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
+            return;
+        }
+        final PipePortal candidate = PipePortal.builder()
+            .virtualObjectType(type)
+            .levelSceneId(sceneId)
+            .row(row)
+            .column(col)
+            .build();
+        final PipePortalPrompt prompt = getBean(PipePortalPrompt.class);
+        final Optional<String> broken = PipePortalPlacementRules.validate(
+            new LevelSceneDimensions(columns, rows),
+            staticEnvironmentTiles(),
+            pipePortals,
+            candidate
+        );
+        if (broken.isPresent()) {
+            prompt.warn(this, broken.get());
+            return;
+        }
+        final Optional<PipePortalDetails> details = prompt.ask(this, type, row, col);
+        if (details.isEmpty()) {
+            return;
+        }
+        candidate.setType(details.get().type());
+        candidate.setDescription(details.get().description());
+        pipePortals.add(candidate);
+        levelSceneEditorGrid.repaint();
+    }
+
+    private boolean removePipePortalAt(final int col, final int row) {
+        if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
+            return false;
+        }
+        return pipePortals.removeIf(portal -> portal.occupies(row, col));
+    }
+
+    private Tile[][] staticEnvironmentTiles() {
+        if (layers == null) {
+            return null;
+        }
+        return layers.stream()
+            .filter(layer -> layer.getType() == STATIC_ENVIRONMENT)
+            .findFirst()
+            .map(LevelSceneLayer::getTiles)
+            .orElse(null);
     }
 
     /**
@@ -224,6 +310,15 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
 
     public void updateStatus(final int col, final int row) {
         final String pos = (col >= 0 && row >= 0) ? "  |  col=" + col + "  row=" + row : "";
+        final VirtualObjectType selectedVirtualObject = paletteSelectionService.getSelectedVirtualObject();
+        if (selectedVirtualObject != null) {
+            statusLabel.setText(
+                selectedVirtualObject.getLabel()
+                    + "  |  " + selectedVirtualObject.getColumns() + " × " + selectedVirtualObject.getRows() + " tiles"
+                    + "  |  click places its lower-left tile" + pos
+            );
+            return;
+        }
         final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
             statusLabel.setText(
@@ -257,11 +352,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         statusLabel.setText("Tile: " + tileName + "  |  " + rows + " rows × " + columns + " columns" + pos);
     }
 
-    public Tile getSelectedTile() {
-        return paletteSelectionService.getSelectedTile();
-    }
-
-    /** Whether a grid click has anything to place — a tile from the Tiles palette, or a whole enemy. */
+    /** Whether a grid click has anything to place — a tile, a whole enemy, or a virtual object. */
     public boolean hasPlaceableSelection() {
         return paletteSelectionService.hasSelection();
     }

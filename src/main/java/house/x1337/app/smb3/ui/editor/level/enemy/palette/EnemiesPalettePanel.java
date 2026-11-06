@@ -54,7 +54,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
 
     private final JPanel enemiesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(enemiesPanel);
-    /** Package-visible so the gating hint can be asserted without building the panel's Swing context. */
+
     @Getter(AccessLevel.PACKAGE)
     private final JLabel hintLabel = new JLabel();
     private final Map<String, EnemyButton> buttonsByEnemyId = new LinkedHashMap<>();

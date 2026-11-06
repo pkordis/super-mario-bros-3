@@ -7,6 +7,7 @@ import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectsPalettePanel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,7 @@ class ActiveLayerMenuActivationTest {
     private LevelSceneEditorTabSystem tabSystem;
     private EnemiesPalettePanel enemiesPalettePanel;
     private TilePalettePanel tilePalettePanel;
+    private VirtualObjectsPalettePanel virtualObjectsPalettePanel;
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
 
     @BeforeEach
@@ -44,10 +46,14 @@ class ActiveLayerMenuActivationTest {
         tabSystem = mock(LevelSceneEditorTabSystem.class);
         enemiesPalettePanel = mock(EnemiesPalettePanel.class);
         tilePalettePanel = mock(TilePalettePanel.class);
+        virtualObjectsPalettePanel = mock(VirtualObjectsPalettePanel.class);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(TilePalettePanel.class))
             .thenReturn(tilePalettePanel);
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(VirtualObjectsPalettePanel.class))
+            .thenReturn(virtualObjectsPalettePanel);
     }
 
     @AfterEach
@@ -71,7 +77,7 @@ class ActiveLayerMenuActivationTest {
     }
 
     @Test
-    @DisplayName("Both palettes are re-gated, so no stale selection survives the switch")
+    @DisplayName("Every palette is re-gated, so no stale selection survives the switch")
     void bothPalettesAreResynced() {
         // Prepare
         final LevelSceneLayer air = layer(AIR);
@@ -84,6 +90,7 @@ class ActiveLayerMenuActivationTest {
         // Verify
         verify(enemiesPalettePanel).syncEnabledState();
         verify(tilePalettePanel).syncEnabledState();
+        verify(virtualObjectsPalettePanel).syncEnabledState();
     }
 
     @Test
