@@ -19,9 +19,8 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
 import static house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton.BORDER_THICKNESS;
+import static house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton.fromType;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -49,8 +48,8 @@ class VirtualObjectButtonOutOfLayerStateTest {
             .when(() -> StaticBeanFactory.getBean(ActiveLayerMenu.class))
             .thenReturn(activeLayerMenu);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(VirtualObjectButton.class), any()))
-            .thenAnswer(invocation -> new VirtualObjectButton(invocation.getArgument(1)));
+            .when(() -> StaticBeanFactory.getBean(VirtualObjectButton.class))
+            .thenAnswer(invocation -> new VirtualObjectButton());
     }
 
     @AfterEach
@@ -62,7 +61,7 @@ class VirtualObjectButtonOutOfLayerStateTest {
     @DisplayName("A virtual object is placed on the NPC layer")
     void reportsTheNpcLayerAsItsOwner() {
         // Execute & Verify
-        assertThat(new VirtualObjectButton(PIPE_PORTAL_HORIZONTAL).getOwningLayer()).isEqualTo(NON_PLAYABLE_CHARACTERS);
+        assertThat(fromType(PIPE_PORTAL_HORIZONTAL).getOwningLayer()).isEqualTo(NON_PLAYABLE_CHARACTERS);
     }
 
     @Test
@@ -110,7 +109,7 @@ class VirtualObjectButtonOutOfLayerStateTest {
     @DisplayName("The tooltip names the object and its size")
     void tooltipNamesTheObject() {
         // Execute
-        final VirtualObjectButton button = VirtualObjectButton.fromType(PIPE_PORTAL_VERTICAL);
+        final VirtualObjectButton button = fromType(PIPE_PORTAL_VERTICAL);
 
         // Verify
         assertThat(button.getToolTipText())
@@ -123,7 +122,7 @@ class VirtualObjectButtonOutOfLayerStateTest {
     @DisplayName("Clicking an out-of-layer stamp switches to the NPC layer, then arms it")
     void clickingSwitchesTheLayerThenArms() {
         // Prepare
-        final VirtualObjectButton button = new VirtualObjectButton(PIPE_PORTAL_HORIZONTAL);
+        final VirtualObjectButton button = VirtualObjectButton.fromType(PIPE_PORTAL_HORIZONTAL);
         button.markOutOfActiveLayer(true);
         when(activeLayerMenu.activate(NON_PLAYABLE_CHARACTERS)).thenAnswer(invocation -> {
             button.markOutOfActiveLayer(false);

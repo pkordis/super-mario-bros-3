@@ -82,6 +82,9 @@ class PipePortalPlacementTest {
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PipePortalPrompt.class))
             .thenReturn(prompt);
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(VirtualObjectButton.class))
+            .thenAnswer(invocation -> new VirtualObjectButton());
 
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),
@@ -272,7 +275,7 @@ class PipePortalPlacementTest {
     }
 
     private void arm(final VirtualObjectType type) {
-        paletteSelectionService.select(new VirtualObjectButton(type));
+        paletteSelectionService.select(VirtualObjectButton.fromType(type));
     }
 
     private void paintStatic(final int row, final int column, final TileType type) {

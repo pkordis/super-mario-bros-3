@@ -22,8 +22,6 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_L
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -52,8 +50,8 @@ class VirtualObjectsPalettePanelSyncTest {
             .when(() -> StaticBeanFactory.getBean(WrapLayout.class))
             .thenAnswer(invocation -> new WrapLayout());
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(VirtualObjectButton.class), any()))
-            .thenAnswer(invocation -> new VirtualObjectButton(invocation.getArgument(1)));
+            .when(() -> StaticBeanFactory.getBean(VirtualObjectButton.class))
+            .thenAnswer(invocation -> new VirtualObjectButton());
     }
 
     @AfterEach
