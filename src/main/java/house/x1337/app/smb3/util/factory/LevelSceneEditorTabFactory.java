@@ -54,7 +54,11 @@ public interface LevelSceneEditorTabFactory {
     static LevelScene fromLevelSceneEditor(final LevelSceneEditorTab editor) {
         final LevelScene levelScene = getBean(LevelScene.class);
         final List<LevelSceneLayer> layers = editor.getLayers();
-        levelScene.setId(editor.getSceneId());
+        // A tab that was never saved has no scene id yet. The new scene then keeps the random id it was created
+        // with, which the save hands back to the tab, instead of every first save sharing a null id.
+        if (editor.getSceneId() != null) {
+            levelScene.setId(editor.getSceneId());
+        }
         levelScene.setTitle(editor.getSceneTitle());
         levelScene.setDescription(editor.getSceneDescription());
         levelScene.setDimensions(new LevelSceneDimensions(
