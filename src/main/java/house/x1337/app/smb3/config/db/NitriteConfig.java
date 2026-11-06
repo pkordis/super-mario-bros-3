@@ -3,6 +3,7 @@ package house.x1337.app.smb3.config.db;
 import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
+import house.x1337.app.smb3.model.repository.PipePortalRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.mvstore.MVStoreModule;
@@ -55,5 +56,10 @@ public class NitriteConfig {
     @Bean
     ObjectRepository<EnemyRecord> enemyObjectRepository(final Nitrite nitrite) {
         return nitrite.getRepository(EnemyRecord.class);
+    }
+
+    @Bean
+    ObjectRepository<PipePortalRecord> pipePortalObjectRepository(final Nitrite nitrite) {
+        return nitrite.getRepository(PipePortalRecord.class);
     }
 }
