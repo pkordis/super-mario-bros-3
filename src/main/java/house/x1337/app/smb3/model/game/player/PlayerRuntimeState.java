@@ -1,11 +1,13 @@
 package house.x1337.app.smb3.model.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.PipeEntryDirection;
 import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.KillTallyAware;
+import house.x1337.app.smb3.model.game.portal.PipePortal;
 import lombok.Data;
 
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
@@ -31,8 +33,16 @@ public class PlayerRuntimeState implements KillTallyAware {
 
     private CarriableLevelObject carriedObject;
     private PlayerDeathKind deathKind = NONE;
+    private PipePortal enteredPipePortal;
+    private PipeEntryDirection pipeEntryDirection;
     private PlayerMode queuedMode;
     private boolean ducking;
+
+    /**
+     * Set when the head struck a ceiling on this tick's collision pass (dasm {@code Player_HitCeiling}). Cleared at
+     * the start of every pass (prg008.asm:4386) and set when the player rises into a solid tile (prg008.asm:4574).
+     */
+    private boolean hitCeiling;
     private boolean running;
     private boolean wasCarrying;
     private int deathPauseCounter;
@@ -80,6 +90,23 @@ public class PlayerRuntimeState implements KillTallyAware {
         if (deathPauseCounter > 0) {
             deathPauseCounter--;
         }
+    }
+
+    /**
+     * Starts the pipe-entering state (dasm {@code PipeEntryPrepare}, prg008.asm:6729), remembering the portal the
+     * player went into and the direction held to get in. The portal is what a pipe link resolves the other end from.
+     *
+     * @param portal    the portal over the pipe that was entered
+     * @param direction the direction resolved for that portal
+     */
+    public void startEnteringPipe(final PipePortal portal, final PipeEntryDirection direction) {
+        enteredPipePortal = portal;
+        pipeEntryDirection = direction;
+    }
+
+    /** @return whether the player is going into a pipe (dasm {@code Level_PipeMove} nonzero) */
+    public boolean isEnteringPipe() {
+        return enteredPipePortal != null;
     }
 
     public boolean isCarrying() {

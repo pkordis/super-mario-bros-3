@@ -367,6 +367,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        // Going into a pipe owns the tick (dasm Level_PipeMove: Player_DrawAndDoActions29 drops the rest of the
+        // player's routine, prg008.asm:427-446). The slide into the pipe and the level reset come with SMB3-33;
+        // until then the player is held where it went in.
+        if (runtimeState.isEnteringPipe()) {
+            position.snapshotPrevious();
+            return;
+        }
+
         // Another player is mid-transition and has halted gameplay (dasm
         // Player_HaltGame): freeze this player in place. Snapshot so render
         // interpolation holds steady rather than easing toward a stale target.
@@ -455,6 +463,14 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             // collision has settled this tick's position. Objects are struck later, from the
             // broadphase pass, mirroring the ROM's split between the player and object routines.
             resolveTailAttackAgainstBlocks();
+        }
+
+        // Player_DoSpecialTiles runs after Player_DetectSolids and Player_TailAttack_HitBlocks (prg008.asm:933-935).
+        // Going into a pipe ends the tick there: the ROM draws the player and pops its caller instead of returning
+        // (PLA PLA RTS, prg008.asm:6323-6331).
+        if (enterPipeIfPossible()) {
+            updateVisualPosition();
+            return;
         }
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
