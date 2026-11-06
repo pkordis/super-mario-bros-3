@@ -1,11 +1,13 @@
 package house.x1337.app.smb3.ui.service;
 
 import house.x1337.app.smb3.annotation.Singleton;
+import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyButton;
 import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TileButton;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton;
 import lombok.Getter;
 
 @Singleton
@@ -32,6 +34,12 @@ public class PaletteSelectionService {
 
     public EnemyStamp getSelectedEnemy() {
         return selectedButton instanceof EnemyButton enemyButton ? enemyButton.getEnemy() : null;
+    }
+
+    public VirtualObjectType getSelectedVirtualObject() {
+        return selectedButton instanceof VirtualObjectButton virtualObjectButton
+            ? virtualObjectButton.getVirtualObjectType()
+            : null;
     }
 
     public boolean hasSelection() {

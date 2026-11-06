@@ -36,3 +36,24 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   - `delete` deletes the scene's portals.
 - The converter writes the id of the scene being saved onto each record, not the portal's own `levelSceneId`, so a
   portal placed before the scene's first save still lands under the right scene.
+
+## Editor
+
+- **Palette:** the third `LeftPane` tab, `VirtualObjectsPalettePanel`, holds one `VirtualObjectButton` per
+  `VirtualObjectType`. The stamp is the real footprint at `TILE_SIZE` (64 px) per cell, transparent, with a 4 px
+  border in the type's colour. Buttons are `LayerGatedToggleButton`s owned by the NPC layer, so arming one switches to
+  that layer, and leaving it releases the stamp. `ActiveLayerMenu.activate` re-syncs this panel too.
+- **Placing:** `LevelSceneEditorTab.paintTile` checks an armed virtual object first. The clicked cell is the anchor.
+  `PipePortalPlacementRules.validate` runs before anything is asked; a broken rule is shown through
+  `PipePortalPrompt.warn`. Otherwise `PipePortalPrompt.ask` opens `PlacePipePortalWindow` (type defaults to `IN`,
+  description optional) and **Place** adds the portal to `tab.pipePortals`.
+- **No drag placement:** `LevelSceneEditorGrid` ignores drags while a virtual object is armed, or a drag would open a
+  window per cell.
+- **Removing:** right-click with the NPC layer active removes the portal under the cursor and leaves the NPC tiles
+  alone; elsewhere right-click erases as usual.
+- **Dialogs behind a bean:** the tab reaches the window and the warning only through `PipePortalPrompt`
+  (`getBean`), so tests stub it instead of opening Swing windows.
+- **Drawing:** after the tiles, grid lines and markers, each portal gets a 4 px rectangle in its colour around all its
+  cells. Portals are drawn only while the NPC layer is visible.
+- **Tab ↔ scene:** `LevelSceneEditorTabFactory.fromLevelSceneEditor` / `fromScene` copy the list both ways (a fresh
+  list each time, so tab edits never leak into a loaded scene). `newScene` and `clearScene` empty it.
