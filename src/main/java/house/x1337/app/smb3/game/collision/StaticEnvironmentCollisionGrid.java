@@ -71,6 +71,8 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     ) {
         final PlayerPosition position = levelScenePlayer.getPosition();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
+        // dasm Player_DetectSolids @ prg008.asm:4386 clears Player_HitCeiling before anything else
+        runtimeState.setHitCeiling(false);
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
 
@@ -184,7 +186,9 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         } else {
             // Moving up
             if (solidVert) {
-                // Head hitting objects
+                // Head hitting objects. The ROM flags it for Player_DoSpecialTiles, which reads it to let the
+                // player into an upside-down pipe (prg008.asm:4565-4574: rising, airborne, head tile solid).
+                runtimeState.setHitCeiling(true);
                 position.setDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
                 handleVerticalCollision(levelScenePlayer, tVert);
             }

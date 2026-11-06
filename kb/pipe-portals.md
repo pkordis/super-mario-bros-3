@@ -57,3 +57,34 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   cells. Portals are drawn only while the NPC layer is visible.
 - **Tab ↔ scene:** `LevelSceneEditorTabFactory.fromLevelSceneEditor` / `fromScene` copy the list both ways (a fresh
   list each time, so tab edits never leak into a loaded scene). `newScene` and `clearScene` empty it.
+
+## Runtime: entering a pipe (SMB3-32)
+
+- **No separate lookup:** the player reads `getLevelScene().getPipePortals()` directly. There is no per-level index
+  and nothing on `GameEngine`: portals live on the scene and don't change during a run, and a scene has a handful, so
+  a scan per tick costs nothing. Cells use the collision grid's coordinates (row 0 at the top).
+- **Rules** (`game.level.pipe.PipeEntryRules`):
+  - `isEnterable`: the type is `IN` or `IN_AND_OUT`.
+  - `isEntryCell`: every cell of a horizontal portal; only the anchor (lower cell) of a vertical one, because the ROM
+    checks `TILE1_PIPEH1_B`, the bottom half of a side lip, only.
+  - `entryDirection(tiles, portal, playerX)`, worked out at the check, never stored: empty when the portal is no
+    longer over `PIPE_TERMINATION_PART` (lip erased after placing). A horizontal portal gets `DOWN` when both cells
+    directly below are `PIPE_BODY_PART`, else `UP` when both cells directly above are, else empty. A vertical
+    portal gets `Pipe_PadDirForEnter`: `RIGHT` when `Player_X & 15 < 8`, else `LEFT`.
+- **Detection:** `LevelScenePlayerPipeEntryCapable.enterPipeIfPossible`, called from `LevelScenePlayer.updateFrame`
+  after collision, `refinePlayerState` and the tail block (the ROM's order: `Player_DetectSolids`,
+  `Player_TailAttack_HitBlocks`, `Player_DoSpecialTiles`, prg008.asm:933-935). An entry ends the tick.
+  - Grounded: the side pipe check first (the in-front probe at `Y+$1B`, the ROM's `Level_Tile_InFL`), then the
+    upright pipe check (the left foot `X+4, Y+$20`, `Level_Tile_GndL`).
+  - Airborne: only after `PlayerRuntimeState.hitCeiling` (dasm `Player_HitCeiling`, set by the collision grid's
+    moving-up branch and cleared at the start of every pass), not ducking, through the head probe.
+  - Directions are read with `isActive` (`Pad_Holding`), never `consumePress`.
+- **Alignment window** (`PipeEntryRules.isAligned`, `PRG008_BD1F`-`BD4B`): ported as 8-bit arithmetic. The ROM's
+  `Temp_Var2` is **16 for the left lip cell** and 0 for the right one, because it comes from
+  `TILE1_PIPETB2_R - tile` and the left tiles (`$AD`, `$AF`) give odd results. The window is then `Player_X` from
+  `16c + 3` to `16c + 12` for a pipe whose left cell is column `c`, for every suit, grounded or airborne.
+- **No slopes:** the ROM also uses the airborne offset on sloped levels (`Level_SlopeEn`); the port has none.
+- **State:** `PlayerRuntimeState.startEnteringPipe(portal, direction)` records the `PipePortal` entered and the
+  direction held; `isEnteringPipe()` tests the portal. The portal is what a future pipe link resolves the other end
+  from (by portal id), so neither end of a link has to reference the other. Until SMB3-33 adds the slide and the
+  reset, `updateFrame` just holds the player in place while the state is set (R resets it).
