@@ -191,13 +191,14 @@ public final class GameConstants {
     public static final float Z_OFFSET_CARRIED_BEHIND_PLAYER = 0.006f;
 
     /**
-     * The exception: while the camera-facing turn-around pose is running, the carried object is drawn
-     * <b>in front</b> of its holder.
+     * The exception: while the camera-facing turn-around pose is running, or while the player goes into a pipe,
+     * the carried object is drawn <b>in front</b> of its holder.
      *
      * <p>{@code ObjState_Held} forces {@code Object_SprRAM = $10} whenever {@code Player_PipeFace} is
-     * non-zero (dasm prg000 @ PRG000_CF1A), and {@code $10} is below the player's {@code $28} — so for
-     * those few ticks, and only those, the object wins. Which is what the pose is: the player turns to
-     * face the viewer and holds the thing out towards them.
+     * non-zero (dasm prg000 @ PRG000_CF1A), and on every pipe tick (prg000.asm:2997-3001), and {@code $10} is
+     * below the player's {@code $28} — so for those ticks, and only those, the object wins. The turn-around is the
+     * player facing the viewer and holding the thing out towards them; in a pipe the object sits right over the
+     * player, where drawing it behind would hide it completely.
      *
      * <p>Numerically equal to {@link #Z_OFFSET_CARRIED_BEHIND_PLAYER} and deliberately named apart from
      * it: they are opposite sides of one comparison and either could be retuned alone.

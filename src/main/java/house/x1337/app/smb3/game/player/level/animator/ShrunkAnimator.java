@@ -70,6 +70,10 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
         final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
+        if (renderPipePose(node, levelScenePlayer, orientation)) {
+            return;
+        }
+
         if (renderKickPose(node, levelScenePlayer, orientation)) {
             return;
         }

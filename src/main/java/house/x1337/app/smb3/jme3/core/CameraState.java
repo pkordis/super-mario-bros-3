@@ -124,6 +124,15 @@ public class CameraState extends BaseAppState {
     }
 
     /**
+     * Stops following the target and keeps the camera where the target is now, until the next
+     * {@link #setTarget(Spatial)}. Going into a pipe holds the camera this way for the whole entry,
+     * so a short walk into a side pipe does not scroll the screen.
+     */
+    public void hold() {
+        target.setValue(null);
+    }
+
+    /**
      * Constrains the camera so it can never scroll beyond the level
      * boundaries. The viewport edges are clamped to [0, levelWidth] on X
      * and [0, levelHeight] on Y, meaning the level's lower-left corner

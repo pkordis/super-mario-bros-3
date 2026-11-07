@@ -60,6 +60,16 @@ public interface CarriableLevelObject extends ActiveLevelObject {
         final double playerX,
         final double playerY
     ) {
+        final Offset anchorOffset = getCarryAnchorOffset();
+        final double anchorY = playerY
+            + (player.isSmall() ? CARRY_DROP_SMALL_PIXELS : CARRY_DROP_PIXELS)
+            + anchorOffset.y();
+
+        // In a pipe the held object sits over the player, chosen ahead of the facing and the turn-around entries
+        if (player.getRuntimeState().isEnteringPipe()) {
+            return new PixelPosition(playerX + anchorOffset.x(), anchorY);
+        }
+
         final int turnAroundTicks = player.getRuntimeState().getTurnAroundFaceCounter();
         final boolean turningAround = turnAroundTicks > 0;
         final int sideOffset = turningAround
@@ -68,10 +78,6 @@ public interface CarriableLevelObject extends ActiveLevelObject {
         final boolean onFacingSide = !turningAround || turnAroundTicks < CARRY_TUCK_SIDE_SWAP_TICKS;
         final boolean facingRight = player.getOrientation().getHorizontal() == RIGHT;
         final boolean toTheRight = facingRight == onFacingSide;
-        final Offset anchorOffset = getCarryAnchorOffset();
-        return new PixelPosition(
-            playerX + (toTheRight ? sideOffset : -sideOffset) + anchorOffset.x(),
-            playerY + (player.isSmall() ? CARRY_DROP_SMALL_PIXELS : CARRY_DROP_PIXELS) + anchorOffset.y()
-        );
+        return new PixelPosition(playerX + (toTheRight ? sideOffset : -sideOffset) + anchorOffset.x(), anchorY);
     }
 }

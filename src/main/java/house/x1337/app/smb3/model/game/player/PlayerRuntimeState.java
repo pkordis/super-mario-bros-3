@@ -10,6 +10,8 @@ import house.x1337.app.smb3.game.object.level.KillTallyAware;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import lombok.Data;
 
+import static house.x1337.app.smb3.enumeration.PipeEntryDirection.LEFT;
+import static house.x1337.app.smb3.enumeration.PipeEntryDirection.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.NONE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
@@ -24,6 +26,8 @@ public class PlayerRuntimeState implements KillTallyAware {
     public static final int HURT_INVINCIBILITY_TICKS = 113;
     public static final int KICK_POSE_TICKS = 13;
     public static final int NORMAL_TRANSITION_TICKS = 47;
+    public static final int PIPE_ENTRY_TICKS = 60;
+    public static final int PIPE_SIDE_MOVE_MIN_COUNTDOWN = 16;
     public static final int RACCOON_TRANSITION_TICKS = 23;
     public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
     public static final int TURN_AROUND_FACE_TICKS = 7;
@@ -52,6 +56,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private int kickCountdown;
     private int killTally;
     private int lowClearanceGrace;
+    private int pipeCountdown;
     private int playerFlyTime;
     private int playerTailAttackCountdown;
     private int playerWagCount;
@@ -92,21 +97,44 @@ public class PlayerRuntimeState implements KillTallyAware {
         }
     }
 
-    /**
-     * Starts the pipe-entering state (dasm {@code PipeEntryPrepare}, prg008.asm:6729), remembering the portal the
-     * player went into and the direction held to get in. The portal is what a pipe link resolves the other end from.
-     *
-     * @param portal    the portal over the pipe that was entered
-     * @param direction the direction resolved for that portal
-     */
-    public void startEnteringPipe(final PipePortal portal, final PipeEntryDirection direction) {
+    public void startEnteringPipe(
+        final PipePortal portal,
+        final PipeEntryDirection direction
+    ) {
         enteredPipePortal = portal;
         pipeEntryDirection = direction;
+        pipeCountdown = PIPE_ENTRY_TICKS;
     }
 
-    /** @return whether the player is going into a pipe (dasm {@code Level_PipeMove} nonzero) */
     public boolean isEnteringPipe() {
         return enteredPipePortal != null;
+    }
+
+    public void decrementPipeCountdown() {
+        if (pipeCountdown > 0) {
+            pipeCountdown--;
+        }
+    }
+
+    public boolean isEnteringSidePipe() {
+        return isEnteringPipe() && (pipeEntryDirection == LEFT || pipeEntryDirection == RIGHT);
+    }
+
+    public boolean isWalkingIntoSidePipe() {
+        return isEnteringSidePipe()
+            && pipeCountdown < PIPE_ENTRY_TICKS
+            && pipeCountdown >= PIPE_SIDE_MOVE_MIN_COUNTDOWN;
+    }
+
+    public boolean isHiddenInPipe() {
+        if (!isEnteringPipe() || pipeCountdown == PIPE_ENTRY_TICKS) {
+            return false;
+        }
+        return pipeCountdown == 0 || (isEnteringSidePipe() && pipeCountdown < PIPE_SIDE_MOVE_MIN_COUNTDOWN);
+    }
+
+    public int getPipeWalkBeat() {
+        return ((PIPE_ENTRY_TICKS - pipeCountdown) & 0x0C) >> 2;
     }
 
     public boolean isCarrying() {
@@ -115,6 +143,10 @@ public class PlayerRuntimeState implements KillTallyAware {
 
     public boolean isTurningAroundWhileCarrying() {
         return turnAroundFaceCounter > 0;
+    }
+
+    public boolean isCarriedObjectInFront() {
+        return isTurningAroundWhileCarrying() || isEnteringPipe();
     }
 
     /**
@@ -184,7 +216,7 @@ public class PlayerRuntimeState implements KillTallyAware {
      * @return {@code true} to draw the player, {@code false} to skip it this tick
      */
     public boolean isSpriteDrawnThisTick() {
-        if (isDyingByFallingOff()) {
+        if (isDyingByFallingOff() || isHiddenInPipe()) {
             return false;
         }
         return !isHurtInvincible() || (hurtInvincibilityCounter & INVINCIBILITY_BLANK_PHASE_MASK) == 0;

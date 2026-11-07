@@ -34,6 +34,7 @@ public interface LevelScenePlayerRenderer
         PlayerIdentityAware,
         PlayerModeAware,
         Player {
+    float PIPE_STEP_UP_PIXELS = 2f;
 
     /**
      * Returns the box height in game-units (tile-fractions) for the current
@@ -46,14 +47,13 @@ public interface LevelScenePlayerRenderer
         return (float) (compact ? TILE_SPRITE_SIZE : TILE_SPRITE_SIZE * 2) / TILE_SPRITE_SIZE;
     }
 
-    default Node createNode() {
+    default void createNode() {
         // Assign the node field BEFORE building geometry. rebuildGeometry()
         // drives the active animator, which reads getNode() (the field) rather
         // than any passed-in reference — building before the assignment would
         // hand the animator a null node.
         setNode(new Node("PlayerNode"));
         rebuildGeometry(getNode());
-        return getNode();
     }
 
     /**
@@ -162,9 +162,13 @@ public interface LevelScenePlayerRenderer
         getNode()
             .setLocalTranslation(
                 (float) tileUnitBasedPosition.getX(),
-                (float) tileUnitBasedPosition.getY() - 2,
+                (float) tileUnitBasedPosition.getY() - 2 + pipeStepUp(),
                 getVisibility().getPlayerZ()
             );
+    }
+
+    default float pipeStepUp() {
+        return getRuntimeState().isWalkingIntoSidePipe() ? PIPE_STEP_UP_PIXELS / TILE_SPRITE_SIZE : 0f;
     }
 
     Node getNode();
