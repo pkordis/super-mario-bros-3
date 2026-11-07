@@ -53,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class ForemostSpriteOverlay {
     @Getter
     private Node node;
-    private ViewPort viewPort;
     private RenderManager builtWith;
 
     /**
@@ -65,6 +64,17 @@ public final class ForemostSpriteOverlay {
     public void attach(final GameEngine gameEngine, final Spatial spatial) {
         buildViewFor(gameEngine);
         node.attachChild(spatial);
+        settle();
+    }
+
+    /**
+     * Builds the post view now rather than on the first sprite. jME renders post views in the order they were created,
+     * so the engine calls this before creating the fade overlay's view, which has to be drawn over these sprites.
+     *
+     * @param gameEngine the starting engine
+     */
+    public void prepare(final GameEngine gameEngine) {
+        buildViewFor(gameEngine);
         settle();
     }
 
@@ -81,9 +91,11 @@ public final class ForemostSpriteOverlay {
         }
         // Anything still attached belongs to the previous engine's scene graph and dies with it.
         node = new Node("ForemostSpriteOverlay");
-        viewPort = renderManager.createPostView("ForemostSpriteOverlay", gameEngine.getCamera());
+
+        final ViewPort viewPort = renderManager.createPostView("ForemostSpriteOverlay", gameEngine.getCamera());
         viewPort.setClearFlags(false, false, false);
         viewPort.attachScene(node);
+
         builtWith = renderManager;
         log.info("Foremost sprite overlay initialised as a post view over the game scene");
     }
