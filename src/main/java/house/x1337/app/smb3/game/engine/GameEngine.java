@@ -9,6 +9,8 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.GameContext;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
+import house.x1337.app.smb3.game.engine.fade.FadeOverlayState;
+import house.x1337.app.smb3.game.engine.fade.FadingEngine;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
@@ -50,6 +52,7 @@ import static lombok.AccessLevel.PRIVATE;
 @RequiredArgsConstructor
 public final class GameEngine extends GameEngineCapabilities {
     private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
+    private final FadingEngine fadingEngine = getBean(FadingEngine.class);
 
     private final CameraState cameraState;
     private final PlayerData playerData;
@@ -74,15 +77,17 @@ public final class GameEngine extends GameEngineCapabilities {
     private double simulationAccumulator = 0.0;
 
     /**
-     * @return whether any player is currently halting gameplay (dasm
-     *         {@code Player_HaltGame}, prg008 PRG008_A1B4). While halted the
-     *         countdown timer and the whole active-object pipeline are frozen,
-     *         and non-halting players freeze themselves in {@code updateFrame};
-     *         only the halting player's own transition (e.g. the grow flicker)
-     *         advances. Mirrors the ROM, where ~150 object/camera/timer sites
-     *         early-out on {@code Player_HaltGame}.
+     * @return whether gameplay is halted: by a player (dasm {@code Player_HaltGame}, prg008 PRG008_A1B4), or by a
+     *         blocking screen fade, during which the ROM's {@code Palette_FadeIn} / {@code Palette_FadeOut} loops
+     *         (prg026) leave nothing else running. While halted the countdown timer and the whole active-object
+     *         pipeline are frozen, and non-halting players freeze themselves in {@code updateFrame}; only the
+     *         halting player's own transition (e.g. the grow flicker) advances. Mirrors the ROM, where ~150
+     *         object/camera/timer sites early-out on {@code Player_HaltGame}.
      */
     public boolean isGameplayHalted() {
+        if (fadingEngine.isHaltingGameplay()) {
+            return true;
+        }
         for (final Player player : allPlayers) {
             if (player.isHaltingGameplay()) {
                 return true;
@@ -145,6 +150,10 @@ public final class GameEngine extends GameEngineCapabilities {
         getBean(DeathMusicStandIn.class).subscribe();
         getBean(PlayerDeathSequence.class).subscribe();
 
+        // The fading engine is a singleton too, so a fade left running (or the screen held black) by a previous engine
+        // must not carry into this one.
+        fadingEngine.reset();
+
         // Make the Z_DEPTH_* ladder decide what covers what, instead of jME's camera-distance sort -
         // which, for a 2D scene, is really a distance-from-screen-centre sort and reorders two sprites
         // of the same object as it moves. Both buckets, because the foreground layers are moved between
@@ -160,6 +169,13 @@ public final class GameEngine extends GameEngineCapabilities {
         // this sequence from scratch (dasm: a player death drops back to the map and re-enters the
         // level fresh — here the engine stays up and the level is rebuilt in place).
         buildLevel();
+
+        // Post views render in the order they are created, and three are stacked over the finished frame: the
+        // foremost sprites, then the fade (which must darken them too), then frame capture (which must record the
+        // fade). The foremost overlay is built here, at once; the two app states build theirs when they initialise,
+        // in the order they are attached.
+        getBean(ForemostSpriteOverlay.class).prepare(this);
+        stateManager.attach(getBean(FadeOverlayState.class, fadingEngine));
 
         // Frame-capture state — toggled by pressing 9.
         // Uses a post viewport so the readback fires after all main viewports
@@ -259,6 +275,9 @@ public final class GameEngine extends GameEngineCapabilities {
         // are no-ops and it snapshots nothing, so the same path serves both.
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
+            // First, and outside the halt branch below: a blocking fade halts gameplay, so a fade ticked from
+            // anything the halt skips would never finish.
+            fadingEngine.tick();
             allPlayers.forEach(Player::updateFrame);
 
             if (gameContext == LEVEL_SCENE) {
