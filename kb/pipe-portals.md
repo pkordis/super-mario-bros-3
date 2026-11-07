@@ -45,7 +45,8 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 - The ROM has no pairs: every pipe of an area leads to that area's alternate layout, at the junction start of the
   screen it was entered on (dasm prg026.asm `LevelJct_General`, `Level_JctXLHStart` / `Level_JctYLHStart`). Links are
   this port's own, one to one, stored on both ends.
-- `game.level.pipe.PipePortalLinkRules`:
+- `game.level.pipe.PipePortalLinkRulesAware` (default methods; `PipePortalConverter`, and so `PipePortalService`,
+  extends it):
   - `isLinkable` allows every pair with a way in and a way out: all but `IN`/`IN` and `OUT`/`OUT`.
   - `destinationOf(entered, linked)` is the partner only when it is exitable and points back, so entering the
     `IN_AND_OUT` end of an `IN`/`IN_AND_OUT` pair leads nowhere.
@@ -80,6 +81,30 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   cells. Portals are drawn only while the NPC layer is visible.
 - **Tab ↔ scene:** `LevelSceneEditorTabFactory.fromLevelSceneEditor` / `fromScene` copy the list both ways (a fresh
   list each time, so tab edits never leak into a loaded scene). `newScene` and `clearScene` empty it.
+- **Type label:** each portal's `PipePortalType.shortLabel` (`IN`, `OUT`, `I/O`) is centred inside its border; the
+  palette shows none, because the type is only chosen after placing.
+
+## Editor: Pipe Portal Linkage (SMB3-38)
+
+- **Level Objects → Pipe Portal Linkage...** (`PipePortalLinkageMenuItem`, last entry) opens
+  `ui.editor.level.virtualobject.linkage.PipePortalLinkageWindow`. The window only renders
+  `PipePortalLinkageModel`, which holds all the behaviour and is tested without Swing.
+- **Two reads per open or refresh:** `reload()` calls `PipePortalService.findAll()` and
+  `LevelSceneService.findTitlesById()` once each; partitioning, sorting, filtering and pair dedupe run in memory, so
+  hundreds of portals are no concern. Only **saved** portals exist there: a scene must be saved before its new
+  portals can be linked.
+- **Lists:** one per type of free portals (by scene title, column, row), plus the linked pairs, each pair once with
+  its way in first (`IN`, then `IN_AND_OUT`, then `OUT`; equal types by id). A portal whose partner is gone, or does
+  not point back, is a pair with a missing exit, so it can still be unlinked. The filter matches a scene title or a
+  description, ignoring case, across all four lists.
+- **Slots:** a double-click puts `IN` in Entrance and `OUT` in Exit; `IN_AND_OUT` takes Entrance, then Exit, then
+  replaces Exit. A portal already in a slot is ignored. A reload empties a slot whose portal is gone or was linked
+  meanwhile. **Link** is enabled when both slots hold a pair `isLinkable` allows.
+- **Open tabs follow:** after a link or unlink, every open editor tab's copy of the affected portals takes the stored
+  `linksToId` (`LevelSceneEditorTabSystem.getEditorTabs()`, which walks the tab components, so imported and unsaved
+  tabs are covered too). Saving would be safe anyway, because `replaceAll` keeps the stored links.
+- **Refusals:** an `IllegalStateException` from the service (e.g. a portal linked meanwhile) is shown as a warning and
+  the window re-reads everything.
 
 ## Runtime: entering a pipe (SMB3-32)
 

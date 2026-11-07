@@ -8,6 +8,8 @@ import house.x1337.app.smb3.util.factory.LevelSceneEditorTabFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.awt.Component;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Singleton
@@ -18,6 +20,16 @@ public class LevelSceneEditorTabSystem extends BaseLevelSceneTabSystem {
     public LevelSceneEditorTab getActiveTab() {
         final Component selected = getSelectedComponent();
         return (selected instanceof LevelSceneEditorTab panel) ? panel : null;
+    }
+
+    public List<LevelSceneEditorTab> getEditorTabs() {
+        final List<LevelSceneEditorTab> tabs = new ArrayList<>();
+        for (int index = 0; index < getTabCount(); index++) {
+            if (getComponentAt(index) instanceof final LevelSceneEditorTab tab) {
+                tabs.add(tab);
+            }
+        }
+        return tabs;
     }
 
     public void addTab(final LevelSceneEditorTab tab) {
