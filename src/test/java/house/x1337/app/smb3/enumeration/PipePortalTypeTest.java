@@ -35,4 +35,13 @@ class PipePortalTypeTest {
         assertThat(OUT.getLabel()).isEqualTo("Out");
         assertThat(IN_AND_OUT.getLabel()).isEqualTo("In and Out");
     }
+
+    @Test
+    @DisplayName("Every pipe portal type has a short label for the editor grid")
+    void everyTypeHasAShortLabel() {
+        // Execute & Verify
+        assertThat(IN.getShortLabel()).isEqualTo("IN");
+        assertThat(OUT.getShortLabel()).isEqualTo("OUT");
+        assertThat(IN_AND_OUT.getShortLabel()).isEqualTo("I/O");
+    }
 }

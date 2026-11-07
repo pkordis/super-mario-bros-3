@@ -12,8 +12,12 @@ import javax.swing.JPanel;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -23,6 +27,7 @@ import java.util.Map;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static java.awt.Color.BLACK;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
@@ -31,7 +36,9 @@ import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 @Setter
 @Prototype
 @RequiredArgsConstructor
-public class LevelSceneEditorGrid extends JPanel {
+public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFontCapabilities {
+    static final Font PIPE_PORTAL_LABEL_FONT = new Font(Font.MONOSPACED, Font.BOLD, 16);
+
     private final Map<Integer, BufferedImage> tileImageCache = new HashMap<>();
     private final LevelSceneEditorTab tab;
 
@@ -162,18 +169,42 @@ public class LevelSceneEditorGrid extends JPanel {
             return;
         }
         graphics.setStroke(new BasicStroke(4f));
+        graphics.setFont(PIPE_PORTAL_LABEL_FONT);
         for (final PipePortal portal : tab.getPipePortals()) {
             if (portal.getVirtualObjectType() == null) {
                 continue;
             }
-            graphics.setColor(portal.getVirtualObjectType().getColour());
+            final Color colour = portal.getVirtualObjectType().getColour();
+            graphics.setColor(colour);
             graphics.drawRect(
                 portal.getColumn() * TILE_SIZE + 2,
                 portal.getTopRow() * TILE_SIZE + 2,
                 portal.getColumns() * TILE_SIZE - 4,
                 portal.getRows() * TILE_SIZE - 4
             );
+            if (portal.getType() != null) {
+                drawPipePortalLabel(graphics, portal, colour);
+            }
         }
+    }
+
+    private void drawPipePortalLabel(
+        final Graphics2D graphics,
+        final PipePortal portal,
+        final Color colour
+    ) {
+        final String text = portal.getType().getShortLabel();
+        final Rectangle area = new Rectangle(
+            portal.getColumn() * TILE_SIZE,
+            portal.getTopRow() * TILE_SIZE,
+            portal.getColumns() * TILE_SIZE,
+            portal.getRows() * TILE_SIZE
+        );
+        final Point baseline = centredBaseline(graphics.getFontMetrics(), text, area);
+        graphics.setColor(BLACK);
+        graphics.drawString(text, baseline.x + 1, baseline.y + 1);
+        graphics.setColor(colour);
+        graphics.drawString(text, baseline.x, baseline.y);
     }
 
     private boolean isNpcLayerVisible() {

@@ -7,11 +7,12 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum PipePortalType implements EnumValuesMatcher<PipePortalType> {
-    IN("In"),
-    OUT("Out"),
-    IN_AND_OUT("In and Out");
+    IN("In", "IN"),
+    OUT("Out", "OUT"),
+    IN_AND_OUT("In and Out", "I/O");
 
     private final String label;
+    private final String shortLabel;
 
     public boolean isEnterable() {
         return isAnyOf(IN, IN_AND_OUT);
