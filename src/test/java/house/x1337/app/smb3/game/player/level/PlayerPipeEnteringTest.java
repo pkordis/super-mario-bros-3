@@ -13,6 +13,7 @@ import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEvent;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
+import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
@@ -52,8 +53,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * The pipe-entering state (dasm {@code Level_PipeEnter}, prg029.asm:1323-1434, driven by {@code Event_Countdown}):
- * gameplay halts, the player slides into the pipe for 60 ticks behind the pipe tiles with the camera held, then the
- * level resets as R resets it.
+ * gameplay halts, the player slides into the pipe for 60 ticks behind the pipe tiles with the camera held, then asks
+ * for the trip to the linked pipe.
  */
 class PlayerPipeEnteringTest {
     private static final double TOLERANCE = 1e-9;
@@ -261,8 +262,8 @@ class PlayerPipeEnteringTest {
     }
 
     @Test
-    @DisplayName("Exactly one reset request is published, on the tick the countdown reaches 0")
-    void oneResetWhenTheCountdownRunsOut() {
+    @DisplayName("Exactly one transit request is published, on the tick the countdown reaches 0, and no reset request")
+    void oneTransitRequestWhenTheCountdownRunsOut() {
         // Prepare
         final LevelScenePlayer player = player(NORMAL);
         when(player.getInputHandler().getId()).thenReturn("player-one");
@@ -276,11 +277,17 @@ class PlayerPipeEnteringTest {
         player.updateFrame();
         assertThat(published)
             .as("Tick 60")
-            .containsExactly(LevelSceneResetRequested.builder().inputHandlerId("player-one").build());
+            .containsExactly(
+                PipePortalTransitRequested.builder()
+                    .pipePortalId(HORIZONTAL_PORTAL.getId())
+                    .inputHandlerId("player-one")
+                    .build()
+            );
         for (int tick = 0; tick < 30; tick++) {
             player.updateFrame();
         }
-        assertThat(published).as("Still one while the engine rebuilds the level").hasSize(1);
+        assertThat(published).as("Still one while the trip runs").hasSize(1);
+        assertThat(published).noneMatch(LevelSceneResetRequested.class::isInstance);
         assertThat(player.isHaltingGameplay()).as("Still halting until then").isTrue();
     }
 

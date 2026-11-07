@@ -109,10 +109,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private boolean deathEventPublished;
 
     /**
-     * The state behind {@link LevelScenePlayerPipeUsingCapabilities#isPipeResetPublished()}: guards the one-shot reset
-     * request when the pipe countdown runs out, as {@link #deathEventPublished} guards the death's.
+     * The state behind {@link LevelScenePlayerPipeUsingCapabilities#isPipeTransitPublished()}: guards the one-shot
+     * transit request when the pipe countdown runs out, as {@link #deathEventPublished} guards the death's.
      */
-    private boolean pipeResetPublished;
+    private boolean pipeTransitPublished;
 
     public LevelScenePlayer(
         final GameEngine gameEngine,

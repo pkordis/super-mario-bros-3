@@ -22,7 +22,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
 import static house.x1337.app.smb3.enumeration.TileType.ENEMY_PART;
@@ -39,6 +42,7 @@ public class TileService implements TilesProvider {
     private final Map<Integer, Tile> tileCache = new HashMap<>();
     private final Map<Integer, Tile> virtualTileCache = new HashMap<>();
     private final Map<String, Tile> tilesBySha256 = new HashMap<>();
+    private final Set<Integer> unresolvableTileIds = ConcurrentHashMap.newKeySet();
     private final TileRepository tileRepository;
 
     private int nextTileId = TILE_ID_POOL_START;
@@ -165,14 +169,23 @@ public class TileService implements TilesProvider {
     }
 
     public Optional<Tile> findById(final int id) {
-        if (!tileCache.containsKey(id)) {
-            final TileRecord tileRecord = tileRepository.findById(id).orElse(null);
-            if (tileRecord == null || tileRecord.getType() == null || tileRecord.getType().getCategory() == VIRTUAL) {
-                return Optional.empty();
-            }
-            tileCache.put(id, tileRecord.toTile());
+        final Tile cached = tileCache.get(id);
+        if (cached != null) {
+            return Optional.of(cached);
         }
-        return Optional.ofNullable(tileCache.get(id));
+        // Every empty cell is NULL_TILE, which has no record, and virtual tiles and unclassified ids never resolve
+        // either. Remembering those spares a database round trip per cell when a scene is loaded.
+        if (id == NULL_TILE.getId() || virtualTileCache.containsKey(id) || unresolvableTileIds.contains(id)) {
+            return Optional.empty();
+        }
+        final TileRecord tileRecord = tileRepository.findById(id).orElse(null);
+        if (tileRecord == null || tileRecord.getType() == null || tileRecord.getType().getCategory() == VIRTUAL) {
+            unresolvableTileIds.add(id);
+            return Optional.empty();
+        }
+        final Tile tile = tileRecord.toTile();
+        tileCache.put(id, tile);
+        return Optional.of(tile);
     }
 
     public List<Tile> getClassifiedTiles() {

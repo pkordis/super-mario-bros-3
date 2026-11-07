@@ -117,6 +117,21 @@ public final class PlayerInputHandler
     }
 
     /**
+     * Takes over what {@code previous} knew about the pad, for a player respawned in its place (a restart or a pipe
+     * trip into another scene). jME reports keys only as press and release edges, so a fresh handler would not know
+     * about a key that is already down, and the player would ignore it until it is pressed again. The ROM reads the
+     * pad on every frame whatever the game is doing, so a held key stays held and a press already acted on stays used.
+     *
+     * @param previous the handler of the player being replaced
+     */
+    public void carryOverFrom(final PlayerInputHandler previous) {
+        activeKeys.clear();
+        activeKeys.addAll(previous.activeKeys);
+        handledKeys.clear();
+        handledKeys.addAll(previous.handledKeys);
+    }
+
+    /**
      * Returns {@code true} if the key identified by {@code key} is currently held down.
      *
      * @param key one of the {@code HANDLER_*} constants

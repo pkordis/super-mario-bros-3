@@ -151,4 +151,54 @@ class LevelSceneVerticalScrollTest {
         assertThat(scroll.update(9f, true)).isCloseTo(centre, within(TOLERANCE));
         assertThat(scroll.update(2f, false)).isCloseTo(centre, within(TOLERANCE));
     }
+
+    @Test
+    @DisplayName("Snapping puts the camera straight at the wanted centre, with nothing to ease in from")
+    void snapToSetsAllThreeValues() {
+        // Prepare
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
+
+        // Execute - the player's top 2.5 above the centre, inside the band
+        final float cameraY = scroll.snapTo(10f, 12.5f);
+
+        // Verify
+        assertThat(cameraY).isCloseTo(10f, within(TOLERANCE));
+        assertThat(scroll.getCameraY()).isCloseTo(10f, within(TOLERANCE));
+        assertThat(scroll.getPreviousCameraY()).isCloseTo(10f, within(TOLERANCE));
+        assertThat(scroll.getInterpolatedCameraY()).isCloseTo(10f, within(TOLERANCE));
+        assertThat(scroll.interpolate(0.5)).as("No easing between ticks").isCloseTo(10f, within(TOLERANCE));
+        assertThat(scroll.update(12.5f, false))
+            .as("Above the bottom, the scroll is free and the player in the band holds it")
+            .isCloseTo(10f, within(TOLERANCE));
+    }
+
+    @Test
+    @DisplayName("Snapping keeps the camera inside the level at both ends")
+    void snapToClampsToTheLevel() {
+        // Prepare
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
+
+        // Execute & Verify
+        assertThat(scroll.snapTo(19f, 21.5f)).as("Top").isCloseTo(ROWS - HALF_VIEW, within(TOLERANCE));
+        assertThat(scroll.snapTo(2f, 4.5f)).as("Bottom").isCloseTo(BOTTOM, within(TOLERANCE));
+        assertThat(scroll.update(4.5f, false)).as("Locked at the bottom again").isCloseTo(BOTTOM, within(TOLERANCE));
+    }
+
+    @Test
+    @DisplayName("Snapping moves the centre just enough to keep the player inside the band, so the next tick holds")
+    void snapToKeepsThePlayerInTheBand() {
+        // Prepare
+        final LevelSceneVerticalScroll low = scrollForRows(ROWS);
+        final LevelSceneVerticalScroll high = scrollForRows(ROWS);
+
+        // Execute - a player level with the wanted centre, and one 5 above it
+        final float belowBand = low.snapTo(10f, 10f);
+        final float aboveBand = high.snapTo(10f, 15f);
+
+        // Verify
+        assertThat(belowBand).as("Player 1.6 above the centre").isCloseTo(8.4f, within(TOLERANCE));
+        assertThat(low.update(10f, false)).isCloseTo(8.4f, within(TOLERANCE));
+        assertThat(aboveBand).as("Player 3.6 above the centre").isCloseTo(11.4f, within(TOLERANCE));
+        assertThat(high.update(15f, false)).isCloseTo(11.4f, within(TOLERANCE));
+    }
 }
