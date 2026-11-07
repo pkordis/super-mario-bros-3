@@ -72,6 +72,24 @@ class ForemostSpriteOverlayTest {
     }
 
     @Test
+    @DisplayName("Preparing builds the post view at once, render-ready, and the first sprite reuses it")
+    void preparingBuildsTheViewUpFront() {
+        // Execute
+        overlay.prepare(gameEngine);
+
+        // Verify
+        verify(renderManager).createPostView("ForemostSpriteOverlay", camera);
+        assertRenderReady(overlay.getNode());
+
+        // Execute
+        overlay.attach(gameEngine, sprite());
+
+        // Verify
+        verify(renderManager, times(1)).createPostView("ForemostSpriteOverlay", camera);
+        assertRenderReady(overlay.getNode());
+    }
+
+    @Test
     @DisplayName("Attaching leaves the scene render-ready, whenever in the frame it happens")
     void attachingLeavesTheSceneRenderReady() {
         // Prepare - a sprite is spawned during collision resolution, which may be after the last pump; jME
