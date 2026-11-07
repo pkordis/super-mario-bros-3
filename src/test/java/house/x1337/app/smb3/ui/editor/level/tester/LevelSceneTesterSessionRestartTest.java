@@ -269,10 +269,10 @@ class LevelSceneTesterSessionRestartTest {
     /** A session without its Swing build-out; only the engine takes part in a restart. */
     private LevelSceneTesterSession session() {
         return new LevelSceneTesterSession(
-            mock(LevelSceneEditorTabSystem.class),
+            gameEngine,
             mock(DebuggerPanel.class),
-            mock(MiddlePane.class),
-            gameEngine
+            mock(LevelSceneEditorTabSystem.class),
+            mock(MiddlePane.class)
         );
     }
 
