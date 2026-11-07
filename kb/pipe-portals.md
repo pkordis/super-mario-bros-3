@@ -111,7 +111,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 - **No separate lookup:** the player reads `getLevelScene().getPipePortals()` directly. There is no per-level index
   and nothing on `GameEngine`: portals live on the scene and don't change during a run, and a scene has a handful, so
   a scan per tick costs nothing. Cells use the collision grid's coordinates (row 0 at the top).
-- **Rules** (`game.level.pipe.PipeEntryRules`):
+- **Rules** (`game.level.pipe.PipeEntryRulesAware`, default methods the player inherits):
   - `isEnterable`: the type is `IN` or `IN_AND_OUT`.
   - `isEntryCell`: every cell of a horizontal portal; only the anchor (lower cell) of a vertical one, because the ROM
     checks `TILE1_PIPEH1_B`, the bottom half of a side lip, only.
@@ -119,7 +119,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
     longer over `PIPE_TERMINATION_PART` (lip erased after placing). A horizontal portal gets `DOWN` when both cells
     directly below are `PIPE_BODY_PART`, else `UP` when both cells directly above are, else empty. A vertical
     portal gets `Pipe_PadDirForEnter`: `RIGHT` when `Player_X & 15 < 8`, else `LEFT`.
-- **Detection:** `LevelScenePlayerPipeEntryCapable.enterPipeIfPossible`, called from `LevelScenePlayer.updateFrame`
+- **Detection:** `LevelScenePlayerPipeUsingCapabilities.enterPipeIfPossible`, called from `LevelScenePlayer.updateFrame`
   after collision, `refinePlayerState` and the tail block (the ROM's order: `Player_DetectSolids`,
   `Player_TailAttack_HitBlocks`, `Player_DoSpecialTiles`, prg008.asm:933-935). An entry ends the tick.
   - Grounded: the side pipe check first (the in-front probe at `Y+$1B`, the ROM's `Level_Tile_InFL`), then the
@@ -127,7 +127,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   - Airborne: only after `PlayerRuntimeState.hitCeiling` (dasm `Player_HitCeiling`, set by the collision grid's
     moving-up branch and cleared at the start of every pass), not ducking, through the head probe.
   - Directions are read with `isActive` (`Pad_Holding`), never `consumePress`.
-- **Alignment window** (`PipeEntryRules.isAligned`, `PRG008_BD1F`-`BD4B`): ported as 8-bit arithmetic. The ROM's
+- **Alignment window** (`PipeEntryRulesAware.isAligned`, `PRG008_BD1F`-`BD4B`): ported as 8-bit arithmetic. The ROM's
   `Temp_Var2` is **16 for the left lip cell** and 0 for the right one, because it comes from
   `TILE1_PIPETB2_R - tile` and the left tiles (`$AD`, `$AF`) give odd results. The window is then `Player_X` from
   `16c + 3` to `16c + 12` for a pipe whose left cell is column `c`, for every suit, grounded or airborne.
@@ -163,3 +163,33 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   (prg000.asm:2804, 2997-3001). The Y drop is unchanged. The carry can't be released in the pipe, because the
   object's state routine is halted along with the rest of gameplay.
 - **Out of scope:** exits, transit pipes and junctions, Kuribo's shoe, sound (`SND_PLAYERPIPE`).
+
+## Runtime: coming out of a pipe (SMB3-40)
+
+- **Entry point:** `beginPipeExit(portal)`. SMB3-41 calls it after a pipe trip; nothing else does.
+- **Where the code lives:** every pipe behaviour of the player (detection, `beginPipeEntry` / `tickPipeEntering`,
+  `beginPipeExit` / `tickPipeExiting`, their helpers and constants) is in `LevelScenePlayerPipeUsingCapabilities`,
+  which `LevelScenePlayerCapabilities` extends. `LevelScenePlayer` only routes `updateFrame` to the two ticks and
+  holds the `pipeResetPublished` flag behind `isPipeResetPublished` / `setPipeResetPublished`.
+- **Direction** (`PipeEntryRulesAware.exitDirection(tiles, portal)`), from the tiles like the entry's: away from
+  the body, out through the lip. Horizontal portal: `UP` with body below (upright pipe), else `DOWN` with body
+  above. Vertical portal: `LEFT` with body in the column to the right, else `RIGHT` with it to the left. Empty
+  when the lip is gone, and then the player is simply stood on top of the portal.
+- **Timing** (`Event_Countdown_Init`, prg008.asm:735, loaded by `PRG008_A38E`): `PIPE_EXIT_TICKS_UP = $3F`,
+  `_DOWN = $07`, `_SIDE = $20`. The `Pipe_Move_*` handlers (prg029.asm:1626-1740) **move first, then test** the
+  countdown, and `PRG008_A1DE` decrements it after; so the player moves on every value from the start down to 0:
+  up 64 × 0.5 px = 32 px, down 8 × 3.5 px = 28 px (`YVel = $30` then `PipeMove_UpDown`'s 8), sides 33 × 0.5 px =
+  16.5 px. That is the opposite order to the entry, which decrements first.
+- **Positions** are defined by where the exit ends (the position is the top of a 32 px box, so feet = Y + 32 for every
+  size): up ends with the feet on the lip's top edge, centred on the lip (`(X & $F0) | 8`), and starts 32 px lower;
+  down starts with the feet on the lip's bottom edge, centred; sides keep the feet on the mouth's bottom edge and start
+  at the mouth tile's left edge, not centred (`X & $F0`).
+- **End:** up and sides end in `Player_StopMovement` (standing, no velocity); down ends in the air with the duck
+  cleared, `DX = 0` and `DY = $38 / 16 = 3.5`, falling out under normal physics.
+- **During:** the state owns `updateFrame` (no input, physics, collision, scroll or pit check), halts gameplay, makes
+  the player unhurtable and ignores rewards, like the entry. The player is behind the foreground layers so the pipe
+  covers it; side exits use the walk frame (beat from the ticks since the start) and the 2 px step-up draw. The camera
+  follows the player again (`setTarget(node)`), since the entry held it.
+- **Shared "in a pipe" checks** now use `PlayerRuntimeState.isInPipe()` (entering or exiting): the halt, the hurt and
+  reward guards, `enterPipeIfPossible`, the carried object's anchor and draw order, and the animators' pipe pose.
+  `startExitingPipe` drops any entering state, so one player can go in and come out within one scene.

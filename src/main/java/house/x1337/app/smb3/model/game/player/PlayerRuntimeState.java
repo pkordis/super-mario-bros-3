@@ -27,25 +27,25 @@ public class PlayerRuntimeState implements KillTallyAware {
     public static final int KICK_POSE_TICKS = 13;
     public static final int NORMAL_TRANSITION_TICKS = 47;
     public static final int PIPE_ENTRY_TICKS = 60;
+    public static final int PIPE_EXIT_TICKS_DOWN = 7;
+    public static final int PIPE_EXIT_TICKS_SIDE = 32;
+    public static final int PIPE_EXIT_TICKS_UP = 63;
     public static final int PIPE_SIDE_MOVE_MIN_COUNTDOWN = 16;
     public static final int RACCOON_TRANSITION_TICKS = 23;
     public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
     public static final int TURN_AROUND_FACE_TICKS = 7;
 
     private static final int INVINCIBILITY_BLANK_PHASE_MASK = 2;
-    private PlayerMovement movement = STILL;
 
     private CarriableLevelObject carriedObject;
-    private PlayerDeathKind deathKind = NONE;
-    private PipePortal enteredPipePortal;
     private PipeEntryDirection pipeEntryDirection;
+    private PipeEntryDirection pipeExitDirection;
+    private PipePortal enteredPipePortal;
+    private PipePortal exitingPipePortal;
+    private PlayerDeathKind deathKind = NONE;
     private PlayerMode queuedMode;
+    private PlayerMovement movement = STILL;
     private boolean ducking;
-
-    /**
-     * Set when the head struck a ceiling on this tick's collision pass (dasm {@code Player_HitCeiling}). Cleared at
-     * the start of every pass (prg008.asm:4386) and set when the player rises into a solid tile (prg008.asm:4574).
-     */
     private boolean hitCeiling;
     private boolean running;
     private boolean wasCarrying;
@@ -120,6 +120,47 @@ public class PlayerRuntimeState implements KillTallyAware {
         return isEnteringPipe() && (pipeEntryDirection == LEFT || pipeEntryDirection == RIGHT);
     }
 
+    public void startExitingPipe(
+        final PipePortal portal,
+        final PipeEntryDirection direction
+    ) {
+        enteredPipePortal = null;
+        pipeEntryDirection = null;
+        exitingPipePortal = portal;
+        pipeExitDirection = direction;
+        pipeCountdown = exitTicks(direction);
+    }
+
+    public void stopExitingPipe() {
+        exitingPipePortal = null;
+        pipeExitDirection = null;
+        pipeCountdown = 0;
+    }
+
+    public boolean isExitingPipe() {
+        return exitingPipePortal != null;
+    }
+
+    public boolean isExitingSidePipe() {
+        return isExitingPipe() && (pipeExitDirection == LEFT || pipeExitDirection == RIGHT);
+    }
+
+    public boolean isInPipe() {
+        return isEnteringPipe() || isExitingPipe();
+    }
+
+    public boolean isWalkingThroughSidePipe() {
+        return isWalkingIntoSidePipe() || isExitingSidePipe();
+    }
+
+    private static int exitTicks(final PipeEntryDirection direction) {
+        return switch (direction) {
+            case UP -> PIPE_EXIT_TICKS_UP;
+            case DOWN -> PIPE_EXIT_TICKS_DOWN;
+            case LEFT, RIGHT -> PIPE_EXIT_TICKS_SIDE;
+        };
+    }
+
     public boolean isWalkingIntoSidePipe() {
         return isEnteringSidePipe()
             && pipeCountdown < PIPE_ENTRY_TICKS
@@ -134,7 +175,10 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     public int getPipeWalkBeat() {
-        return ((PIPE_ENTRY_TICKS - pipeCountdown) & 0x0C) >> 2;
+        final int ticksSinceStart = isExitingPipe()
+            ? PIPE_EXIT_TICKS_SIDE - pipeCountdown
+            : PIPE_ENTRY_TICKS - pipeCountdown;
+        return (ticksSinceStart & 0x0C) >> 2;
     }
 
     public boolean isCarrying() {
@@ -146,7 +190,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     public boolean isCarriedObjectInFront() {
-        return isTurningAroundWhileCarrying() || isEnteringPipe();
+        return isTurningAroundWhileCarrying() || isInPipe();
     }
 
     /**

@@ -66,7 +66,7 @@ public interface CarriableLevelObject extends ActiveLevelObject {
             + anchorOffset.y();
 
         // In a pipe the held object sits over the player, chosen ahead of the facing and the turn-around entries
-        if (player.getRuntimeState().isEnteringPipe()) {
+        if (player.getRuntimeState().isInPipe()) {
             return new PixelPosition(playerX + anchorOffset.x(), anchorY);
         }
 

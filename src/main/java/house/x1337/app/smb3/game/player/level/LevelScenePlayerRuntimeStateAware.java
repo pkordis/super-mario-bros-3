@@ -278,7 +278,7 @@ public interface LevelScenePlayerRuntimeStateAware
         return !runtimeState.isHurtInvincible()
             && !runtimeState.isTransitioning()
             && !runtimeState.isDying()
-            && !runtimeState.isEnteringPipe();
+            && !runtimeState.isInPipe();
     }
 
     /**
