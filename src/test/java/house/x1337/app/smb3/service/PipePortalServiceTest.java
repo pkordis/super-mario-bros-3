@@ -11,12 +11,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import java.util.List;
+import java.util.Set;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,6 +56,25 @@ class PipePortalServiceTest {
         assertThat(inserted.getValue())
             .extracting(PipePortalRecord::getLevelSceneId)
             .containsOnly(SCENE_ID);
+    }
+
+    @Test
+    @DisplayName("Replacing a scene's portals frees the partners of the stored ones that are gone, after inserting")
+    void replaceAllFreesThePartnersOfRemovedPortals() {
+        // Prepare
+        final PipePortal kept = portal(PIPE_PORTAL_HORIZONTAL, 4, 2);
+        final PipePortalRecord keptRecord = PipePortalRecord.builder().id(kept.getId()).levelSceneId(SCENE_ID).build();
+        final PipePortalRecord removed = PipePortalRecord.builder().id("removed").levelSceneId(SCENE_ID).build();
+        when(repository.findByLevelSceneId(SCENE_ID)).thenReturn(List.of(keptRecord, removed));
+
+        // Execute
+        service.replaceAll(SCENE_ID, List.of(kept));
+
+        // Verify
+        final InOrder order = inOrder(repository);
+        order.verify(repository).deleteByLevelSceneId(SCENE_ID);
+        order.verify(repository).insertAll(anyList());
+        order.verify(repository).clearLinksTo(Set.of("removed"));
     }
 
     @Test

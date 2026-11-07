@@ -8,7 +8,9 @@ import org.dizitart.no2.repository.ObjectRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.stream.StreamSupport.stream;
@@ -43,6 +45,23 @@ public class NitriteLevelSceneRepository implements LevelSceneRepository {
         final Cursor<LevelSceneRecord> cursor = levelSceneObjectRepository.find(
             orderBy("updatedAt", Descending).skip(offset).limit(pageSize));
         return stream(cursor.spliterator(), false).toList();
+    }
+
+    @Override
+    public Optional<LevelSceneRecord> findById(final String id) {
+        return Optional.ofNullable(levelSceneObjectRepository.getById(id));
+    }
+
+    /**
+     * Nitrite cannot project an object repository, so this reads every scene whole; fine for tens of scenes.
+     */
+    @Override
+    public Map<String, String> findTitlesById() {
+        final Map<String, String> titles = new HashMap<>();
+        for (final LevelSceneRecord record : levelSceneObjectRepository.find()) {
+            titles.put(record.getId(), record.getTitle());
+        }
+        return titles;
     }
 
     @Override

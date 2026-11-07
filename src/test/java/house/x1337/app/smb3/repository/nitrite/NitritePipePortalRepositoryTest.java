@@ -88,6 +88,97 @@ class NitritePipePortalRepositoryTest {
         assertThat(repository.findByLevelSceneId(SCENE_ID)).isEmpty();
     }
 
+    @Test
+    @DisplayName("A portal is found by its id with every field, and an unknown id finds nothing")
+    void findsAPortalById() {
+        // Prepare
+        final PipePortalRecord stored = record("portal-1", SCENE_ID, IN, PIPE_PORTAL_HORIZONTAL, 4, 2);
+        stored.setLinksToId("portal-9");
+        repository.insertAll(List.of(stored));
+
+        // Execute & Verify
+        assertThat(repository.findById("portal-1")).contains(stored);
+        assertThat(repository.findById("missing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Every stored portal is listed, whatever its scene")
+    void findsEveryPortal() {
+        // Prepare
+        final PipePortalRecord first = record("portal-1", SCENE_ID, IN, PIPE_PORTAL_HORIZONTAL, 4, 2);
+        final PipePortalRecord second = record("portal-2", OTHER_SCENE_ID, OUT, PIPE_PORTAL_VERTICAL, 9, 7);
+        repository.insertAll(List.of(first, second));
+
+        // Execute
+        final List<PipePortalRecord> found = repository.findAll();
+
+        // Verify
+        assertThat(found).containsExactlyInAnyOrder(first, second);
+    }
+
+    @Test
+    @DisplayName("A portal's link is set and cleared without touching its other fields")
+    void updatesTheLinkOfOnePortal() {
+        // Prepare
+        final PipePortalRecord stored = record("portal-1", SCENE_ID, IN, PIPE_PORTAL_HORIZONTAL, 4, 2);
+        final PipePortalRecord other = record("portal-2", OTHER_SCENE_ID, OUT, PIPE_PORTAL_VERTICAL, 9, 7);
+        repository.insertAll(List.of(stored, other));
+
+        // Execute
+        repository.updateLinksToId("portal-1", "portal-2");
+
+        // Verify
+        final PipePortalRecord linked = repository.findById("portal-1").orElseThrow();
+        assertThat(linked.getLinksToId()).isEqualTo("portal-2");
+        assertThat(linked.getLevelSceneId()).isEqualTo(SCENE_ID);
+        assertThat(linked.getType()).isEqualTo(IN);
+        assertThat(repository.findById("portal-2").orElseThrow().getLinksToId())
+            .as("The other portal is not changed")
+            .isNull();
+
+        // Execute
+        repository.updateLinksToId("portal-1", null);
+
+        // Verify
+        assertThat(repository.findById("portal-1").orElseThrow()).isEqualTo(stored);
+    }
+
+    @Test
+    @DisplayName("Clearing links to some portals frees only the portals that pointed at them")
+    void clearsOnlyTheMatchingLinks() {
+        // Prepare
+        final PipePortalRecord toGone = record("portal-1", SCENE_ID, IN, PIPE_PORTAL_HORIZONTAL, 4, 2);
+        toGone.setLinksToId("gone-1");
+        final PipePortalRecord toOtherGone = record("portal-2", OTHER_SCENE_ID, OUT, PIPE_PORTAL_VERTICAL, 9, 7);
+        toOtherGone.setLinksToId("gone-2");
+        final PipePortalRecord toKept = record("portal-3", OTHER_SCENE_ID, IN_AND_OUT, PIPE_PORTAL_VERTICAL, 1, 1);
+        toKept.setLinksToId("kept");
+        repository.insertAll(List.of(toGone, toOtherGone, toKept));
+
+        // Execute
+        repository.clearLinksTo(List.of("gone-1", "gone-2"));
+
+        // Verify
+        assertThat(repository.findById("portal-1").orElseThrow().getLinksToId()).isNull();
+        assertThat(repository.findById("portal-2").orElseThrow().getLinksToId()).isNull();
+        assertThat(repository.findById("portal-3").orElseThrow().getLinksToId()).isEqualTo("kept");
+    }
+
+    @Test
+    @DisplayName("Clearing links to no portals changes nothing")
+    void clearingNoLinksChangesNothing() {
+        // Prepare
+        final PipePortalRecord linked = record("portal-1", SCENE_ID, IN, PIPE_PORTAL_HORIZONTAL, 4, 2);
+        linked.setLinksToId("portal-2");
+        repository.insertAll(List.of(linked));
+
+        // Execute
+        repository.clearLinksTo(List.of());
+
+        // Verify
+        assertThat(repository.findById("portal-1").orElseThrow().getLinksToId()).isEqualTo("portal-2");
+    }
+
     private static PipePortalRecord record(
         final String id,
         final String levelSceneId,

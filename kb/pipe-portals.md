@@ -37,6 +37,29 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 - The converter writes the id of the scene being saved onto each record, not the portal's own `levelSceneId`, so a
   portal placed before the scene's first save still lands under the right scene.
 
+## Links
+
+- A portal names its partner by id in `linksToId` (domain and record alike), `null` while it is free
+  (`PipePortalCapabilities.isLinked()`). Not a `PipePortal` reference: two `@Data` objects holding each other recurse
+  forever in `equals` / `hashCode` / `toString`.
+- The ROM has no pairs: every pipe of an area leads to that area's alternate layout, at the junction start of the
+  screen it was entered on (dasm prg026.asm `LevelJct_General`, `Level_JctXLHStart` / `Level_JctYLHStart`). Links are
+  this port's own, one to one, stored on both ends.
+- `game.level.pipe.PipePortalLinkRules`:
+  - `isLinkable` allows every pair with a way in and a way out: all but `IN`/`IN` and `OUT`/`OUT`.
+  - `destinationOf(entered, linked)` is the partner only when it is exitable and points back, so entering the
+    `IN_AND_OUT` end of an `IN`/`IN_AND_OUT` pair leads nowhere.
+- **The database owns the links, not the editor.** `PipePortalService.link` / `unlink` write straight to the store.
+  An editor tab loaded before a link was made still holds `null`, so `replaceAll` writes each already-stored portal's
+  **stored** `linksToId` and starts new ones free, whatever the tab holds.
+- **No dangling links.** `replaceAll` frees the partner of every stored portal missing from the saved list (it was
+  right-clicked away), and `deleteByLevelSceneId` frees the partners of all the scene's portals, in any scene
+  (`PipePortalRepository.clearLinksTo`).
+- Nitrite's `ObjectRepository.update(record)` does clear a field set to `null` (checked against 5.4.2), so a link is
+  cleared with a plain update. Mongo's `@Id` is `_id`, so its id filters use `"_id"`, not `Fields.id`.
+- `LevelSceneService.findById` loads a scene with its portals; `findTitlesById` lists titles only (Mongo projects
+  `title`; Nitrite has no projection on an object repository and reads each scene whole).
+
 ## Editor
 
 - **Palette:** the third `LeftPane` tab, `VirtualObjectsPalettePanel`, holds one `VirtualObjectButton` per

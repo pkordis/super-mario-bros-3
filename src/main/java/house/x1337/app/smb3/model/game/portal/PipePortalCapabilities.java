@@ -48,4 +48,8 @@ public sealed interface PipePortalCapabilities permits PipePortal {
         }
         return false;
     }
+
+    default boolean isLinked() {
+        return ((PipePortal) this).getLinksToId() != null;
+    }
 }
