@@ -168,7 +168,7 @@ public interface LevelScenePlayerRenderer
     }
 
     default float pipeStepUp() {
-        return getRuntimeState().isWalkingIntoSidePipe() ? PIPE_STEP_UP_PIXELS / TILE_SPRITE_SIZE : 0f;
+        return getRuntimeState().isWalkingThroughSidePipe() ? PIPE_STEP_UP_PIXELS / TILE_SPRITE_SIZE : 0f;
     }
 
     Node getNode();

@@ -26,18 +26,15 @@ import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
-import static house.x1337.app.smb3.game.level.pipe.PipeEntryRules.entryDirection;
-import static house.x1337.app.smb3.game.level.pipe.PipeEntryRules.isAligned;
-import static house.x1337.app.smb3.game.level.pipe.PipeEntryRules.isEnterable;
-import static house.x1337.app.smb3.game.level.pipe.PipeEntryRules.isEntryCell;
-import static house.x1337.app.smb3.game.level.pipe.PipeEntryRules.sidePipeDirection;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Which pipe portals can be entered, in which direction, and the ROM's alignment window ({@code PRG008_BD1F}-
  * {@code BD4B}) and side pipe direction ({@code Pipe_PadDirForEnter}).
  */
-class PipeEntryRulesTest {
+class PipeEntryRulesAwareTest {
+    private final PipeEntryRulesAware rules = new PipeEntryRulesAware() {};
+
     private static final int ROWS = 10;
     private static final int COLUMNS = 12;
 
@@ -66,10 +63,10 @@ class PipeEntryRulesTest {
     @DisplayName("Only IN and IN_AND_OUT portals are ways in; an OUT portal or one without a type is not")
     void onlyInAndInAndOutAreEnterable() {
         // Execute & Verify
-        assertThat(isEnterable(portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2))).isTrue();
-        assertThat(isEnterable(portal(IN_AND_OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isTrue();
-        assertThat(isEnterable(portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isFalse();
-        assertThat(isEnterable(portal(null, PIPE_PORTAL_HORIZONTAL, 5, 2))).isFalse();
+        assertThat(rules.isEnterable(portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2))).isTrue();
+        assertThat(rules.isEnterable(portal(IN_AND_OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isTrue();
+        assertThat(rules.isEnterable(portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isFalse();
+        assertThat(rules.isEnterable(portal(null, PIPE_PORTAL_HORIZONTAL, 5, 2))).isFalse();
     }
 
     @Test
@@ -80,11 +77,11 @@ class PipeEntryRulesTest {
         final PipePortal vertical = portal(IN, PIPE_PORTAL_VERTICAL, 8, 5);
 
         // Execute & Verify
-        assertThat(isEntryCell(horizontal, 5, 2)).isTrue();
-        assertThat(isEntryCell(horizontal, 5, 3)).isTrue();
-        assertThat(isEntryCell(horizontal, 6, 2)).as("The pipe body below").isFalse();
-        assertThat(isEntryCell(vertical, 8, 5)).as("The anchor").isTrue();
-        assertThat(isEntryCell(vertical, 7, 5)).as("The upper half of the lip").isFalse();
+        assertThat(rules.isEntryCell(horizontal, 5, 2)).isTrue();
+        assertThat(rules.isEntryCell(horizontal, 5, 3)).isTrue();
+        assertThat(rules.isEntryCell(horizontal, 6, 2)).as("The pipe body below").isFalse();
+        assertThat(rules.isEntryCell(vertical, 8, 5)).as("The anchor").isTrue();
+        assertThat(rules.isEntryCell(vertical, 7, 5)).as("The upper half of the lip").isFalse();
     }
 
     // -------------------------------------------------------------------------
@@ -100,7 +97,8 @@ class PipeEntryRulesTest {
         paint(6, 3, PIPE_BODY_PART);
 
         // Execute & Verify
-        assertThat(entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40)).contains(DOWN);
+        assertThat(rules.entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40))
+            .contains(DOWN);
     }
 
     @Test
@@ -112,7 +110,7 @@ class PipeEntryRulesTest {
         paint(2, 7, PIPE_BODY_PART);
 
         // Execute & Verify
-        assertThat(entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 3, 6), 104)).contains(UP);
+        assertThat(rules.entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 3, 6), 104)).contains(UP);
     }
 
     @Test
@@ -126,8 +124,8 @@ class PipeEntryRulesTest {
         paint(6, 8, PIPE_BODY_PART);
 
         // Execute & Verify
-        assertThat(entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40)).isEmpty();
-        assertThat(entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 8), 136)).isEmpty();
+        assertThat(rules.entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40)).isEmpty();
+        assertThat(rules.entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 8), 136)).isEmpty();
     }
 
     @Test
@@ -138,8 +136,8 @@ class PipeEntryRulesTest {
         paint(6, 3, PIPE_BODY_PART);
 
         // Execute & Verify
-        assertThat(entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40)).isEmpty();
-        assertThat(entryDirection(null, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40))
+        assertThat(rules.entryDirection(staticEnvironment, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40)).isEmpty();
+        assertThat(rules.entryDirection(null, portal(IN, PIPE_PORTAL_HORIZONTAL, 5, 2), 40))
             .as("No static environment layer")
             .isEmpty();
     }
@@ -153,8 +151,84 @@ class PipeEntryRulesTest {
         final PipePortal portal = portal(IN, PIPE_PORTAL_VERTICAL, 8, 5);
 
         // Execute & Verify
-        assertThat(entryDirection(staticEnvironment, portal, 66)).contains(RIGHT);
-        assertThat(entryDirection(staticEnvironment, portal, 94)).contains(LEFT);
+        assertThat(rules.entryDirection(staticEnvironment, portal, 66)).contains(RIGHT);
+        assertThat(rules.entryDirection(staticEnvironment, portal, 94)).contains(LEFT);
+    }
+
+    // -------------------------------------------------------------------------
+    // Exit direction
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("A portal on an upright pipe is come out of going up")
+    void uprightPipeIsExitedUpward() {
+        // Prepare
+        paintLip(5, 2, 3);
+        paint(6, 2, PIPE_BODY_PART);
+        paint(6, 3, PIPE_BODY_PART);
+
+        // Execute & Verify
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).contains(UP);
+    }
+
+    @Test
+    @DisplayName("A portal on an upside-down pipe is come out of going down")
+    void upsideDownPipeIsExitedDownward() {
+        // Prepare
+        paintLip(3, 6, 7);
+        paint(2, 6, PIPE_BODY_PART);
+        paint(2, 7, PIPE_BODY_PART);
+
+        // Execute & Verify
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_HORIZONTAL, 3, 6))).contains(DOWN);
+    }
+
+    @Test
+    @DisplayName("A side pipe is come out of away from its body: left when the body is to the right, and vice versa")
+    void sidePipeIsExitedAwayFromItsBody() {
+        // Prepare - a mouth at column 5 with the body to its right, and one at column 9 with the body to its left
+        paint(7, 5, PIPE_TERMINATION_PART);
+        paint(8, 5, PIPE_TERMINATION_PART);
+        paint(7, 6, PIPE_BODY_PART);
+        paint(8, 6, PIPE_BODY_PART);
+        paint(7, 9, PIPE_TERMINATION_PART);
+        paint(8, 9, PIPE_TERMINATION_PART);
+        paint(7, 8, PIPE_BODY_PART);
+        paint(8, 8, PIPE_BODY_PART);
+
+        // Execute & Verify
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_VERTICAL, 8, 5))).contains(LEFT);
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_VERTICAL, 8, 9))).contains(RIGHT);
+    }
+
+    @Test
+    @DisplayName("A portal with no pipe body beside or around its lip has no exit direction")
+    void portalWithoutPipeBodyHasNoExitDirection() {
+        // Prepare - a horizontal lip on solid ground, and a side mouth whose body is beside one cell only
+        paintLip(5, 2, 3);
+        paint(6, 2, SOLID);
+        paint(6, 3, SOLID);
+        paint(7, 5, PIPE_TERMINATION_PART);
+        paint(8, 5, PIPE_TERMINATION_PART);
+        paint(8, 6, PIPE_BODY_PART);
+
+        // Execute & Verify
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isEmpty();
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_VERTICAL, 8, 5))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A portal whose lip was erased has no exit direction")
+    void erasedLipHasNoExitDirection() {
+        // Prepare - the body is still there, the lip is gone
+        paint(6, 2, PIPE_BODY_PART);
+        paint(6, 3, PIPE_BODY_PART);
+
+        // Execute & Verify
+        assertThat(rules.exitDirection(staticEnvironment, portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2))).isEmpty();
+        assertThat(rules.exitDirection(null, portal(OUT, PIPE_PORTAL_HORIZONTAL, 5, 2)))
+            .as("No static environment layer")
+            .isEmpty();
     }
 
     // -------------------------------------------------------------------------
@@ -177,7 +251,7 @@ class PipeEntryRulesTest {
             final int probe = playerX + probeX;
             final boolean leftCell = probe < RIGHT_CELL_X;
             final boolean expected = playerX >= WINDOW_FIRST_X && playerX <= WINDOW_LAST_X;
-            assertThat(isAligned(playerX, airborne, small, leftCell))
+            assertThat(rules.isAligned(playerX, airborne, small, leftCell))
                 .as("Player X %d, probing the %s cell", playerX, leftCell ? "left" : "right")
                 .isEqualTo(expected);
         }
@@ -187,21 +261,23 @@ class PipeEntryRulesTest {
     @DisplayName("The window keeps its place on every pipe, not just one a tile pair away from the origin")
     void theWindowRepeatsAcrossTheLevel() {
         // Execute & Verify - a pipe whose left cell is column 9 (an odd column), grounded and big
-        assertThat(isAligned(16 * 9 + 2, false, false, true)).isFalse();
-        assertThat(isAligned(16 * 9 + 3, false, false, true)).isTrue();
-        assertThat(isAligned(16 * 9 + 11, false, false, true)).isTrue();
-        assertThat(isAligned(16 * 9 + 12, false, false, false)).as("Left foot already on the right cell").isTrue();
-        assertThat(isAligned(16 * 9 + 13, false, false, false)).isFalse();
+        assertThat(rules.isAligned(16 * 9 + 2, false, false, true)).isFalse();
+        assertThat(rules.isAligned(16 * 9 + 3, false, false, true)).isTrue();
+        assertThat(rules.isAligned(16 * 9 + 11, false, false, true)).isTrue();
+        assertThat(rules.isAligned(16 * 9 + 12, false, false, false))
+            .as("Left foot already on the right cell")
+            .isTrue();
+        assertThat(rules.isAligned(16 * 9 + 13, false, false, false)).isFalse();
     }
 
     @Test
     @DisplayName("A side pipe is entered holding RIGHT from a tile's left half and LEFT from its right half")
     void sidePipeDirectionFollowsTheHalfOfTheTile() {
         // Execute & Verify
-        assertThat(sidePipeDirection(194)).as("X & 15 = 2").isEqualTo(RIGHT);
-        assertThat(sidePipeDirection(199)).as("X & 15 = 7").isEqualTo(RIGHT);
-        assertThat(sidePipeDirection(200)).as("X & 15 = 8").isEqualTo(LEFT);
-        assertThat(sidePipeDirection(206)).as("X & 15 = 14").isEqualTo(LEFT);
+        assertThat(rules.sidePipeDirection(194)).as("X & 15 = 2").isEqualTo(RIGHT);
+        assertThat(rules.sidePipeDirection(199)).as("X & 15 = 7").isEqualTo(RIGHT);
+        assertThat(rules.sidePipeDirection(200)).as("X & 15 = 8").isEqualTo(LEFT);
+        assertThat(rules.sidePipeDirection(206)).as("X & 15 = 14").isEqualTo(LEFT);
     }
 
     // -------------------------------------------------------------------------

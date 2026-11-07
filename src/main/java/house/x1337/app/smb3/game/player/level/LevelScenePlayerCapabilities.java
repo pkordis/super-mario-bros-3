@@ -17,7 +17,7 @@ public sealed interface LevelScenePlayerCapabilities
         LevelScenePlayerRenderer,
         LevelScenePlayerActionCapable,
         LevelScenePlayerActionEventListener,
-        LevelScenePlayerPipeEntryCapable,
+        LevelScenePlayerPipeUsingCapabilities,
         RewardConsumingPlayer
     permits
         LevelScenePlayer {

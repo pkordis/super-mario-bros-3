@@ -126,7 +126,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     }
 
     static int pipePoseFrame(final PlayerRuntimeState runtimeState, final int[] walkFrameSequence) {
-        if (runtimeState.isEnteringSidePipe()) {
+        if (runtimeState.isEnteringSidePipe() || runtimeState.isExitingSidePipe()) {
             return walkFrameSequence[runtimeState.getPipeWalkBeat() % walkFrameSequence.length];
         }
         return FACE_FORWARD_FRAME;
@@ -138,7 +138,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         final PlayerOrientationHorizontal orientation
     ) {
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
-        if (!runtimeState.isEnteringPipe()) {
+        if (!runtimeState.isInPipe()) {
             if (wasPipePosed) {
                 wasPipePosed = false;
                 lastRenderedState = null;

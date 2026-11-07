@@ -2,7 +2,6 @@ package house.x1337.app.smb3.game.player.level;
 
 import com.jme3.scene.Node;
 import house.x1337.app.smb3.annotation.Prototype;
-import house.x1337.app.smb3.enumeration.PipeEntryDirection;
 import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
@@ -18,14 +17,12 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
-import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
 import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
-import house.x1337.app.smb3.model.game.portal.PipePortal;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,7 +35,6 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
-import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
 import static house.x1337.app.smb3.enumeration.Reward.ONE_UP;
 import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
@@ -92,9 +88,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private static final double TAIL_ATTACK_BLOCK_PROBE_X_FACING_RIGHT = -6;
     private static final double TAIL_ATTACK_BLOCK_PROBE_Y = 28;
 
-    // PipeMove_XVel / PipeMove_YVel = 8 in 4.4 fixed point (dasm prg029.asm:1589-1592): half a pixel per tick
-    private static final double PIPE_MOVE_PER_TICK = 8.0 / 16;
-
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
     private final PlayerRuntimeState runtimeState;
@@ -116,9 +109,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private boolean deathEventPublished;
 
     /**
-     * Guards the one-shot {@link LevelSceneResetRequested} publish when the pipe countdown runs out, for the same
-     * reason {@link #deathEventPublished} guards the death's: the player keeps ticking until the engine rebuilds
-     * the level.
+     * The state behind {@link LevelScenePlayerPipeUsingCapabilities#isPipeResetPublished()}: guards the one-shot reset
+     * request when the pipe countdown runs out, as {@link #deathEventPublished} guards the death's.
      */
     private boolean pipeResetPublished;
 
@@ -389,6 +381,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        // Coming out of a pipe owns the tick in the same way (dasm Level_PipeTransitOrExit, prg029.asm:1603-1621)
+        if (runtimeState.isExitingPipe()) {
+            tickPipeExiting();
+            return;
+        }
+
         // Another player is mid-transition and has halted gameplay (dasm
         // Player_HaltGame): freeze this player in place. Snapshot so render
         // interpolation holds steady rather than easing toward a stale target.
@@ -563,85 +561,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         }
     }
 
-    /**
-     * Starts going into the pipe under {@code portal} (dasm {@code PipeEntryPrepare}, prg008.asm:6729-6811).
-     *
-     * <p>Velocity and the duck are dropped, and a side pipe turns the player to face the way it walks. The player
-     * moves behind the foreground layers, where the pipe tiles are, so the pipe covers it as it goes in; that stands
-     * in for the ROM's masking sprite at {@code Pipe_PlayerX/Y} (prg029.asm:799-830). The camera holds where it is,
-     * because the ROM skips {@code Player_DoScrolling} while a pipe action runs. Drawn at once in the pipe pose, as the
-     * ROM does with {@code PipeMove_SetPlayerFrame} and {@code Player_Draw29} (prg008.asm:6323-6325).
-     */
-    @Override
-    public void beginPipeEntry(final PipePortal portal, final PipeEntryDirection direction) {
-        runtimeState.startEnteringPipe(portal, direction);
-        position.setDX(0);
-        position.setDY(0);
-        runtimeState.standUp();
-        switch (direction) {
-            case LEFT -> orientation.setHorizontal(PlayerOrientationHorizontal.LEFT);
-            case RIGHT -> orientation.setHorizontal(RIGHT);
-            default -> {
-                // Up and down keep the facing; the face-forward frame does not show it
-            }
-        }
-        setVisibility(BACKGROUND);
-        updateForegroundLayerBuckets();
-        gameEngine.getCameraState().hold();
-        advanceAnimation();
-        updateVisualPosition();
-    }
-
-    /**
-     * One tick inside a pipe (dasm {@code Level_PipeEnter}, prg029.asm:1323-1434).
-     *
-     * <p>The countdown is decremented first. In the ROM, {@code PRG008_A1DE} decrements {@code Event_Countdown} after
-     * {@code Player_Update} on every frame, the entry frame included, so each pipe frame reads one less than the
-     * frame before, starting from 59. Decrementing at the top of the tick reads the same values: 59 to 1 move the
-     * player, and the tick that reads 0 ends the entry.
-     *
-     * <ul>
-     *   <li>Up or down: 0.5 px every tick ({@code PipeMove_YVel = 8, -8} in 4.4 fixed point), 29.5 px in all.</li>
-     *   <li>Left or right: 0.5 px while the countdown is at least 16 ({@code PipeMove_XVel}), 44 ticks and 22 px;
-     *   after that the player is not drawn.</li>
-     *   <li>At 0 the ROM exits to the map or a junction; here the level is reset exactly as R resets it, once.</li>
-     * </ul>
-     */
-    private void tickPipeEntering() {
-        position.snapshotPrevious();
-        runtimeState.decrementPipeCountdown();
-
-        if (runtimeState.getPipeCountdown() == 0) {
-            applyHurtFlashVisibility();
-            if (!pipeResetPublished) {
-                pipeResetPublished = true;
-                gameEngine.publish(LevelSceneResetRequested.builder().inputHandlerId(inputHandler.getId()).build());
-            }
-            return;
-        }
-
-        switch (runtimeState.getPipeEntryDirection()) {
-            case DOWN -> position.addToY(PIPE_MOVE_PER_TICK);
-            case UP -> position.addToY(-PIPE_MOVE_PER_TICK);
-            case RIGHT -> walkIntoSidePipe(PIPE_MOVE_PER_TICK);
-            case LEFT -> walkIntoSidePipe(-PIPE_MOVE_PER_TICK);
-        }
-
-        advanceAnimation();
-        // Player_Draw is where the ROM decrements Player_FlashInv, and it is not called once a side pipe hides the
-        // player
-        if (!runtimeState.isHiddenInPipe()) {
-            runtimeState.decrementHurtInvincibility();
-        }
-        updateVisualPosition();
-    }
-
-    private void walkIntoSidePipe(final double step) {
-        if (runtimeState.isWalkingIntoSidePipe()) {
-            position.addToX(step);
-        }
-    }
-
     void applyDeathGravityStep(final PlayerPosition position) {
         position.addToDY(PLAYER_DEATH_GRAVITY);
         if (position.getDY() > PLAYER_DEATH_FALL_MAX) {
@@ -656,7 +575,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public boolean isHaltingGameplay() {
-        return runtimeState.isTransitioning() || runtimeState.isDying() || runtimeState.isEnteringPipe();
+        return runtimeState.isTransitioning() || runtimeState.isDying() || runtimeState.isInPipe();
     }
 
     @Override
@@ -667,7 +586,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void onRewardConsumption(final RewardLevelObject reward) {
         final PlayerMode mode = getMode();
-        if (runtimeState.isTransitioning() || runtimeState.isEnteringPipe()) {
+        if (runtimeState.isTransitioning() || runtimeState.isInPipe()) {
             return;
         }
         if (reward.getRewardType() != ONE_UP) {
