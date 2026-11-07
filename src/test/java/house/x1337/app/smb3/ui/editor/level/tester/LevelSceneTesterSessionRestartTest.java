@@ -4,7 +4,10 @@ import com.jme3.scene.Node;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.event.GameEventBus;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.level.pipe.PipePortalTransit;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
+import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
@@ -12,15 +15,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
+import static house.x1337.app.smb3.game.engine.LevelRunStart.carryOver;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -31,13 +38,16 @@ import static org.mockito.Mockito.when;
 /**
  * How a tester session turns R and a death into a level restart: both events are consumed by the same
  * restart, which is queued for the engine's next frame instead of run on the spot, and requests that land
- * before the queued one has run collapse into a single rebuild.
+ * before the queued one has run collapse into a single rebuild. After a pipe trip has swapped in another scene, the
+ * restart goes back to the scene the session was started with.
  */
 class LevelSceneTesterSessionRestartTest {
     private final List<Runnable> engineQueue = new ArrayList<>();
 
     private GameEventBus gameEventBus;
     private GameEngine gameEngine;
+    private PipePortalTransit pipePortalTransit;
+    private LevelSceneTesterSession session;
     private Node rootNode;
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
 
@@ -46,15 +56,20 @@ class LevelSceneTesterSessionRestartTest {
         gameEventBus = new GameEventBus();
         rootNode = new Node("Root");
         gameEngine = mock(GameEngine.class);
+        pipePortalTransit = mock(PipePortalTransit.class);
         when(gameEngine.getRootNode()).thenReturn(rootNode);
         doAnswer(invocation -> engineQueue.add(invocation.getArgument(0)))
             .when(gameEngine)
             .enqueue(any(Runnable.class));
-        staticBeanFactory = mockStatic(StaticBeanFactory.class);
-        staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(GameEventBus.class))
-            .thenReturn(gameEventBus);
-        session().subscribeListeners();
+        staticBeanFactory = mockStatic(StaticBeanFactory.class, invocation -> {
+            final Class<?> type = invocation.getArgument(0);
+            if (type == GameEventBus.class) {
+                return gameEventBus;
+            }
+            return type == PipePortalTransit.class ? pipePortalTransit : mock(type);
+        });
+        session = session();
+        session.subscribeListeners();
     }
 
     @AfterEach
@@ -183,6 +198,68 @@ class LevelSceneTesterSessionRestartTest {
 
         // Verify
         assertThat(engineQueue).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A swap detaches the current run, then builds the new scene with the start it was given")
+    void aSwapBuildsTheNewScene() {
+        // Prepare
+        final LevelScene destination = mock(LevelScene.class);
+        rootNode.attachChild(new Node("PlayerNode"));
+        rootNode.attachChild(new Node("CameraTarget"));
+        rootNode.attachChild(new Node(AIR.getLayerName()));
+
+        // Execute
+        session.swapLevelScene(destination, carryOver(RACCOON));
+
+        // Verify
+        assertThat(rootNode.getChildren()).isEmpty();
+        final InOrder inOrder = inOrder(gameEngine);
+        inOrder.verify(gameEngine).setLevelScene(destination);
+        inOrder.verify(gameEngine).buildLevel(carryOver(RACCOON));
+        verify(gameEngine, never()).buildLevel();
+    }
+
+    @Test
+    @DisplayName("After a pipe trip has swapped in another scene, a reset rebuilds the original scene from its start")
+    void aResetAfterASwapGoesBackToTheOriginalScene() {
+        // Prepare
+        final LevelScene original = mock(LevelScene.class);
+        final LevelScene destination = mock(LevelScene.class);
+        when(gameEngine.getLevelScene()).thenReturn(original);
+        session.swapLevelScene(destination, carryOver(RACCOON));
+        when(gameEngine.getLevelScene()).thenReturn(destination);
+        session.swapLevelScene(mock(LevelScene.class), carryOver(RACCOON));
+
+        // Execute
+        gameEventBus.publish(new PlayerDied());
+        runEngineQueue();
+
+        // Verify - buildLevel() is buildLevel(FRESH): small, with the timer at 300
+        final InOrder inOrder = inOrder(gameEngine);
+        inOrder.verify(gameEngine).setLevelScene(original);
+        inOrder.verify(gameEngine).buildLevel();
+    }
+
+    @Test
+    @DisplayName("A transit request goes to the session's pipe trip, and a restart during one cancels it")
+    void transitRequestsReachThePipeTrip() {
+        // Prepare
+        final PipePortalTransitRequested request = PipePortalTransitRequested.builder()
+            .pipePortalId("portal-1")
+            .inputHandlerId("handler-1")
+            .build();
+
+        // Execute
+        gameEventBus.publish(request);
+        gameEventBus.publish(resetRequest());
+        runEngineQueue();
+
+        // Verify
+        verify(pipePortalTransit).onPipePortalTransitRequested(request);
+        final InOrder inOrder = inOrder(pipePortalTransit, gameEngine);
+        inOrder.verify(pipePortalTransit).cancel();
+        inOrder.verify(gameEngine).buildLevel();
     }
 
     // -------------------------------------------------------------------------

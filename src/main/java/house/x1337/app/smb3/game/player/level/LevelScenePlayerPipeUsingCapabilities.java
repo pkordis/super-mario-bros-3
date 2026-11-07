@@ -3,10 +3,11 @@ package house.x1337.app.smb3.game.player.level;
 import house.x1337.app.smb3.enumeration.PipeEntryDirection;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
+import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.level.pipe.PipeEntryRulesAware;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
-import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
+import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.model.game.LevelObjectOffset;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -45,8 +46,9 @@ public interface LevelScenePlayerPipeUsingCapabilities
     double PLAYER_BOX_HEIGHT = 2.0 * TILE_SPRITE_SIZE;
 
     PlayerInputHandler getInputHandler();
-    boolean isPipeResetPublished();
-    void setPipeResetPublished(boolean pipeResetPublished);
+    LevelSceneVerticalScroll getVerticalScroll();
+    boolean isPipeTransitPublished();
+    void setPipeTransitPublished(boolean pipeTransitPublished);
     void setVisibility(PlayerVisibility visibility);
 
     /**
@@ -206,10 +208,14 @@ public interface LevelScenePlayerPipeUsingCapabilities
 
         if (runtimeState.getPipeCountdown() == 0) {
             applyHurtFlashVisibility();
-            if (!isPipeResetPublished()) {
-                setPipeResetPublished(true);
+            if (!isPipeTransitPublished()) {
+                setPipeTransitPublished(true);
+                final PipePortal entered = runtimeState.getEnteredPipePortal();
                 getGameEngine().publish(
-                    LevelSceneResetRequested.builder().inputHandlerId(getInputHandler().getId()).build()
+                    PipePortalTransitRequested.builder()
+                        .pipePortalId(entered == null ? null : entered.getId())
+                        .inputHandlerId(getInputHandler().getId())
+                        .build()
                 );
             }
             return;
@@ -238,7 +244,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
             ? null
             : getLevelScene().getStaticEnvironmentLayer().getTiles();
         final PipeEntryDirection direction = exitDirection(tiles, portal).orElse(null);
-        setPipeResetPublished(false);
+        setPipeTransitPublished(false);
         position.setDX(0);
         position.setDY(0);
         runtimeState.standUp();
@@ -246,6 +252,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
         getGameEngine().getCameraState().setTarget(getNode());
 
         if (direction == null) {
+            runtimeState.stopEnteringPipe();
             standOn(portal);
             return;
         }
@@ -265,6 +272,12 @@ public interface LevelScenePlayerPipeUsingCapabilities
         final PlayerPosition position = getPosition();
         position.snapshotPrevious();
 
+        // The exit starts once the screen has faded back in: Palette_FadeIn runs to the end before Level_MainLoop
+        // (dasm prg030 PRG030_8B9A)
+        if (getGameEngine().getFadingEngine().isHaltingGameplay()) {
+            return;
+        }
+
         switch (runtimeState.getPipeExitDirection()) {
             case UP -> position.addToY(-PIPE_MOVE_PER_TICK);
             case DOWN -> position.addToY(PIPE_EXIT_DOWN_PER_TICK);
@@ -281,6 +294,36 @@ public interface LevelScenePlayerPipeUsingCapabilities
         advanceAnimation();
         runtimeState.decrementHurtInvincibility();
         updateVisualPosition();
+    }
+
+    /**
+     * Snaps the vertical scroll to the middle of the portal's pipe, for the camera after a level junction. The
+     * horizontal axis needs nothing: the camera follows the player node, which {@link #beginPipeExit} has put inside
+     * the pipe. Called after {@link #beginPipeExit}, so the scroll can keep where the player stands once out inside
+     * its dead-zone band ({@link LevelSceneVerticalScroll#snapTo}).
+     *
+     * @param portal the portal the player is coming out of
+     */
+    default void centreVerticalScrollOn(final PipePortal portal) {
+        final int rows = getLevelScene().getDimensions().rows();
+        final float pipeCentreY = rows - (portal.getTopRow() + portal.getRows() / 2f);
+        final float outTopY = (float) (rows - pipeExitEndY() / TILE_SPRITE_SIZE);
+        getVerticalScroll().snapTo(pipeCentreY, outTopY);
+    }
+
+    /** The Y the player's top reaches when the exit under way ends: one move per countdown value, down to 0. */
+    private double pipeExitEndY() {
+        final PlayerRuntimeState runtimeState = getRuntimeState();
+        final double y = getPosition().getY();
+        if (!runtimeState.isExitingPipe()) {
+            return y;
+        }
+        final int moves = runtimeState.getPipeCountdown() + 1;
+        return switch (runtimeState.getPipeExitDirection()) {
+            case UP -> y - moves * PIPE_MOVE_PER_TICK;
+            case DOWN -> y + moves * PIPE_EXIT_DOWN_PER_TICK;
+            case LEFT, RIGHT -> y;
+        };
     }
 
     private void walkIntoSidePipe(final double step) {

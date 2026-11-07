@@ -110,6 +110,12 @@ public class PlayerRuntimeState implements KillTallyAware {
         return enteredPipePortal != null;
     }
 
+    public void stopEnteringPipe() {
+        enteredPipePortal = null;
+        pipeEntryDirection = null;
+        pipeCountdown = 0;
+    }
+
     public void decrementPipeCountdown() {
         if (pipeCountdown > 0) {
             pipeCountdown--;

@@ -8,6 +8,7 @@ import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.fade.FadingEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
@@ -46,6 +47,7 @@ import static house.x1337.app.smb3.enumeration.TileType.PIPE_BODY_PART;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.game.engine.fade.FadeProfile.STANDARD;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_DOWN;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_SIDE;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_UP;
@@ -78,6 +80,7 @@ class PlayerPipeExitingTest {
     private static final PipePortal ERASED = portal(PIPE_PORTAL_HORIZONTAL, 5, 0);
 
     private final Tile[][] tiles = new Tile[ROWS][COLUMNS];
+    private final FadingEngine fadingEngine = new FadingEngine();
     private GameEngine gameEngine;
     private CameraState cameraState;
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -113,6 +116,7 @@ class PlayerPipeExitingTest {
         gameEngine = mock(GameEngine.class);
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         when(gameEngine.getCameraState()).thenReturn(cameraState);
+        when(gameEngine.getFadingEngine()).thenReturn(fadingEngine);
         when(gameEngine.getRootNode()).thenReturn(new Node("Root"));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class, invocation -> {
@@ -339,6 +343,72 @@ class PlayerPipeExitingTest {
             .as("Feet on the portal's top edge")
             .isCloseTo(80, within(TOLERANCE));
         assertThat(player.getVisibility()).isEqualTo(FOREGROUND);
+    }
+
+    @Test
+    @DisplayName("A player that went into a pipe and comes out where the pipe was erased gets control back")
+    void erasedPipeAfterAnEntryEndsTheEntry() {
+        // Prepare
+        final LevelScenePlayer player = player(NORMAL);
+        player.beginPipeEntry(UPRIGHT, DOWN);
+
+        // Execute
+        player.beginPipeExit(ERASED);
+
+        // Verify
+        assertThat(player.getRuntimeState().isEnteringPipe()).isFalse();
+        assertThat(player.getRuntimeState().getPipeCountdown()).isZero();
+        assertThat(player.isHaltingGameplay()).isFalse();
+    }
+
+    @Test
+    @DisplayName("The exit does not move while a fade halts gameplay, and plays out in full once it has ended")
+    void theExitWaitsForTheFadeIn() {
+        // Prepare
+        final LevelScenePlayer player = player(NORMAL);
+        player.beginPipeExit(UPRIGHT);
+        final double startY = player.getPosition().getY();
+        fadingEngine.fadeIn(STANDARD, null);
+
+        // Execute & Verify - the engine ticks the fade before the players
+        while (fadingEngine.isFading()) {
+            fadingEngine.tick();
+            if (fadingEngine.isHaltingGameplay()) {
+                player.updateFrame();
+                assertThat(player.getPosition().getY()).isCloseTo(startY, within(TOLERANCE));
+                assertThat(player.getPosition().getPrevY()).isCloseTo(startY, within(TOLERANCE));
+                assertThat(player.getRuntimeState().getPipeCountdown()).isEqualTo(PIPE_EXIT_TICKS_UP);
+            }
+        }
+
+        // Execute - the whole exit, after the fade
+        for (int tick = 1; tick <= PIPE_EXIT_TICKS_UP + 1; tick++) {
+            player.updateFrame();
+        }
+
+        // Verify
+        assertThat(player.getRuntimeState().isExitingPipe()).isFalse();
+        assertThat(player.getPosition().getY()).isCloseTo(startY - 32, within(TOLERANCE));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"UP, 3.5, 6", "DOWN, 8.5, 8.25", "LEFT, 2, 3"})
+    @DisplayName("The scroll is centred on the pipe and told where the player's top will be once out")
+    void theScrollIsCentredOnTheExitPipe(
+        final PipeEntryDirection direction,
+        final float pipeCentreY,
+        final float outTopY
+    ) {
+        // Prepare
+        final LevelScenePlayer player = player(NORMAL);
+        player.beginPipeExit(portalFor(direction));
+
+        // Execute
+        player.centreVerticalScrollOn(portalFor(direction));
+
+        // Verify - in game units with Y up, so a row's top is rows - row; the 12-row scene puts the upright pipe's
+        // middle at 3.5 and the top of a player standing on it at 6
+        verify(player.getVerticalScroll()).snapTo(pipeCentreY, outTopY);
     }
 
     private PipePortal portalFor(final PipeEntryDirection direction) {

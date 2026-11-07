@@ -86,7 +86,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 
 ## Editor: Pipe Portal Linkage (SMB3-38)
 
-- **Level Objects → Pipe Portal Linkage...** (`PipePortalLinkageMenuItem`, last entry) opens
+- **Level Objects → Pipe Portal Linkage** (`PipePortalLinkageMenuItem`, last entry) opens
   `ui.editor.level.virtualobject.linkage.PipePortalLinkageWindow`. The window only renders
   `PipePortalLinkageModel`, which holds all the behaviour and is tested without Swing.
 - **Two reads per open or refresh:** `reload()` calls `PipePortalService.findAll()` and
@@ -153,8 +153,9 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   - left / right: 0.5 px only while the countdown is at least 16 (`PipeMove_XVel`), 44 ticks and 22 px; the
     sprite is drawn 2 px higher meanwhile (`pipeStepUp()`; the ROM lowers `Player_Y` around the draw only), and is
     not drawn below 16;
-  - the tick reading 0 hides the player and publishes `LevelSceneResetRequested` once (guarded by
-    `pipeResetPublished`), the R key's chain; `buildLevel` then restores the camera target, visibility and timer.
+  - the tick reading 0 hides the player and publishes `PipePortalTransitRequested` once (guarded by
+    `pipeTransitPublished`), which starts the pipe trip below; without a destination the trip restarts the level as R
+    does, and `buildLevel` then restores the camera target, visibility and timer.
 - **Frames** (`BaseLevelScenePlayerAnimator.renderPipePose`, checked before every other pose): face forward going
   up or down (`PipeMove_Frame`, the carry turn-around frame); the suit's walk sequence going sideways, at beat
   `(ticks since entry & $0C) >> 2`. The port has no `Counter_1`, so the ticks since the entry stand in for it.
@@ -166,15 +167,17 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 
 ## Runtime: coming out of a pipe (SMB3-40)
 
-- **Entry point:** `beginPipeExit(portal)`. SMB3-41 calls it after a pipe trip; nothing else does.
+- **Entry point:** `beginPipeExit(portal)`. The pipe trip (SMB3-41) calls it; nothing else does.
 - **Where the code lives:** every pipe behaviour of the player (detection, `beginPipeEntry` / `tickPipeEntering`,
-  `beginPipeExit` / `tickPipeExiting`, their helpers and constants) is in `LevelScenePlayerPipeUsingCapabilities`,
-  which `LevelScenePlayerCapabilities` extends. `LevelScenePlayer` only routes `updateFrame` to the two ticks and
-  holds the `pipeResetPublished` flag behind `isPipeResetPublished` / `setPipeResetPublished`.
+  `beginPipeExit` / `tickPipeExiting`, `centreVerticalScrollOn`, their helpers and constants) is in
+  `LevelScenePlayerPipeUsingCapabilities`, which `LevelScenePlayerCapabilities` extends. `LevelScenePlayer` only
+  routes `updateFrame` to the two ticks and holds the `pipeTransitPublished` flag behind `isPipeTransitPublished` /
+  `setPipeTransitPublished`.
 - **Direction** (`PipeEntryRulesAware.exitDirection(tiles, portal)`), from the tiles like the entry's: away from
   the body, out through the lip. Horizontal portal: `UP` with body below (upright pipe), else `DOWN` with body
   above. Vertical portal: `LEFT` with body in the column to the right, else `RIGHT` with it to the left. Empty
-  when the lip is gone, and then the player is simply stood on top of the portal.
+  when the lip is gone, and then the player is simply stood on top of the portal, with any entering state dropped so
+  it gets control back.
 - **Timing** (`Event_Countdown_Init`, prg008.asm:735, loaded by `PRG008_A38E`): `PIPE_EXIT_TICKS_UP = $3F`,
   `_DOWN = $07`, `_SIDE = $20`. The `Pipe_Move_*` handlers (prg029.asm:1626-1740) **move first, then test** the
   countdown, and `PRG008_A1DE` decrements it after; so the player moves on every value from the start down to 0:
@@ -193,3 +196,60 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 - **Shared "in a pipe" checks** now use `PlayerRuntimeState.isInPipe()` (entering or exiting): the halt, the hurt and
   reward guards, `enterPipeIfPossible`, the carried object's anchor and draw order, and the animators' pipe pose.
   `startExitingPipe` drops any entering state, so one player can go in and come out within one scene.
+
+## Runtime: pipe trips (SMB3-41)
+
+- **ROM model** (dasm): `Level_PipeEnter` stores the pipe action in `Level_JctCtl` when the entry countdown ends
+  (prg029.asm:1325-1361); the main loop sees it (`PRG030_8ECC`) and runs `HandleLevelJunction` (prg026.asm:1496-1575):
+  fade out, display off, `LevelJct_General` places the player and sets the scroll, the area reloads through
+  `PRG030_897B`, and the fade-in at `PRG030_8B9A` finishes before `Level_MainLoop`. The timer is not reset
+  (prg030.asm:4374-4377) and `Player_Suit` is not touched. `Pipe_Transit` (prg029) moves within an area without a
+  reload.
+- **Request:** `tickPipeEntering` publishes `PipePortalTransitRequested(pipePortalId, inputHandlerId)` once.
+  `TestSessionEventListener` hands it to `LevelSceneTesterSession.onPipePortalTransitRequested`, which passes it to
+  its `game.level.pipe.PipePortalTransit` (`@Prototype`, created on the first request with the engine, both services,
+  the `FadingEngine` and the session as `LevelSceneHost`).
+- **Resolve:** `pipePortalService.findById(entered)`, then `findById(entered.linksToId)`, then
+  `PipePortalLinkRulesAware.destinationOf`. The database decides, so an unsaved scene's portals lead nowhere. Without
+  a destination (unlinked, linked to an `IN`, not saved, lookup failed) the host restarts the level, with no fade. A
+  request during a trip is ignored (`AtomicBoolean`, until the fade-in's callback).
+- **Trip:** `fadeOut(STANDARD, ...)`; its callback, inside `FadingEngine.tick()`, only `enqueue`s the arrival, so the
+  swap never runs in the middle of a simulation tick. The arrival:
+  - **Same scene** (`destination.levelSceneId` equals the running scene's id): nothing is rebuilt, so enemies,
+    rewards and blocks keep their state; the current player comes out of the exit.
+  - **Another scene:** `levelSceneService.findById`; the host's `swapLevelScene(scene, LevelRunStart.carryOver(mode))`
+    detaches the run (`detachLevelRun`), `GameEngine.useLevelScene(scene)`, `buildLevel(start)`. The new player then
+    comes out of the exit. A scene that is not saved fades back in and restarts the level.
+  - In both: `beginPipeExit(exit)`, `centreVerticalScrollOn(exit)`, `fadeIn(STANDARD, ...)`.
+- **Exit waits for the fade-in:** `tickPipeExiting` only snapshots while `FadingEngine.isHaltingGameplay()`.
+- **`LevelRunStart`** (`game.engine`): `FRESH` (`SHRUNK`, timer restarted) is what `buildLevel()` uses;
+  `carryOver(mode)` keeps the suit and leaves the timer running. Score, coins and lives live on the shared
+  `PlayerData` and carry over anyway.
+- **Restart goes home:** the session remembers the scene the engine held before its first swap
+  (`originalLevelScene`); a death or R does `useLevelScene(original)` and `buildLevel()` (fresh). A restart that lands
+  during a trip calls `PipePortalTransit.cancel()`, which drops the trip and `reset()`s the fade so the screen is not
+  left black.
+- **Camera:**
+  - X follows the player node, which `beginPipeExit` has put inside the exit pipe; `CameraState`'s clipping keeps the
+    view inside the level on both sides (the ROM's `Horz_Scroll = Player_X - $80` is clamped on the left only).
+  - Y: `LevelSceneVerticalScroll.snapTo(centreY, playerY)` sets the camera, previous and interpolated values at once.
+    `centreY` is the pipe's middle, `rows - (topRow + rows / 2)`. It is first moved just enough to keep the player's
+    top **once out of the pipe** inside the dead-zone band (`[1.6, 3.6]` tiles above the centre), then clamped to
+    the level. Without that, the band would jump the view on the first tick after the exit (about 1.9 tiles after
+    a downward exit). A player standing on an upright pipe is 2.5 tiles above a one-row lip's middle, inside the
+    band, so the common case is exactly centred; a downward exit puts the pipe about 1.9 tiles above the centre, a
+    side exit about 0.6. Above the bottom lock the scroll stays free until it is back down, as after any free scroll.
+- **Loading cost:** loading a scene resolves every cell of all six layers through `TileService.findById`. Before
+  SMB3-41's fix, each empty cell (`NULL_TILE`, id 0, which has no record) and each virtual or unknown id missed the
+  cache and went to the database, which against the remote Mongo meant tens of thousands of round trips for a full
+  level and a long black screen. Those ids are now answered from memory; an id that once missed is remembered until a
+  tile is created with it. The swap logs `Pipe trip into scene ...: loaded in N ms, built in M ms`.
+- **The pad carries over:** every `buildLevel` (pipe trip, R, death) spawns a new player with a new
+  `PlayerInputHandler`. jME reports only press and release edges, so the new handler would read a key held through
+  the rebuild as up. `buildLevel` therefore detaches the old listener and calls `carryOverFrom(previous)` on the new
+  handler, which copies the held keys and the presses already acted on. Input is dispatched on the engine thread
+  between frames, so no event lands mid-swap.
+- **Known limits:** destination scenes are read from the database, so unsaved edits in their tabs are ignored, and
+  coming back to the tested scene through a link loads its saved version. Loading runs on the engine thread while the
+  screen is black. A carried object is lost when the scene changes, because the new run starts with no objects. No
+  pipe sound.
