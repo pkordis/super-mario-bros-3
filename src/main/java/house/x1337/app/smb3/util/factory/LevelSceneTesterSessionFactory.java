@@ -19,14 +19,14 @@ public interface LevelSceneTesterSessionFactory {
         final GameEngine gameEngine = GameEngineFactory.start();
         final LevelSceneTesterSession testerSession = getBean(
             LevelSceneTesterSession.class,
-            editorTabSystem,
+            gameEngine,
             getBean(
                 DebuggerPanel.class,
                 getBean(PhysicsTunerPanel.class, getBean(ConfigurationService.class)),
                 getBean(InputAutomationPanel.class)
             ),
-            getBean(MiddlePane.class, editorTabSystem),
-            gameEngine
+            editorTabSystem,
+            getBean(MiddlePane.class, editorTabSystem)
         );
         gameEngine.setupLevel(levelScene);
         return testerSession;

@@ -32,12 +32,13 @@ public class LevelSceneTesterSession implements TestSessionEventListener, LevelS
 
     @Getter
     private final GameEngine gameEngine;
-    private LevelScene originalLevelScene;
-    private PipePortalTransit pipePortalTransit;
-    private boolean stopping;
     private final DebuggerPanel debuggerPanel;
     private final LevelSceneEditorTabSystem editorTabs;
     private final MiddlePane middlePane;
+
+    private LevelScene originalLevelScene;
+    private PipePortalTransit pipePortalTransit;
+    private boolean stopping;
 
     public void start() {
         middlePane.setRightComponent(debuggerPanel);
