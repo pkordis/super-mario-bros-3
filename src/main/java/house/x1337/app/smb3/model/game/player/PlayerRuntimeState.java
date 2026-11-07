@@ -1,13 +1,17 @@
 package house.x1337.app.smb3.model.game.player;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.PipeEntryDirection;
 import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.KillTallyAware;
+import house.x1337.app.smb3.model.game.portal.PipePortal;
 import lombok.Data;
 
+import static house.x1337.app.smb3.enumeration.PipeEntryDirection.LEFT;
+import static house.x1337.app.smb3.enumeration.PipeEntryDirection.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.NONE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
@@ -22,17 +26,27 @@ public class PlayerRuntimeState implements KillTallyAware {
     public static final int HURT_INVINCIBILITY_TICKS = 113;
     public static final int KICK_POSE_TICKS = 13;
     public static final int NORMAL_TRANSITION_TICKS = 47;
+    public static final int PIPE_ENTRY_TICKS = 60;
+    public static final int PIPE_EXIT_TICKS_DOWN = 7;
+    public static final int PIPE_EXIT_TICKS_SIDE = 32;
+    public static final int PIPE_EXIT_TICKS_UP = 63;
+    public static final int PIPE_SIDE_MOVE_MIN_COUNTDOWN = 16;
     public static final int RACCOON_TRANSITION_TICKS = 23;
     public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
     public static final int TURN_AROUND_FACE_TICKS = 7;
 
     private static final int INVINCIBILITY_BLANK_PHASE_MASK = 2;
-    private PlayerMovement movement = STILL;
 
     private CarriableLevelObject carriedObject;
+    private PipeEntryDirection pipeEntryDirection;
+    private PipeEntryDirection pipeExitDirection;
+    private PipePortal enteredPipePortal;
+    private PipePortal exitingPipePortal;
     private PlayerDeathKind deathKind = NONE;
     private PlayerMode queuedMode;
+    private PlayerMovement movement = STILL;
     private boolean ducking;
+    private boolean hitCeiling;
     private boolean running;
     private boolean wasCarrying;
     private int deathPauseCounter;
@@ -42,6 +56,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private int kickCountdown;
     private int killTally;
     private int lowClearanceGrace;
+    private int pipeCountdown;
     private int playerFlyTime;
     private int playerTailAttackCountdown;
     private int playerWagCount;
@@ -82,12 +97,106 @@ public class PlayerRuntimeState implements KillTallyAware {
         }
     }
 
+    public void startEnteringPipe(
+        final PipePortal portal,
+        final PipeEntryDirection direction
+    ) {
+        enteredPipePortal = portal;
+        pipeEntryDirection = direction;
+        pipeCountdown = PIPE_ENTRY_TICKS;
+    }
+
+    public boolean isEnteringPipe() {
+        return enteredPipePortal != null;
+    }
+
+    public void stopEnteringPipe() {
+        enteredPipePortal = null;
+        pipeEntryDirection = null;
+        pipeCountdown = 0;
+    }
+
+    public void decrementPipeCountdown() {
+        if (pipeCountdown > 0) {
+            pipeCountdown--;
+        }
+    }
+
+    public boolean isEnteringSidePipe() {
+        return isEnteringPipe() && (pipeEntryDirection == LEFT || pipeEntryDirection == RIGHT);
+    }
+
+    public void startExitingPipe(
+        final PipePortal portal,
+        final PipeEntryDirection direction
+    ) {
+        enteredPipePortal = null;
+        pipeEntryDirection = null;
+        exitingPipePortal = portal;
+        pipeExitDirection = direction;
+        pipeCountdown = exitTicks(direction);
+    }
+
+    public void stopExitingPipe() {
+        exitingPipePortal = null;
+        pipeExitDirection = null;
+        pipeCountdown = 0;
+    }
+
+    public boolean isExitingPipe() {
+        return exitingPipePortal != null;
+    }
+
+    public boolean isExitingSidePipe() {
+        return isExitingPipe() && (pipeExitDirection == LEFT || pipeExitDirection == RIGHT);
+    }
+
+    public boolean isInPipe() {
+        return isEnteringPipe() || isExitingPipe();
+    }
+
+    public boolean isWalkingThroughSidePipe() {
+        return isWalkingIntoSidePipe() || isExitingSidePipe();
+    }
+
+    private static int exitTicks(final PipeEntryDirection direction) {
+        return switch (direction) {
+            case UP -> PIPE_EXIT_TICKS_UP;
+            case DOWN -> PIPE_EXIT_TICKS_DOWN;
+            case LEFT, RIGHT -> PIPE_EXIT_TICKS_SIDE;
+        };
+    }
+
+    public boolean isWalkingIntoSidePipe() {
+        return isEnteringSidePipe()
+            && pipeCountdown < PIPE_ENTRY_TICKS
+            && pipeCountdown >= PIPE_SIDE_MOVE_MIN_COUNTDOWN;
+    }
+
+    public boolean isHiddenInPipe() {
+        if (!isEnteringPipe() || pipeCountdown == PIPE_ENTRY_TICKS) {
+            return false;
+        }
+        return pipeCountdown == 0 || (isEnteringSidePipe() && pipeCountdown < PIPE_SIDE_MOVE_MIN_COUNTDOWN);
+    }
+
+    public int getPipeWalkBeat() {
+        final int ticksSinceStart = isExitingPipe()
+            ? PIPE_EXIT_TICKS_SIDE - pipeCountdown
+            : PIPE_ENTRY_TICKS - pipeCountdown;
+        return (ticksSinceStart & 0x0C) >> 2;
+    }
+
     public boolean isCarrying() {
         return carriedObject != null;
     }
 
     public boolean isTurningAroundWhileCarrying() {
         return turnAroundFaceCounter > 0;
+    }
+
+    public boolean isCarriedObjectInFront() {
+        return isTurningAroundWhileCarrying() || isInPipe();
     }
 
     /**
@@ -157,7 +266,7 @@ public class PlayerRuntimeState implements KillTallyAware {
      * @return {@code true} to draw the player, {@code false} to skip it this tick
      */
     public boolean isSpriteDrawnThisTick() {
-        if (isDyingByFallingOff()) {
+        if (isDyingByFallingOff() || isHiddenInPipe()) {
             return false;
         }
         return !isHurtInvincible() || (hurtInvincibilityCounter & INVINCIBILITY_BLANK_PHASE_MASK) == 0;

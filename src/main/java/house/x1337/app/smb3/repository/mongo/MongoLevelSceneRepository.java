@@ -8,10 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Projections.include;
 import static com.mongodb.client.model.Sorts.descending;
 import static java.util.stream.StreamSupport.stream;
 
@@ -47,6 +50,23 @@ public class MongoLevelSceneRepository implements LevelSceneRepository {
                 .spliterator(),
             false
         ).toList();
+    }
+
+    @Override
+    public Optional<LevelSceneRecord> findById(final String id) {
+        return Optional.ofNullable(levelSceneMongoCollection.find(eq("_id", id)).first());
+    }
+
+    /**
+     * Reads only the id and the title of each scene, not its layers.
+     */
+    @Override
+    public Map<String, String> findTitlesById() {
+        final Map<String, String> titles = new HashMap<>();
+        for (final LevelSceneRecord record : levelSceneMongoCollection.find().projection(include("title"))) {
+            titles.put(record.getId(), record.getTitle());
+        }
+        return titles;
     }
 
     @Override

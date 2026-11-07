@@ -36,6 +36,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     private PlayerOrientationHorizontal lastOrientation;
     private boolean wasCarryPosed;
     private boolean wasKickPosed;
+    private boolean wasPipePosed;
     private int lastWalkFrame = -1;
     private int walkAnimTicks;
     private int walkFrameIndex;
@@ -121,6 +122,45 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         walkFrameIndex = 0;
         wasCarryPosed = false;
         wasKickPosed = false;
+        wasPipePosed = false;
+    }
+
+    static int pipePoseFrame(final PlayerRuntimeState runtimeState, final int[] walkFrameSequence) {
+        if (runtimeState.isEnteringSidePipe() || runtimeState.isExitingSidePipe()) {
+            return walkFrameSequence[runtimeState.getPipeWalkBeat() % walkFrameSequence.length];
+        }
+        return FACE_FORWARD_FRAME;
+    }
+
+    protected final boolean renderPipePose(
+        final Node node,
+        final LevelScenePlayer levelScenePlayer,
+        final PlayerOrientationHorizontal orientation
+    ) {
+        final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
+        if (!runtimeState.isInPipe()) {
+            if (wasPipePosed) {
+                wasPipePosed = false;
+                lastRenderedState = null;
+                lastOrientation = null;
+                lastWalkFrame = -1;
+            }
+            return false;
+        }
+
+        final PlayerMovement movement = runtimeState.getMovement();
+        final int frame = pipePoseFrame(runtimeState, specifications.getWalkFrameSequence());
+        if (!wasPipePosed || frameChanged(movement, orientation, frame)) {
+            if (frame == FACE_FORWARD_FRAME) {
+                // Texture-derived, as in renderCarryPose: every mode's camera-facing pose is narrower than its canvas
+                rebuildWithTextureDerivedQuad(node, assets.faceForward(), orientation);
+            } else {
+                rebuildWithTexture(node, assets.walk()[frame], orientation);
+            }
+            markRendered(movement, orientation, frame);
+        }
+        wasPipePosed = true;
+        return true;
     }
 
     protected final boolean renderKickPose(

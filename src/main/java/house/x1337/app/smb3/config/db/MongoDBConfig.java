@@ -11,6 +11,7 @@ import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
 import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
+import house.x1337.app.smb3.model.repository.PipePortalRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -58,6 +59,9 @@ public class MongoDBConfig {
     @Value("${spring.data.mongodb.collection.enemies:enemies}")
     private String enemiesCollection;
 
+    @Value("${spring.data.mongodb.collection.pipe-portals:pipePortals}")
+    private String pipePortalsCollection;
+
     @Value("${spring.data.mongodb.collection.configuration:configuration}")
     private String configurationCollection;
 
@@ -98,6 +102,7 @@ public class MongoDBConfig {
                     .register(LevelSceneRecord.LevelSceneLayerData.class)
                     .register(LevelObjectRecord.class)
                     .register(EnemyRecord.class)
+                    .register(PipePortalRecord.class)
                     .build()
             )
         );
@@ -144,6 +149,11 @@ public class MongoDBConfig {
     @Bean
     MongoCollection<EnemyRecord> enemyMongoCollection(final MongoDatabase mongoDatabase) {
         return mongoDatabase.getCollection(enemiesCollection, EnemyRecord.class);
+    }
+
+    @Bean
+    MongoCollection<PipePortalRecord> pipePortalMongoCollection(final MongoDatabase mongoDatabase) {
+        return mongoDatabase.getCollection(pipePortalsCollection, PipePortalRecord.class);
     }
 
     @Bean

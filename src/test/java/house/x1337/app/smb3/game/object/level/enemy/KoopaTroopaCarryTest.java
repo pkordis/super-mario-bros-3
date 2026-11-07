@@ -19,6 +19,7 @@ import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
+import house.x1337.app.smb3.model.game.portal.PipePortal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,9 +34,12 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_BEHIND_PLAYER;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
+import static house.x1337.app.smb3.enumeration.PipeEntryDirection.DOWN;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
+import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.HELD;
@@ -653,6 +657,46 @@ class KoopaTroopaCarryTest {
         assertThat(troopa.getPosition().x())
             .as("while the logical position, which collision reads, is untouched by it")
             .isCloseTo(PLAYER_X + CARRY_SIDE_OFFSET_PIXELS, within(TOLERANCE));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = PlayerOrientationHorizontal.class)
+    @DisplayName("Going into a pipe, the held shell sits right over the player whichever way the player faces")
+    void aShellHeldIntoAPipeIsCentredOnThePlayer(final PlayerOrientationHorizontal facing) {
+        // dasm prg000.asm:2997-3001: in a pipe ObjectHoldXOff entry 10 ($00) replaces the facing entries
+        // Prepare
+        final KoopaTroopa troopa = grabbableShell();
+        final LevelScenePlayer player = player(facing, true, false);
+        troopa.onPlayerOverlap(player);
+        player.getRuntimeState().startEnteringPipe(PipePortal.builder().build(), DOWN);
+
+        // Execute
+        final PixelPosition anchor = troopa.carryAnchorFrom(player, PLAYER_X, PLAYER_STANDING_Y);
+
+        // Verify
+        assertThat(anchor.x()).isCloseTo(PLAYER_X, within(TOLERANCE));
+        assertThat(anchor.y()).as("the usual drop").isCloseTo(PLAYER_STANDING_Y + CARRY_DROP_PIXELS, within(TOLERANCE));
+    }
+
+    @Test
+    @DisplayName("Going into a pipe, the held shell is drawn in front of the player and still behind the pipe")
+    void aShellHeldIntoAPipeIsDrawnInFrontOfThePlayer() {
+        // ObjState_Held puts the object in slot $10, below the player's $28, on every pipe tick (dasm
+        // prg000.asm:2997-3001 then PRG000_CF1A); centred on the player, behind it would hide it entirely
+        // Prepare - in the pipe the player is behind the foreground layers
+        final KoopaTroopa troopa = grabbableShell();
+        final LevelScenePlayer player = player(RIGHT, true, false);
+        troopa.onPlayerOverlap(player);
+        when(player.getVisibility()).thenReturn(BACKGROUND);
+        player.getRuntimeState().startEnteringPipe(PipePortal.builder().build(), DOWN);
+        final WorldOffset feetAnchor = WorldOffset.of(5f, 3f, Z_DEPTH_ENEMY);
+
+        // Execute
+        final float depth = troopa.shellDrawOffset(feetAnchor).z();
+
+        // Verify
+        assertThat(depth).isEqualTo(BACKGROUND.getPlayerZ() + Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER);
+        assertThat(depth).as("the pipe tiles still cover it").isLessThan(STATIC_ENVIRONMENT.getZ());
     }
 
     @Test

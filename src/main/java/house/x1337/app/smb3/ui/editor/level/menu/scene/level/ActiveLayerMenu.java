@@ -7,6 +7,7 @@ import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectsPalettePanel;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -71,9 +72,9 @@ public class ActiveLayerMenu extends JMenu {
      * Makes {@code type} the active layer, wherever the request came from — this menu, or either palette
      * when an entry belonging to another layer is picked (see {@code LayerGatedToggleButton}).
      *
-     * <p>The single entry point for activation, so the three things that must move together always do:
-     * the tab's active layer, this menu's selected radio item, and both palettes' gating. The tile
-     * palette is resolved lazily because it calls back in here, and constructor-injecting both ways would
+     * <p>The single entry point for activation, so the things that must move together always do: the tab's
+     * active layer, this menu's selected radio item, and every palette's gating. The tile and virtual object
+     * palettes are resolved lazily because they call back in here, and constructor-injecting both ways would
      * be a cycle.
      *
      * @param type the layer to activate; ignored when the active scene has no such layer
@@ -101,6 +102,7 @@ public class ActiveLayerMenu extends JMenu {
         syncFromActiveTab();
         enemiesPalettePanel.syncEnabledState();
         getBean(TilePalettePanel.class).syncEnabledState();
+        getBean(VirtualObjectsPalettePanel.class).syncEnabledState();
         return activated;
     }
 

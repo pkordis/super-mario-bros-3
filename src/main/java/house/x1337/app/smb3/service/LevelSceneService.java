@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.System.currentTimeMillis;
@@ -20,11 +21,13 @@ import static java.lang.System.currentTimeMillis;
 public class LevelSceneService implements LevelSceneConverter {
     private final LevelSceneRepository levelSceneRepository;
     private final TileService tileService;
+    private final PipePortalService pipePortalService;
 
     public void save(final LevelScene levelScene) {
         final LevelSceneRecord levelSceneRecord = normalize(toLevelSceneRecord(levelScene));
         levelSceneRecord.setUpdatedAt(currentTimeMillis());
         levelSceneRepository.upsert(levelSceneRecord);
+        pipePortalService.replaceAll(levelSceneRecord.getId(), levelScene.getPipePortals());
         log.info(
             "Saved scene: id={}, title={}, updatedAt={}",
             levelSceneRecord.getId(),
@@ -36,7 +39,7 @@ public class LevelSceneService implements LevelSceneConverter {
     public Optional<LevelScene> findLastEdited() {
         final Optional<LevelSceneRecord> record = levelSceneRepository.findLastEdited();
         return record.map(levelSceneRecord -> {
-            final LevelScene levelScene = toLevelScene(levelSceneRecord);
+            final LevelScene levelScene = withPipePortals(toLevelScene(levelSceneRecord));
             log.info(
                 "Loaded last edited scene: id={}, title={}, updatedAt={}",
                 levelScene.getId(),
@@ -51,16 +54,33 @@ public class LevelSceneService implements LevelSceneConverter {
         return levelSceneRepository.findPage(offset, pageSize)
             .stream()
             .map(this::toLevelScene)
+            .map(this::withPipePortals)
             .toList();
+    }
+
+    public Optional<LevelScene> findById(final String id) {
+        return levelSceneRepository.findById(id)
+            .map(this::toLevelScene)
+            .map(this::withPipePortals);
+    }
+
+    public Map<String, String> findTitlesById() {
+        return levelSceneRepository.findTitlesById();
     }
 
     public void delete(final String id) {
         levelSceneRepository.delete(id);
+        pipePortalService.deleteByLevelSceneId(id);
         log.info("Deleted scene: id={}", id);
     }
 
     @Override
     public TilesProvider getTilesProvider() {
         return tileService;
+    }
+
+    private LevelScene withPipePortals(final LevelScene levelScene) {
+        levelScene.setPipePortals(pipePortalService.findByLevelSceneId(levelScene.getId()));
+        return levelScene;
     }
 }

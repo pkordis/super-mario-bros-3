@@ -108,6 +108,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
      */
     private boolean deathEventPublished;
 
+    /**
+     * The state behind {@link LevelScenePlayerPipeUsingCapabilities#isPipeTransitPublished()}: guards the one-shot
+     * transit request when the pipe countdown runs out, as {@link #deathEventPublished} guards the death's.
+     */
+    private boolean pipeTransitPublished;
+
     public LevelScenePlayer(
         final GameEngine gameEngine,
         final PlayerData playerData
@@ -367,6 +373,20 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        // Going into a pipe owns the tick (dasm Level_PipeMove: Player_DrawAndDoActions29 drops the rest of the
+        // player's routine, prg008.asm:427-446): no input, physics, collision, scrolling or pit check, so a pipe on
+        // the bottom row never counts as falling off the level.
+        if (runtimeState.isEnteringPipe()) {
+            tickPipeEntering();
+            return;
+        }
+
+        // Coming out of a pipe owns the tick in the same way (dasm Level_PipeTransitOrExit, prg029.asm:1603-1621)
+        if (runtimeState.isExitingPipe()) {
+            tickPipeExiting();
+            return;
+        }
+
         // Another player is mid-transition and has halted gameplay (dasm
         // Player_HaltGame): freeze this player in place. Snapshot so render
         // interpolation holds steady rather than easing toward a stale target.
@@ -455,6 +475,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             // collision has settled this tick's position. Objects are struck later, from the
             // broadphase pass, mirroring the ROM's split between the player and object routines.
             resolveTailAttackAgainstBlocks();
+        }
+
+        // Player_DoSpecialTiles runs after Player_DetectSolids and Player_TailAttack_HitBlocks (prg008.asm:933-935).
+        // Going into a pipe ends the tick there: the ROM draws the player and pops its caller instead of returning
+        // (PLA PLA RTS, prg008.asm:6323-6331).
+        if (enterPipeIfPossible()) {
+            return;
         }
 
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
@@ -548,7 +575,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public boolean isHaltingGameplay() {
-        return runtimeState.isTransitioning() || runtimeState.isDying();
+        return runtimeState.isTransitioning() || runtimeState.isDying() || runtimeState.isInPipe();
     }
 
     @Override
@@ -559,7 +586,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void onRewardConsumption(final RewardLevelObject reward) {
         final PlayerMode mode = getMode();
-        if (runtimeState.isTransitioning()) {
+        if (runtimeState.isTransitioning() || runtimeState.isInPipe()) {
             return;
         }
         if (reward.getRewardType() != ONE_UP) {
@@ -589,7 +616,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         getNode()
             .setLocalTranslation(
                 (float) interpolatedPosition.getX(),
-                (float) interpolatedPosition.getY() - 2,
+                (float) interpolatedPosition.getY() - 2 + pipeStepUp(),
                 getVisibility().getPlayerZ()
             );
 

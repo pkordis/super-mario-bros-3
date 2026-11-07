@@ -4,6 +4,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.ui.editor.level.menu.levelobject.CreateCustomLevelObjectMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.levelobject.CreateEnemyFromImageMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.levelobject.EditInteractiveSingleTiledMenuItem;
+import house.x1337.app.smb3.ui.editor.level.menu.levelobject.PipePortalLinkageMenuItem;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -15,6 +16,7 @@ public class LevelObjectsMenu extends JMenu {
     private final EditInteractiveSingleTiledMenuItem editInteractiveSingleTiledMenuItem;
     private final CreateCustomLevelObjectMenuItem createCustomLevelObjectMenuItem;
     private final CreateEnemyFromImageMenuItem createEnemyFromImageMenuItem;
+    private final PipePortalLinkageMenuItem pipePortalLinkageMenuItem;
 
     @PostConstruct
     void init() {
@@ -24,6 +26,8 @@ public class LevelObjectsMenu extends JMenu {
         add(buildEnemiesMenu());
         addSeparator();
         add(createCustomLevelObjectMenuItem);
+        addSeparator();
+        add(pipePortalLinkageMenuItem);
     }
 
     private JMenu buildEditInteractiveMenu() {

@@ -129,6 +129,27 @@ public final class LevelSceneVerticalScroll {
         return interpolatedCameraY;
     }
 
+    /**
+     * Puts the camera straight at {@code centreY}, with no easing in from where it was, as a level junction sets
+     * {@code Vert_Scroll} outright (dasm prg026 {@code LevelJct_General}, PRG026_AA8A).
+     *
+     * <p>The centre is first moved, as little as needed, so that {@code playerY} sits inside the dead-zone band:
+     * once the camera is above the bottom lock the band applies on the next {@link #update}, and a player outside it
+     * would make the view jump on that tick. The result is then kept inside the level. When that leaves the camera
+     * above the bottom, it scrolls freely until it is back down, as after any other free scroll.
+     *
+     * @param centreY the camera centre wanted, in game units (Y-up)
+     * @param playerY where the player's top will be when this scroll next updates, in game units (Y-up)
+     * @return the new camera centre Y
+     */
+    public float snapTo(final float centreY, final float playerY) {
+        final float keepsPlayerInBand = clamp(centreY, playerY - bandHighOffset, playerY - bandLowOffset);
+        cameraY = clamp(keepsPlayerInBand, minCameraY, maxCameraY);
+        previousCameraY = cameraY;
+        interpolatedCameraY = cameraY;
+        return cameraY;
+    }
+
     private float getDesiredY(float playerCenter) {
         final float offset = playerCenter - cameraY; // how far above centre the player sits
         float desiredY = cameraY;

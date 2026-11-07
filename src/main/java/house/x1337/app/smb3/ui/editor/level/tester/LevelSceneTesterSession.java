@@ -6,6 +6,13 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.event.TestSessionEventListener;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.LevelRunStart;
+import house.x1337.app.smb3.game.level.pipe.LevelSceneHost;
+import house.x1337.app.smb3.game.level.pipe.PipePortalTransit;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
+import house.x1337.app.smb3.service.LevelSceneService;
+import house.x1337.app.smb3.service.PipePortalService;
 import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
 import house.x1337.app.smb3.ui.editor.level.tab.GameEngineTesterTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
@@ -20,16 +27,17 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Prototype
 @RequiredArgsConstructor
-public class LevelSceneTesterSession implements TestSessionEventListener {
+public class LevelSceneTesterSession implements TestSessionEventListener, LevelSceneHost {
     private final AtomicBoolean restartPending = new AtomicBoolean(false);
 
-    private final LevelSceneEditorTabSystem editorTabs;
-    private final DebuggerPanel debuggerPanel;
-    private final MiddlePane middlePane;
     @Getter
     private final GameEngine gameEngine;
-
+    private LevelScene originalLevelScene;
+    private PipePortalTransit pipePortalTransit;
     private boolean stopping;
+    private final DebuggerPanel debuggerPanel;
+    private final LevelSceneEditorTabSystem editorTabs;
+    private final MiddlePane middlePane;
 
     public void start() {
         middlePane.setRightComponent(debuggerPanel);
@@ -90,6 +98,46 @@ public class LevelSceneTesterSession implements TestSessionEventListener {
 
     @Override
     public void onLevelSceneRestart() {
+        if (pipePortalTransit != null) {
+            pipePortalTransit.cancel();
+        }
+        detachLevelRun();
+        if (originalLevelScene != null) {
+            gameEngine.setLevelScene(originalLevelScene);
+        }
+        gameEngine.buildLevel();
+    }
+
+    @Override
+    public void onPipePortalTransitRequested(final PipePortalTransitRequested event) {
+        pipePortalTransit().onPipePortalTransitRequested(event);
+    }
+
+    @Override
+    public void swapLevelScene(final LevelScene levelScene, final LevelRunStart start) {
+        if (originalLevelScene == null) {
+            originalLevelScene = gameEngine.getLevelScene();
+        }
+        detachLevelRun();
+        gameEngine.setLevelScene(levelScene);
+        gameEngine.buildLevel(start);
+    }
+
+    private PipePortalTransit pipePortalTransit() {
+        if (pipePortalTransit == null) {
+            pipePortalTransit = getBean(
+                PipePortalTransit.class,
+                gameEngine,
+                getBean(PipePortalService.class),
+                getBean(LevelSceneService.class),
+                gameEngine.getFadingEngine(),
+                this
+            );
+        }
+        return pipePortalTransit;
+    }
+
+    private void detachLevelRun() {
         final Node rootNode = gameEngine.getRootNode();
         // Detach the current player's node by name (there is exactly one "PlayerNode" in a level run).
         // Done by name rather than via the Player handle because the Player interface exposes no node —
@@ -108,6 +156,5 @@ public class LevelSceneTesterSession implements TestSessionEventListener {
                 layerGeometry.removeFromParent();
             }
         }
-        gameEngine.buildLevel();
     }
 }

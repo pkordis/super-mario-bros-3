@@ -4,6 +4,7 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
@@ -47,6 +48,7 @@ public interface LevelSceneEditorTabFactory {
         tab.setSceneTitle(generateTemporarySceneTitle());
         tab.setSceneDescription(null);
         tab.setSceneId(null);
+        tab.setPipePortals(new ArrayList<>());
         tabAndGridUpdate(tab, grid);
         return tab;
     }
@@ -54,7 +56,11 @@ public interface LevelSceneEditorTabFactory {
     static LevelScene fromLevelSceneEditor(final LevelSceneEditorTab editor) {
         final LevelScene levelScene = getBean(LevelScene.class);
         final List<LevelSceneLayer> layers = editor.getLayers();
-        levelScene.setId(editor.getSceneId());
+        // A tab that was never saved has no scene id yet. The new scene then keeps the random id it was created
+        // with, which the save hands back to the tab, instead of every first save sharing a null id.
+        if (editor.getSceneId() != null) {
+            levelScene.setId(editor.getSceneId());
+        }
         levelScene.setTitle(editor.getSceneTitle());
         levelScene.setDescription(editor.getSceneDescription());
         levelScene.setDimensions(new LevelSceneDimensions(
@@ -76,6 +82,7 @@ public interface LevelSceneEditorTabFactory {
         levelScene.setRenderingStarterColumn(editor.getRenderingStarterColumn());
         levelScene.setSpawnPointRow(editor.getSpawnPointRow());
         levelScene.setSpawnPointColumn(editor.getSpawnPointColumn());
+        levelScene.setPipePortals(copyOf(editor.getPipePortals()));
         return levelScene;
     }
 
@@ -112,8 +119,13 @@ public interface LevelSceneEditorTabFactory {
         tab.setSceneTitle(levelScene.getTitle());
         tab.setSceneDescription(levelScene.getDescription());
         tab.setSceneId(levelScene.getId());
+        tab.setPipePortals(copyOf(levelScene.getPipePortals()));
         tabAndGridUpdate(tab, grid);
         return tab;
+    }
+
+    private static List<PipePortal> copyOf(final List<PipePortal> pipePortals) {
+        return pipePortals == null ? new ArrayList<>() : new ArrayList<>(pipePortals);
     }
 
     private static void applyLayers(

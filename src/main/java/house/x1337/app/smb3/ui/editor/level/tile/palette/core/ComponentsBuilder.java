@@ -8,11 +8,9 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.UIManager;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static java.awt.Component.LEFT_ALIGNMENT;
-import static java.awt.FlowLayout.LEFT;
 import static java.awt.Font.BOLD;
 import static java.lang.Integer.MAX_VALUE;
 import static javax.swing.BorderFactory.createCompoundBorder;

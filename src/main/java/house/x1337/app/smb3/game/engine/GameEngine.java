@@ -28,6 +28,7 @@ import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -43,7 +44,6 @@ import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.PlayerIdentityType.MARIO;
-import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static lombok.AccessLevel.PRIVATE;
 
 @Slf4j
@@ -58,6 +58,7 @@ public final class GameEngine extends GameEngineCapabilities {
     private final PlayerData playerData;
     private final List<Player> allPlayers = new ArrayList<>();
 
+    @Setter
     private LevelScene levelScene;
     private StaticEnvironmentCollisionGrid collisionGrid;
     private ActiveObjectGrid<ActiveLevelObject> activeObjectGrid;
@@ -187,15 +188,25 @@ public final class GameEngine extends GameEngineCapabilities {
     }
 
     /**
-     * Builds (or rebuilds) everything that belongs to one run of the level: the baked tile layers and
-     * their camera target, the collision/active-object grids and placed enemies, the player at its
-     * spawn in SHRUNK mode, the HUD, and the countdown timer. Everything else set up in
-     * {@link #simpleInitApp()} — the fixed-rate timer, the viewports, the camera-state and
-     * frame-capture app states, the input mappings, the player identity — is one-time and is
-     * deliberately left untouched so this can run again on a death-restart without duplicating app
-     * lifecycle state.
+     * Builds (or rebuilds) the level from its start, as {@link #buildLevel(LevelRunStart)} with
+     * {@link LevelRunStart#FRESH}.
      */
     public void buildLevel() {
+        buildLevel(LevelRunStart.FRESH);
+    }
+
+    /**
+     * Builds (or rebuilds) everything that belongs to one run of the level: the baked tile layers and
+     * their camera target, the collision/active-object grids and placed enemies, the player at its
+     * spawn in the start's mode, the HUD, and, when the start asks for it, a restarted countdown timer.
+     * Everything else set up in {@link #simpleInitApp()} — the fixed-rate timer, the viewports, the
+     * camera-state and frame-capture app states, the input mappings, the player identity. Is one-time
+     * and is deliberately left untouched so this can run again on a death-restart without duplicating
+     * app lifecycle state.
+     *
+     * @param start the player's power-up and whether the timer starts over
+     */
+    public void buildLevel(final LevelRunStart start) {
         // Camera target node - the camera follows the player
         final Node cameraTarget = new Node("CameraTarget");
         rootNode.attachChild(cameraTarget);
@@ -225,17 +236,21 @@ public final class GameEngine extends GameEngineCapabilities {
         // Retire the previous player's input listener before the respawn attaches a new one. The key
         // mappings are shared and stay (PlayerInputHandler.init registers them once per engine); only
         // the per-player listener must be swapped, or a dead player's handler keeps receiving input.
-        if (playerOne instanceof final LevelScenePlayer previousLevelPlayer) {
-            previousLevelPlayer.getInputHandler().detachInput();
+        // Input events are dispatched on this thread, between frames, so none can arrive mid-swap.
+        final PlayerInputHandler previousInput = playerOne instanceof final LevelScenePlayer previousLevelPlayer
+            ? previousLevelPlayer.getInputHandler()
+            : null;
+        if (previousInput != null) {
+            previousInput.detachInput();
         }
 
-        // Create and attach the player at its spawn, shrunk. A fresh LevelScenePlayer re-reads the
-        // spawn point and builds a fresh vertical scroll, so the camera returns to the level start.
+        // Create and attach the player at its spawn. A fresh LevelScenePlayer re-reads the spawn point
+        // and builds a fresh vertical scroll, so the camera returns to the level start.
         playerData.setIdentity(MARIO.identity());
         playerOne = PlayerFactory.spawn(
             playerData,
             onSpawn -> {
-                onSpawn.setMode(SHRUNK);
+                onSpawn.setMode(start.mode());
                 onSpawn.renderPlayer();
                 onSpawn.updateInCameraState(cameraState);
             },
@@ -243,10 +258,17 @@ public final class GameEngine extends GameEngineCapabilities {
         );
         allPlayers.clear();
         allPlayers.add(playerOne);
+
+        // Keys held through the rebuild stay held for the new player
+        if (previousInput != null && playerOne instanceof final LevelScenePlayer spawnedLevelPlayer) {
+            spawnedLevelPlayer.getInputHandler().carryOverFrom(previousInput);
+        }
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
-        playerData.getPlayerTimer().clear();
-        playerData.getPlayerTimer().setInitialTime(300);
-        playerData.getPlayerTimer().start();
+        if (start.restartTimer()) {
+            playerData.getPlayerTimer().clear();
+            playerData.getPlayerTimer().setInitialTime(300);
+            playerData.getPlayerTimer().start();
+        }
     }
 
     private void registerCaptureTrigger() {
