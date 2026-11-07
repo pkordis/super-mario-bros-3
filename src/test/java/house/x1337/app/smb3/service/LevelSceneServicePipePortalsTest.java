@@ -17,6 +17,7 @@ import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
@@ -24,11 +25,13 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -136,6 +139,46 @@ class LevelSceneServicePipePortalsTest {
         // Verify
         verify(levelSceneRepository).delete(SCENE_ID);
         verify(pipePortalService).deleteByLevelSceneId(SCENE_ID);
+    }
+
+    @Test
+    @DisplayName("A scene found by its id loads with its portals")
+    void findByIdAttachesThePortals() {
+        // Prepare
+        final List<PipePortal> portals = new ArrayList<>(List.of(portal(PIPE_PORTAL_VERTICAL, 3, 1)));
+        when(levelSceneRepository.findById(SCENE_ID)).thenReturn(Optional.of(record(SCENE_ID)));
+        when(pipePortalService.findByLevelSceneId(SCENE_ID)).thenReturn(portals);
+
+        // Execute
+        final LevelScene scene = service.findById(SCENE_ID).orElseThrow();
+
+        // Verify
+        assertThat(scene.getId()).isEqualTo(SCENE_ID);
+        assertThat(scene.getPipePortals()).containsExactlyElementsOf(portals);
+    }
+
+    @Test
+    @DisplayName("An unknown scene id finds nothing")
+    void findByIdOfAnUnknownSceneIsEmpty() {
+        // Prepare
+        when(levelSceneRepository.findById("missing")).thenReturn(Optional.empty());
+
+        // Execute & Verify
+        assertThat(service.findById("missing")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Scene titles come straight from the repository, without loading any portals")
+    void findTitlesByIdDoesNotLoadPortals() {
+        // Prepare
+        when(levelSceneRepository.findTitlesById()).thenReturn(Map.of(SCENE_ID, "1-1"));
+
+        // Execute
+        final Map<String, String> titles = service.findTitlesById();
+
+        // Verify
+        assertThat(titles).containsExactly(entry(SCENE_ID, "1-1"));
+        verifyNoInteractions(pipePortalService);
     }
 
     private static MockedStatic<StaticBeanFactory> mockStaticBeanFactory() {

@@ -27,6 +27,7 @@ class PipePortalConverterTest {
             .levelSceneId(SCENE_ID)
             .row(7)
             .column(12)
+            .linksToId("portal-2")
             .build();
 
         // Execute
@@ -41,7 +42,30 @@ class PipePortalConverterTest {
         assertThat(portal.getLevelSceneId()).isEqualTo(SCENE_ID);
         assertThat(portal.getRow()).isEqualTo(7);
         assertThat(portal.getColumn()).isEqualTo(12);
+        assertThat(portal.getLinksToId()).isEqualTo("portal-2");
+        assertThat(portal.isLinked()).isTrue();
         assertThat(restored).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("A free portal stays free through the conversion both ways")
+    void roundTripsAFreePortal() {
+        // Prepare
+        final PipePortalRecord original = PipePortalRecord.builder()
+            .id("portal-1")
+            .type(IN_AND_OUT)
+            .virtualObjectType(PIPE_PORTAL_VERTICAL)
+            .levelSceneId(SCENE_ID)
+            .build();
+
+        // Execute
+        final PipePortal portal = converter.toPipePortal(original);
+        final PipePortalRecord restored = converter.toPipePortalRecord(portal, SCENE_ID);
+
+        // Verify
+        assertThat(portal.getLinksToId()).isNull();
+        assertThat(portal.isLinked()).isFalse();
+        assertThat(restored.getLinksToId()).isNull();
     }
 
     @Test

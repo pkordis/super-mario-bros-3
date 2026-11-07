@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.util.converter;
 
+import house.x1337.app.smb3.game.level.pipe.PipePortalLinkRulesAware;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.repository.PipePortalRecord;
 
@@ -8,7 +9,7 @@ import house.x1337.app.smb3.model.repository.PipePortalRecord;
  * ({@link PipePortalRecord}). The pipe portal counterpart of {@link EnemyConverter}, implemented by
  * {@code PipePortalService}.
  */
-public interface PipePortalConverter {
+public interface PipePortalConverter extends PipePortalLinkRulesAware {
     default PipePortal toPipePortal(final PipePortalRecord record) {
         return PipePortal.builder()
             .id(record.getId())
@@ -18,6 +19,7 @@ public interface PipePortalConverter {
             .levelSceneId(record.getLevelSceneId())
             .row(record.getRow())
             .column(record.getColumn())
+            .linksToId(record.getLinksToId())
             .build();
     }
 
@@ -39,6 +41,7 @@ public interface PipePortalConverter {
             .levelSceneId(levelSceneId)
             .row(portal.getRow())
             .column(portal.getColumn())
+            .linksToId(portal.getLinksToId())
             .build();
     }
 }

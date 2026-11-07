@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.System.currentTimeMillis;
@@ -55,6 +56,16 @@ public class LevelSceneService implements LevelSceneConverter {
             .map(this::toLevelScene)
             .map(this::withPipePortals)
             .toList();
+    }
+
+    public Optional<LevelScene> findById(final String id) {
+        return levelSceneRepository.findById(id)
+            .map(this::toLevelScene)
+            .map(this::withPipePortals);
+    }
+
+    public Map<String, String> findTitlesById() {
+        return levelSceneRepository.findTitlesById();
     }
 
     public void delete(final String id) {

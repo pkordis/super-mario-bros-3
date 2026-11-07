@@ -18,12 +18,13 @@ import java.util.UUID;
 public final class PipePortal implements PipePortalCapabilities {
     @Builder.Default
     private String id = UUID.randomUUID().toString();
-    private String description;
     private PipePortalType type;
-    private VirtualObjectType virtualObjectType;
+    private String description;
     private String levelSceneId;
-    private int row;
+    private String linksToId;
+    private VirtualObjectType virtualObjectType;
     private int column;
+    private int row;
 
     public record Cell(int row, int column) {
     }

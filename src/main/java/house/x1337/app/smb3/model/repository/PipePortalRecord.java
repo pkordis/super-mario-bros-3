@@ -29,4 +29,5 @@ public final class PipePortalRecord implements Serializable {
     private String levelSceneId;
     private int row;
     private int column;
+    private String linksToId;
 }
