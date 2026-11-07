@@ -166,7 +166,7 @@ public interface KoopaTroopaFamilyEnemy extends KoopaTroopaShellCapabilities {
             return ownDepth;
         }
         final float holderDepth = carrier.getVisibility().getPlayerZ();
-        final float carriedDepth = carrier.getRuntimeState().isTurningAroundWhileCarrying()
+        final float carriedDepth = carrier.getRuntimeState().isCarriedObjectInFront()
             ? holderDepth + Z_OFFSET_CARRIED_IN_FRONT_OF_PLAYER
             : holderDepth - Z_OFFSET_CARRIED_BEHIND_PLAYER;
         return carriedDepth - detailStep;

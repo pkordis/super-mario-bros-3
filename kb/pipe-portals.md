@@ -85,6 +85,33 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   `16c + 3` to `16c + 12` for a pipe whose left cell is column `c`, for every suit, grounded or airborne.
 - **No slopes:** the ROM also uses the airborne offset on sloped levels (`Level_SlopeEn`); the port has none.
 - **State:** `PlayerRuntimeState.startEnteringPipe(portal, direction)` records the `PipePortal` entered and the
-  direction held; `isEnteringPipe()` tests the portal. The portal is what a future pipe link resolves the other end
-  from (by portal id), so neither end of a link has to reference the other. Until SMB3-33 adds the slide and the
-  reset, `updateFrame` just holds the player in place while the state is set (R resets it).
+  direction held, and loads the countdown; `isEnteringPipe()` tests the portal. The portal is what a future pipe link
+  resolves the other end from (by portal id), so neither end of a link has to reference the other.
+
+## Runtime: going into a pipe (SMB3-33)
+
+- **Start** (`LevelScenePlayer.beginPipeEntry`, dasm `PipeEntryPrepare` prg008.asm:6729-6811): the countdown is
+  `PIPE_ENTRY_TICKS = $3C`; DX, DY and the duck are dropped; a side pipe turns the player to face the way it walks;
+  visibility goes to `BACKGROUND` with `updateForegroundLayerBuckets()`, so the `STATIC_ENVIRONMENT` pipe tiles cover
+  the player (this replaces the ROM's masking sprite and sprite trimming); `CameraState.hold()` keeps the camera where
+  it is; the pipe pose is drawn at once.
+- **Halt:** `isHaltingGameplay()` includes `isEnteringPipe()` (`Level_PipeMove` is ORed into `Player_HaltGame`,
+  prg008.asm:347-353), so `GameEngine.simpleUpdate` freezes the timer, enemies, projectiles, rewards and the P-switch
+  window while score popups keep rising. `isHurtable()` is false and `onRewardConsumption` ignores rewards.
+- **Tick** (`tickPipeEntering`, `Level_PipeEnter` prg029.asm:1323-1434): runs instead of input, physics, collision,
+  scrolling and the pit check. The countdown is decremented first; that reads the same values as the ROM, which
+  decrements `Event_Countdown` at the end of every frame including the entry frame (`PRG008_A1DE`). So:
+  - up / down: 0.5 px on each of the 59 ticks reading 59 to 1 (`PipeMove_YVel = 8, -8`), 29.5 px;
+  - left / right: 0.5 px only while the countdown is at least 16 (`PipeMove_XVel`), 44 ticks and 22 px; the
+    sprite is drawn 2 px higher meanwhile (`pipeStepUp()`; the ROM lowers `Player_Y` around the draw only), and is
+    not drawn below 16;
+  - the tick reading 0 hides the player and publishes `LevelSceneResetRequested` once (guarded by
+    `pipeResetPublished`), the R key's chain; `buildLevel` then restores the camera target, visibility and timer.
+- **Frames** (`BaseLevelScenePlayerAnimator.renderPipePose`, checked before every other pose): face forward going
+  up or down (`PipeMove_Frame`, the carry turn-around frame); the suit's walk sequence going sideways, at beat
+  `(ticks since entry & $0C) >> 2`. The port has no `Counter_1`, so the ticks since the entry stand in for it.
+- **Held objects:** a shell carried into a pipe sits right over the player (`CarriableLevelObject.carryAnchorFrom`):
+  in a pipe the ROM uses `ObjectHoldXOff` entry 10, `$00`, instead of the facing and turn-around entries
+  (prg000.asm:2804, 2997-3001). The Y drop is unchanged. The carry can't be released in the pipe, because the
+  object's state routine is halted along with the rest of gameplay.
+- **Out of scope:** exits, transit pipes and junctions, Kuribo's shoe, sound (`SND_PLAYERPIPE`).

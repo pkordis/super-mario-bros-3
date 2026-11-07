@@ -84,6 +84,10 @@ public final class RaccoonAnimator
         final int wagCount = runtimeState.getPlayerWagCount();
         final PlayerPosition position = levelScenePlayer.getPosition();
 
+        if (renderPipePose(node, levelScenePlayer, orientationHorizontal)) {
+            return;
+        }
+
         if (renderKickPose(node, levelScenePlayer, orientationHorizontal)) {
             return;
         }

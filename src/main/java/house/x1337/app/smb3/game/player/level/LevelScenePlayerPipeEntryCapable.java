@@ -29,12 +29,9 @@ import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_P
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
 
-/**
- * Pipe entry detection, the pipe half of dasm {@code Player_DoSpecialTiles} (prg008.asm:6133-6330), over the scene's
- * {@link PipePortal}s. Each check probes the tile the ROM reads and looks for an enterable portal on that cell.
- */
 public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntimeStateAware, GameEngineAware {
     PlayerInputHandler getInputHandler();
+    void beginPipeEntry(PipePortal portal, PipeEntryDirection direction);
 
     /**
      * Starts the pipe-entering state when the player is lined up with the pipe under an {@code IN} or
@@ -70,11 +67,11 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
         final int playerX = (int) floor(getPosition().getX());
 
         if (runtimeState.isInAir()) {
-            return enter(findUpsideDownPipe(portals, tiles, playerX), UP);
+            return enter(findUpsideDownPipe(portals, tiles, playerX).orElse(null), UP);
         }
         final PipeEntryDirection sideDirection = sidePipeDirection(playerX);
-        return enter(findSidePipe(portals, tiles, playerX, sideDirection), sideDirection)
-            || enter(findUprightPipe(portals, tiles, playerX), DOWN);
+        return enter(findSidePipe(portals, tiles, playerX, sideDirection).orElse(null), sideDirection)
+            || enter(findUprightPipe(portals, tiles, playerX).orElse(null), DOWN);
     }
 
     private Optional<PipePortal> findSidePipe(
@@ -83,7 +80,7 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
         final int playerX,
         final PipeEntryDirection direction
     ) {
-        if (!isHolding(direction)) {
+        if (isNotHolding(direction)) {
             return Optional.empty();
         }
         final LevelObjectOffset inFront = fromPlayerOffset(
@@ -98,7 +95,7 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
         final Tile[][] tiles,
         final int playerX
     ) {
-        if (!isHolding(DOWN)) {
+        if (isNotHolding(DOWN)) {
             return Optional.empty();
         }
         final LevelObjectOffset leftFoot = fromPlayerOffset(
@@ -115,7 +112,7 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
         final int playerX
     ) {
         final PlayerRuntimeState runtimeState = getRuntimeState();
-        if (!runtimeState.isHitCeiling() || runtimeState.isDucking() || !isHolding(UP)) {
+        if (!runtimeState.isHitCeiling() || runtimeState.isDucking() || isNotHolding(UP)) {
             return Optional.empty();
         }
         final LevelObjectOffset head = fromPlayerOffset(
@@ -140,9 +137,15 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
             .findFirst();
     }
 
-    private boolean enter(final Optional<PipePortal> portal, final PipeEntryDirection direction) {
-        portal.ifPresent(entered -> getRuntimeState().startEnteringPipe(entered, direction));
-        return portal.isPresent();
+    private boolean enter(
+        final PipePortal portal,
+        final PipeEntryDirection direction
+    ) {
+        if (portal != null) {
+            beginPipeEntry(portal, direction);
+            return true;
+        }
+        return false;
     }
 
     /** The probe set the collision grid used this tick: small when small or ducking, as in its resolveProbe. */
@@ -151,16 +154,16 @@ public interface LevelScenePlayerPipeEntryCapable extends LevelScenePlayerRuntim
     }
 
     private static boolean isOnLeftHalf(final int playerX) {
-        return (playerX & 0x0F) < 8;
+        return (playerX & 15) < 8;
     }
 
-    private boolean isHolding(final PipeEntryDirection direction) {
+    private boolean isNotHolding(final PipeEntryDirection direction) {
         final String key = switch (direction) {
             case DOWN -> HANDLER_DOWN;
             case UP -> HANDLER_UP;
             case LEFT -> HANDLER_LEFT;
             case RIGHT -> HANDLER_RIGHT;
         };
-        return getInputHandler().isActive(key);
+        return !getInputHandler().isActive(key);
     }
 }

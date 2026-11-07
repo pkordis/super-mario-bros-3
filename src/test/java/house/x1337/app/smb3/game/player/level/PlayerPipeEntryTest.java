@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player.level;
 
+import com.jme3.scene.Node;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.enumeration.PlayerMode;
@@ -124,6 +125,7 @@ class PlayerPipeEntryTest {
         gameEngine = mock(GameEngine.class);
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         when(gameEngine.getCameraState()).thenReturn(mock(CameraState.class));
+        when(gameEngine.getRootNode()).thenReturn(new Node("Root"));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class, invocation -> {
             final Class<?> type = invocation.getArgument(0);
@@ -322,8 +324,8 @@ class PlayerPipeEntryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("On the tick the player goes into an upright pipe the tick ends, and the player is held there")
-    void enteringEndsTheTickAndHoldsThePlayer() {
+    @DisplayName("On the tick the player goes into an upright pipe the tick ends there")
+    void enteringEndsTheTick() {
         // Prepare
         withCollisionGrid();
         final LevelScenePlayer player = standingOnTheUprightPipeHoldingDown();
@@ -338,14 +340,7 @@ class PlayerPipeEntryTest {
         assertThat(player.getRuntimeState().getTurnAroundFaceCounter())
             .as("The rest of the tick, where Player_PipeFace is decremented, did not run")
             .isEqualTo(3);
-
-        // Execute & Verify - running right afterwards moves nothing
-        hold(player, HANDLER_RIGHT);
-        for (int tick = 0; tick < 10; tick++) {
-            player.updateFrame();
-            assertThat(player.getPosition().getX()).isCloseTo(UPRIGHT_PIPE_MIDDLE_X, within(TOLERANCE));
-            assertThat(player.getPosition().getY()).isCloseTo(ON_UPRIGHT_PIPE_Y, within(TOLERANCE));
-        }
+        assertThat(player.getPosition().getY()).isCloseTo(ON_UPRIGHT_PIPE_Y, within(TOLERANCE));
     }
 
     @Test
