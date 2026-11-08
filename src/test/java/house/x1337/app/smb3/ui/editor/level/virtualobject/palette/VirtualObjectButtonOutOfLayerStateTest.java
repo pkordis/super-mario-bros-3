@@ -16,10 +16,12 @@ import java.awt.image.BufferedImage;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.LEVEL_COMPLETION_CARD;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
 import static house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton.BORDER_THICKNESS;
 import static house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton.fromType;
+import static java.awt.Color.YELLOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -116,6 +118,22 @@ class VirtualObjectButtonOutOfLayerStateTest {
             .contains(PIPE_PORTAL_VERTICAL.getLabel())
             .contains("1 x 2 tiles");
         assertThat(button.getIcon()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("The level completion card's stamp is one cell with a yellow border")
+    void levelCompletionCardStampIsAYellowCell() {
+        // Execute
+        final BufferedImage stamp = VirtualObjectButton.toThumbnail(LEVEL_COMPLETION_CARD);
+        final VirtualObjectButton button = fromType(LEVEL_COMPLETION_CARD);
+
+        // Verify
+        assertThat(stamp.getWidth()).isEqualTo(TILE_SIZE);
+        assertThat(stamp.getHeight()).isEqualTo(TILE_SIZE);
+        assertThat(stamp.getRGB(0, 0)).as("Top-left corner").isEqualTo(YELLOW.getRGB());
+        assertThat(stamp.getRGB(TILE_SIZE - 1, TILE_SIZE - 1)).as("Bottom-right corner").isEqualTo(YELLOW.getRGB());
+        assertThat(stamp.getRGB(TILE_SIZE / 2, TILE_SIZE / 2) >>> 24).as("Centre").isZero();
+        assertThat(button.getToolTipText()).contains("Level Completion Card").contains("1 x 1 tiles");
     }
 
     @Test

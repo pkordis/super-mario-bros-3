@@ -45,6 +45,8 @@ public interface LevelSceneEditorTabFactory {
         tab.setRenderingStarterColumn(-1);
         tab.setSpawnPointRow(-1);
         tab.setSpawnPointColumn(-1);
+        tab.setLevelCompletionCardRow(-1);
+        tab.setLevelCompletionCardColumn(-1);
         tab.setSceneTitle(generateTemporarySceneTitle());
         tab.setSceneDescription(null);
         tab.setSceneId(null);
@@ -82,6 +84,10 @@ public interface LevelSceneEditorTabFactory {
         levelScene.setRenderingStarterColumn(editor.getRenderingStarterColumn());
         levelScene.setSpawnPointRow(editor.getSpawnPointRow());
         levelScene.setSpawnPointColumn(editor.getSpawnPointColumn());
+        // The tab's -1 for "no card" is stored as null, the scene's own "none".
+        final boolean hasCard = editor.hasLevelCompletionCard();
+        levelScene.setLevelCompletionCardRow(hasCard ? editor.getLevelCompletionCardRow() : null);
+        levelScene.setLevelCompletionCardColumn(hasCard ? editor.getLevelCompletionCardColumn() : null);
         levelScene.setPipePortals(copyOf(editor.getPipePortals()));
         return levelScene;
     }
@@ -112,10 +118,16 @@ public interface LevelSceneEditorTabFactory {
         final Integer rsCol = levelScene.getRenderingStarterColumn();
         final Integer spRow = levelScene.getSpawnPointRow();
         final Integer spCol = levelScene.getSpawnPointColumn();
+        final Integer cardRow = levelScene.getLevelCompletionCardRow();
+        final Integer cardCol = levelScene.getLevelCompletionCardColumn();
         tab.setRenderingStarterRow((rsRow != null) ? rsRow : -1);
         tab.setRenderingStarterColumn((rsCol != null) ? rsCol : -1);
         tab.setSpawnPointRow((spRow != null) ? spRow : -1);
         tab.setSpawnPointColumn((spCol != null) ? spCol : -1);
+        // Both or neither: a card needs its row and its column.
+        final boolean hasCard = cardRow != null && cardCol != null;
+        tab.setLevelCompletionCardRow(hasCard ? cardRow : -1);
+        tab.setLevelCompletionCardColumn(hasCard ? cardCol : -1);
         tab.setSceneTitle(levelScene.getTitle());
         tab.setSceneDescription(levelScene.getDescription());
         tab.setSceneId(levelScene.getId());

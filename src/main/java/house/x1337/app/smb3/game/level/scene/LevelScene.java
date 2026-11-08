@@ -35,6 +35,8 @@ public final class LevelScene implements LevelSceneCapabilities {
     private Integer renderingStarterColumn;
     private Integer spawnPointRow;
     private Integer spawnPointColumn;
+    private Integer levelCompletionCardRow;
+    private Integer levelCompletionCardColumn;
 
     private LevelSceneLayer airLayer;
     private LevelSceneLayer airDecorationsLayer;

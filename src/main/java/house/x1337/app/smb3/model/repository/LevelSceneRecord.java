@@ -31,6 +31,8 @@ public final class LevelSceneRecord implements Serializable {
     private Integer renderingStarterColumn;
     private Integer spawnPointRow;
     private Integer spawnPointColumn;
+    private Integer levelCompletionCardRow;
+    private Integer levelCompletionCardColumn;
     @Singular
     private Map<String, LevelSceneLayerData> layers;
 

@@ -28,6 +28,8 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .renderingStarterColumn(levelSceneRecord.getRenderingStarterColumn())
             .spawnPointRow(levelSceneRecord.getSpawnPointRow())
             .spawnPointColumn(levelSceneRecord.getSpawnPointColumn())
+            .levelCompletionCardRow(levelSceneRecord.getLevelCompletionCardRow())
+            .levelCompletionCardColumn(levelSceneRecord.getLevelCompletionCardColumn())
             .airLayer(toLevelSceneLayer(AIR, levelSceneRecord))
             .airDecorationsLayer(toLevelSceneLayer(DECORATIONS_AIR, levelSceneRecord))
             .landDecorationsLayer(toLevelSceneLayer(DECORATIONS_LAND, levelSceneRecord))
@@ -48,7 +50,9 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .renderingStarterRow(levelScene.getRenderingStarterRow())
             .renderingStarterColumn(levelScene.getRenderingStarterColumn())
             .spawnPointRow(levelScene.getSpawnPointRow())
-            .spawnPointColumn(levelScene.getSpawnPointColumn());
+            .spawnPointColumn(levelScene.getSpawnPointColumn())
+            .levelCompletionCardRow(levelScene.getLevelCompletionCardRow())
+            .levelCompletionCardColumn(levelScene.getLevelCompletionCardColumn());
         for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
             builder.layer(type.name(), toLayerData(type, levelScene.getLayer(type)));
         }

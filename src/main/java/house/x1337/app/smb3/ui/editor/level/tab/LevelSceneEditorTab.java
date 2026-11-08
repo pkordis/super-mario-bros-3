@@ -67,6 +67,8 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private int renderingStarterColumn = -1;
     private int spawnPointRow = -1;
     private int spawnPointColumn = -1;
+    private int levelCompletionCardRow = -1;
+    private int levelCompletionCardColumn = -1;
     private String sceneTitle = null;
     private String sceneDescription = null;
     private String sceneId = null;
@@ -85,7 +87,6 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private Tile[][] importGrid;
 
     private final JLabel statusLabel = new JLabel(" ");
-
     private final LevelSceneEditorGrid levelSceneEditorGrid = forTab(this);
     private final LevelSceneImportRouter levelSceneImportRouter;
     private final TilePalettePanel tilePalettePanel;
@@ -140,6 +141,8 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         renderingStarterColumn = -1;
         spawnPointRow = -1;
         spawnPointColumn = -1;
+        levelCompletionCardRow = -1;
+        levelCompletionCardColumn = -1;
         sceneTitle = null;
         sceneDescription = null;
         sceneId = null;
@@ -152,6 +155,10 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
 
     public boolean hasSpawnPoint() {
         return spawnPointRow >= 0 && spawnPointColumn >= 0;
+    }
+
+    public boolean hasLevelCompletionCard() {
+        return levelCompletionCardRow >= 0 && levelCompletionCardColumn >= 0;
     }
 
     /**
@@ -190,7 +197,10 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         }
         final VirtualObjectType selectedVirtualObject = paletteSelectionService.getSelectedVirtualObject();
         if (selectedVirtualObject != null) {
-            placePipePortal(selectedVirtualObject, col, row);
+            switch (selectedVirtualObject.getCategory()) {
+                case PIPE_PORTAL -> placePipePortal(selectedVirtualObject, col, row);
+                case CARD -> placeLevelCompletionCard(col, row);
+            }
             return;
         }
         final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
@@ -221,12 +231,13 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     }
 
     /**
-     * Clears a cell of the active layer. On the NPC layer, a cell covered by a pipe portal removes that portal instead
-     * and leaves the layer's tiles alone.
+     * Clears a cell of the active layer. On the NPC layer, a cell holding the level completion card or covered by a
+     * pipe portal removes that object instead and leaves the layer's tiles alone. The card is drawn over the portals,
+     * so on a cell holding both the card goes first.
      */
     public void eraseTile(final int col, final int row) {
         if (row >= 0 && row < rows && col >= 0 && col < columns) {
-            if (removePipePortalAt(col, row)) {
+            if (removeLevelCompletionCardAt(col, row) || removePipePortalAt(col, row)) {
                 levelSceneEditorGrid.repaint();
                 return;
             }
@@ -281,6 +292,31 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
             return false;
         }
         return pipePortals.removeIf(portal -> portal.occupies(row, col));
+    }
+
+    /**
+     * Puts the scene's level completion card on the clicked cell, on the NPC layer only. Any cell inside the scene
+     * will do: there is no prompt and no placement rule. A scene has at most one card, so placing it again moves it.
+     */
+    private void placeLevelCompletionCard(final int col, final int row) {
+        if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
+            return;
+        }
+        levelCompletionCardRow = row;
+        levelCompletionCardColumn = col;
+        levelSceneEditorGrid.repaint();
+    }
+
+    private boolean removeLevelCompletionCardAt(final int col, final int row) {
+        if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
+            return false;
+        }
+        if (levelCompletionCardRow != row || levelCompletionCardColumn != col) {
+            return false;
+        }
+        levelCompletionCardRow = -1;
+        levelCompletionCardColumn = -1;
+        return true;
     }
 
     private Tile[][] staticEnvironmentTiles() {
@@ -413,7 +449,6 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         return (title != null && !title.isBlank()) ? title : "Untitled Scene";
     }
 
-    // TODO: simplify way to get the label
     public void updateTabTitle() {
         final String resolvedTitle = resolveTitle();
         final LevelSceneEditorTabSystem tabSystem = getEditorTabSystem();
