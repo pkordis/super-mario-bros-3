@@ -11,7 +11,11 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
+import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.GameEvent;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
+import house.x1337.app.smb3.model.event.LevelCompleted;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
@@ -28,7 +33,9 @@ import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -68,6 +75,9 @@ class LevelCompletionTest {
         final LevelScene levelScene = mock(LevelScene.class);
         when(levelScene.getLevelCompletionCard()).thenReturn(of(30, 9));
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
+        final CameraState cameraState = mock(CameraState.class);
+        when(cameraState.getActiveObjectRegion(anyInt())).thenReturn(new AxisAlignedBoundingBox(0, 0, 256, 192));
+        when(gameEngine.getCameraState()).thenReturn(cameraState);
 
         when(player.getPlayerData()).thenReturn(playerData);
         when(player.getPosition()).thenReturn(position);
@@ -173,5 +183,54 @@ class LevelCompletionTest {
         assertThat(underwayBefore).isTrue();
         assertThat(levelCompletion.isUnderway()).isFalse();
         assertThat(levelCompletion.getCollectedCard()).isNull();
+    }
+
+    @Test
+    @DisplayName("The touch starts the player's run-off")
+    void theTouchStartsTheRunOff() {
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify
+        verify(player).startRunningOff();
+    }
+
+    @Test
+    @DisplayName("LevelCompleted is published once, on the tick the player's left edge passes the camera's right edge")
+    void theLevelIsCompletedOnceThePlayerIsOffCamera() {
+        // Prepare - the camera's right edge at x 256
+        final List<GameEvent> published = recordPublishedEvents();
+        levelCompletion.collect(FLOWER, player);
+        position.setX(256);
+
+        // Execute & Verify
+        levelCompletion.checkPlayerHasRunOffLevel();
+        assertThat(published).as("On the edge").noneMatch(LevelCompleted.class::isInstance);
+        position.setX(256.25);
+        levelCompletion.checkPlayerHasRunOffLevel();
+        levelCompletion.checkPlayerHasRunOffLevel();
+        assertThat(published).as("Past it, once").filteredOn(LevelCompleted.class::isInstance).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Nothing is completed before the card is touched, or by a player who died on the way")
+    void noCompletionWithoutARunOff() {
+        // Prepare
+        final List<GameEvent> published = recordPublishedEvents();
+        position.setX(1000);
+
+        // Execute & Verify
+        levelCompletion.checkPlayerHasRunOffLevel();
+        assertThat(published).as("No card yet").isEmpty();
+        levelCompletion.collect(FLOWER, player);
+        when(runtimeState.isDying()).thenReturn(true);
+        levelCompletion.checkPlayerHasRunOffLevel();
+        assertThat(published).as("Dying").noneMatch(LevelCompleted.class::isInstance);
+    }
+
+    private List<GameEvent> recordPublishedEvents() {
+        final List<GameEvent> published = new ArrayList<>();
+        doAnswer(invocation -> published.add(invocation.getArgument(0))).when(gameEngine).publish(any());
+        return published;
     }
 }

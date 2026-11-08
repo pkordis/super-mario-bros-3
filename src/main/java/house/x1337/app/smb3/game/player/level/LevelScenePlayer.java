@@ -395,6 +395,13 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        // Past the level's right edge in the end-level run-off there is nothing to stand on, so the player walks on at
+        // the height it left at, with no gravity, collision or pit check.
+        if (isRunningOff() && isPastTheLevelsRightEdge()) {
+            tickBeyondTheLevel();
+            return;
+        }
+
         final StaticEnvironmentCollisionGrid collisionGrid = gameEngine.getCollisionGrid();
 
         // Capture the pre-tick position for render interpolation. Done here
@@ -444,6 +451,11 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         handlePowerMeterAndRunFlag(inputHandler);
         handleVerticalMovement(inputHandler);
         handleFlyTimeCountdown();
+
+        // The run-off owns the facing and the walk, whatever the friction above made of DX
+        if (isRunningOff()) {
+            applyRunOffWalk();
+        }
 
         // During low clearance, zero ALL velocity after movement runs.
         // handleHorizontalMovement updates facing and animation state

@@ -222,6 +222,12 @@ public final class GameConstants {
 
     public static final double PLAYER_TOPWALKSPEED = 1.5;
     public static final double PLAYER_TOPRUNSPEED = 2.5;
+
+    /**
+     * The end-level run-off's walk: {@code Player_XVel = $14} on every grounded frame while {@code Player_EndLevel}
+     * is set (dasm prg029.asm:1099-1118, {@code PRG029_D257}), 1.25 px per tick, a little under the top walking speed.
+     */
+    public static final double PLAYER_END_LEVEL_XVEL = 20 / 16.0;
     public static final double PLAYER_TOPPOWERSPEED = 3.5;
 
     /**

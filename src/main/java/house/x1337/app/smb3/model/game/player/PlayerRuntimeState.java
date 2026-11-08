@@ -48,6 +48,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private boolean ducking;
     private boolean hitCeiling;
     private boolean running;
+    private boolean runningOffLevel;
     private boolean wasCarrying;
     private int deathPauseCounter;
     private int flyTimeToggle;
