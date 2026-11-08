@@ -104,7 +104,7 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     `isKilledByRammedObject` is false. The sprite is one quad on the card's cell at `Z_DEPTH_ITEM_REWARD`; a face
     change swaps its texture (`LevelCompletionCardImageResource`).
   - `LevelCompletionCardMotionManager` turns, hit-tests (inserts into the broadphase) and deletes the card off
-    screen with the shared delete edges; `postCollision` hides a collected card. `updateWhileHalted` is the default
+    screen with the shared delete edges; `postCollision` detaches a collected card. `updateWhileHalted` is the default
     no-op, as in the ROM.
   - The touch: `PlayerData.addCard`, `PlayerTimer.pause()`, `GameObjectAnimator.freeze()` on every tile animator
     (undone by the next `buildLevel`), `PowerSwitchTimeWindow.reset()`, the kill tally to 0, the player's DY to 0.
@@ -112,7 +112,7 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     stopped clock does. Before SMB3-44 the HUD hid any timer that was not counting.
   - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
 - **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
-  bonus (SMB3-48), the flight and the messages (SMB3-49), and the music.
+  bonus (SMB3-48), the messages (SMB3-49), the card's spin-away (SMB3-64), and the music.
 
 ## The run-off (SMB3-45)
 
@@ -137,9 +137,47 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   - Once the step would put the left foot (X + 4, both suits) past the last column there is nothing to stand on:
     `tickBeyondTheLevel` walks the player on at its height, with no gravity, collision or pit check, so it never
     "falls" off the end of the level.
-  - `LevelCompletion.checkPlayerHasRunOff` (each un-halted tick, after the players move) publishes `LevelCompleted`
-    once, when the player's X passes the camera's right edge. `TestSessionEventListener` turns it into
+  - Until SMB3-46, `LevelCompletion` published `LevelCompleted` once the player's X passed the camera's right edge.
+    SMB3-46 replaced that with the ROM's exit (below). `TestSessionEventListener` turns `LevelCompleted` into
     `requestLevelSceneRestart()`, the R path. A player who dies on the way never completes the level.
   - A carried object is let go because `isCarryButtonHeld()` reads B through the handler.
-- **Not ported:** hiding the player's sprites once off screen (`EndLevelCard_ClearPlayerIfOff`) and waiting for the
-  wrap to screen X 32: the restart replaces them until SMB3-46. No Kuribo's shoe, no crush check to skip.
+- **Not ported:** hiding the player's sprites once off screen (`EndLevelCard_ClearPlayerIfOff`); the port's player is
+  simply outside the view by then. No Kuribo's shoe, no crush check to skip.
+
+## The time bonus and the level end (SMB3-46)
+
+- **ROM**, the non-triple-match path of `ObjNorm_EndLevelCard` (prg002.asm:5367-5385):
+  - **State 4**, `EndLevelCard_WaitFlyAway` (prg002.asm:5630-5649): the card rises at `YVel = -$28` (3, 2, 3, 2 px a
+    frame from a zero 4.4 fraction) until `Objects_SprVVis` says it is off the top of the screen: its bottom (Y + 16)
+    above `Level_VertScroll` (`Object_DetermineVertVisY`, prg000.asm:5132-5180). The flags are worked out before the
+    frame's move, so the state changes one frame after the card has gone. State 5 then starts with
+    `Objects_Timer = $60`.
+  - **State 5**, `EndLevelCard_MsgAndCard` (prg002.asm:5676-5755): `DoTimeBonus` (prg000.asm:603-651) every frame.
+    While music plays (`SndCur_Music1`, here `MUS1_COURSECLEAR` from the touch) it does nothing and reports "not
+    done". Otherwise a step takes 10 off and scores 500 while the hundreds or tens digit is non-zero, else 1 off and
+    50 (`TimeBonus_Score`), and plays `SND_LEVELBLIP`; at 000 it reports "done". The state ends when the bonus is
+    done, the timer is 0, and `Player_SpriteX / 2 == $10`. Then state 7 with `Objects_Timer = $80`, or with three
+    mixed cards state 6, the 1UP display (SMB3-48).
+  - **State 7**, `EndLevelCard_Exit` (prg002.asm:5808-5829): at timer 0 the level is left, and three held cards are
+    cleared.
+  - `Objects_Timer` goes down once per frame that is not halted, before the object runs (prg000.asm:1849-1855).
+  - **The halt at the exit.** In states 4 and 5, `EndLevelCard_PlayerRunOff` (prg002.asm:5651-5671) sets
+    `Player_HaltTick` when `Player_SpriteX / 2 == $10`, and that skips the player's whole update (prg008.asm:834-836).
+    The 8-bit sprite X has wrapped round by then: the player has walked off the right of the screen and stops 32 px
+    past it, out of sight. The check does not know about the wrap, so a player touching the card in the screen's
+    leftmost 32 px would stop on screen at X 32. The port keeps that.
+- **Port:**
+  - `LevelCompletion` runs the states as `Phase` (`CARD_FLYING_OFF`, `COURSE_CLEAR`, `EXITING`, `COMPLETED`), from
+    `tick()` on each un-halted tick after the players move, with `phaseTimer` as `Objects_Timer`.
+  - `CardFlight` times state 4 from the card's cell (the spawner's, read before it is retired). The card itself is
+    still detached at the touch; SMB3-64 draws the flight.
+  - `TimeBonus.convertStep` is one `DoTimeBonus` step. `PlayerTimer.takeOff` takes the time off without expiring
+    the timer, so the paused clock shows 000.
+  - `CourseClearMusicStandIn` stands in for `MUS1_COURSECLEAR` with `COURSE_CLEAR_MUSIC_TICKS = 0`: no music yet, so
+    the bonus starts as soon as the card is off screen. The package-private `LevelCompletion` constructor takes a
+    longer one for tests.
+  - The player's sprite X is `floor(X - screen left) & $FF`. `haltRunOff()` sets `PlayerRuntimeState.runOffHalted`,
+    and `LevelScenePlayer.updateFrame` then only snapshots the position.
+  - Three mixed cards go straight to `EXITING` until SMB3-48 adds state 6. A triple match takes the ordinary path for
+    now (SMB3-48).
+- **Not ported:** `SND_LEVELBLIP` and the music (sound), the messages (SMB3-49).

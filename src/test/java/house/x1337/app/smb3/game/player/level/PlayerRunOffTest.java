@@ -245,6 +245,28 @@ class PlayerRunOffTest {
         assertThat(player.getPlayerData().getPlayerPower()).isLessThan(PMETER_LEVELS);
     }
 
+    @Test
+    @DisplayName("Once the run-off is halted at the exit the player stands where it stopped")
+    void aHaltedRunOffStandsStill() {
+        // Prepare
+        final LevelScenePlayer player = playerAt(NORMAL, 3 * TILE_SPRITE_SIZE);
+        final PlayerPosition position = player.getPosition();
+        player.startRunningOff();
+        player.updateFrame();
+        final double haltedX = position.getX();
+
+        // Execute
+        player.haltRunOff();
+        for (int tick = 0; tick < 60; tick++) {
+            player.updateFrame();
+        }
+
+        // Verify
+        assertThat(player.isRunOffHalted()).isTrue();
+        assertThat(position.getX()).as("No walk").isCloseTo(haltedX, within(TOLERANCE));
+        assertThat(position.getY()).as("No fall").isCloseTo(STANDING_Y, within(TOLERANCE));
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------

@@ -29,7 +29,14 @@ import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
+import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.EXIT_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.CARD_FLYING_OFF;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COMPLETED;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COURSE_CLEAR;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.EXITING;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +46,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,9 +54,15 @@ import static org.mockito.Mockito.when;
 /**
  * Touching the card starts the level's completion, as {@code ObjHit_EndLevelCard} does (dasm prg002.asm:6146-6292):
  * {@code Player_GetCard}, {@code Level_TimerEn = $81}, and {@code Level_PSwitchCnt}, {@code Kill_Tally} and
- * {@code Player_YVel} cleared.
+ * {@code Player_YVel} cleared. Then the card flies off, the clock turns into score and the level ends on the ROM's
+ * timers ({@code EndLevelCard_WaitFlyAway}, {@code EndLevelCard_MsgAndCard}, {@code EndLevelCard_Exit}).
  */
 class LevelCompletionTest {
+    /** The card at row 9 (y 144) reaches y -19 after 65 ticks, so the screen top at 0 sees it gone on tick 66. */
+    private static final int FLIGHT_TICKS = 66;
+
+    /** Sprite X 32 once wrapped round, on a screen whose left edge is at 0. */
+    private static final double EXIT_X = 288;
     private final PlayerData playerData = new PlayerData();
     private final PlayerPosition position = new PlayerPosition();
     private final PlayerRuntimeState runtimeState = mock(PlayerRuntimeState.class);
@@ -196,36 +210,197 @@ class LevelCompletionTest {
     }
 
     @Test
-    @DisplayName("LevelCompleted is published once, on the tick the player's left edge passes the camera's right edge")
-    void theLevelIsCompletedOnceThePlayerIsOffCamera() {
-        // Prepare - the camera's right edge at x 256
-        final List<GameEvent> published = recordPublishedEvents();
+    @DisplayName("The card flies off first: 3, 2, 3, 2 px a tick until its bottom is above the top of the screen")
+    void theCardFliesOffFirst() {
+        // Prepare - the card at y 144 (row 9), the screen's top at 0; no time to convert
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
         levelCompletion.collect(FLOWER, player);
-        position.setX(256);
 
-        // Execute & Verify
-        levelCompletion.checkPlayerHasRunOffLevel();
-        assertThat(published).as("On the edge").noneMatch(LevelCompleted.class::isInstance);
-        position.setX(256.25);
-        levelCompletion.checkPlayerHasRunOffLevel();
-        levelCompletion.checkPlayerHasRunOffLevel();
-        assertThat(published).as("Past it, once").filteredOn(LevelCompleted.class::isInstance).hasSize(1);
+        // Execute
+        final int flightTicks = ticksUntil(COURSE_CLEAR);
+
+        // Verify - after 65 ticks the card is at y -19, so its bottom (-3) is above the top; seen on tick 66
+        assertThat(flightTicks).isEqualTo(FLIGHT_TICKS);
+        assertThat(levelCompletion.getPhaseTimer()).isEqualTo(COURSE_CLEAR_TICKS);
     }
 
     @Test
-    @DisplayName("Nothing is completed before the card is touched, or by a player who died on the way")
-    void noCompletionWithoutARunOff() {
+    @DisplayName("Once the card is off screen the clock turns into score, one ROM step a tick, while the HUD shows it")
+    void theClockTurnsIntoScoreAfterTheFlight() {
         // Prepare
-        final List<GameEvent> published = recordPublishedEvents();
-        position.setX(1000);
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        tick(FLIGHT_TICKS);
+        assertThat(playerData.getTimer()).as("Nothing during the flight").isEqualTo(287);
 
         // Execute & Verify
-        levelCompletion.checkPlayerHasRunOffLevel();
+        tick(1);
+        assertThat(playerData.getTimer()).as("First step").isEqualTo(277);
+        assertThat(playerData.getScore()).isEqualTo(500);
+        tick(34);
+        assertThat(playerData.getTimer()).as("35 steps").isZero();
+        assertThat(playerData.getScore()).isEqualTo(14_350);
+        assertThat(playerData.isTimerShown()).as("000 on the status bar").isTrue();
+    }
+
+    @Test
+    @DisplayName("Nothing is converted while the course-clear music stand-in plays")
+    void theBonusWaitsForTheMusic() {
+        // Prepare - a 200-tick track
+        levelCompletion = new LevelCompletion(gameEngine, new CourseClearMusicStandIn(200));
+        levelCompletion.reset();
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+
+        // Execute & Verify
+        tick(199);
+        assertThat(levelCompletion.getPhase()).isEqualTo(COURSE_CLEAR);
+        assertThat(playerData.getTimer()).as("Still playing").isEqualTo(287);
+        assertThat(playerData.getScore()).isZero();
+        tick(1);
+        assertThat(playerData.getTimer()).as("The track has ended").isEqualTo(277);
+    }
+
+    @Test
+    @DisplayName("The exit waits for the course-clear timer, then the clock, then the player, in turn")
+    void theExitWaitsForEachCondition() {
+        // Execute & Verify - the timer: the clock is done long before its $60 ticks
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        assertThat(ticksUntil(EXITING)).as("The timer").isEqualTo(FLIGHT_TICKS + COURSE_CLEAR_TICKS);
+
+        // Execute & Verify - the clock: a 300-tick track holds the bonus back past the timer
+        levelCompletion = new LevelCompletion(gameEngine, new CourseClearMusicStandIn(300));
+        levelCompletion.reset();
+        startTheTimerAt(287);
+        levelCompletion.collect(FLOWER, player);
+        assertThat(ticksUntil(EXITING)).as("The clock: 35 steps from tick 300, done on tick 335").isEqualTo(335);
+
+        // Execute & Verify - the player: not at the exit until it is moved there
+        levelCompletion.reset();
+        startTheTimerAt(287);
+        position.setX(100);
+        levelCompletion.collect(FLOWER, player);
+        tick(400);
+        assertThat(levelCompletion.getPhase()).as("The player is not at the exit").isEqualTo(COURSE_CLEAR);
+        position.setX(EXIT_X);
+        tick(1);
+        assertThat(levelCompletion.getPhase()).isEqualTo(EXITING);
+        assertThat(levelCompletion.getPhaseTimer()).isEqualTo(EXIT_TICKS);
+    }
+
+    @Test
+    @DisplayName("LevelCompleted is published once, $80 ticks after the exit begins")
+    void theLevelEndsAfterTheExitTimer() {
+        // Prepare
+        final List<GameEvent> published = recordPublishedEvents();
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        ticksUntil(EXITING);
+
+        // Execute & Verify
+        tick(EXIT_TICKS - 1);
+        assertThat(published).as("Still exiting").noneMatch(LevelCompleted.class::isInstance);
+        tick(1);
+        assertThat(published).as("Ended").filteredOn(LevelCompleted.class::isInstance).hasSize(1);
+        assertThat(levelCompletion.isCompleted()).isTrue();
+        tick(200);
+        assertThat(published).as("Once").filteredOn(LevelCompleted.class::isInstance).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Three cards are cleared when the level ends; one or two stay")
+    void threeCardsAreClearedAtTheEnd() {
+        // Execute & Verify - the third card
+        playerData.addCard(MUSHROOM);
+        playerData.addCard(STAR);
+        runToTheEnd();
+        assertThat(playerData.getCards()).as("Three").containsExactly(null, null, null);
+
+        // Execute & Verify - the first and the second
+        levelCompletion.reset();
+        runToTheEnd();
+        assertThat(playerData.getCards()).as("One").containsExactly(FLOWER, null, null);
+        levelCompletion.reset();
+        runToTheEnd();
+        assertThat(playerData.getCards()).as("Two").containsExactly(FLOWER, FLOWER, null);
+    }
+
+    @Test
+    @DisplayName("The player is halted at sprite X 32 or 33, before or after the wrap, during the flight too")
+    void thePlayerIsHaltedAtTheExit() {
+        // Prepare
+        startTheTimerAt(0);
+        position.setX(31.9);
+        levelCompletion.collect(FLOWER, player);
+
+        // Execute & Verify
+        tick(1);
+        verify(player, never()).haltRunOff();
+        for (final double x : new double[] {32, 33.9, 288, 289.5}) {
+            position.setX(x);
+            tick(1);
+        }
+        assertThat(levelCompletion.getPhase()).isEqualTo(CARD_FLYING_OFF);
+        verify(player, times(4)).haltRunOff();
+        position.setX(290);
+        tick(1);
+        verify(player, times(4)).haltRunOff();
+    }
+
+    @Test
+    @DisplayName("Nothing happens before the card is touched, or once the player is dying")
+    void nothingWithoutALivingRunOff() {
+        // Prepare
+        final List<GameEvent> published = recordPublishedEvents();
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+
+        // Execute & Verify
+        tick(10);
         assertThat(published).as("No card yet").isEmpty();
         levelCompletion.collect(FLOWER, player);
         when(runtimeState.isDying()).thenReturn(true);
-        levelCompletion.checkPlayerHasRunOffLevel();
-        assertThat(published).as("Dying").noneMatch(LevelCompleted.class::isInstance);
+        tick(1000);
+        assertThat(levelCompletion.getPhase()).as("Dying").isEqualTo(CARD_FLYING_OFF);
+        assertThat(playerData.getTimer()).isEqualTo(287);
+        assertThat(published).noneMatch(LevelCompleted.class::isInstance);
+    }
+
+    private void startTheTimerAt(final int time) {
+        // Not clear(): that publishes through the bean factory, which this test mocks
+        final PlayerTimer timer = playerData.getPlayerTimer();
+        timer.setTime(0);
+        timer.setInitialTime(time);
+        timer.start();
+    }
+
+    private void runToTheEnd() {
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        ticksUntil(COMPLETED);
+    }
+
+    private int ticksUntil(final LevelCompletion.Phase phase) {
+        int ticks = 0;
+        while (levelCompletion.getPhase() != phase) {
+            assertThat(ticks).as("Reaching %s", phase).isLessThan(10_000);
+            levelCompletion.tick();
+            ticks++;
+        }
+        return ticks;
+    }
+
+    private void tick(final int ticks) {
+        for (int tick = 0; tick < ticks; tick++) {
+            levelCompletion.tick();
+        }
     }
 
     private List<GameEvent> recordPublishedEvents() {

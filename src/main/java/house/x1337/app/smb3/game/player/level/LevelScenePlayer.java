@@ -395,6 +395,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        // The run-off has ended where the player stands
+        if (isRunOffHalted()) {
+            position.snapshotPrevious();
+            return;
+        }
+
         // Past the level's right edge in the end-level run-off there is nothing to stand on, so the player walks on at
         // the height it left at, with no gravity, collision or pit check.
         if (isRunningOff() && isPastTheLevelsRightEdge()) {
