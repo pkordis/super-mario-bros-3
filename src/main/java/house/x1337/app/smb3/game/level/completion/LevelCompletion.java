@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.card.LevelCompletionCardSpawner;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
+import house.x1337.app.smb3.model.event.LevelCompleted;
 import lombok.Getter;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -20,7 +21,9 @@ public final class LevelCompletion implements GameEngineAware {
     private final LevelCompletionCardSpawner cardSpawner;
 
     private LevelCompletionCardType collectedCard;
+    private LevelScenePlayer runningOffPlayer;
     private boolean underway;
+    private boolean completed;
 
     public LevelCompletion(final GameEngine gameEngine) {
         this.gameEngine = gameEngine;
@@ -29,7 +32,9 @@ public final class LevelCompletion implements GameEngineAware {
 
     public void reset() {
         underway = false;
+        completed = false;
         collectedCard = null;
+        runningOffPlayer = null;
         cardSpawner.reset();
     }
 
@@ -46,6 +51,7 @@ public final class LevelCompletion implements GameEngineAware {
         }
         underway = true;
         collectedCard = card;
+        runningOffPlayer = player;
         cardSpawner.retire();
 
         final PlayerData playerData = player.getPlayerData();
@@ -55,7 +61,19 @@ public final class LevelCompletion implements GameEngineAware {
         getCollisionGrid().getPowerSwitchTimeWindow().reset();
         player.getRuntimeState().setKillTally(0);
         player.getPosition().setDY(0);
+        player.startRunningOff();
 
         gameEngine.publish(new LevelCardCollected(card));
+    }
+
+    public void checkPlayerHasRunOffLevel() {
+        if (runningOffPlayer == null || completed || runningOffPlayer.getRuntimeState().isDying()) {
+            return;
+        }
+        final double screenRight = gameEngine.getCameraState().getActiveObjectRegion(0).right();
+        if (runningOffPlayer.getPosition().getX() > screenRight) {
+            completed = true;
+            gameEngine.publish(new LevelCompleted());
+        }
     }
 }

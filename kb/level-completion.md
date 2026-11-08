@@ -113,3 +113,33 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
 - **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
   bonus (SMB3-48), the flight and the messages (SMB3-49), and the music.
+
+## The run-off (SMB3-45)
+
+- **ROM:** from the touch, `EndLevelCard_PlayerRunOff` (prg002.asm:5651-5672) faces the player right
+  (`Player_FlipBits = $41`) and sets `Player_EndLevel` every frame. While it is set, `Player_Control`
+  (prg008.asm:1329-1349, `PRG008_A6D2`) zeroes `Player_XVel`, `Pad_Holding` and `Pad_Input` every frame, and
+  `PRG029_D257` (prg029.asm:1099-1118) writes `Player_XVel = $14` (1.25 px per frame) only while grounded, so a player
+  touched mid-jump drops straight down first. Gravity, collision, the walk animation, scrolling and the P-meter drain
+  go on; a pit still kills; the crush check is skipped (prg008.asm:913). The exit's timers are SMB3-46.
+- **Port:**
+  - The run-off lives in `LevelScenePlayerRunningOffCapabilities`, one of `LevelScenePlayerCapabilities`' mixins;
+    `updateFrame` only calls into it. `LevelCompletion.collect` calls `startRunningOff()`:
+    `PlayerRuntimeState.runningOffLevel` is set (`isRunningOff()`), the player's
+    `PlayerInputHandler.ignorePlayerInput()` makes every key read as released
+    and every press as used, and the facing and walk are applied at once.
+  - `PlayerInputHandler` still tracks the keys, so a restart's handler takes over the real pad; R and L still publish
+    their events, so R still restarts the level during the run-off.
+  - `updateFrame` re-applies the walk after the movement handlers each tick (`applyRunOffWalk`: face right,
+    `PLAYER_END_LEVEL_XVEL` on the ground, 0 in the air), overriding the friction a released pad would apply.
+  - `StaticEnvironmentCollisionGrid.collidesAtOffset` opens the level's right edge to a running-off player; the left
+    edge stays solid.
+  - Once the step would put the left foot (X + 4, both suits) past the last column there is nothing to stand on:
+    `tickBeyondTheLevel` walks the player on at its height, with no gravity, collision or pit check, so it never
+    "falls" off the end of the level.
+  - `LevelCompletion.checkPlayerHasRunOff` (each un-halted tick, after the players move) publishes `LevelCompleted`
+    once, when the player's X passes the camera's right edge. `TestSessionEventListener` turns it into
+    `requestLevelSceneRestart()`, the R path. A player who dies on the way never completes the level.
+  - A carried object is let go because `isCarryButtonHeld()` reads B through the handler.
+- **Not ported:** hiding the player's sprites once off screen (`EndLevelCard_ClearPlayerIfOff`) and waiting for the
+  wrap to screen X 32: the restart replaces them until SMB3-46. No Kuribo's shoe, no crush check to skip.

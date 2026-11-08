@@ -406,7 +406,8 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      *
      * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(Coordinates)}, the level's left and
      * right edges are solid here: the player is held inside the level, the job the ROM gives the
-     * screen-edge clamp in {@code Player_DoScrolling} (dasm prg008 @ PRG008_B1CE).
+     * screen-edge clamp in {@code Player_DoScrolling} (dasm prg008 @ PRG008_B1CE). In the end-level run-off the right
+     * edge is open, so the player walks out of the level instead of stopping against it.
      *
      * <p>Below the level is open. The ROM's player probe gives up before fetching any tile once the probe
      * reaches the level's bottom ({@code Player_GetTileAndSlope} @ PRG008_B406-PRG008_B414: high byte 1
@@ -419,8 +420,12 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     ) {
         final Coordinates cell = fromPlayerOffset(player, offset);
 
-        if (cell.x() < 0 || cell.x() >= dimensions.columns()) {
-            return true; // Out of horizontal bounds = solid
+        if (cell.x() < 0) {
+            return true; // Left of the level = solid
+        }
+        if (cell.x() >= dimensions.columns()) {
+            // Right of the level = solid, but open to a level player running off it
+            return !(player instanceof final LevelScenePlayer levelScenePlayer && levelScenePlayer.isRunningOff());
         }
         if (cell.y() >= dimensions.rows()) {
             return false; // Below the level = open

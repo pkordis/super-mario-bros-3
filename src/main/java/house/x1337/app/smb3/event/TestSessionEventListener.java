@@ -2,6 +2,7 @@ package house.x1337.app.smb3.event;
 
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.event.LevelCompleted;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.model.event.PlayerDied;
@@ -15,6 +16,7 @@ public interface TestSessionEventListener extends GameEventBusAware, GameEngineA
         gameEventBus.subscribe(GameEngineStopped.class, event -> onGameEngineStopped());
         gameEventBus.subscribe(PlayerDied.class, event -> requestLevelSceneRestart());
         gameEventBus.subscribe(LevelSceneResetRequested.class, event -> requestLevelSceneRestart());
+        gameEventBus.subscribe(LevelCompleted.class, event -> requestLevelSceneRestart());
         gameEventBus.subscribe(PipePortalTransitRequested.class, this::onPipePortalTransitRequested);
     }
 

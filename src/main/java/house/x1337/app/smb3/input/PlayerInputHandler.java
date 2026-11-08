@@ -7,8 +7,6 @@ import com.jme3.input.controls.KeyTrigger;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.event.GameEventBusAware;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.game.player.level.LevelScenePlayerActionEventListener;
 import house.x1337.app.smb3.model.event.LevelScenePlayerSwitchedLayer;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import jakarta.annotation.PostConstruct;
@@ -46,11 +44,9 @@ public final class PlayerInputHandler
     public static final String HANDLER_RESET = "LEVEL_RESET";
     public static final String HANDLER_EXIT = "PLAYER_EXIT";
 
-    /** Keys currently held down. */
     private final Set<String> activeKeys = new HashSet<>();
-
-    /** Keys whose press has already been consumed (one-shot actions). */
     private final Set<String> handledKeys = new HashSet<>();
+    private boolean playerInputIgnored;
 
     /**
      * Installs key mappings into the given {@link InputManager} and attaches this handler as their
@@ -116,14 +112,11 @@ public final class PlayerInputHandler
         gameEngine.getInputManager().removeListener(this);
     }
 
-    /**
-     * Takes over what {@code previous} knew about the pad, for a player respawned in its place (a restart or a pipe
-     * trip into another scene). jME reports keys only as press and release edges, so a fresh handler would not know
-     * about a key that is already down, and the player would ignore it until it is pressed again. The ROM reads the
-     * pad on every frame whatever the game is doing, so a held key stays held and a press already acted on stays used.
-     *
-     * @param previous the handler of the player being replaced
-     */
+    /** From now on the player reads every key as released and every press as used. */
+    public void ignorePlayerInput() {
+        playerInputIgnored = true;
+    }
+
     public void carryOverFrom(final PlayerInputHandler previous) {
         activeKeys.clear();
         activeKeys.addAll(previous.activeKeys);
@@ -135,10 +128,10 @@ public final class PlayerInputHandler
      * Returns {@code true} if the key identified by {@code key} is currently held down.
      *
      * @param key one of the {@code HANDLER_*} constants
-     * @return whether the key is active (pressed)
+     * @return whether the key is active (pressed); {@code false} for every key once input is ignored
      */
     public boolean isActive(final String key) {
-        return activeKeys.contains(key);
+        return !playerInputIgnored && activeKeys.contains(key);
     }
 
     /**
@@ -150,7 +143,7 @@ public final class PlayerInputHandler
      * @return whether a fresh (unconsumed) press is available
      */
     public boolean consumePress(final String key) {
-        if (activeKeys.contains(key) && !handledKeys.contains(key)) {
+        if (!playerInputIgnored && activeKeys.contains(key) && !handledKeys.contains(key)) {
             handledKeys.add(key);
             return true;
         }
