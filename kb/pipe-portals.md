@@ -6,9 +6,11 @@ both (`IN_AND_OUT`). It replaces the ROM's per-tileset enterable-pipe tile ids (
 
 ## Model
 
-- `VirtualObjectType` gives the footprint (`rows` × `columns`), the editor border `colour` and a `label`:
+- `VirtualObjectType` gives the `kind`, the footprint (`rows` × `columns`), the editor border `colour` and a `label`:
   - `PIPE_PORTAL_HORIZONTAL`: 1 × 2, the lip of an upright or upside-down pipe.
   - `PIPE_PORTAL_VERTICAL`: 2 × 1, the lip of a side pipe.
+  - Both are of kind `VirtualObjectKind.PIPE_PORTAL`. The third type, `CARD`, is not a portal and
+    never becomes a `PipePortal`; see `kb/level-completion.md`.
 - `PipePortal` (`model.game.portal`) holds `id`, `description`, `type` (`PipePortalType`), `virtualObjectType`,
   `levelSceneId`, `row` and `column`.
 - **Anchor:** `row` / `column` is always the portal's **lowest leftmost** cell. Row 0 is the top of the scene, so the
@@ -67,7 +69,8 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   `VirtualObjectType`. The stamp is the real footprint at `TILE_SIZE` (64 px) per cell, transparent, with a 4 px
   border in the type's colour. Buttons are `LayerGatedToggleButton`s owned by the NPC layer, so arming one switches to
   that layer, and leaving it releases the stamp. `ActiveLayerMenu.activate` re-syncs this panel too.
-- **Placing:** `LevelSceneEditorTab.paintTile` checks an armed virtual object first. The clicked cell is the anchor.
+- **Placing:** `LevelSceneEditorTab.paintTile` checks an armed virtual object first and dispatches on its `kind`; a
+  `PIPE_PORTAL` goes to `placePipePortal`. The clicked cell is the anchor.
   `PipePortalPlacementRules.validate` runs before anything is asked; a broken rule is shown through
   `PipePortalPrompt.warn`. Otherwise `PipePortalPrompt.ask` opens `PlacePipePortalWindow` (type defaults to `IN`,
   description optional) and **Place** adds the portal to `tab.pipePortals`.

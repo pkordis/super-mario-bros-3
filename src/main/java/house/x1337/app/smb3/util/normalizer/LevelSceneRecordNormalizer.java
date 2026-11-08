@@ -30,7 +30,9 @@ public interface LevelSceneRecordNormalizer {
             .renderingStarterRow(record.getRenderingStarterRow())
             .renderingStarterColumn(record.getRenderingStarterColumn())
             .spawnPointRow(record.getSpawnPointRow())
-            .spawnPointColumn(record.getSpawnPointColumn());
+            .spawnPointColumn(record.getSpawnPointColumn())
+            .levelCompletionCardRow(record.getLevelCompletionCardRow())
+            .levelCompletionCardColumn(record.getLevelCompletionCardColumn());
         for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
             final LevelSceneLayerData existing = (layers != null) ? layers.get(type.name()) : null;
             final int[] tileIds = normalizeTileIds(

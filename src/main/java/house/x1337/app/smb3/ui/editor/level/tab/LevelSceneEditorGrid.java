@@ -27,6 +27,7 @@ import java.util.Map;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.LEVEL_COMPLETION_CARD;
 import static java.awt.Color.BLACK;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
@@ -55,7 +56,7 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
 
             @Override
             public void mouseDragged(final MouseEvent e) {
-                // A virtual object opens a dialog per placement, so it is placed on a press only.
+                // A pipe portal opens a dialog per placement, so every virtual object is placed on a press only.
                 if (tab.isPlacingVirtualObject()) {
                     return;
                 }
@@ -156,8 +157,27 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         }
 
         drawPipePortals(graphics);
+        drawLevelCompletionCard(graphics);
 
         graphics.dispose();
+    }
+
+    /**
+     * Outlines the scene's level completion card on its cell, above the pipe portals. The card belongs to the NPC
+     * layer, so it is hidden along with it.
+     */
+    private void drawLevelCompletionCard(final Graphics2D graphics) {
+        if (!isNpcLayerVisible() || !tab.hasLevelCompletionCard()) {
+            return;
+        }
+        graphics.setColor(LEVEL_COMPLETION_CARD.getColour());
+        graphics.setStroke(new BasicStroke(4f));
+        graphics.drawRect(
+            tab.getLevelCompletionCardColumn() * TILE_SIZE + 2,
+            tab.getLevelCompletionCardRow() * TILE_SIZE + 2,
+            LEVEL_COMPLETION_CARD.getColumns() * TILE_SIZE - 4,
+            LEVEL_COMPLETION_CARD.getRows() * TILE_SIZE - 4
+        );
     }
 
     /**

@@ -59,6 +59,27 @@ class NitriteLevelSceneRepositoryTest {
         assertThat(titles).hasSize(2).containsEntry("scene-1", "1-1").containsEntry("scene-2", null);
     }
 
+    @Test
+    @DisplayName("The level completion card's cell is stored on the scene document and read back")
+    void storesTheLevelCompletionCard() {
+        // Prepare
+        final LevelSceneRecord withCard = record("scene-1", "1-1");
+        withCard.setLevelCompletionCardRow(21);
+        withCard.setLevelCompletionCardColumn(168);
+        repository.upsert(withCard);
+        repository.upsert(record("scene-2", "1-1 bonus room"));
+
+        // Execute
+        final LevelSceneRecord readWithCard = repository.findById("scene-1").orElseThrow();
+        final LevelSceneRecord readWithoutCard = repository.findById("scene-2").orElseThrow();
+
+        // Verify
+        assertThat(readWithCard.getLevelCompletionCardRow()).isEqualTo(21);
+        assertThat(readWithCard.getLevelCompletionCardColumn()).isEqualTo(168);
+        assertThat(readWithoutCard.getLevelCompletionCardRow()).isNull();
+        assertThat(readWithoutCard.getLevelCompletionCardColumn()).isNull();
+    }
+
     private static LevelSceneRecord record(final String id, final String title) {
         return LevelSceneRecord.builder()
             .id(id)
