@@ -201,9 +201,10 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     fraction), then YVel += 2 (`SObj_ApplyXYVelsWithGravity`, prg007.asm:3903-3920). It is removed on the frame
     YVel reaches `$20`: 36 frames, peaking 27 px up and ending 12 px above its start. Drawn 4 px right of the X,
     spinning through the block coin's frames every 4 frames (`Var1 >> 2 & 3`).
-  - **Landing:** `Coins_Earned++`, and a caption 6 px above the coin at its X worth `$89 + Kill_Tally`, then
-    `Kill_Tally++` (prg007.asm:4036-4060). `$09` is 1000. All the coins land on the same frame, so with several on
-    screen they climb the ladder: 1000, 2000, 4000, 8000, 1UP. `Kill_Tally` is only reset by the player landing.
+  - **Landing:** `Coins_Earned++`, and a caption with its `Scores_Y` 6 px above the coin, at its X, worth
+    `$89 + Kill_Tally`, then `Kill_Tally++` (prg007.asm:4036-4060). `$09` is 1000. All the coins land on the same
+    frame, so with several on screen they climb the ladder: 1000, 2000, 4000, 8000, 1UP. `Kill_Tally` is only reset
+    by the player landing.
 - **Port:**
   - `LevelCompletion.clearTheObjects`, at the end of `collect`, sweeps every `ActiveLevelObjectMotionManager`
     except the card's. Placed enemies not yet spawned into the scene and rewards collected this tick are in no ROM
@@ -255,25 +256,74 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   14 px into the block, which fits Mario's head rising 3 px a frame (13 to 15 px): 100 = (113 + 14 - 24 - 5) + 1
   (the NES draws sprites a line down) + 1 (the coin's top row is clear).
 - **Port:**
-  - `BlockCoinPopMotion` runs the routine. Tick 0 is the first update. `verticalOffsetAt` is the sprite top's height
-    above the block top: `LAUNCH_HEIGHT` (24 - 14 - 1 = 9) plus what the coin has risen. That gives 14 at tick 0,
-    64 for ticks 18 to 22, 28 at tick 37, and 24 at tick 38 (the removal). `durationTicks` is 38.
-  - `BLOCK_COIN_MOTION = spinning(blockCoin(), 4, 4, SPIN_PHASE_TICKS)`, with the phase as the counter on tick 0
-    (2). `CoinPopAnimation` and `CoinRewardMotionManager` are unchanged. The coin still starts at the block's top,
-    4 px in, and the caption goes at the coin's position at tick 38, 4 px left.
+  - `BlockCoinPopMotion` runs the routine. `BLOCK_COIN_MOTION = spinning(blockCoin(), 4, 4, SPIN_PHASE_TICKS)`.
   - `BlockCoinPopMotionTest` checks the flight against the ROM's arithmetic. `PopMotionTest` cross-checks it against
     the capture above, with no tolerance. The fitted parabola (`ParabolicPopMotion`) and its old traced table are
     gone.
+  - SMB3-66 (below) took the launch to the hitting probe, ported the screen rules and the score captions, and made
+    tick `n` the position after `n` updates.
+
+## The block coin's start, its screen rules and the score captions (SMB3-66)
+
+- **The launch.** `CoinPUp_Y` is the Y of whichever probe found the block, less 24 (prg000.asm:788-792):
+  `Temp_Var14` as `Level_DoBumpBlocks` sees it. That is the head probe for a hit from below
+  (`Player_DetectSolids`), the tail's (`Player_TailAttack_HitBlocks`, `Player_Y + 28`, prg008.asm:5444-5472) and a
+  kicked shell's (`Object_BumpOffBlocks`, prg008.asm:5483-5490).
+  - `StaticEnvironmentCollisionGrid.bumpProbeY` records it, floored, before it dispatches `onCollisionFromBelow`
+    (head) or `onTailAttack` (tail and shell). `Block.onCoinDispensed` passes it to `spawnCoinReward`.
+  - The coin's sprite top is `probeY - 24 + 1`: `BLOCK_COIN_ABOVE_PROBE_PIXELS` and `SPRITE_LINE_DELAY_PIXELS`. The
+    block coin flies against the background it came out of, so it keeps the NES's one-line sprite delay. Nothing
+    else in the port does.
+  - `BlockCoinPopMotion.verticalOffsetAt(n)` is the rise after `n` updates: 0 at the launch, 5 after the first,
+    55 after updates 19 to 23, and 15 after the 39th, which removes the coin. The hit is found in the player's
+    update, before the coins', so the coin gets its first update in the frame it spawns, as in the ROM. Ticks 1
+    to 38 are drawn.
+- **The screen rules** (prg007.asm:2807-2826). Only for the block coin: `FlyingCoin.screenBound`.
+  - On an update that does not end it, a coin whose 8-bit screen X is 248 or more is removed. There is no caption
+    and no 100 points, and the future from `spawnCoinReward` never completes. Off the left edge the X wraps to 255,
+    so that removes it too. The 39th update tests the velocity first, so it always lands.
+  - During gameplay nothing moves `CoinPUp_Y` with the scroll, so the coin moves with the screen.
+    `followTheScreenVertically` moves it by the change in the camera's top since the last update.
+  - While gameplay is halted it follows the scroll, so it stays put in the level. A coin whose 8-bit `CoinPUp_Y`
+    is 197 or more is removed then, which is one that has flown above the screen's top.
+  - The camera is `CameraState.getActiveObjectRegion`, as for every other screen test in the port. It moves once a
+    rendered frame, so above 60 Hz a coin carried by a vertical scroll lags the screen by up to one tick's scroll.
+- **The captions** (`Score_GiveAndDraw`, prg007.asm:2191-2267). `ScoreRisePopMotion` replaces
+  `DeceleratingRisePopMotion`.
+  - The score sprite is 8 x 16 and its digits are the lower 8 lines. `Score_PatternLeft` and `Score_PatternRight`
+    are odd, bottom-half tiles in 8 x 16 mode. In the capture the 100's digits are at `Scores_Y + 9`: 8 lines, plus
+    the sprite delay. So the offset starts at -8.
+  - Each update takes 1 off `Scores_Counter` from $30 and rises 1 px when
+    `Counter_1 & Score_RiseCounterMask[counter >> 4]` is 0: every frame for 16 updates, then when `Counter_1` is
+    even for 16, then when it is a multiple of 4 for 16. It is drawn on its 48 updates and the 49th removes it.
+    `ScorePopupAnimation.start()` reads `Counter_1` from `GameEngine.getLevelFrameCounter()` and gives the score
+    its first update, because the ROM only draws a score after updating it.
+  - A score does not rise while `Scores_Y < 4` (prg007.asm:2262-2266). `placeAt` works out how far it may rise
+    from where it starts: `maxRises`.
+  - `Scores_Y` is 5 when the ROM's value is 192 or more. That includes one above the screen, whose 8-bit value has
+    wrapped.
+  - Where each score goes:
+    - **Objects** (`Score_PopUp`, prg000.asm:714-745): `Objects_SpriteY - 16` at the object's X.
+      `ScorePopupAnimation.placeOver` uses the object's `getPosition()`, which is its `Objects_Y`. For a Koopa
+      Troopa that is the body, with the head drawn above it, so the caption now sits lower than the old
+      sprite-top-based one. Enemies and rewards spawn their captions in `postCollision`, before their next
+      `tickScorePopups`, and `start()` gives them their first update. They are drawn on the frame of the stomp or
+      the collection, as the ROM draws them: the objects update before `Scores_GiveAndDraw`.
+    - **The block coin:** `Scores_Y = CoinPUp_Y` at `CoinPUp_X - 4`. The caption's sprite top is the coin's.
+    - **The popped-out coin:** `SpecialObj_Y - 6` (prg007.asm:4046-4048) at the object's X. With the digits in the
+      sprite's lower half, they now show 2 px below the coin's top, where they used to show 6 px above it.
+    - Both coins run after `Scores_GiveAndDraw` (prg030.asm:2462 and 2469). So `CoinRewardMotionManager` holds a
+      coin's caption in `pendingScores` and starts it on the next update, after the captions already rising.
+  - The capture's 100 matches on all 48 frames, from line 96 on frame 101 to line 69 on frame 148
+    (`PopMotionTest`). Its `Counter_1` was a multiple of 4 on its first update.
 - **Not ported:**
-  - The head-probe depth is fixed at the 14 px measured in the capture. The head enters the block's bottom row at
-    15 px and gets at most 3 px further at the jump's top speed, so in the ROM a slower hit starts the coin up to
-    1 px lower and a faster one up to 2 px higher.
-  - The scrolling. Horizontally the port's level-fixed coin already moves as the ROM's does. Not ported:
-    removing the coin at screen X 248 or more (in the ROM no caption appears then, and no 100 points), and
-    carrying the coin with a vertical scroll during gameplay. The capture does not scroll during the flight. The
-    caption's `Y = 5` fallback for coins at 192 or lower is not ported either.
-  - The caption is a `ScorePopupAnimation`, shared with every other score, and it does not model the ROM's score
-    sprite. That sprite is 16 lines tall with its digits in the lower 8. In the capture the 100's digits first
-    show on frame 101 at line 96, 7 px below the removed coin's sprite top (89). The port draws the caption from
-    the removal frame, 3 px below the coin's top (92 on that frame, 91 on the next). So it shows a frame early and
-    5 px high. Before SMB3-65 the parabola ended 2 px lower, so the gap was 3 px.
+  - The point award happens when the coin lands or the object scores. The ROM adds it on the score's 7th update,
+    when `Scores_Counter` is $2A before the decrement (prg007.asm:2214-2217), so a score removed before then pays
+    nothing.
+  - A score's removal when its screen X or Y reaches 248 (prg007.asm:2268-2283). It is off the screen by then.
+  - The caption's rise stop works from where it starts, so a vertical scroll during its 48 frames does not change
+    it.
+  - Outside the grow halts, the ROM holds a score still while gameplay is halted. The port keeps every caption
+    rising through every halt, as before.
+  - `SUB Level_VertScroll` followed by `SBC #24` subtracts 25 when the probe is above the screen's top. The port
+    always subtracts 24.

@@ -11,10 +11,11 @@ import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimati
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
-import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,40 +34,67 @@ import static house.x1337.app.smb3.game.motion.pop.PopMotions.spinning;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.MAX_KILL_TALLY;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
+import static java.lang.Math.floor;
 import static java.lang.Math.min;
 
 @Getter
 @Singleton
 public final class CoinRewardMotionManager implements MotionManager {
-    public static final float SCORE_X_OFFSET_FROM_COIN = -4.0f / TILE_SPRITE_SIZE;
+    public static final int SCORE_X_OFFSET_FROM_COIN_PIXELS = -4;
     public static final PopMotion BLOCK_COIN_MOTION = spinning(blockCoin(), 4, 4, SPIN_PHASE_TICKS);
     public static final PopMotion POPPED_OUT_COIN_MOTION = spinning(poppedOutCoin(), 4, 4, 0);
+    public static final int BLOCK_COIN_ABOVE_PROBE_PIXELS = 24;
+    public static final int BLOCK_COIN_X_OFFSET_PIXELS = 4;
+    public static final int SPRITE_LINE_DELAY_PIXELS = 1;
+    public static final int BLOCK_COIN_REMOVAL_SCREEN_X = 248;
+    public static final int BLOCK_COIN_REMOVAL_SCREEN_Y = 197;
+
     static final int POPPED_OUT_COIN_X_OFFSET_PIXELS = 4;
     static final int POPPED_OUT_CAPTION_ABOVE_COIN_PIXELS = 6;
     static final int POPPED_OUT_FIRST_LADDER_INDEX = 4;
-    private static final float CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
+
+    private static final int SCREEN_MASK = 255;
 
     private final List<FlyingCoin> activeCoins = new ArrayList<>();
     private final List<ScorePopupAnimation> activeScores = new ArrayList<>();
+    private final List<ScorePopupAnimation> pendingScores = new ArrayList<>();
 
     @Override
     public void update() {
+        tickScores();
+        startPendingScores();
         final Iterator<FlyingCoin> coinIterator = activeCoins.iterator();
         while (coinIterator.hasNext()) {
             final FlyingCoin coin = coinIterator.next();
-            coin.animation().tick();
-            if (coin.animation().isExpired()) {
-                coin.landing().accept(coin.animation());
-                coin.animation().detach();
-                coinIterator.remove();
+            final CoinPopAnimation animation = coin.getAnimation();
+            if (coin.isScreenBound()) {
+                followTheScreenVertically(coin);
+            }
+            animation.tick();
+            if (animation.isExpired()) {
+                coin.getLanding().accept(animation);
+                remove(animation, coinIterator);
+            } else if (coin.isScreenBound() && screenX(animation) >= BLOCK_COIN_REMOVAL_SCREEN_X) {
+                remove(animation, coinIterator);
             }
         }
-        tickScores();
     }
 
     @Override
     public void updateWhileHalted() {
         tickScores();
+        startPendingScores();
+        final Iterator<FlyingCoin> coinIterator = activeCoins.iterator();
+        while (coinIterator.hasNext()) {
+            final FlyingCoin coin = coinIterator.next();
+            if (!coin.isScreenBound()) {
+                continue;
+            }
+            coin.setScreenTop(screenOf(coin.getAnimation()).top());
+            if (coinY(coin.getAnimation()) >= BLOCK_COIN_REMOVAL_SCREEN_Y) {
+                remove(coin.getAnimation(), coinIterator);
+            }
+        }
     }
 
     /**
@@ -75,12 +103,14 @@ public final class CoinRewardMotionManager implements MotionManager {
      * @param gameEngine the game engine
      * @param reward     what the caption shows and the future completes with
      * @param offset     the block's cell
-     * @return completed with the caption's points when the coin lands
+     * @param probeY     the Y of the probe that hit the block, in level pixels
+     * @return completed with the caption's points when the coin lands; never, if the coin leaves the screen first
      */
     public CompletableFuture<Integer> spawnCoinReward(
         final GameEngine gameEngine,
         final Reward reward,
-        final Coordinates offset
+        final Coordinates offset,
+        final int probeY
     ) {
         final CoinPopAnimation coin = getBean(
             CoinPopAnimation.class,
@@ -89,15 +119,15 @@ public final class CoinRewardMotionManager implements MotionManager {
             offset,
             BLOCK_COIN_MOTION
         );
-        final Dimensions dimensions = coin.getDimensions();
-        coin.setWorldOffset(WorldOffset.of(
-            offset.x() + dimensions.width() - dimensions.width() / 2,
-            getLevelSceneRows(gameEngine.getLevelScene()) - 1 - offset.y() + dimensions.height(),
-            Z_DEPTH_ITEM_REWARD
-        ));
+        final double spriteTop = probeY - BLOCK_COIN_ABOVE_PROBE_PIXELS + SPRITE_LINE_DELAY_PIXELS;
+        coin.setWorldOffset(
+            worldOffsetOf(gameEngine, offset.x() * TILE_SPRITE_SIZE + BLOCK_COIN_X_OFFSET_PIXELS, spriteTop)
+        );
         coin.start();
         final CompletableFuture<Integer> completion = new CompletableFuture<>();
-        activeCoins.add(new FlyingCoin(coin, landed -> landBlockCoin(landed, completion)));
+        final FlyingCoin flyingCoin = new FlyingCoin(coin, landed -> landBlockCoin(landed, completion), true);
+        flyingCoin.setScreenTop(screenOf(coin).top());
+        activeCoins.add(flyingCoin);
         return completion;
     }
 
@@ -123,7 +153,7 @@ public final class CoinRewardMotionManager implements MotionManager {
             worldOffsetOf(gameEngine, objectPosition.x() + POPPED_OUT_COIN_X_OFFSET_PIXELS, objectPosition.y())
         );
         coin.start();
-        activeCoins.add(new FlyingCoin(coin, landed -> landPoppedOutCoin(landed, player, objectPosition)));
+        activeCoins.add(new FlyingCoin(coin, landed -> landPoppedOutCoin(landed, player, objectPosition), false));
     }
 
     /**
@@ -131,18 +161,25 @@ public final class CoinRewardMotionManager implements MotionManager {
      */
     @Override
     public void reset() {
-        activeCoins.forEach(coin -> coin.animation().detach());
+        activeCoins.forEach(coin -> coin.getAnimation().detach());
         activeCoins.clear();
         activeScores.forEach(ScorePopupAnimation::detach);
         activeScores.clear();
+        pendingScores.clear();
     }
 
     private void landBlockCoin(
         final CoinPopAnimation coin,
         final CompletableFuture<Integer> completion
     ) {
-        final WorldOffset captionOffset = coin.getCurrentWorldOffset().plus(SCORE_X_OFFSET_FROM_COIN, 0, 0);
-        final ScorePopupAnimation caption = spawnCaption(coin, coin.getRewardData(), captionOffset);
+        final double coinTop = spriteTopOf(coin);
+        final ScorePopupAnimation caption = caption(coin, coin.getRewardData());
+        caption.placeAt(
+            spriteLeftOf(coin) + SCORE_X_OFFSET_FROM_COIN_PIXELS,
+            coinTop,
+            caption.screenLine(coinTop - SPRITE_LINE_DELAY_PIXELS)
+        );
+        pendingScores.add(caption);
         completion.complete(caption.getRewardData().getPoints());
     }
 
@@ -159,25 +196,27 @@ public final class CoinRewardMotionManager implements MotionManager {
 
         final int risen = coin.getMotion().verticalOffsetAt(coin.getMotion().durationTicks());
         final double captionTop = objectPosition.y() - risen - POPPED_OUT_CAPTION_ABOVE_COIN_PIXELS;
-        final WorldOffset captionOffset = worldOffsetOf(coin.getGameEngine(), objectPosition.x(), captionTop);
-        spawnCaption(coin, reward.getData(), captionOffset.plus(0f, CAPTION_INITIAL_DIP, 0f));
+        final ScorePopupAnimation caption = caption(coin, reward.getData());
+        caption.placeAt(objectPosition.x(), captionTop, caption.screenLine(captionTop));
+        pendingScores.add(caption);
     }
 
-    private ScorePopupAnimation spawnCaption(
+    private ScorePopupAnimation caption(
         final CoinPopAnimation coin,
-        final Reward.Data rewardData,
-        final WorldOffset worldOffset
+        final Reward.Data rewardData
     ) {
-        final ScorePopupAnimation caption = getBean(
+        return getBean(
             ScorePopupAnimation.class,
             coin.getGameEngine(),
             rewardData,
             coin.getOffset()
         );
-        caption.setWorldOffset(worldOffset);
-        caption.start();
-        activeScores.add(caption);
-        return caption;
+    }
+
+    private void startPendingScores() {
+        pendingScores.forEach(ScorePopupAnimation::start);
+        activeScores.addAll(pendingScores);
+        pendingScores.clear();
     }
 
     private void tickScores() {
@@ -190,6 +229,45 @@ public final class CoinRewardMotionManager implements MotionManager {
                 iterator.remove();
             }
         }
+    }
+
+    private void followTheScreenVertically(final FlyingCoin coin) {
+        final double screenTop = screenOf(coin.getAnimation()).top();
+        final double scrolled = screenTop - coin.getScreenTop();
+        coin.setScreenTop(screenTop);
+        if (scrolled != 0) {
+            final WorldOffset worldOffset = coin.getAnimation().getWorldOffset();
+            coin.getAnimation().setWorldOffset(worldOffset.plus(0f, (float) (-scrolled / TILE_SPRITE_SIZE), 0f));
+        }
+    }
+
+    private int screenX(final CoinPopAnimation coin) {
+        return (int) floor(spriteLeftOf(coin) - screenOf(coin).left()) & SCREEN_MASK;
+    }
+
+    private int coinY(final CoinPopAnimation coin) {
+        return (int) floor(spriteTopOf(coin) - SPRITE_LINE_DELAY_PIXELS - screenOf(coin).top()) & SCREEN_MASK;
+    }
+
+    private static AxisAlignedBoundingBox screenOf(final CoinPopAnimation coin) {
+        return coin.getGameEngine().getCameraState().getActiveObjectRegion(0);
+    }
+
+    private static double spriteLeftOf(final CoinPopAnimation coin) {
+        return (double) coin.getCurrentWorldOffset().x() * TILE_SPRITE_SIZE;
+    }
+
+    private double spriteTopOf(final CoinPopAnimation coin) {
+        final int rows = getLevelSceneRows(coin.getGameEngine().getLevelScene());
+        return (rows - (double) coin.getCurrentWorldOffset().y()) * TILE_SPRITE_SIZE;
+    }
+
+    private void remove(
+        final CoinPopAnimation coin,
+        final Iterator<FlyingCoin> iterator
+    ) {
+        coin.detach();
+        iterator.remove();
     }
 
     private int getLevelSceneRows(final LevelScene levelScene) {
@@ -208,6 +286,16 @@ public final class CoinRewardMotionManager implements MotionManager {
         );
     }
 
-    record FlyingCoin(CoinPopAnimation animation, Consumer<CoinPopAnimation> landing) {
+    @Getter
+    @RequiredArgsConstructor
+    static final class FlyingCoin {
+        private final CoinPopAnimation animation;
+        private final Consumer<CoinPopAnimation> landing;
+        private final boolean screenBound;
+        private double screenTop;
+
+        void setScreenTop(final double screenTop) {
+            this.screenTop = screenTop;
+        }
     }
 }

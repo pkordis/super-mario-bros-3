@@ -180,6 +180,9 @@ index 5 in the score table = 100 pts.
 - Up to 5 simultaneous score popups (`Scores_Value[0..4]`).
 - Each popup lives for `$30` (48) ticks, rising upward at a rate controlled by
   `Score_RiseCounterMask`.
+- The sprite is 8x16 and the digits are its lower 8 lines (the pattern bytes are
+  odd, bottom-half tiles), so they show at `Scores_Y + 9` on screen. See
+  `kb/level-completion.md`, SMB3-66, for the port (`ScoreRisePopMotion`).
 - The score is added to `Score_Earned` at tick `$2A` (midpoint), not immediately.
 - Counter clears to 0 when done; slot is reused.
 - If no sprite RAM slot is free for one half of the 2-tile display, that half

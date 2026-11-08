@@ -11,20 +11,14 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import java.util.Iterator;
 import java.util.List;
 
-import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> extends ActiveLevelObjectMotionManager<C> {
-    float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
-    float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
-    float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
-
     @Override
     default void postCollision() {
         // The engine's collision pass has just run. Spawn a caption for every reward collected this
-        // tick, then remove any that vanish on contact (detachesOnCollect) — the mushroom and the
-        // leaf both do, so they are gone this tick, before the grow freeze a small player triggers
+        // tick, then remove any that vanish on contact (detachesOnCollect). The mushroom and the
+        // leaf both do, so they are gone this tick, before the growth freeze a small player triggers
         // begins next tick. Any reward that keeps the default lingers one more rendered frame beside
         // its caption and is removed by update() next tick.
         final Iterator<C> iterator = getActiveInstances().iterator();
@@ -41,12 +35,6 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
         }
     }
 
-    /**
-     * While gameplay is halted (dasm {@code Player_HaltGame} — e.g. the small→Super grow freeze) the
-     * reward objects and the broadphase stand still; only the score-pop captions keep rising, which
-     * is exactly the "1000" floating up over a mushroom collected at the start of the grow. This is
-     * the sole object animation the ROM advances through the freeze.
-     */
     @Override
     default void updateWhileHalted() {
         tickScorePopups();
@@ -59,7 +47,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
             instance.getRewardType().getData(),
             instance.getOffset()
         );
-        animation.setWorldOffset(instance.getCurrentWorldOffset().plus(0f, SCORE_CAPTION_ABOVE_INSTANCE_LIFT, 0f));
+        animation.placeOver(instance);
         animation.start();
         getActiveScorePopups().add(animation);
     }
@@ -67,9 +55,8 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
     @Override
     default void update() {
         final List<C> activeInstances = getActiveInstances();
-        // Advance existing score popups first. A caption spawned later this tick (in postCollision)
-        // is therefore left un-ticked until the next tick, so it renders once at its spawn position
-        // before it begins rising.
+        // Advance existing score popups first: one spawned later this tick (in postCollision) gets its first
+        // update as it starts, so it is not advanced twice.
         tickScorePopups();
 
         if (activeInstances.isEmpty()) {

@@ -45,6 +45,20 @@ class CollisionGridHitCeilingTest {
     }
 
     @Test
+    @DisplayName("Rising into a solid tile records the head probe's Y, which a coin out of the block launches from")
+    void aHeadHitRecordsTheProbeY() {
+        // Prepare - the big player's head probe is Y + 6, at 34.75 + 6 floored
+        final LevelScenePlayer player = largePlayer(JUMPING, 32, 34.75, -2);
+        final StaticEnvironmentCollisionGrid grid = gridWithACeiling();
+
+        // Execute
+        grid.handleCollision(player, false);
+
+        // Verify
+        assertThat(grid.getBumpProbeY()).isEqualTo(40);
+    }
+
+    @Test
     @DisplayName("Every collision pass starts by clearing the flag, so it lasts one tick")
     void everyPassClearsTheFlag() {
         // Prepare - flagged by an earlier tick, falling through open air now

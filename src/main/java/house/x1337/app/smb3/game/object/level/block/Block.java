@@ -225,7 +225,8 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
             .spawnCoinReward(
                 levelScenePlayer.getGameEngine(),
                 SCORE_100,
-                offset
+                offset,
+                levelScenePlayer.getCollisionGrid().getBumpProbeY()
             )
             .whenCompleteAsync((score, error) -> {
                 // The score is awarded after the coin flipping is complete and before the score's integer is rendered
