@@ -1,14 +1,8 @@
 package house.x1337.app.smb3.game.motion.pop;
 
 public interface PopMotions {
-    static ParabolicPopMotion parabolic(
-        final int spawnOffset,
-        final int riseSpeed,
-        final int gravity,
-        final int precision,
-        final int durationTicks
-    ) {
-        return new ParabolicPopMotion(spawnOffset, riseSpeed, gravity, precision, durationTicks);
+    static BlockCoinPopMotion blockCoin() {
+        return new BlockCoinPopMotion();
     }
 
     static DeceleratingRisePopMotion deceleratingRise(

@@ -5,32 +5,34 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.deceleratingRise;
-import static house.x1337.app.smb3.game.motion.pop.PopMotions.parabolic;
+import static house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager.BLOCK_COIN_MOTION;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PopMotionTest {
 
-    /** Offsets previously baked into {@code CoinPopAnimation.VERTICAL_OFFSETS}. */
-    private static final int[] TRACED_COIN_OFFSETS = {
-        11, 16, 20, 25, 29, 34, 38, 41, 44, 47,
-        50, 52, 54, 56,
-        57, 58, 59, 60,
-        62, 62, 62, 62, 62,
-        61, 60, 59, 58, 56,
-        54, 52, 49, 46,
-        43, 40, 38, 34, 30, 26
+    /**
+     * The block coin in {@code captures/input/smb3.avi}, frames 62 to 99: the top of its sprite above the block's
+     * top. The block's top is screen line 113 and the coin's first opaque row is one below its sprite's top, so each
+     * value is {@code 114 -} the coin's first opaque line. Frame 100 has no coin; the 100 caption shows from 101.
+     */
+    private static final int[] CAPTURED_COIN_OFFSETS = {
+        14, 19, 24, 28, 32, 36, 40, 43, 46, 49,
+        52, 54, 56, 58, 60, 61, 62, 63, 64, 64,
+        64, 64, 64, 63, 62, 61, 60, 58, 56, 54,
+        52, 49, 46, 43, 40, 36, 32, 28
     };
 
-    /** Texture indices previously baked into {@code CoinPopAnimation.FRAME_SEQUENCE}. */
-    private static final int[] TRACED_COIN_TEXTURES = {
-        0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
-        3, 3, 3, 3,
-        0, 0, 0, 0,
-        1, 1, 1, 1, 2,
-        2, 2, 2, 3, 3,
-        3, 3, 0, 0,
-        0, 0, 1, 1, 1, 1
+    /**
+     * The spin frames in the same capture: full face, narrow (dark edge left), edge, narrow (dark edge right).
+     * {@link #COVERED} marks frames 64 to 71, where the bumped block covers the coin.
+     */
+    private static final int[] CAPTURED_COIN_TEXTURES = {
+        0, 0, -1, -1, -1, -1, -1, -1, -1, -1,
+        3, 3, 3, 3, 0, 0, 0, 0, 1, 1,
+        1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+        0, 0, 0, 0, 1, 1, 1, 1
     };
+    private static final int COVERED = -1;
 
     /** Offsets baked into {@code ScorePopupAnimation}, measured from the corrected -4 spawn. */
     private static final int[] TRACED_SCORE_OFFSETS = {
@@ -39,14 +41,6 @@ class PopMotionTest {
         20, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23
     };
 
-    /**
-     * Largest deviation the calibrated parabola may show against the traced coin table.
-     * A floored parabola cannot do better: an exhaustive search over rise speed, gravity and
-     * sub-pixel precision found no parameter set with a maximum deviation below 2 px.
-     */
-    private static final int COIN_TOLERANCE = 2;
-
-    private static final PopMotion COIN_MOTION = parabolic(11, 647, 32, 128, 38).spinning(4, 4, 2);
     private static final PopMotion SCORE_MOTION = deceleratingRise(16, 3);
 
     @Test
@@ -60,52 +54,32 @@ class PopMotionTest {
     }
 
     @Test
-    @DisplayName("Coin spin reproduces the traced texture sequence exactly")
-    void coinSpinMatchesTracedSequence() {
+    @DisplayName("The block coin is drawn for as many frames as in the capture")
+    void coinFlightMatchesCapturedDuration() {
         // Execute & Verify
-        for (int tick = 0; tick < TRACED_COIN_TEXTURES.length; tick++) {
-            assertThat(COIN_MOTION.textureIndexAt(tick)).as("Tick " + tick).isEqualTo(TRACED_COIN_TEXTURES[tick]);
+        assertThat(BLOCK_COIN_MOTION.durationTicks()).isEqualTo(CAPTURED_COIN_OFFSETS.length);
+    }
+
+    @Test
+    @DisplayName("The block coin's height matches the capture at every frame")
+    void coinFlightMatchesCapture() {
+        // Execute & Verify
+        for (int tick = 0; tick < CAPTURED_COIN_OFFSETS.length; tick++) {
+            assertThat(BLOCK_COIN_MOTION.verticalOffsetAt(tick)).as("Tick " + tick)
+                .isEqualTo(CAPTURED_COIN_OFFSETS[tick]);
         }
     }
 
     @Test
-    @DisplayName("Coin arc runs for the traced number of ticks")
-    void coinArcMatchesTracedDuration() {
+    @DisplayName("The block coin's spin matches the capture wherever the coin is in view")
+    void coinSpinMatchesCapture() {
         // Execute & Verify
-        assertThat(COIN_MOTION.durationTicks()).isEqualTo(TRACED_COIN_OFFSETS.length);
-    }
-
-    @Test
-    @DisplayName("Coin arc matches the traced table exactly at spawn, apex and removal")
-    void coinArcMatchesTracedLandmarks() {
-        // Prepare
-        final int lastTick = TRACED_COIN_OFFSETS.length - 1;
-
-        // Execute
-        int apex = 0;
-        int apexTick = 0;
-        for (int tick = 0; tick < TRACED_COIN_OFFSETS.length; tick++) {
-            if (COIN_MOTION.verticalOffsetAt(tick) > apex) {
-                apex = COIN_MOTION.verticalOffsetAt(tick);
-                apexTick = tick;
+        assertThat(CAPTURED_COIN_TEXTURES).hasSameSizeAs(CAPTURED_COIN_OFFSETS);
+        for (int tick = 0; tick < CAPTURED_COIN_TEXTURES.length; tick++) {
+            if (CAPTURED_COIN_TEXTURES[tick] != COVERED) {
+                assertThat(BLOCK_COIN_MOTION.textureIndexAt(tick)).as("Tick " + tick)
+                    .isEqualTo(CAPTURED_COIN_TEXTURES[tick]);
             }
-        }
-
-        // Verify
-        assertThat(COIN_MOTION.verticalOffsetAt(0)).isEqualTo(TRACED_COIN_OFFSETS[0]);
-        assertThat(apex).isEqualTo(62);
-        assertThat(apexTick).as("Apex reached at tick " + apexTick).isBetween(18, 22);
-        assertThat(COIN_MOTION.verticalOffsetAt(lastTick)).isEqualTo(TRACED_COIN_OFFSETS[lastTick]);
-    }
-
-    @Test
-    @DisplayName("Coin arc stays within tolerance of the traced table at every tick")
-    void coinArcTracksTracedTableWithinTolerance() {
-        // Execute & Verify
-        for (int tick = 0; tick < TRACED_COIN_OFFSETS.length; tick++) {
-            final int deviation = Math.abs(COIN_MOTION.verticalOffsetAt(tick) - TRACED_COIN_OFFSETS[tick]);
-            assertThat(deviation).as("Tick " + tick + " deviates by " + deviation + " px")
-                .isLessThanOrEqualTo(COIN_TOLERANCE);
         }
     }
 
@@ -115,7 +89,7 @@ class PopMotionTest {
         // Execute & Verify
         assertThat(SCORE_MOTION.verticalOffsetAt(-5)).isEqualTo(SCORE_MOTION.verticalOffsetAt(0));
         assertThat(SCORE_MOTION.verticalOffsetAt(500)).isEqualTo(SCORE_MOTION.verticalOffsetAt(48));
-        assertThat(COIN_MOTION.verticalOffsetAt(-5)).isEqualTo(COIN_MOTION.verticalOffsetAt(0));
-        assertThat(COIN_MOTION.verticalOffsetAt(500)).isEqualTo(COIN_MOTION.verticalOffsetAt(38));
+        assertThat(BLOCK_COIN_MOTION.verticalOffsetAt(-5)).isEqualTo(BLOCK_COIN_MOTION.verticalOffsetAt(0));
+        assertThat(BLOCK_COIN_MOTION.verticalOffsetAt(500)).isEqualTo(BLOCK_COIN_MOTION.verticalOffsetAt(38));
     }
 }

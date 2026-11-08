@@ -106,7 +106,7 @@ class CoinRewardMotionManagerTest {
     }
 
     @Test
-    @DisplayName("A block coin flies its own arc from the block's top, 4 px in, and lands with its caption 4 px left")
+    @DisplayName("A block coin flies from the block's top, 4 px in, and lands with a 100 at its Y, 4 px left")
     void aBlockCoinLands() {
         // Prepare
         final CompletableFuture<Integer> points = manager.spawnCoinReward(gameEngine, SCORE_100, of(5, 3));
@@ -121,8 +121,9 @@ class CoinRewardMotionManagerTest {
         assertThat(start.y()).as("The block's top").isCloseTo(ROWS - 3f, within(TOLERANCE));
         assertThat(points).isCompletedWithValue(100);
         assertThat(captionRewards).containsExactly(SCORE_100.getData());
-        assertThat(worldOffsetOf(captions.getFirst()).x())
-            .isCloseTo(BLOCK_COIN_AT_LANDING.x() + SCORE_X_OFFSET_FROM_COIN, within(TOLERANCE));
+        final WorldOffset caption = worldOffsetOf(captions.getFirst());
+        assertThat(caption.x()).isCloseTo(BLOCK_COIN_AT_LANDING.x() + SCORE_X_OFFSET_FROM_COIN, within(TOLERANCE));
+        assertThat(caption.y()).as("Scores_Y = CoinPUp_Y").isCloseTo(BLOCK_COIN_AT_LANDING.y(), within(TOLERANCE));
         assertThat(playerData.getCoins()).as("A block gives its coin at the hit, not here").isZero();
     }
 

@@ -26,7 +26,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
-import static house.x1337.app.smb3.game.motion.pop.PopMotions.parabolic;
+import static house.x1337.app.smb3.game.motion.pop.BlockCoinPopMotion.SPIN_PHASE_TICKS;
+import static house.x1337.app.smb3.game.motion.pop.PopMotions.blockCoin;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.poppedOutCoin;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.spinning;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
@@ -38,7 +39,7 @@ import static java.lang.Math.min;
 @Singleton
 public final class CoinRewardMotionManager implements MotionManager {
     public static final float SCORE_X_OFFSET_FROM_COIN = -4.0f / TILE_SPRITE_SIZE;
-    public static final PopMotion BLOCK_COIN_MOTION = parabolic(11, 647, 32, 128, 38).spinning(4, 4, 2);
+    public static final PopMotion BLOCK_COIN_MOTION = spinning(blockCoin(), 4, 4, SPIN_PHASE_TICKS);
     public static final PopMotion POPPED_OUT_COIN_MOTION = spinning(poppedOutCoin(), 4, 4, 0);
     static final int POPPED_OUT_COIN_X_OFFSET_PIXELS = 4;
     static final int POPPED_OUT_CAPTION_ABOVE_COIN_PIXELS = 6;
