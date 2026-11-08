@@ -49,6 +49,12 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     private LevelSceneLayerType[][] underlayLayers;
     private LevelSceneDimensions dimensions;
 
+    /**
+     * The Y of the probe point that last hit a block, in level pixels: the head probe for a hit from below, and the
+     * tail's or a kicked shell's probe for a hit from the side. This is the ROM's {@code Temp_Var14} as
+     * {@code Level_DoBumpBlocks} sees it, which a coin out of the block launches from (prg000.asm:761-803).
+     */
+    private int bumpProbeY;
     public void tick() {
         if (powerSwitchTimeWindow.isActive()) {
             for (final Player player : gameEngine.getAllPlayers()) {
@@ -206,6 +212,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         }
         final LevelObject hitObject = getLevelObjectAt(cell);
         if (levelScenePlayer.getOrientation().getVertical() == UP) {
+            bumpProbeY = (int) floor(levelScenePlayer.getPosition().getY()) + tVert.first().y();
             hitObject.onCollisionFromBelow(levelScenePlayer);
         }
     }
@@ -272,6 +279,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         );
         final LevelObject object = getLevelObjectAt(probedCell);
         if (object != EMPTY_LEVEL_OBJECT) {
+            bumpProbeY = (int) floor(probeY);
             object.onTailAttack(levelScenePlayer);
         }
     }

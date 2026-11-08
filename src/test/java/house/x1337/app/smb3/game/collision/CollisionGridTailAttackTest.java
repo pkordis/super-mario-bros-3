@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -81,6 +82,23 @@ class CollisionGridTailAttackTest {
         // Verify
         verify(brickBesidePlayer).onTailAttack(player);
         verify(brickUnderPlayer, never()).onTailAttack(player);
+    }
+
+    @Test
+    @DisplayName("A strike records the probe's Y, floored, which a coin out of the block launches from")
+    void aStrikeRecordsTheProbeY() {
+        // Prepare
+        final LevelObject brick = collidableMock();
+        final LevelObject[][] objects = emptyGrid();
+        objects[4][3] = brick;
+        final LevelScenePlayer player = playerProbingAt(53, 70.5);
+        final StaticEnvironmentCollisionGrid grid = gridFor(objects);
+
+        // Execute
+        grid.resolveTailAttack(player, 53, 70.5);
+
+        // Verify
+        assertThat(grid.getBumpProbeY()).isEqualTo(70);
     }
 
     @Test

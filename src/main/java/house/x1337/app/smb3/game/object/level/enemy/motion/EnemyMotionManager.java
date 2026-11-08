@@ -13,21 +13,14 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import java.util.Iterator;
 import java.util.List;
 
-import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLevelObjectMotionManager<E> {
-    float SCORE_CAPTION_HEIGHT = TILE_SIZE_GAME_UNITS / 2f;
-    float SCORE_CAPTION_INITIAL_DIP = 4f / TILE_SPRITE_SIZE;
-    float SCORE_CAPTION_ABOVE_INSTANCE_LIFT = SCORE_CAPTION_HEIGHT + SCORE_CAPTION_INITIAL_DIP;
-
     @Override
     default void update() {
         final List<E> activeInstances = getActiveInstances();
-        // Advance captions already in flight first, so one spawned later this tick (in postCollision)
-        // renders once at its spawn position before it starts rising — the same ordering the reward
-        // managers rely on.
+        // Advance captions already in flight first: one spawned later this tick (in postCollision) gets its first
+        // update as it starts, so it is not advanced twice.
         tickScorePopups();
 
         if (activeInstances.isEmpty()) {
@@ -132,7 +125,6 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLe
         iterator.remove();
     }
 
-    /** Spawns the caption above the enemy that earned it. */
     private void spawnScorePopupFor(final E instance, final Reward reward) {
         final ScorePopupAnimation animation = getBean(
             ScorePopupAnimation.class,
@@ -140,7 +132,7 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLe
             reward.getData(),
             instance.getOffset()
         );
-        animation.setWorldOffset(instance.getCurrentWorldOffset().plus(0f, SCORE_CAPTION_ABOVE_INSTANCE_LIFT, 0f));
+        animation.placeOver(instance);
         animation.start();
         getActiveScorePopups().add(animation);
     }

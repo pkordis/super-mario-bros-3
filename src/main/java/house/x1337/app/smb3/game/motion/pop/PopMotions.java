@@ -5,15 +5,15 @@ public interface PopMotions {
         return new BlockCoinPopMotion();
     }
 
-    static DeceleratingRisePopMotion deceleratingRise(
-        final int stageTicks,
-        final int stages
-    ) {
-        return new DeceleratingRisePopMotion(stageTicks, stages);
-    }
-
     static PoppedOutCoinPopMotion poppedOutCoin() {
         return new PoppedOutCoinPopMotion();
+    }
+
+    static ScoreRisePopMotion scoreRise(
+        final int firstUpdateFrame,
+        final int maxRises
+    ) {
+        return new ScoreRisePopMotion(firstUpdateFrame, maxRises);
     }
 
     static SpinningPopMotion spinning(
