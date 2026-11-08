@@ -49,6 +49,13 @@ public final class PlayerTimer implements GameEventBusAware {
         publish(new PlayerTimerCleared());
     }
 
+    public void takeOff(final int seconds) {
+        if (seconds < 0 || seconds > time) {
+            throw new IllegalArgumentException("Cannot take " + seconds + " off " + time);
+        }
+        time -= seconds;
+    }
+
     public boolean tick() {
         if (!active) {
             return false;

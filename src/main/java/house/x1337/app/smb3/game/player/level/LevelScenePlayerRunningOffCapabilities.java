@@ -29,6 +29,14 @@ public interface LevelScenePlayerRunningOffCapabilities
         return getRuntimeState().isRunningOffLevel();
     }
 
+    default void haltRunOff() {
+        getRuntimeState().setRunOffHalted(true);
+    }
+
+    default boolean isRunOffHalted() {
+        return getRuntimeState().isRunOffHalted();
+    }
+
     default void applyRunOffWalk() {
         getOrientation().setHorizontal(RIGHT);
         getPosition().setDX(getRuntimeState().isInAir() ? 0 : PLAYER_END_LEVEL_XVEL);

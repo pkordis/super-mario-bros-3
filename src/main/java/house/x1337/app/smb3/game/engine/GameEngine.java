@@ -341,7 +341,7 @@ public final class GameEngine extends GameEngineCapabilities {
                 activeObjectGrid.clear();
                 activeObjectGrid.spawnEnemiesComingIntoView();
                 levelCompletion.spawnCardComingIntoView();
-                levelCompletion.checkPlayerHasRunOffLevel();
+                levelCompletion.tick();
                 motionManagers.forEach(MotionManager::update);
                 activeObjectGrid.resolveObjectToObjectBumps();
                 activeObjectGrid.resolveKickedObjectKills();
