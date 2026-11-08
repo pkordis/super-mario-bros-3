@@ -161,7 +161,8 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
     does, and `buildLevel` then restores the camera target, visibility and timer.
 - **Frames** (`BaseLevelScenePlayerAnimator.renderPipePose`, checked before every other pose): face forward going
   up or down (`PipeMove_Frame`, the carry turn-around frame); the suit's walk sequence going sideways, at beat
-  `(ticks since entry & $0C) >> 2`. The port has no `Counter_1`, so the ticks since the entry stand in for it.
+  `(ticks since entry & $0C) >> 2`. The port had no `Counter_1` then, so the ticks since the entry stand in for
+  it; SMB3-44 added `LevelFrameCounter` (see `kb/level-completion.md`), which this pose does not use yet.
 - **Held objects:** a shell carried into a pipe sits right over the player (`CarriableLevelObject.carryAnchorFrom`):
   in a pipe the ROM uses `ObjectHoldXOff` entry 10, `$00`, instead of the facing and turn-around entries
   (prg000.asm:2804, 2997-3001). The Y drop is unchanged. The carry can't be released in the pipe, because the

@@ -34,6 +34,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager.SPAWN_LOOK_AHEAD_LEFT_PIXELS;
+import static house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager.SPAWN_LOOK_AHEAD_RIGHT_PIXELS;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floor;
 import static java.lang.Math.floorDiv;
@@ -44,9 +46,6 @@ import static java.util.Collections.unmodifiableMap;
 @Prototype
 @RequiredArgsConstructor
 public final class EnemySpawner implements GameEngineAware, CastCapable {
-    private static final int LOOK_AHEAD_LEFT_PIXELS = 32;
-    private static final int LOOK_AHEAD_RIGHT_PIXELS = 16;
-
     private final Animator.Registry animatorRegistry = getBean(Animator.Registry.class);
     private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
     private final EnemyDepthAllocator depthAllocator = new EnemyDepthAllocator();
@@ -94,8 +93,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
             openingScreenSpawned = true;
             lastScreenLeft = screenLeft;
             scrolledLeft = true;
-            final int firstColumn = floorDiv(screenLeft - LOOK_AHEAD_LEFT_PIXELS, TILE_SPRITE_SIZE);
-            final int lastColumn = floorDiv(screenRight + LOOK_AHEAD_RIGHT_PIXELS, TILE_SPRITE_SIZE);
+            final int firstColumn = floorDiv(screenLeft - SPAWN_LOOK_AHEAD_LEFT_PIXELS, TILE_SPRITE_SIZE);
+            final int lastColumn = floorDiv(screenRight + SPAWN_LOOK_AHEAD_RIGHT_PIXELS, TILE_SPRITE_SIZE);
             for (int column = firstColumn; column <= lastColumn; column++) {
                 spawnColumn(column);
             }
@@ -106,8 +105,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
             lastScreenLeft = screenLeft;
         }
         final int lookAhead = scrolledLeft
-            ? screenLeft - LOOK_AHEAD_LEFT_PIXELS
-            : screenRight + LOOK_AHEAD_RIGHT_PIXELS;
+            ? screenLeft - SPAWN_LOOK_AHEAD_LEFT_PIXELS
+            : screenRight + SPAWN_LOOK_AHEAD_RIGHT_PIXELS;
         spawnColumn(floorDiv(lookAhead, TILE_SPRITE_SIZE));
     }
 

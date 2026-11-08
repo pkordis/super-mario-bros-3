@@ -26,6 +26,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
     private LevelSceneDimensions dimensions;
     private int currentFrame;
     private int tick;
+    private boolean frozen;
 
     public abstract AnimationImageResource getAnimationFrames();
     protected abstract int getTicksPerFrame();
@@ -69,6 +70,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
         this.dimensions = dimensions;
         this.tick = 0;
         this.currentFrame = 0;
+        this.frozen = false;
 
         // Paint frame 0 immediately so the first render is correct
         if (interactiveObjectsLayerGeometry != null) {
@@ -78,7 +80,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
 
     @Override
     public void update() {
-        if (interactiveObjectsLayerGeometry == null || animatableLevelObjects.isEmpty()) {
+        if (frozen || interactiveObjectsLayerGeometry == null || animatableLevelObjects.isEmpty()) {
             return;
         }
         tick++;
@@ -94,6 +96,17 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
     public void reset() {
         animatableLevelObjects.clear();
         interactiveObjectsLayerGeometry = null;
+        frozen = false;
+    }
+
+    @Override
+    public void freeze() {
+        frozen = true;
+    }
+
+    @Override
+    public boolean isFrozen() {
+        return frozen;
     }
 
     public void unregisterAt(final Coordinates offset) {

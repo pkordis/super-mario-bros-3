@@ -13,6 +13,7 @@ import house.x1337.app.smb3.game.engine.fade.FadeOverlayState;
 import house.x1337.app.smb3.game.engine.fade.FadingEngine;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
@@ -53,6 +54,8 @@ import static lombok.AccessLevel.PRIVATE;
 public final class GameEngine extends GameEngineCapabilities {
     private final List<? extends MotionManager> motionManagers = getBean(MotionManager.Registry.class).getAll();
     private final FadingEngine fadingEngine = getBean(FadingEngine.class);
+    private final LevelFrameCounter levelFrameCounter = new LevelFrameCounter();
+    private final LevelCompletion levelCompletion = getBean(LevelCompletion.class, this);
 
     private final CameraState cameraState;
     private final PlayerData playerData;
@@ -233,6 +236,10 @@ public final class GameEngine extends GameEngineCapabilities {
         // enemy is duplicated.
         setupLevel(levelScene);
 
+        // Every run starts its Counter_1 phases over, with the end-level card uncollected.
+        levelFrameCounter.reset();
+        levelCompletion.reset();
+
         // Retire the previous player's input listener before the respawn attaches a new one. The key
         // mappings are shared and stay (PlayerInputHandler.init registers them once per engine); only
         // the per-player listener must be swapped, or a dead player's handler keeps receiving input.
@@ -297,6 +304,8 @@ public final class GameEngine extends GameEngineCapabilities {
         // are no-ops and it snapshots nothing, so the same path serves both.
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
+            // Counter_1 counts every frame, halted or not (prg031.asm:1634).
+            levelFrameCounter.tick();
             // First, and outside the halt branch below: a blocking fade halts gameplay, so a fade ticked from
             // anything the halt skips would never finish.
             fadingEngine.tick();
@@ -331,6 +340,7 @@ public final class GameEngine extends GameEngineCapabilities {
                 // scene present; asking mid-move would only see the managers that ran first.
                 activeObjectGrid.clear();
                 activeObjectGrid.spawnEnemiesComingIntoView();
+                levelCompletion.spawnCardComingIntoView();
                 motionManagers.forEach(MotionManager::update);
                 activeObjectGrid.resolveObjectToObjectBumps();
                 activeObjectGrid.resolveKickedObjectKills();
