@@ -15,8 +15,10 @@ SMB3-42 to SMB3-49; this file grows with each of them.
 ## Assets
 
 `src/main/resources/sprites/object/card/level_completion/{mushroom,flower,star}.png`, one 16 × 16 PNG per face. They
-are the in-level card, used by the runtime card (SMB3-44). The status-bar cards are different art (SMB3-43). The
-editor does not draw them.
+are the in-level card, used by the runtime card (SMB3-44). The editor does not draw them.
+
+`src/main/resources/hud/card/{mushroom,flower,star}.png` are the status-bar cards (SMB3-43), different art: see
+`kb/sprites_extraction.md` §9 for how they were extracted. `LevelCompletionCardType` carries both paths per card.
 
 ## Editor placeholder (SMB3-42)
 
@@ -45,3 +47,29 @@ editor does not draw them.
   - Mongo stores it as a nested `levelCompletionCard: {x, y}` document (the driver's record codec). Scenes saved
     without a card have no such field and read as `null`.
 - **Runtime:** nothing yet. SMB3-44 turns the placeholder into the card the player collects.
+
+## Held cards and the status bar (SMB3-43)
+
+- **ROM storage:** `Inventory_Cards` (smb3.asm:2729), three bytes per player: `0` empty, `1` Mushroom, `2` Flower,
+  `3` Star. The in-level card passes its frame + 1 (prg002.asm:6251-6253); `Player_GetCard`'s header comment, which
+  says 0-2, is wrong. The cards are not reset between levels.
+- **ROM adding:** `Player_GetCard` (prg031.asm:2883-2924) puts the card in the first empty slot. With all three full
+  it copies slot 2 into 1 and slot 3 into 2, then writes the card into slot 3. It has no side effects; the status-bar
+  redraw is `Player_GetCardAndUpdate`'s fall-through into `StatusBar_Update_Cards`. The in-level card calls
+  `Player_GetCard` directly and checks for three matching cards right after (prg002.asm:6270-6290).
+- **ROM drawing:** `StatusBar_DrawCardPiece` (prg031.asm:2810-2876) writes four BG tiles per slot from `CardUL`,
+  `CardUR`, `CardLL`, `CardLR` (prg031.asm:2761-2764): empty `` x 4, Mushroom `-`, Flower
+  `,,,` (`` is skipped), Star `-`. The slots start at nametable columns 22, 25 and 28 of rows
+  25-26 (`CardVStartU`/`L`), which are x = 168, 192, 216 and y = 16 in `hud_base.png`.
+- **Port:**
+  - `enumeration.LevelCompletionCardType`: `MUSHROOM`, `FLOWER`, `STAR` in frame order; the ROM's stored value is
+    `ordinal() + 1`.
+  - `PlayerData`: three slots, `null` for empty. `addCard` follows `Player_GetCard`, `clearCards` empties them,
+    `getCards()` returns an unmodifiable copy. `PlayerData.State` holds the cards, so a change re-renders the HUD
+    and an unchanged set (a fourth Flower rotating into three Flowers) does not.
+  - `PlayerData` belongs to the tester session's `GameEngine` and survives `buildLevel`, so the cards survive R,
+    deaths and pipe trips. A new tester session starts with none.
+  - `HeadsUpDisplayFontRenderer` loads the three status-bar PNGs into `CARD_CACHE`;
+    `HeadsUpDisplayRenderer.renderCards` blits each held card over its box. An empty slot keeps the base image's box,
+    which is already the `` tiles.
+- **Not yet:** collecting a card (SMB3-44), and clearing the cards after a level with three plus the three-card bonus.

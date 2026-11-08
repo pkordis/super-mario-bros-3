@@ -6,6 +6,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Quad;
 import com.jme3.texture.Texture2D;
 import com.jme3.util.BufferUtils;
+import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.enumeration.PlayerIdentityType;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerData;
@@ -14,6 +15,7 @@ import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.util.GameMath;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import static com.jme3.material.RenderState.BlendMode.Off;
 import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
@@ -82,6 +84,11 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
     int TIMER_X = 128;
     int TIMER_DIGITS = 3;
 
+    // Card slots (both sub-rows, y=16-31)
+    int CARD_Y = TOP_Y;
+    int FIRST_CARD_X = 168;
+    int CARD_SPACING = 3 * CELL_WIDTH;
+
     /**
      * Renders the HUD by copying the static base image and overlaying dynamic
      * content based on the current {@link PlayerData}.
@@ -107,6 +114,9 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
         if (data.hasTimerActive()) {
             renderDigits(clonedBaseImagePixels, data.getTimer(), TIMER_DIGITS, TIMER_X);
         }
+
+        // --- Card slots ---
+        renderCards(clonedBaseImagePixels, data.getCards());
 
         return clonedBaseImagePixels;
     }
@@ -165,6 +175,18 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
         } else {
             blitGlyph(pixels, P_LEFT_DARK, P_INDICATOR_X, TOP_Y);
             blitGlyph(pixels, P_RIGHT_DARK, P_INDICATOR_X + CELL_WIDTH, TOP_Y);
+        }
+    }
+
+    private void renderCards(
+        final int[] pixels,
+        final List<LevelCompletionCardType> cards
+    ) {
+        for (int slot = 0; slot < cards.size(); slot++) {
+            final LevelCompletionCardType card = cards.get(slot);
+            if (card != null) {
+                blit(pixels, pixels(card), CARD_SIZE, CARD_SIZE, FIRST_CARD_X + slot * CARD_SPACING, CARD_Y);
+            }
         }
     }
 
@@ -250,18 +272,32 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
         final int posX,
         final int posY
     ) {
-        final int[] glyphPixels = pixels(glyph);
-        for (int row = 0; row < CELL_HEIGHT; row++) {
+        blit(pixels, pixels(glyph), CELL_WIDTH, CELL_HEIGHT, posX, posY);
+    }
+
+    /**
+     * Blits a {@code width} × {@code height} ARGB image onto the pixel buffer at the given position, skipping fully
+     * transparent pixels and anything outside the HUD.
+     */
+    private void blit(
+        final int[] pixels,
+        final int[] source,
+        final int width,
+        final int height,
+        final int posX,
+        final int posY
+    ) {
+        for (int row = 0; row < height; row++) {
             final int destY = posY + row;
             if (destY < 0 || destY >= HUD_HEIGHT) {
                 continue;
             }
-            for (int col = 0; col < CELL_WIDTH; col++) {
+            for (int col = 0; col < width; col++) {
                 final int destX = posX + col;
                 if (destX < 0 || destX >= HUD_WIDTH) {
                     continue;
                 }
-                final int argb = glyphPixels[row * CELL_WIDTH + col];
+                final int argb = source[row * width + col];
                 final int alpha = (argb >> 24) & 0xFF;
                 if (alpha > 0) {
                     pixels[destY * HUD_WIDTH + destX] = argb;

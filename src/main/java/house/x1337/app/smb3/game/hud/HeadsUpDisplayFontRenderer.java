@@ -1,9 +1,11 @@
 package house.x1337.app.smb3.game.hud;
 
 import house.x1337.app.smb3.enumeration.HeadsUpDisplayGlyph;
+import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.util.GameRenderer;
 import jakarta.annotation.PostConstruct;
+import org.springframework.core.io.DefaultResourceLoader;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -16,7 +18,7 @@ import java.util.Map;
  * Image-backed HUD font ("hud-font") that loads glyph PNGs from the classpath.
  *
  * <p>Each glyph is an 8×8 pixel RGBA PNG stored under
- * {@code resources/font/hud/}. These are extracted directly from the SMB3
+ * {@code resources/hud/}. These are extracted directly from the SMB3
  * CHR pattern table banks ($5E/$5F) with the correct NES palette applied:
  * black outlines (color index 1) and white fill (color index 2) on a
  * transparent background.
@@ -43,9 +45,13 @@ public interface HeadsUpDisplayFontRenderer extends GameRenderer {
     int HUD_HEIGHT = 48;
 
     /** Classpath directory containing the glyph PNGs and base image. */
-    String FONT_PATH = "/font/hud/";
+    String FONT_PATH = "/hud/";
+
+    /** Width and height of a status-bar card: a 2 x 2 block of cells. */
+    int CARD_SIZE = 16;
 
     Map<HeadsUpDisplayGlyph, int[]> GLYPH_CACHE = new EnumMap<>(HeadsUpDisplayGlyph.class);
+    Map<LevelCompletionCardType, int[]> CARD_CACHE = new EnumMap<>(LevelCompletionCardType.class);
     HeadsUpDisplayGlyph[] DIGIT_HEADS_UP_DISPLAY_GLYPHS = HeadsUpDisplayGlyph.getDigits();
 
     ImageResource getBaseImage();
@@ -67,6 +73,34 @@ public interface HeadsUpDisplayFontRenderer extends GameRenderer {
             } catch (final IOException e) {
                 GLYPH_CACHE.put(glyph, new int[CELL_WIDTH * CELL_HEIGHT]);
             }
+        }
+        loadStatusBarCards();
+    }
+
+    /**
+     * Returns the cached ARGB pixel data of a status-bar card.
+     *
+     * @param card the card to retrieve
+     * @return 256-element ARGB array (16×16 row-major), never null; transparent when the image is missing
+     */
+    default int[] pixels(final LevelCompletionCardType card) {
+        final int[] data = CARD_CACHE.get(card);
+        return data != null ? data : new int[CARD_SIZE * CARD_SIZE];
+    }
+
+    private static void loadStatusBarCards() {
+        final DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
+        for (final LevelCompletionCardType card : LevelCompletionCardType.values()) {
+            final int[] argb = new int[CARD_SIZE * CARD_SIZE];
+            try (final InputStream is = resourceLoader.getResource(card.getStatusBarPath()).getInputStream()) {
+                final BufferedImage image = ImageIO.read(is);
+                if (image != null) {
+                    image.getRGB(0, 0, CARD_SIZE, CARD_SIZE, argb, 0, CARD_SIZE);
+                }
+            } catch (final IOException e) {
+                // Leave the card transparent, as a missing glyph is: the empty box shows through.
+            }
+            CARD_CACHE.put(card, argb);
         }
     }
 

@@ -46,9 +46,9 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     private final GameEngine gameEngine;
     private final PlayerData playerData;
-    private final PlayerData.State playerDataSnapshot = new PlayerData.State(-1, -1, -1, -1, -1);
+    private final PlayerData.State playerDataSnapshot = new PlayerData.State(-1, -1, -1, -1, -1, null);
 
-    @Value("classpath:/font/hud/hud_base.png")
+    @Value("classpath:/hud/hud_base.png")
     private ImageResource baseImage;
 
     private ViewPort hudViewPort;

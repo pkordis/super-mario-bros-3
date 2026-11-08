@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
+import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
+import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.FRESH;
@@ -147,5 +149,21 @@ class GameEngineBuildLevelTest {
         assertThat(secondInput.isActive(HANDLER_RIGHT)).isTrue();
         assertThat(secondInput.isActive(HANDLER_RUN)).isTrue();
         assertThat(gameEngine.getAllPlayers()).containsExactly(second);
+    }
+
+    @Test
+    @DisplayName("The held cards survive an R restart and a level junction, as Inventory_Cards survives levels")
+    void cardsSurviveARebuild() {
+        // Prepare
+        gameEngine.buildLevel();
+        playerData.addCard(STAR);
+        playerData.addCard(FLOWER);
+
+        // Execute & Verify
+        gameEngine.buildLevel();
+        assertThat(playerData.getCards()).as("After a fresh restart").containsExactly(STAR, FLOWER, null);
+        gameEngine.buildLevel(carryOver(RACCOON));
+        assertThat(playerData.getCards()).as("After a level junction").containsExactly(STAR, FLOWER, null);
+        assertThat(gameEngine.getPlayerData()).isSameAs(playerData);
     }
 }
