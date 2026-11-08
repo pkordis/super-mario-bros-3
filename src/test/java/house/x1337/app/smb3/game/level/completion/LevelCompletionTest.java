@@ -1,12 +1,22 @@
 package house.x1337.app.smb3.game.level.completion;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
+import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager;
+import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
+import house.x1337.app.smb3.game.object.level.card.LevelCompletionCardMotionManager;
 import house.x1337.app.smb3.game.object.level.card.LevelCompletionCardSpawner;
+import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.projectile.PiranhaFireballMotionManager;
+import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -15,13 +25,17 @@ import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEvent;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
 import house.x1337.app.smb3.model.event.LevelCompleted;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
@@ -39,6 +53,7 @@ import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.C
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.EXITING;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +65,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Touching the card starts the level's completion, as {@code ObjHit_EndLevelCard} does (dasm prg002.asm:6146-6292):
@@ -63,6 +79,8 @@ class LevelCompletionTest {
 
     /** Sprite X 32 once wrapped round, on a screen whose left edge is at 0. */
     private static final double EXIT_X = 288;
+
+    private static final int ROWS = 12;
     private final PlayerData playerData = new PlayerData();
     private final PlayerPosition position = new PlayerPosition();
     private final PlayerRuntimeState runtimeState = mock(PlayerRuntimeState.class);
@@ -88,6 +106,7 @@ class LevelCompletionTest {
         doReturn(List.of(tileAnimator, otherManager)).when(gameEngine).getMotionManagers();
         final LevelScene levelScene = mock(LevelScene.class);
         when(levelScene.getLevelCompletionCard()).thenReturn(of(30, 9));
+        when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(64, ROWS));
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         final CameraState cameraState = mock(CameraState.class);
         when(cameraState.getActiveObjectRegion(anyInt())).thenReturn(new AxisAlignedBoundingBox(0, 0, 256, 192));
@@ -370,6 +389,162 @@ class LevelCompletionTest {
         assertThat(levelCompletion.getPhase()).as("Dying").isEqualTo(CARD_FLYING_OFF);
         assertThat(playerData.getTimer()).isEqualTo(287);
         assertThat(published).noneMatch(LevelCompleted.class::isInstance);
+    }
+
+    @Test
+    @DisplayName("On the touch, an enemy, a held shell and a mushroom in view leave a poof and a coin; one out of view "
+        + "is removed with no coin")
+    void theTouchClearsTheObjects() {
+        // Prepare
+        final EnemyLevelObject goomba = enemyAt(100, 120);
+        final EnemyLevelObject shell = mock(EnemyLevelObject.class, withSettings().extraInterfaces(
+            CarriableLevelObject.class
+        ));
+        placeAt(shell, 120, 104);
+        when(shell.isSpawnedIntoScene()).thenReturn(true);
+        when(runtimeState.getCarriedObject()).thenReturn((CarriableLevelObject) shell);
+        final RewardLevelObject mushroom = mock(RewardLevelObject.class);
+        placeAt(mushroom, 60, 140);
+        final EnemyLevelObject outOfView = enemyAt(300, 120);
+        final List<ActiveLevelObject> enemies = new ArrayList<>(List.of(goomba, shell, outOfView));
+        final List<ActiveLevelObject> rewards = new ArrayList<>(List.of(mushroom));
+        final SweepManagers managers = sweepManagers(enemies, rewards);
+
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify
+        verify(managers.coins()).spawnPoppedOutCoin(player, goomba.getPosition());
+        verify(managers.coins()).spawnPoppedOutCoin(player, shell.getPosition());
+        verify(managers.coins()).spawnPoppedOutCoin(player, mushroom.getPosition());
+        verify(managers.coins(), never()).spawnPoppedOutCoin(player, outOfView.getPosition());
+        verify(managers.poofs(), times(3)).spawnPoofDeath(eq(gameEngine), any());
+        for (final ActiveLevelObject object : List.of(goomba, shell, mushroom, outOfView)) {
+            verify(object).expire();
+            verify(object).detach();
+        }
+        assertThat(enemies).isEmpty();
+        assertThat(rewards).isEmpty();
+        verify(managers.grid()).retirePlacementOf(goomba);
+        verify(managers.grid()).retirePlacementOf(shell);
+        verify(managers.grid()).retirePlacementOf(outOfView);
+        verify(runtimeState).setCarriedObject(null);
+    }
+
+    @Test
+    @DisplayName("The poof is a 16 x 16 cloud over the object's top-left")
+    void thePoofCoversTheObject() {
+        // Prepare
+        final EnemyLevelObject goomba = enemyAt(100, 120);
+        final SweepManagers managers = sweepManagers(new ArrayList<>(List.of(goomba)), new ArrayList<>());
+
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify - its bottom-left corner, in world units with Y up: x 100 / 16, y rows - (120 + 16) / 16
+        final ArgumentCaptor<WorldOffset> offset = ArgumentCaptor.forClass(WorldOffset.class);
+        verify(managers.poofs()).spawnPoofDeath(eq(gameEngine), offset.capture());
+        assertThat(offset.getValue().x()).isCloseTo(100f / 16, within(1e-6f));
+        assertThat(offset.getValue().y()).isCloseTo(ROWS - 136f / 16, within(1e-6f));
+    }
+
+    @Test
+    @DisplayName("Every special object goes: the piranha fireballs and the switch-block puffs")
+    void theSpecialObjectsAreRemoved() {
+        // Prepare
+        final SweepManagers managers = sweepManagers(new ArrayList<>(), new ArrayList<>());
+
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify
+        verify(managers.fireballs()).removeAll();
+        verify(managers.poofs()).removeSwitchPuffs();
+    }
+
+    @Test
+    @DisplayName("Enemies the scroll has not reached, a reward collected this tick and the card itself are left alone")
+    void objectsInNoSlotAreLeftAlone() {
+        // Prepare
+        final EnemyLevelObject notYetReached = enemyAt(100, 120);
+        when(notYetReached.isSpawnedIntoScene()).thenReturn(false);
+        final RewardLevelObject collected = mock(RewardLevelObject.class);
+        placeAt(collected, 60, 140);
+        when(collected.isCollected()).thenReturn(true);
+        final List<ActiveLevelObject> enemies = new ArrayList<>(List.of(notYetReached));
+        final List<ActiveLevelObject> rewards = new ArrayList<>(List.of(collected));
+        final SweepManagers managers = sweepManagers(enemies, rewards);
+
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify
+        assertThat(enemies).containsExactly(notYetReached);
+        assertThat(rewards).containsExactly(collected);
+        assertThat(managers.cards()).hasSize(1);
+        verify(managers.coins(), never()).spawnPoppedOutCoin(any(), any());
+    }
+
+    @Test
+    @DisplayName("Only a 16 x 16 box at the object's X and Y is tested: X on the 256 px screen, Y + 16 in 240 lines")
+    void theOnScreenTest() {
+        // Prepare
+        final AxisAlignedBoundingBox screen = new AxisAlignedBoundingBox(100, 50, 356, 242);
+
+        // Execute & Verify
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 50), screen)).as("Top-left").isTrue();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(99.5, 50), screen)).as("1 px off left").isFalse();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(355.9, 50), screen)).as("Mostly off right").isTrue();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(356, 50), screen)).as("Off right").isFalse();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 34), screen)).as("Just above, bottom at top")
+            .isTrue();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 33), screen)).as("Off top").isFalse();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 273), screen)).as("Bottom at line 239").isTrue();
+        assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 274), screen)).as("Off bottom").isFalse();
+    }
+
+    private record SweepManagers(
+        CoinRewardMotionManager coins,
+        PoofMotionManager poofs,
+        PiranhaFireballMotionManager fireballs,
+        ActiveObjectGrid<ActiveLevelObject> grid,
+        List<ActiveLevelObject> cards
+    ) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private SweepManagers sweepManagers(
+        final List<ActiveLevelObject> enemies,
+        final List<ActiveLevelObject> rewards
+    ) {
+        final ActiveLevelObjectMotionManager<ActiveLevelObject> enemyManager =
+            mock(ActiveLevelObjectMotionManager.class);
+        doReturn(enemies).when(enemyManager).getActiveInstances();
+        final ActiveLevelObjectMotionManager<ActiveLevelObject> rewardManager =
+            mock(ActiveLevelObjectMotionManager.class);
+        doReturn(rewards).when(rewardManager).getActiveInstances();
+        final LevelCompletionCardMotionManager cardManager = mock(LevelCompletionCardMotionManager.class);
+        final List<ActiveLevelObject> cards = new ArrayList<>(List.of(mock(ActiveLevelObject.class)));
+        doReturn(cards).when(cardManager).getActiveInstances();
+        final CoinRewardMotionManager coins = mock(CoinRewardMotionManager.class);
+        final PoofMotionManager poofs = mock(PoofMotionManager.class);
+        final PiranhaFireballMotionManager fireballs = mock(PiranhaFireballMotionManager.class);
+        doReturn(List.of(enemyManager, rewardManager, cardManager, coins, poofs, fireballs))
+            .when(gameEngine).getMotionManagers();
+        final ActiveObjectGrid<ActiveLevelObject> grid = mock(ActiveObjectGrid.class);
+        when(gameEngine.getActiveObjectGrid()).thenReturn(grid);
+        return new SweepManagers(coins, poofs, fireballs, grid, cards);
+    }
+
+    private static EnemyLevelObject enemyAt(final double x, final double y) {
+        final EnemyLevelObject enemy = mock(EnemyLevelObject.class);
+        placeAt(enemy, x, y);
+        when(enemy.isSpawnedIntoScene()).thenReturn(true);
+        return enemy;
+    }
+
+    private static void placeAt(final ActiveLevelObject object, final double x, final double y) {
+        when(object.getPosition()).thenReturn(new PixelPosition(x, y));
     }
 
     private void startTheTimerAt(final int time) {

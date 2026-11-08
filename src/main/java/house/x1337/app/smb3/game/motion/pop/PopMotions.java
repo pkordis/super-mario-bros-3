@@ -18,6 +18,10 @@ public interface PopMotions {
         return new DeceleratingRisePopMotion(stageTicks, stages);
     }
 
+    static PoppedOutCoinPopMotion poppedOutCoin() {
+        return new PoppedOutCoinPopMotion();
+    }
+
     static SpinningPopMotion spinning(
         final PopMotion motion,
         final int frames,

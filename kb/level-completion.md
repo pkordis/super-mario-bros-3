@@ -181,3 +181,50 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   - Three mixed cards go straight to `EXITING` until SMB3-48 adds state 6. A triple match takes the ordinary path for
     now (SMB3-48).
 - **Not ported:** `SND_LEVELBLIP` and the music (sound), the messages (SMB3-49).
+
+## The objects turn into coins (SMB3-47)
+
+- **ROM**, `ObjHit_EndLevelCard` (prg002.asm:6146-6226):
+  - Every special-object slot is cleared (prg002.asm:6158-6163). In the port's terms: the piranha fireballs
+    (`SOBJ_PIRANHAFIREBALL`) and the switch-block puffs (`SOBJ_POOF`). Block coins (`CoinPUp_*`) and brick debris
+    (`BrickBust`) are not special objects and are left alone; `SOBJ_BRICKDEBRIS` is only the giant-world brick and
+    the Piledriver.
+  - Then object slots 4 to 0 (the card always spawns into slot 6, prg005.asm:5097-5107), except `OBJ_WARPHIDE`.
+    Whatever the slot's state (walking, held, kicked, already dying), an object **on screen** gets a
+    `SOBJ_POPPEDOUTCOIN` at its X and Y with `YVel -$28`, `XVel 0`, goes into `OBJSTATE_POOFDEATH`, and the coin
+    sound plays. One off screen is deleted.
+  - **On screen** is `Object_AnySprOffscreen` after `Object_DetermineHorzVisY` / `Object_DetermineVertVisY` with
+    `Y = 0`: whatever the object's size, only a 16 x 16 box at its X and Y counts. X must be within the 256 px
+    screen, and Y + 16 within the 240 lines below `Level_VertScroll` (prg000.asm:5071-5180). An object hanging off
+    the right edge still counts; one a pixel off the left does not.
+  - **The coin** (`SObj_CoinOrDebris`, prg007.asm:3413-3521): each un-halted frame Y += YVel (4.4, from a zero
+    fraction), then YVel += 2 (`SObj_ApplyXYVelsWithGravity`, prg007.asm:3903-3920). It is removed on the frame
+    YVel reaches `$20`: 36 frames, peaking 27 px up and ending 12 px above its start. Drawn 4 px right of the X,
+    spinning through the block coin's frames every 4 frames (`Var1 >> 2 & 3`).
+  - **Landing:** `Coins_Earned++`, and a caption 6 px above the coin at its X worth `$89 + Kill_Tally`, then
+    `Kill_Tally++` (prg007.asm:4036-4060). `$09` is 1000. All the coins land on the same frame, so with several on
+    screen they climb the ladder: 1000, 2000, 4000, 8000, 1UP. `Kill_Tally` is only reset by the player landing.
+- **Port:**
+  - `LevelCompletion.clearTheObjects`, at the end of `collect`, sweeps every `ActiveLevelObjectMotionManager`
+    except the card's. Placed enemies not yet spawned into the scene and rewards collected this tick are in no ROM
+    slot and are skipped. Each swept object is expired, detached and removed, an enemy's placement is retired so it
+    does not come back this run, and a held one is cleared from the player's `carriedObject`.
+  - On screen (`LevelCompletion.isOnScreen`): `PoofMotionManager.spawnPoofDeath` over its top-left and
+    `CoinRewardMotionManager.spawnPoppedOutCoin`.
+  - `PiranhaFireballMotionManager.removeAll` and `PoofMotionManager.removeSwitchPuffs` clear the special objects.
+    Poof deaths already playing are object states and are left to finish.
+  - The sweep runs inside the collision pass, so `ActiveObjectGrid` now skips expired objects in the body and tail
+    passes (`ActiveLevelObject.isExpired`, default false): in the ROM the card in slot 6 runs before slots 4 to 0,
+    which by then are poofing.
+  - `PoppedOutCoinPopMotion` is the flight. The sprite and the bookkeeping are the block coin's: `CoinPopAnimation`
+    is given its flight, and `CoinRewardMotionManager.spawnPoppedOutCoin` places the coin and lands it with
+    `PlayerData.addCoin()`, then `KILL_TALLY_LADDER[min(4 + nextKillTally(), 8)]` from the touching player's runtime
+    state, with the caption.
+  - The two coins share the ROM's sprite patterns (`CoinPUp_Patterns` and `PUpCoin_Patterns` hold the same bytes,
+    prg007.asm:2767 and 3204) and the 4-frame spin, but not the flight. The block coin (`CoinPUp_UpdateAndDraw`,
+    prg007.asm:2786-2887) moves in whole pixels from `YVel = -5`, adds 1 every 4th frame and lands at 5, 24 px above
+    the block (prg000.asm:779-803). The port's `BLOCK_COIN_MOTION` is still the parabola fitted to a capture
+    (`PopMotionTest`), not this routine.
+  - The coins of both kinds stand still while gameplay is halted, and every caption in flight keeps rising (before
+    SMB3-47 the block coin's captions froze too).
+- **Not ported:** the coin sound; cannon fire (`EndCard_Flag`) and `OBJ_WARPHIDE`, which the port does not have.

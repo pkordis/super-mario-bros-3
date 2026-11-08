@@ -124,9 +124,9 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
-     * Returns the distinct objects bucketed in any cell the region overlaps — the broadphase
-     * candidate set. Callers must still run a precise {@link AxisAlignedBoundingBox#intersects(AxisAlignedBoundingBox)} narrowphase on
-     * each candidate, since sharing a cell does not guarantee overlap.
+     * Returns the distinct objects bucketed in any cell the region overlaps — the broad-phase
+     * candidate set. Callers must still run a precise {@link AxisAlignedBoundingBox#intersects(AxisAlignedBoundingBox)}
+     * narrow-phase on each candidate, since sharing a cell does not guarantee overlap.
      *
      * @param region the box to gather candidates around (e.g. a player hitbox)
      * @return a fresh list of candidate objects, each appearing once
@@ -398,7 +398,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         for (final LevelScenePlayer levelScenePlayer : levelScenePlayers) {
             final AxisAlignedBoundingBox playerBounds = levelScenePlayer.getObjectCollisionBounds();
             for (final ActiveLevelObject object : query(playerBounds)) {
-                if (!object.intersects(playerBounds)) {
+                if (object.isExpired() || !object.intersects(playerBounds)) {
                     continue;
                 }
                 object.onCollisionWith(levelScenePlayer);
@@ -489,7 +489,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     public void resolveTailAttack(final LevelScenePlayer levelScenePlayer, final AxisAlignedBoundingBox tailBounds) {
         for (final ActiveLevelObject object : query(tailBounds)) {
-            if (object.intersects(tailBounds)) {
+            if (!object.isExpired() && object.intersects(tailBounds)) {
                 object.onTailAttack(levelScenePlayer);
             }
         }
