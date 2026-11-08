@@ -361,3 +361,34 @@ This is how `sprites/object/block/switch/*` and `sprites/effect/poof/*` were pro
 Note that index `0` is the NES **backdrop** colour, not necessarily "nothing" — in the
 P-Switch's frame A the "P" glyph itself is drawn in index 0, so it renders as a hole
 showing the background layer. Mapping index 0 to transparent reproduces that faithfully.
+
+---
+
+## 9. Status-bar background tiles — the HUD cards (SMB3-43)
+
+The status bar is drawn with its own CHR banks. Partway down the screen the IRQ switches the BG pattern table to
+`StatusBarCHR_0000 = $5C` (2 KB: `$5C`/`$5D`) and `StatusBarCHR_0800 = $5E` (2 KB: `$5E`/`$5F`)
+(prg031.asm:1963-1964, 2079-2089). So a status-bar pattern resolves to:
+
+| Pattern range | chr file  | Local tile index |
+|---------------|-----------|------------------|
+| `$00`–`$3F`   | `chr092`  | `pattern`        |
+| `$40`–`$7F`   | `chr093`  | `pattern - $40`  |
+| `$80`–`$BF`   | `chr094`  | `pattern - $80`  |
+| `$C0`–`$FF`   | `chr095`  | `pattern - $C0`  |
+
+The HUD glyphs (`hud/*.png`) and the status-bar cards come from these banks, not from the level's.
+
+**Lining CHR up with `hud_base.png`.** `hud_base.png` is the 240 × 48 bar from nametable column 1, row 23: a tile at
+column `c`, row `r` sits at `x = (c - 1) * 8`, `y = (r - 23) * 8`. The bar's tiles are listed in the `StatusBar`
+macro (prg030.asm:117-162).
+
+**Colours.** Match the macro's frame tiles against `hud_base.png` (the method of §8). For the card area it gives
+index 1 → black `(0, 0, 0)`, index 2 → white `(255, 255, 255)`, index 3 → the bar's cyan `(181, 235, 242)`; index 0
+is not used. `hud_base.png` has a little noise in its black and white (`(4, 4, 4)`, `(251, 251, 251)` and similar),
+so take the dominant colour per index rather than requiring a perfect bijection.
+
+**The cards** (`hud/card/{mushroom,flower,star}.png`, 16 × 16, opaque) are the 2 × 2 blocks of `CardUL`,
+`CardUR` (top row) and `CardLL`, `CardLR` (bottom row), prg031.asm:2761-2764 — row-major, top left first. The
+empty box is four `$FE` tiles, all index 3; `hud_base.png`'s three boxes match it pixel for pixel, which is a good
+check that the alignment and colours are right.
