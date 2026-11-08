@@ -11,8 +11,8 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
@@ -26,12 +26,12 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.max;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
@@ -87,10 +87,14 @@ class ParaGoombaTailAttackTest {
         }
 
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -191,7 +195,7 @@ class ParaGoombaTailAttackTest {
         assertThat(replacement.getPosition().y()).isCloseTo(struckAtY, within(TOLERANCE));
         assertThat(replacement.getOffset())
             .as("Its placement cell is derived from where it actually is")
-            .isEqualTo(Offset.of(struckAtX / TILE_SPRITE_SIZE, struckAtY / TILE_SPRITE_SIZE));
+            .isEqualTo(of(struckAtX / TILE_SPRITE_SIZE, struckAtY / TILE_SPRITE_SIZE));
     }
 
     @Test
@@ -227,7 +231,7 @@ class ParaGoombaTailAttackTest {
         paraGoomba.onTailAttack(playerAt(playerX));
 
         // Verify - the replacement spawns it, from the position it inherited
-        final Offset spawnedAt = captureFlashOffset();
+        final Coordinates spawnedAt = captureFlashOffset();
         assertThat(spawnedAt.x()).as("Player_X + $10").isEqualTo((int) (playerX + TAIL_OFFSET));
         assertThat(spawnedAt.y()).as("Player_Y + $10").isEqualTo((int) (REST_ROW_PIXEL_Y + TAIL_OFFSET));
         assertThat(spawnedAt.x())
@@ -322,7 +326,7 @@ class ParaGoombaTailAttackTest {
         verify(activeObjectGrid, times(1).description("One replacement only"))
             .spawnEnemy(any(EnemyLevelObject.class));
         verify(tailAttackFlashMotionManager, times(1).description("One flash only"))
-            .spawn(eq(gameEngine), any(Offset.class));
+            .spawn(eq(gameEngine), any(Coordinates.class));
     }
 
     @Test
@@ -394,14 +398,14 @@ class ParaGoombaTailAttackTest {
     }
 
     /** @return the single point the flash was spawned at */
-    private Offset captureFlashOffset() {
-        final ArgumentCaptor<Offset> offsetCaptor = ArgumentCaptor.forClass(Offset.class);
+    private Coordinates captureFlashOffset() {
+        final ArgumentCaptor<Coordinates> offsetCaptor = ArgumentCaptor.forClass(Coordinates.class);
         verify(tailAttackFlashMotionManager).spawn(eq(gameEngine), offsetCaptor.capture());
         return offsetCaptor.getValue();
     }
 
     private ParaGoomba paraGoombaAt(final int column, final int row) {
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(column, row));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(column, row));
         paraGoomba.init();
         return paraGoomba;
     }

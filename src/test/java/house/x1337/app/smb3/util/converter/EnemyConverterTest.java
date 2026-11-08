@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
@@ -51,9 +52,9 @@ class EnemyConverterTest {
         // Verify - shape comes from rows/columns, and each cell is the resolved tile
         assertThat(enemy.getRows()).isEqualTo(2);
         assertThat(enemy.getColumns()).isEqualTo(3);
-        assertThat(enemy.tileAt(0, 0)).isSameAs(tilesById.get(1));
-        assertThat(enemy.tileAt(0, 2)).isSameAs(tilesById.get(3));
-        assertThat(enemy.tileAt(1, 2)).isSameAs(tilesById.get(13));
+        assertThat(enemy.tileAt(of(0, 0))).isSameAs(tilesById.get(1));
+        assertThat(enemy.tileAt(of(2, 0))).isSameAs(tilesById.get(3));
+        assertThat(enemy.tileAt(of(2, 1))).isSameAs(tilesById.get(13));
         assertThat(enemy.renderingStarterTileId()).isEqualTo(11);
         assertThat(enemy.isWellFormed()).isTrue();
     }
@@ -68,8 +69,8 @@ class EnemyConverterTest {
         final EnemyStamp enemy = converter.toEnemy(record);
 
         // Verify
-        assertThat(enemy.tileAt(0, 0)).isSameAs(tilesById.get(1));
-        assertThat(enemy.tileAt(0, 1)).as("missing part is filled, not null").isSameAs(NULL_TILE);
+        assertThat(enemy.tileAt(of(0, 0))).isSameAs(tilesById.get(1));
+        assertThat(enemy.tileAt(of(1, 0))).as("missing part is filled, not null").isSameAs(NULL_TILE);
     }
 
     @Test
@@ -79,8 +80,8 @@ class EnemyConverterTest {
 
         assertThat(enemy.getRows()).isEqualTo(2);
         assertThat(enemy.getColumns()).isEqualTo(2);
-        assertThat(enemy.tileAt(1, 0)).isSameAs(NULL_TILE);
-        assertThat(enemy.tileAt(1, 1)).isSameAs(NULL_TILE);
+        assertThat(enemy.tileAt(of(0, 1))).isSameAs(NULL_TILE);
+        assertThat(enemy.tileAt(of(1, 1))).isSameAs(NULL_TILE);
     }
 
     @Test
@@ -153,8 +154,7 @@ class EnemyConverterTest {
             .rows(rows)
             .columns(columns)
             .tileIds(tileIds)
-            .renderingStarterRow(starterRow)
-            .renderingStarterColumn(starterColumn)
+            .renderingStarter(of(starterColumn, starterRow))
             .build();
     }
 }

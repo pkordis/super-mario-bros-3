@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.level.pipe;
 
 import house.x1337.app.smb3.enumeration.PipeEntryDirection;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
@@ -12,6 +13,7 @@ import static house.x1337.app.smb3.enumeration.PipeEntryDirection.RIGHT;
 import static house.x1337.app.smb3.enumeration.PipeEntryDirection.UP;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_BODY_PART;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 public interface PipeEntryRulesAware {
     int[] ALIGNMENT_OFFSETS = {8, 4, 4};
@@ -51,13 +53,12 @@ public interface PipeEntryRulesAware {
 
     default boolean isEntryCell(
         final PipePortal portal,
-        final int row,
-        final int column
+        final Coordinates cell
     ) {
         if (portal.getVirtualObjectType() == PIPE_PORTAL_VERTICAL) {
-            return row == portal.getRow() && column == portal.getColumn();
+            return cell.equals(portal.getCoordinates());
         }
-        return portal.occupies(row, column);
+        return portal.occupies(cell);
     }
 
     default Optional<PipeEntryDirection> entryDirection(
@@ -71,10 +72,10 @@ public interface PipeEntryRulesAware {
         if (portal.getVirtualObjectType() == PIPE_PORTAL_VERTICAL) {
             return Optional.of(sidePipeDirection(playerX));
         }
-        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getRow() + 1)) {
+        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getCoordinates().y() + 1)) {
             return Optional.of(DOWN);
         }
-        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getRow() - 1)) {
+        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getCoordinates().y() - 1)) {
             return Optional.of(UP);
         }
         return Optional.empty();
@@ -88,33 +89,35 @@ public interface PipeEntryRulesAware {
             return Optional.empty();
         }
         if (portal.getVirtualObjectType() == PIPE_PORTAL_VERTICAL) {
-            if (isPipeBodyColumn(staticEnvironmentTiles, portal, portal.getColumn() + 1)) {
+            if (isPipeBodyColumn(staticEnvironmentTiles, portal, portal.getCoordinates().x() + 1)) {
                 return Optional.of(LEFT);
             }
-            if (isPipeBodyColumn(staticEnvironmentTiles, portal, portal.getColumn() - 1)) {
+            if (isPipeBodyColumn(staticEnvironmentTiles, portal, portal.getCoordinates().x() - 1)) {
                 return Optional.of(RIGHT);
             }
             return Optional.empty();
         }
-        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getRow() + 1)) {
+        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getCoordinates().y() + 1)) {
             return Optional.of(UP);
         }
-        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getRow() - 1)) {
+        if (isPipeBodyRow(staticEnvironmentTiles, portal, portal.getCoordinates().y() - 1)) {
             return Optional.of(DOWN);
         }
         return Optional.empty();
     }
 
     private static boolean isPipeBodyColumn(final Tile[][] tiles, final PipePortal portal, final int column) {
-        for (int row = portal.getTopRow(); row <= portal.getRow(); row++) {
-            if (!isPipeBody(tiles, row, column)) {
+        for (int row = portal.getTopRow(); row <= portal.getCoordinates().y(); row++) {
+            if (!isPipeBody(tiles, of(column, row))) {
                 return false;
             }
         }
         return true;
     }
 
-    private static boolean isPipeBody(final Tile[][] tiles, final int row, final int column) {
+    private static boolean isPipeBody(final Tile[][] tiles, final Coordinates cell) {
+        final int row = cell.y();
+        final int column = cell.x();
         if (row < 0 || row >= tiles.length || tiles[row] == null || column < 0 || column >= tiles[row].length) {
             return false;
         }
@@ -123,8 +126,9 @@ public interface PipeEntryRulesAware {
     }
 
     private static boolean isPipeBodyRow(final Tile[][] tiles, final PipePortal portal, final int row) {
-        for (int column = portal.getColumn(); column < portal.getColumn() + portal.getColumns(); column++) {
-            if (!isPipeBody(tiles, row, column)) {
+        final int firstColumn = portal.getCoordinates().x();
+        for (int column = firstColumn; column < firstColumn + portal.getColumns(); column++) {
+            if (!isPipeBody(tiles, of(column, row))) {
                 return false;
             }
         }

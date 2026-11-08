@@ -6,8 +6,8 @@ import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,11 +22,11 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -60,10 +60,14 @@ class KoopaTroopaLedgeTurnTest {
         solids = new boolean[ROWS][COLUMNS];
 
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -281,7 +285,7 @@ class KoopaTroopaLedgeTurnTest {
     void anUnconfiguredTroopaIsRed() {
         // Prepare
         floorFrom(5, COLUMNS - 1);
-        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(6, WALK_ROW));
+        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, of(6, WALK_ROW));
         troopa.init();
         troopa.configure(new LevelObjectData(Map.of()));
         troopa.faceClosestPlayer();
@@ -310,7 +314,7 @@ class KoopaTroopaLedgeTurnTest {
         final int row,
         final KoopaTroopaMode mode
     ) {
-        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(column, row));
+        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, of(column, row));
         troopa.init();
         troopa.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, mode.name())));
         return troopa;

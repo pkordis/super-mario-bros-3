@@ -17,12 +17,13 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.dizitart.no2.common.module.NitriteModule.module;
 
 /**
  * Runs the Nitrite repository against an in-memory database with the production Jackson mapper, so the record's
- * enum and primitive fields are checked through the real mapping.
+ * enum, primitive and nested coordinates fields are checked through the real mapping.
  */
 class NitritePipePortalRepositoryTest {
     private static final String SCENE_ID = "scene-1";
@@ -193,8 +194,7 @@ class NitritePipePortalRepositoryTest {
             .type(type)
             .virtualObjectType(virtualObjectType)
             .levelSceneId(levelSceneId)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

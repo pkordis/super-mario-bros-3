@@ -1,9 +1,10 @@
 package house.x1337.app.smb3.model.game.motion;
 
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -19,7 +20,7 @@ class PixelPositionTest {
     @DisplayName("A tile cell converts to the pixel coordinates of its top-left corner")
     void tileCellConvertsToItsTopLeftCornerInPixels() {
         // Prepare
-        final Offset cell = Offset.of(3, 7);
+        final Coordinates cell = of(3, 7);
 
         // Execute
         final PixelPosition position = PixelPosition.ofTile(cell);

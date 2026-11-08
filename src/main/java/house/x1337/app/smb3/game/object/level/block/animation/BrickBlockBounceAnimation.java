@@ -4,7 +4,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.block.animation.base.BlockBounceAnimation;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 
 /**
@@ -20,7 +20,7 @@ public final class BrickBlockBounceAnimation extends BlockBounceAnimation {
     public BrickBlockBounceAnimation(
         final GameEngine gameEngine,
         final GameObjectAnimatorSingleTiled<?> animator,
-        final Offset offset
+        final Coordinates offset
     ) {
         this.animator = animator;
         super(
@@ -35,13 +35,13 @@ public final class BrickBlockBounceAnimation extends BlockBounceAnimation {
     }
 
     @Override
-    public void onAnimationStart(final Offset offset) {
+    public void onAnimationStart(final Coordinates offset) {
         // Pause shimmer animation for this brick during bounce
         animator.pauseAt(offset);
     }
 
     @Override
-    public void onAnimationStop(final Offset offset) {
+    public void onAnimationStop(final Coordinates offset) {
         animator.resumeAt(offset);
     }
 }

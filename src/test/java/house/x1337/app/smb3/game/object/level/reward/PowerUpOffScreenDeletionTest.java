@@ -18,9 +18,9 @@ import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,8 +37,10 @@ import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.GROWING_CAPABLE;
 import static house.x1337.app.smb3.game.object.level.ActiveLevelObject.FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -55,7 +57,7 @@ class PowerUpOffScreenDeletionTest {
     private static final double TOLERANCE = 1e-6;
     private static final int COLUMNS = 40;
     private static final int ROWS = 8;
-    private static final Offset BLOCK = Offset.of(3, 4);
+    private static final Coordinates BLOCK = of(3, 4);
     private static final double BLOCK_X = BLOCK.x() * (double) TILE_SPRITE_SIZE;
     private static final int HOLD_FRAMES = 16;
     private static final double SCREEN_WIDTH_PIXELS = 256;
@@ -77,10 +79,14 @@ class PowerUpOffScreenDeletionTest {
 
         // The dispensing block is the only terrain, and it is not mid-bump.
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isBlock(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isBlock(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isBlock(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isBlock(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         // The screen the managers see; each test moves it with givenTheScreenAt.
@@ -199,8 +205,8 @@ class PowerUpOffScreenDeletionTest {
     @DisplayName("A leaf at Y 512 is deleted and one above it is not, as Objects_YHi >= 2 decides")
     void aLeafAtTheTwoPageLineIsDeleted() {
         // Prepare - spawned 14 px above their cells; the first rise frame lifts them 2 px, to 512 and 496
-        final SuperLeaf fallen = dispenseLeaf(Offset.of(BLOCK.x(), 33));
-        final SuperLeaf notYet = dispenseLeaf(Offset.of(BLOCK.x(), 32));
+        final SuperLeaf fallen = dispenseLeaf(of(BLOCK.x(), 33));
+        final SuperLeaf notYet = dispenseLeaf(of(BLOCK.x(), 32));
         givenTheScreenAt(0, 300);
 
         // Execute
@@ -216,7 +222,7 @@ class PowerUpOffScreenDeletionTest {
     void aTallerLevelMovesTheLineDown() {
         // Prepare - 40 rows: the line is at 640 px, so 512 is still inside the level
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, 40));
-        final SuperLeaf leaf = dispenseLeaf(Offset.of(BLOCK.x(), 33));
+        final SuperLeaf leaf = dispenseLeaf(of(BLOCK.x(), 33));
         givenTheScreenAt(0, 300);
 
         // Execute
@@ -247,7 +253,7 @@ class PowerUpOffScreenDeletionTest {
         return mushroom;
     }
 
-    private SuperLeaf dispenseLeaf(final Offset block) {
+    private SuperLeaf dispenseLeaf(final Coordinates block) {
         final SuperLeaf leaf = new SuperLeaf(gameEngine, block);
         leaf.setImageResource(blankSprite());
         leaf.init();

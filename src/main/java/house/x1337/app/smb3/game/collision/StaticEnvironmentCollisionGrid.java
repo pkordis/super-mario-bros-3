@@ -9,9 +9,8 @@ import house.x1337.app.smb3.game.object.level.block.motion.BlockMotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
-import house.x1337.app.smb3.model.game.LevelObjectOffset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.collision.CollisionProbe;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
@@ -30,7 +29,8 @@ import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
-import static house.x1337.app.smb3.model.game.LevelObjectOffset.fromPlayerOffset;
+import static house.x1337.app.smb3.model.game.Coordinates.fromPlayerOffset;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static java.lang.Math.floor;
@@ -200,11 +200,11 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final LevelScenePlayer levelScenePlayer,
         final ProbeLocation tVert
     ) {
-        final LevelObjectOffset objectOffset = fromPlayerOffset(levelScenePlayer, tVert.first());
-        if (objectOffset.isOutsideOf(this)) {
+        final Coordinates cell = fromPlayerOffset(levelScenePlayer, tVert.first());
+        if (isOutsideTheGrid(cell)) {
             return;
         }
-        final LevelObject hitObject = getLevelObjectAt(objectOffset);
+        final LevelObject hitObject = getLevelObjectAt(cell);
         if (levelScenePlayer.getOrientation().getVertical() == UP) {
             hitObject.onCollisionFromBelow(levelScenePlayer);
         }
@@ -227,22 +227,22 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final LevelScenePlayer levelScenePlayer,
         final ProbeLocation tVert
     ) {
-        final LevelObjectOffset leftFoot = fromPlayerOffset(levelScenePlayer, tVert.first());
-        final LevelObjectOffset rightFoot = fromPlayerOffset(levelScenePlayer, tVert.second());
+        final Coordinates leftFoot = fromPlayerOffset(levelScenePlayer, tVert.first());
+        final Coordinates rightFoot = fromPlayerOffset(levelScenePlayer, tVert.second());
         dispatchStandingOn(levelScenePlayer, leftFoot);
-        if (rightFoot.x() != leftFoot.x() || rightFoot.y() != leftFoot.y()) {
+        if (!rightFoot.equals(leftFoot)) {
             dispatchStandingOn(levelScenePlayer, rightFoot);
         }
     }
 
     private void dispatchStandingOn(
         final LevelScenePlayer levelScenePlayer,
-        final LevelObjectOffset objectOffset
+        final Coordinates cell
     ) {
-        if (objectOffset.isOutsideOf(this)) {
+        if (isOutsideTheGrid(cell)) {
             return;
         }
-        getLevelObjectAt(objectOffset).onCollisionFromAbove(levelScenePlayer);
+        getLevelObjectAt(cell).onCollisionFromAbove(levelScenePlayer);
     }
 
     /**
@@ -266,7 +266,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final double probeX,
         final double probeY
     ) {
-        final Offset probedCell = Offset.of(
+        final Coordinates probedCell = of(
             (int) floor(probeX / TILE_SPRITE_SIZE),
             (int) floor(probeY / TILE_SPRITE_SIZE)
         );
@@ -302,7 +302,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
         for (int row = firstRow; row <= lastRow; row++) {
             for (int column = firstColumn; column <= lastColumn; column++) {
-                final LevelObject object = getLevelObjectAt(Offset.of(column, row));
+                final LevelObject object = getLevelObjectAt(of(column, row));
                 if (object != EMPTY_LEVEL_OBJECT) {
                     object.onPlayerOverlap(levelScenePlayer);
                 }
@@ -310,7 +310,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         }
     }
 
-    public LevelObject getLevelObjectAt(final Offset offset) {
+    public LevelObject getLevelObjectAt(final Coordinates offset) {
         try {
             return objects[offset.y()][offset.x()];
         }  catch (final ArrayIndexOutOfBoundsException e) {
@@ -326,7 +326,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * be broken indefinitely. The layer provenance moves in step with the object so a second break still
      * erases from the layer that actually paints the newly exposed tile.
      */
-    public void removeLevelObjectAt(final Offset offset) {
+    public void removeLevelObjectAt(final Coordinates offset) {
         try {
             objects[offset.y()][offset.x()] = underlayObjects[offset.y()][offset.x()];
             underlayObjects[offset.y()][offset.x()] = EMPTY_LEVEL_OBJECT;
@@ -347,7 +347,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * @return that cell's layer, falling back to {@code INTERACTIVE_OBJECTS} when unknown, since a
      *         tile-bound interactive object is what a caller retiring a cell is almost always holding
      */
-    public LevelSceneLayerType getSourceLayerAt(final Offset offset) {
+    public LevelSceneLayerType getSourceLayerAt(final Coordinates offset) {
         if (surfaceLayers == null) {
             return INTERACTIVE_OBJECTS;
         }
@@ -359,7 +359,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         }
     }
 
-    public void placeLevelObjectAt(final Offset offset, final LevelObject levelObject) {
+    public void placeLevelObjectAt(final Coordinates offset, final LevelObject levelObject) {
         try {
             objects[offset.y()][offset.x()] = levelObject;
         } catch (final ArrayIndexOutOfBoundsException e) {
@@ -401,10 +401,10 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     }
 
     /**
-     * Checks whether the object at the given {@link Offset} from the player
+     * Checks whether the object at the given {@link Coordinates} from the player
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      *
-     * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(int, int)}, the level's left and
+     * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(Coordinates)}, the level's left and
      * right edges are solid here: the player is held inside the level, the job the ROM gives the
      * screen-edge clamp in {@code Player_DoScrolling} (dasm prg008 @ PRG008_B1CE).
      *
@@ -415,49 +415,35 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      */
     public boolean collidesAtOffset(
         final Player player,
-        final Offset offset
+        final Coordinates offset
     ) {
-        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(player, offset);
-        final int tx = levelObjectOffset.x();
-        final int ty = levelObjectOffset.y();
+        final Coordinates cell = fromPlayerOffset(player, offset);
 
-        if (tx < 0 || tx >= dimensions.columns()) {
+        if (cell.x() < 0 || cell.x() >= dimensions.columns()) {
             return true; // Out of horizontal bounds = solid
         }
-        if (ty >= dimensions.rows()) {
+        if (cell.y() >= dimensions.rows()) {
             return false; // Below the level = open
         }
 
-        return getLevelObjectAt(levelObjectOffset).isCollidable();
+        return getLevelObjectAt(cell).isCollidable();
     }
 
     /**
-     * Checks whether the object at the given pixel offset from the player
+     * Checks whether the object at the given {@link Coordinates} from the player
      * position is a one-way platform.
      */
     public boolean isOneWayTileFromPlayer(
         final Player player,
-        final int dx,
-        final int dy
+        final Coordinates offset
     ) {
-        return isOneWayTileFromPlayer(player, Offset.of(dx, dy));
-    }
+        final Coordinates cell = fromPlayerOffset(player, offset);
 
-    /**
-     * Checks whether the object at the given {@link Offset} from the player
-     * position is a one-way platform.
-     */
-    public boolean isOneWayTileFromPlayer(
-        final Player player,
-        final Offset offset
-    ) {
-        final LevelObjectOffset levelObjectOffset = fromPlayerOffset(player, offset);
-
-        if (levelObjectOffset.isOutsideOf(this)) {
+        if (isOutsideTheGrid(cell)) {
             return false;
         }
 
-        return getLevelObjectAt(levelObjectOffset).isOneWayPlatform();
+        return getLevelObjectAt(cell).isOneWayPlatform();
     }
 
     /**
@@ -472,16 +458,16 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * (dasm prg000 {@code Object_DetectTile} @ PRG000_C832). Above and below the level are open too: the
      * same probe jumps to PRG000_C832 for a Y at or past the level's bottom ({@code YHi >= 2}, or
      * {@code YHi = 1} with {@code YLo >= $B0}, prg000 @ PRG000_C7F1), so an object walks off into a pit
-     * and falls out of the level. The player's probes are {@link #collidesAtOffset(Player, Offset)},
+     * and falls out of the level. The player's probes are {@link #collidesAtOffset(Player, Coordinates)},
      * which keeps both sides solid.
      *
-     * @see #isWallOrCeilingSolidTile(int, int) for the head-and-walls tier
+     * @see #isWallOrCeilingSolidTile(Coordinates) for the head-and-walls tier
      */
-    public boolean isGroundSolidTile(final int column, final int row) {
-        if (isOutsideTheLevel(column, row)) {
+    public boolean isGroundSolidTile(final Coordinates cell) {
+        if (isOutsideTheLevel(cell)) {
             return false;
         }
-        return getLevelObjectAt(Offset.of(column, row)).isCollidable();
+        return getLevelObjectAt(cell).isCollidable();
     }
 
     /**
@@ -496,21 +482,29 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * {@code CMP Tile_AttrTable,Y}. So a panel top stops a falling Goomba and is thin air to a hopping
      * Para-Goomba's head and to anything walking into its side — the same thing the player sees.
      *
-     * <p>Bounds behave as in {@link #isGroundSolidTile(int, int)}: everything outside the level is open, so
-     * an object walking into one of its sides keeps going instead of turning around at it.
+     * <p>Bounds behave as in {@link #isGroundSolidTile(Coordinates)}: everything outside the level is open,
+     * so an object walking into one of its sides keeps going instead of turning around at it.
      */
-    public boolean isWallOrCeilingSolidTile(final int column, final int row) {
-        if (isOutsideTheLevel(column, row)) {
+    public boolean isWallOrCeilingSolidTile(final Coordinates cell) {
+        if (isOutsideTheLevel(cell)) {
             return false;
         }
-        final LevelObject levelObject = getLevelObjectAt(Offset.of(column, row));
+        final LevelObject levelObject = getLevelObjectAt(cell);
         return levelObject.isCollidable() && !levelObject.isOneWayPlatform();
     }
 
     /** Whether the cell lies beside, above or below the level. */
-    private boolean isOutsideTheLevel(final int column, final int row) {
-        final LevelSceneDimensions levelDimensions = gameEngine.getLevelScene().getDimensions();
-        return column < 0 || column >= levelDimensions.columns() || row < 0 || row >= levelDimensions.rows();
+    private boolean isOutsideTheLevel(final Coordinates cell) {
+        return isOutside(cell, gameEngine.getLevelScene().getDimensions());
+    }
+
+    /** Whether the cell lies beside, above or below this grid. */
+    private boolean isOutsideTheGrid(final Coordinates cell) {
+        return isOutside(cell, dimensions);
+    }
+
+    private static boolean isOutside(final Coordinates cell, final LevelSceneDimensions bounds) {
+        return cell.x() < 0 || cell.x() >= bounds.columns() || cell.y() < 0 || cell.y() >= bounds.rows();
     }
 
     /**
@@ -544,7 +538,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         return Optional.ofNullable(closest);
     }
 
-    public boolean isBlockBumpActiveAt(final Offset cellOffset) {
+    public boolean isBlockBumpActiveAt(final Coordinates cellOffset) {
         for (final BlockMotionManager blockMotionManager : getMotionManagers(BlockMotionManager.class)) {
             if (blockMotionManager.isBlockBumpActiveAt(cellOffset)) {
                 return true;

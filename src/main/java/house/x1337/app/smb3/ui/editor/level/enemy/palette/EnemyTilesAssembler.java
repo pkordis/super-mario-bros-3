@@ -11,6 +11,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
@@ -37,7 +38,7 @@ public class EnemyTilesAssembler {
         try {
             for (int row = 0; row < enemy.getRows(); row++) {
                 for (int column = 0; column < enemy.getColumns(); column++) {
-                    final Tile tile = enemy.tileAt(row, column);
+                    final Tile tile = enemy.tileAt(of(column, row));
                     if (tile == null) {
                         continue;
                     }

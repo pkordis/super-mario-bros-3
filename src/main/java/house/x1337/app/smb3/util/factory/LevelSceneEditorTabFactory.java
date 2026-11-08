@@ -3,6 +3,7 @@ package house.x1337.app.smb3.util.factory;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.service.TileImportResult;
@@ -41,12 +42,9 @@ public interface LevelSceneEditorTabFactory {
         // Distribute the imported tiles across the per-type layers; already-resolved tiles land in
         // their owning layer now, the rest follow as the user classifies them (see review window).
         tab.applyImportedLayers(result.grid());
-        tab.setRenderingStarterRow(-1);
-        tab.setRenderingStarterColumn(-1);
-        tab.setSpawnPointRow(-1);
-        tab.setSpawnPointColumn(-1);
-        tab.setLevelCompletionCardRow(-1);
-        tab.setLevelCompletionCardColumn(-1);
+        tab.setRenderingStarter(null);
+        tab.setSpawnPoint(null);
+        tab.setLevelCompletionCard(null);
         tab.setSceneTitle(generateTemporarySceneTitle());
         tab.setSceneDescription(null);
         tab.setSceneId(null);
@@ -80,14 +78,9 @@ public interface LevelSceneEditorTabFactory {
                 case NON_PLAYABLE_CHARACTERS -> levelScene.setNonPlayableCharactersLayer(copy);
             }
         }
-        levelScene.setRenderingStarterRow(editor.getRenderingStarterRow());
-        levelScene.setRenderingStarterColumn(editor.getRenderingStarterColumn());
-        levelScene.setSpawnPointRow(editor.getSpawnPointRow());
-        levelScene.setSpawnPointColumn(editor.getSpawnPointColumn());
-        // The tab's -1 for "no card" is stored as null, the scene's own "none".
-        final boolean hasCard = editor.hasLevelCompletionCard();
-        levelScene.setLevelCompletionCardRow(hasCard ? editor.getLevelCompletionCardRow() : null);
-        levelScene.setLevelCompletionCardColumn(hasCard ? editor.getLevelCompletionCardColumn() : null);
+        levelScene.setRenderingStarter(editor.getRenderingStarter());
+        levelScene.setSpawnPoint(editor.getSpawnPoint());
+        levelScene.setLevelCompletionCard(editor.getLevelCompletionCard());
         levelScene.setPipePortals(copyOf(editor.getPipePortals()));
         return levelScene;
     }
@@ -114,26 +107,22 @@ public interface LevelSceneEditorTabFactory {
             interactiveObjectsLayer,
             nonPlayableCharactersLayer
         );
-        final Integer rsRow = levelScene.getRenderingStarterRow();
-        final Integer rsCol = levelScene.getRenderingStarterColumn();
-        final Integer spRow = levelScene.getSpawnPointRow();
-        final Integer spCol = levelScene.getSpawnPointColumn();
-        final Integer cardRow = levelScene.getLevelCompletionCardRow();
-        final Integer cardCol = levelScene.getLevelCompletionCardColumn();
-        tab.setRenderingStarterRow((rsRow != null) ? rsRow : -1);
-        tab.setRenderingStarterColumn((rsCol != null) ? rsCol : -1);
-        tab.setSpawnPointRow((spRow != null) ? spRow : -1);
-        tab.setSpawnPointColumn((spCol != null) ? spCol : -1);
-        // Both or neither: a card needs its row and its column.
-        final boolean hasCard = cardRow != null && cardCol != null;
-        tab.setLevelCompletionCardRow(hasCard ? cardRow : -1);
-        tab.setLevelCompletionCardColumn(hasCard ? cardCol : -1);
+        tab.setRenderingStarter(placedOrNull(levelScene.getRenderingStarter()));
+        tab.setSpawnPoint(placedOrNull(levelScene.getSpawnPoint()));
+        tab.setLevelCompletionCard(placedOrNull(levelScene.getLevelCompletionCard()));
         tab.setSceneTitle(levelScene.getTitle());
         tab.setSceneDescription(levelScene.getDescription());
         tab.setSceneId(levelScene.getId());
         tab.setPipePortals(copyOf(levelScene.getPipePortals()));
         tabAndGridUpdate(tab, grid);
         return tab;
+    }
+
+    /**
+     * A scene saved while a marker was unplaced may hold it at {@code -1}; the tab reads that as not placed.
+     */
+    private static Coordinates placedOrNull(final Coordinates cell) {
+        return (cell == null || cell.x() < 0 || cell.y() < 0) ? null : cell;
     }
 
     private static List<PipePortal> copyOf(final List<PipePortal> pipePortals) {
@@ -238,7 +227,7 @@ public interface LevelSceneEditorTabFactory {
         grid.setPreferredSize(new Dimension(tab.getColumns() * TILE_SIZE, tab.getRows() * TILE_SIZE));
         grid.revalidate();
         grid.repaint();
-        tab.updateStatus(-1, -1);
+        tab.updateStatus(null);
     }
 
     private static LevelSceneEditorTab newInstance() {

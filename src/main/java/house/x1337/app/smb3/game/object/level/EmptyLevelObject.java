@@ -2,8 +2,10 @@ package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.variant.ConfigurableVariant;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
+
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 public final class EmptyLevelObject implements LevelObject {
     @Getter
@@ -35,7 +37,7 @@ public final class EmptyLevelObject implements LevelObject {
     };
 
     @Getter
-    private final Offset offset = Offset.of(0, 0);
+    private final Coordinates offset = of(0, 0);
 
     @Override
     public boolean isCollidable() {

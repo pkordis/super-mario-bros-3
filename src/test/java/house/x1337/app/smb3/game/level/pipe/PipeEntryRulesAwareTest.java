@@ -26,6 +26,7 @@ import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -77,11 +78,11 @@ class PipeEntryRulesAwareTest {
         final PipePortal vertical = portal(IN, PIPE_PORTAL_VERTICAL, 8, 5);
 
         // Execute & Verify
-        assertThat(rules.isEntryCell(horizontal, 5, 2)).isTrue();
-        assertThat(rules.isEntryCell(horizontal, 5, 3)).isTrue();
-        assertThat(rules.isEntryCell(horizontal, 6, 2)).as("The pipe body below").isFalse();
-        assertThat(rules.isEntryCell(vertical, 8, 5)).as("The anchor").isTrue();
-        assertThat(rules.isEntryCell(vertical, 7, 5)).as("The upper half of the lip").isFalse();
+        assertThat(rules.isEntryCell(horizontal, of(2, 5))).isTrue();
+        assertThat(rules.isEntryCell(horizontal, of(3, 5))).isTrue();
+        assertThat(rules.isEntryCell(horizontal, of(2, 6))).as("The pipe body below").isFalse();
+        assertThat(rules.isEntryCell(vertical, of(5, 8))).as("The anchor").isTrue();
+        assertThat(rules.isEntryCell(vertical, of(5, 7))).as("The upper half of the lip").isFalse();
     }
 
     // -------------------------------------------------------------------------
@@ -302,8 +303,7 @@ class PipeEntryRulesAwareTest {
         return PipePortal.builder()
             .type(type)
             .virtualObjectType(virtualObjectType)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

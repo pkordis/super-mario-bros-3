@@ -14,9 +14,9 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
@@ -45,7 +45,7 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
     private final Reward rewardType = SCORE_50;
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
-    private final Offset offset;
+    private final Coordinates offset;
 
     /** A coin never moves: it is collected where it was placed. */
     private final FixedPointVelocity velocity = STILL;

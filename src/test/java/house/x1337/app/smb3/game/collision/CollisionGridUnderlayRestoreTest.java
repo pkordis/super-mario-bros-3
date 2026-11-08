@@ -4,7 +4,6 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +12,7 @@ import java.util.Arrays;
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -33,11 +33,11 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(surface, underlay);
 
         // Execute
-        grid.removeLevelObjectAt(Offset.of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
 
         // Verify
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3))).isSameAs(panelTop);
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3)).isCollidable())
+        assertThat(grid.getLevelObjectAt(of(2, 3))).isSameAs(panelTop);
+        assertThat(grid.getLevelObjectAt(of(2, 3)).isCollidable())
             .as("The exposed decoration is still standable")
             .isTrue();
     }
@@ -52,11 +52,11 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(surface, emptyGrid());
 
         // Execute
-        grid.removeLevelObjectAt(Offset.of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
 
         // Verify
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3)).isCollidable()).isFalse();
+        assertThat(grid.getLevelObjectAt(of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
+        assertThat(grid.getLevelObjectAt(of(2, 3)).isCollidable()).isFalse();
     }
 
     @Test
@@ -73,13 +73,13 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(surface, underlay);
 
         // Execute - broken once, then whatever is exposed is broken again
-        grid.removeLevelObjectAt(Offset.of(2, 3));
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3))).isSameAs(brick);
-        grid.removeLevelObjectAt(Offset.of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
+        assertThat(grid.getLevelObjectAt(of(2, 3))).isSameAs(brick);
+        grid.removeLevelObjectAt(of(2, 3));
 
         // Verify - the cell is gone for good rather than restoring the same stand-in indefinitely
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3)).isCollidable()).isFalse();
+        assertThat(grid.getLevelObjectAt(of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
+        assertThat(grid.getLevelObjectAt(of(2, 3)).isCollidable()).isFalse();
     }
 
     @Test
@@ -95,11 +95,11 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(surface, underlay);
 
         // Execute
-        grid.removeLevelObjectAt(Offset.of(2, 3));
-        grid.removeLevelObjectAt(Offset.of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
 
         // Verify
-        assertThat(grid.getLevelObjectAt(Offset.of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
+        assertThat(grid.getLevelObjectAt(of(2, 3))).isSameAs(EMPTY_LEVEL_OBJECT);
     }
 
     @Test
@@ -116,13 +116,13 @@ class CollisionGridUnderlayRestoreTest {
         grid.setUnderlayLayers(layerGrid(STATIC_ENVIRONMENT));
 
         // Verify - the surface tile is painted by the interactive layer
-        assertThat(grid.getSourceLayerAt(Offset.of(2, 3))).isEqualTo(INTERACTIVE_OBJECTS);
+        assertThat(grid.getSourceLayerAt(of(2, 3))).isEqualTo(INTERACTIVE_OBJECTS);
 
         // Execute
-        grid.removeLevelObjectAt(Offset.of(2, 3));
+        grid.removeLevelObjectAt(of(2, 3));
 
         // Verify - now the terrain layer paints what shows, so that is what a second break must erase
-        assertThat(grid.getSourceLayerAt(Offset.of(2, 3))).isEqualTo(STATIC_ENVIRONMENT);
+        assertThat(grid.getSourceLayerAt(of(2, 3))).isEqualTo(STATIC_ENVIRONMENT);
     }
 
     @Test
@@ -132,8 +132,8 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(emptyGrid(), emptyGrid());
 
         // Verify
-        assertThat(grid.getSourceLayerAt(Offset.of(2, 3))).isEqualTo(INTERACTIVE_OBJECTS);
-        assertThat(grid.getSourceLayerAt(Offset.of(99, 99))).isEqualTo(INTERACTIVE_OBJECTS);
+        assertThat(grid.getSourceLayerAt(of(2, 3))).isEqualTo(INTERACTIVE_OBJECTS);
+        assertThat(grid.getSourceLayerAt(of(99, 99))).isEqualTo(INTERACTIVE_OBJECTS);
     }
 
     @Test
@@ -143,10 +143,10 @@ class CollisionGridUnderlayRestoreTest {
         final StaticEnvironmentCollisionGrid grid = gridFor(emptyGrid(), emptyGrid());
 
         // Execute
-        grid.removeLevelObjectAt(Offset.of(99, 99));
+        grid.removeLevelObjectAt(of(99, 99));
 
         // Verify
-        assertThat(grid.getLevelObjectAt(Offset.of(99, 99))).isSameAs(EMPTY_LEVEL_OBJECT);
+        assertThat(grid.getLevelObjectAt(of(99, 99))).isSameAs(EMPTY_LEVEL_OBJECT);
     }
 
     // -------------------------------------------------------------------------

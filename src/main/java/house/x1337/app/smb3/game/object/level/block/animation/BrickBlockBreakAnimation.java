@@ -4,8 +4,8 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Getter;
@@ -29,7 +29,7 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
     );
     private static final int FLIP_PERIOD = 4;
     private static final String FRAGMENT_ASSET = "sprites/object/brick/plain/fragment.png";
-    private final Offset offset;
+    private final Coordinates offset;
 
 
     private final WorldOffset worldOffset;
@@ -72,7 +72,7 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
 
     public BrickBlockBreakAnimation(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         this.offset = offset;
         this.worldOffset = WorldOffset.of(

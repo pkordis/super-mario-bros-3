@@ -4,7 +4,7 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.animation.base.BlockBounceAnimation;
 import house.x1337.app.smb3.model.ImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 
 /**
@@ -17,7 +17,7 @@ public final class EmptyBlockBounceAnimation extends BlockBounceAnimation {
 
     public EmptyBlockBounceAnimation(
         final GameEngine gameEngine,
-        final Offset offset,
+        final Coordinates offset,
         final ImageResource imageResource
     ) {
         this.imageResource = imageResource;

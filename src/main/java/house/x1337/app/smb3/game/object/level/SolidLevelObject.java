@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,7 +22,7 @@ public final class SolidLevelObject implements LevelObject {
     private final Tile tile;
     private final LevelObjectType type;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     @Override
     public boolean isOneWayPlatform() {

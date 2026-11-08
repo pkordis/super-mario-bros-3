@@ -36,6 +36,7 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_PIT_DEATH_COUNTDOWN_TICK
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -86,6 +87,10 @@ class PlayerPitFallTest {
         new PlayerDeathSequence(bus).subscribe();
 
         final LevelScene levelScene = mock(LevelScene.class);
+
+        // The player is built at the scene's spawn point.
+
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
 
         // The view sits at the level's bottom, as a clamped camera puts it in a level at least as tall

@@ -5,8 +5,8 @@ import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.model.AnimationImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 
 import java.nio.ByteBuffer;
@@ -21,7 +21,7 @@ import static lombok.AccessLevel.PROTECTED;
 public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObject> implements GameObjectAnimator<A> {
     @Getter(PROTECTED)
     private final List<A> animatableLevelObjects = new ArrayList<>();
-    private final Set<Offset> pausedOffsets = new HashSet<>();
+    private final Set<Coordinates> pausedOffsets = new HashSet<>();
     private Geometry interactiveObjectsLayerGeometry;
     private LevelSceneDimensions dimensions;
     private int currentFrame;
@@ -34,7 +34,7 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
         final LevelSceneDimensions dimensions,
         final ByteBuffer byteBuffer,
         final int[] pixels,
-        final Offset offset,
+        final Coordinates offset,
         final int imageWidth
     ) {
         for (int spriteRow = 0; spriteRow < TILE_SPRITE_SIZE; spriteRow++) {
@@ -96,19 +96,19 @@ public abstract class GameObjectAnimatorSingleTiled<A extends AnimatableLevelObj
         interactiveObjectsLayerGeometry = null;
     }
 
-    public void unregisterAt(final Offset offset) {
+    public void unregisterAt(final Coordinates offset) {
         animatableLevelObjects.removeIf(b -> b.getOffset().equals(offset));
     }
 
-    public void pauseAt(final Offset offset) {
+    public void pauseAt(final Coordinates offset) {
         pausedOffsets.add(offset);
     }
 
-    public void resumeAt(final Offset offset) {
+    public void resumeAt(final Coordinates offset) {
         pausedOffsets.remove(offset);
     }
 
-    public boolean isPausedAt(final Offset offset) {
+    public boolean isPausedAt(final Coordinates offset) {
         return pausedOffsets.contains(offset);
     }
 

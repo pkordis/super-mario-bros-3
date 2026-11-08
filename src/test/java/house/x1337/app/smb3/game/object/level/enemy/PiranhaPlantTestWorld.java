@@ -15,7 +15,6 @@ import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManage
 import house.x1337.app.smb3.game.object.level.enemy.animator.PiranhaPlantAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.service.LevelObjectData;
@@ -28,6 +27,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -98,7 +98,7 @@ final class PiranhaPlantTestWorld implements AutoCloseable {
 
     /** A plant placed on the pipe and configured as the spawner configures it, not yet in the scene. */
     PiranhaPlant plant(final PiranhaPlantMode mode) {
-        final PiranhaPlant plant = new PiranhaPlant(gameEngine, Offset.of(PIPE_COLUMN, STARTER_ROW));
+        final PiranhaPlant plant = new PiranhaPlant(gameEngine, of(PIPE_COLUMN, STARTER_ROW));
         plant.init();
         plant.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, mode.name())));
         return plant;

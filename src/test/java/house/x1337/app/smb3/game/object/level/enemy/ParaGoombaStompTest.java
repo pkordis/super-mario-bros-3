@@ -13,8 +13,8 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.AfterEach;
@@ -30,11 +30,11 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
@@ -82,10 +82,14 @@ class ParaGoombaStompTest {
         }
 
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -150,7 +154,7 @@ class ParaGoombaStompTest {
         assertThat(replacement.getPosition().y()).isCloseTo(stompedAtY, within(TOLERANCE));
         assertThat(replacement.getOffset())
             .as("Its placement cell is derived from where it actually is")
-            .isEqualTo(Offset.of(stompedAtX / TILE_SPRITE_SIZE, stompedAtY / TILE_SPRITE_SIZE));
+            .isEqualTo(of(stompedAtX / TILE_SPRITE_SIZE, stompedAtY / TILE_SPRITE_SIZE));
     }
 
     @Test
@@ -377,7 +381,7 @@ class ParaGoombaStompTest {
     }
 
     private ParaGoomba paraGoombaAt(final int column, final int row) {
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(column, row));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(column, row));
         paraGoomba.init();
         return paraGoomba;
     }

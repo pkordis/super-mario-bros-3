@@ -17,8 +17,7 @@ public interface PipePortalConverter extends PipePortalLinkRulesAware {
             .type(record.getType())
             .virtualObjectType(record.getVirtualObjectType())
             .levelSceneId(record.getLevelSceneId())
-            .row(record.getRow())
-            .column(record.getColumn())
+            .coordinates(record.getCoordinates())
             .linksToId(record.getLinksToId())
             .build();
     }
@@ -39,8 +38,7 @@ public interface PipePortalConverter extends PipePortalLinkRulesAware {
             .type(portal.getType())
             .virtualObjectType(portal.getVirtualObjectType())
             .levelSceneId(levelSceneId)
-            .row(portal.getRow())
-            .column(portal.getColumn())
+            .coordinates(portal.getCoordinates())
             .linksToId(portal.getLinksToId())
             .build();
     }

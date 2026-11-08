@@ -10,8 +10,8 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -34,12 +34,12 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_200;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_400;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_800;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.max;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
@@ -89,10 +89,14 @@ class GoombaTailAttackTest {
         }
 
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -161,7 +165,7 @@ class GoombaTailAttackTest {
         goomba.onTailAttack(playerAt(playerX, WALK_ROW_PIXEL_Y, RIGHT));
 
         // Verify
-        final Offset spawnedAt = captureFlashOffset();
+        final Coordinates spawnedAt = captureFlashOffset();
         assertThat(spawnedAt.x())
             .as("Player_X + $10, on the struck side")
             .isEqualTo((int) (playerX + TAIL_OFFSET));
@@ -184,7 +188,7 @@ class GoombaTailAttackTest {
         goomba.onTailAttack(playerAt(playerX, WALK_ROW_PIXEL_Y, LEFT));
 
         // Verify
-        final Offset spawnedAt = captureFlashOffset();
+        final Coordinates spawnedAt = captureFlashOffset();
         assertThat(spawnedAt.x()).isEqualTo((int) (playerX - TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("between the Goomba and the player")
@@ -292,7 +296,7 @@ class GoombaTailAttackTest {
         assertThat(goomba.getPendingScoreReward()).as("paid once").isNull();
         assertThat(firstThrow.isSameAsCurrent(goomba)).as("the original throw was not restarted").isTrue();
         verify(tailAttackFlashMotionManager, times(1).description("one flash only"))
-            .spawn(eq(gameEngine), any(Offset.class));
+            .spawn(eq(gameEngine), any(Coordinates.class));
     }
 
     @Test
@@ -310,7 +314,7 @@ class GoombaTailAttackTest {
         assertThat(goomba.getWhamMotion()).isNull();
         assertThat(goomba.getPendingScoreReward()).isNull();
         assertThat(goomba.isSquished()).isTrue();
-        verify(tailAttackFlashMotionManager, never()).spawn(eq(gameEngine), any(Offset.class));
+        verify(tailAttackFlashMotionManager, never()).spawn(eq(gameEngine), any(Coordinates.class));
     }
 
     // -------------------------------------------------------------------------
@@ -482,8 +486,8 @@ class GoombaTailAttackTest {
     // -------------------------------------------------------------------------
 
     /** @return the single point the flash was spawned at */
-    private Offset captureFlashOffset() {
-        final ArgumentCaptor<Offset> offsetCaptor = ArgumentCaptor.forClass(Offset.class);
+    private Coordinates captureFlashOffset() {
+        final ArgumentCaptor<Coordinates> offsetCaptor = ArgumentCaptor.forClass(Coordinates.class);
         verify(tailAttackFlashMotionManager).spawn(eq(gameEngine), offsetCaptor.capture());
         return offsetCaptor.getValue();
     }
@@ -499,7 +503,7 @@ class GoombaTailAttackTest {
     }
 
     private Goomba goombaAt(final int column, final int row) {
-        final Goomba goomba = new Goomba(gameEngine, Offset.of(column, row));
+        final Goomba goomba = new Goomba(gameEngine, of(column, row));
         goomba.init();
         return goomba;
     }

@@ -8,7 +8,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.animator.SwitchBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +47,7 @@ public class SwitchBlock implements AnimatableLevelObject {
     private final SwitchBlockAnimator switchBlockAnimator = getBean(SwitchBlockAnimator.class);
     private final LevelObjectType type = SWITCH_BLOCK;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     /**
      * {@code true} once this switch has been stomped. {@link #onCollisionFromAbove} is dispatched on

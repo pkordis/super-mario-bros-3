@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.object.level.enemy.placement;
 
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -11,7 +11,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 final class EnemyPlacement {
     private final EnemyType enemyType;
-    private final Offset anchor;
+    private final Coordinates anchor;
     private final Map<String, Object> data;
     private boolean spawned;
 

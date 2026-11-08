@@ -138,7 +138,7 @@ Two phases inside the single `tick()` (not `PopAnimation` — same reasoning as 
 The item resolves tiles against the SAME grid the player uses. The player-facing probe methods
 (`collidesAtOffset`, `handleCollision`) are **player-relative** (`fromPlayerOffset`) — do NOT use
 those for objects. Instead use the ABSOLUTE-coordinate accessor:
-`grid.getLevelObjectAt(Offset.of(col, row)).isCollidable()`. Fetch the grid lazily from any live
+`grid.getLevelObjectAt(Coordinates.of(col, row)).isCollidable()`. Fetch the grid lazily from any live
 `LevelScenePlayer` (`gameEngine.getPlayers()` → instanceof → `getCollisionGrid()`); all players
 index identical tiles. Treat out-of-columns / below-world as solid, above-world as open.
 > **CORRECTED 2026-10 (SMB3-1).** Out-of-columns is **open**, not solid, for objects: the ROM's
@@ -249,7 +249,7 @@ PNG (validated as whole 16x16 tiles)  ->  CreateEnemyFromImageWindow
 ```
 
 - **`EnemyRecord`** (`enemies` collection, both stores): `description`, `enemyType`, `rows`/`columns`,
-  flattened row-major `tileIds`, `renderingStarterRow`/`Column`. It is the counterpart of
+  flattened row-major `tileIds`, `renderingStarter` (`Coordinates`). It is the counterpart of
   `LevelSceneRecord`, not of `LevelObjectRecord` — an enemy is a *grid* of tiles, not one classified tile
   — and it uses the same flattened `int[]` shape because neither store has an `int[][]` codec.
 - **`EnemyType`** (`enumeration.enemy`) is the editor-facing identity and carries the runtime type:

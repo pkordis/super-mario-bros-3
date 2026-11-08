@@ -6,7 +6,7 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.motion.EmptyBlockBounceMotionManager;
 import house.x1337.app.smb3.model.ImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -30,7 +30,7 @@ public class EmptyBlock implements LevelObject {
     private final LevelObjectType type = EMPTY_BLOCK;
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
-    private final Offset offset;
+    private final Coordinates offset;
 
     /**
      * {@code true} once the one-shot bounce animation has been triggered.

@@ -44,8 +44,8 @@ public class EnemyButton extends LayerGatedToggleButton {
             enemy.getEnemyType().getLabel(),
             enemy.getColumns(),
             enemy.getRows(),
-            enemy.getRenderingStarterRow(),
-            enemy.getRenderingStarterColumn()
+            enemy.getRenderingStarter().y(),
+            enemy.getRenderingStarter().x()
         );
     }
 }

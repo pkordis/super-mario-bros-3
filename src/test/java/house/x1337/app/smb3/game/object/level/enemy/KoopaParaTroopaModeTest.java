@@ -5,7 +5,6 @@ import house.x1337.app.smb3.enumeration.enemy.EnemyType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.KoopaParaTroopaMotionManager;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +18,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_P
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -104,7 +104,7 @@ class KoopaParaTroopaModeTest {
     }
 
     private KoopaParaTroopa paratroopa() {
-        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(mock(GameEngine.class), Offset.of(0, 0));
+        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(mock(GameEngine.class), of(0, 0));
         paratroopa.init();
         return paratroopa;
     }

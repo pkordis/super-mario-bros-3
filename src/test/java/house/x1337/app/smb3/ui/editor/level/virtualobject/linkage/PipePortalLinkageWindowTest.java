@@ -21,6 +21,7 @@ import java.util.Map;
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.mock;
@@ -76,6 +77,7 @@ class PipePortalLinkageWindowTest {
             .type(type)
             .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
             .levelSceneId("scene-1")
+            .coordinates(of(0, 0))
             .linksToId(linksToId)
             .build();
     }

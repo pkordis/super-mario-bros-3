@@ -7,7 +7,7 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.Block;
 import house.x1337.app.smb3.model.ImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.TileService;
 import org.jspecify.annotations.NonNull;
@@ -59,7 +59,7 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
      */
     default LevelObject toLevelObject(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         final LevelObjectRecord record = (LevelObjectRecord) this;
         final LevelObjectType type = resolveLevelObjectType();

@@ -29,8 +29,8 @@ public sealed interface LevelScenePlayerCapabilities
         final LevelScene levelScene = getLevelScene();
         final PlayerPosition position = new PlayerPosition();
         // Convert tile coords to sprite-pixel coords
-        position.setX(levelScene.getSpawnPointColumn() * TILE_SPRITE_SIZE);
-        position.setY(levelScene.getSpawnPointRow() * TILE_SPRITE_SIZE);
+        position.setX(levelScene.getSpawnPoint().x() * TILE_SPRITE_SIZE);
+        position.setY(levelScene.getSpawnPoint().y() * TILE_SPRITE_SIZE);
         position.setDX(0);
         position.setDY(0);
         // Initialize previous position to match so the first interpolated

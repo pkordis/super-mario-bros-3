@@ -34,10 +34,10 @@ import static house.x1337.app.smb3.enumeration.TileType.ENEMY_PART;
 import static house.x1337.app.smb3.enumeration.VirtualObjectCategory.PIPE_PORTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.NOT_OVER_PIPE_TERMINATION;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Color.YELLOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -120,12 +120,11 @@ class LevelCompletionCardPlacementTest {
         arm(CARD);
 
         // Execute
-        tab.paintTile(5, 2);
+        tab.paintTile(of(5, 2));
 
         // Verify
         assertThat(tab.hasLevelCompletionCard()).isTrue();
-        assertThat(tab.getLevelCompletionCardColumn()).isEqualTo(5);
-        assertThat(tab.getLevelCompletionCardRow()).isEqualTo(2);
+        assertThat(tab.getLevelCompletionCard()).isEqualTo(of(5, 2));
         assertThat(tab.getPipePortals()).as("The card is not a pipe portal").isEmpty();
         assertThat(layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[2][5])
             .as("The card is not a tile")
@@ -138,14 +137,13 @@ class LevelCompletionCardPlacementTest {
     void placingAgainMovesTheCard() {
         // Prepare
         arm(CARD);
-        tab.paintTile(5, 2);
+        tab.paintTile(of(5, 2));
 
         // Execute
-        tab.paintTile(1, 4);
+        tab.paintTile(of(1, 4));
 
         // Verify
-        assertThat(tab.getLevelCompletionCardColumn()).isEqualTo(1);
-        assertThat(tab.getLevelCompletionCardRow()).isEqualTo(4);
+        assertThat(tab.getLevelCompletionCard()).isEqualTo(of(1, 4));
     }
 
     @Test
@@ -156,7 +154,7 @@ class LevelCompletionCardPlacementTest {
         tab.setActiveLayer(layers.get(AIR));
 
         // Execute
-        tab.paintTile(5, 2);
+        tab.paintTile(of(5, 2));
 
         // Verify
         assertThat(tab.hasLevelCompletionCard()).isFalse();
@@ -168,23 +166,22 @@ class LevelCompletionCardPlacementTest {
     void rightClickRemovesTheCard() {
         // Prepare
         arm(CARD);
-        tab.paintTile(3, 3);
+        tab.paintTile(of(3, 3));
         final Tile enemyPart = Tile.builder().id(500).type(ENEMY_PART).build();
         layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[3][3] = enemyPart;
 
         // Execute
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(tab.hasLevelCompletionCard()).isFalse();
-        assertThat(tab.getLevelCompletionCardRow()).isEqualTo(-1);
-        assertThat(tab.getLevelCompletionCardColumn()).isEqualTo(-1);
+        assertThat(tab.getLevelCompletionCard()).isNull();
         assertThat(layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[3][3])
             .as("The card is removed instead of the tile under it")
             .isSameAs(enemyPart);
 
         // Execute - the cell has no card any more, so it erases as before
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[3][3]).isSameAs(NULL_TILE);
@@ -195,14 +192,13 @@ class LevelCompletionCardPlacementTest {
     void rightClickElsewhereKeepsTheCard() {
         // Prepare
         arm(CARD);
-        tab.paintTile(3, 3);
+        tab.paintTile(of(3, 3));
 
         // Execute
-        tab.eraseTile(4, 3);
+        tab.eraseTile(of(4, 3));
 
         // Verify
-        assertThat(tab.getLevelCompletionCardColumn()).isEqualTo(3);
-        assertThat(tab.getLevelCompletionCardRow()).isEqualTo(3);
+        assertThat(tab.getLevelCompletionCard()).isEqualTo(of(3, 3));
     }
 
     @Test
@@ -210,13 +206,13 @@ class LevelCompletionCardPlacementTest {
     void rightClickOffTheNpcLayerKeepsTheCard() {
         // Prepare
         arm(CARD);
-        tab.paintTile(3, 3);
+        tab.paintTile(of(3, 3));
         final Tile sky = Tile.builder().id(600).build();
         layers.get(AIR).getTiles()[3][3] = sky;
         tab.setActiveLayer(layers.get(AIR));
 
         // Execute
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(tab.hasLevelCompletionCard()).isTrue();
@@ -230,22 +226,21 @@ class LevelCompletionCardPlacementTest {
         final PipePortal portal = PipePortal.builder()
             .type(OUT)
             .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
-            .row(3)
-            .column(2)
+            .coordinates(of(2, 3))
             .build();
         tab.getPipePortals().add(portal);
         arm(CARD);
-        tab.paintTile(3, 3);
+        tab.paintTile(of(3, 3));
 
         // Execute
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(tab.hasLevelCompletionCard()).isFalse();
         assertThat(tab.getPipePortals()).containsExactly(portal);
 
         // Execute
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(tab.getPipePortals()).isEmpty();
@@ -258,11 +253,11 @@ class LevelCompletionCardPlacementTest {
         arm(PIPE_PORTAL_HORIZONTAL);
 
         // Execute - no pipe anywhere in this scene
-        tab.paintTile(2, 3);
+        tab.paintTile(of(2, 3));
 
         // Verify
         verify(prompt).warn(tab, NOT_OVER_PIPE_TERMINATION);
-        verify(prompt, never()).ask(any(), any(), anyInt(), anyInt());
+        verify(prompt, never()).ask(any(), any(), any());
         assertThat(tab.getPipePortals()).isEmpty();
         assertThat(tab.hasLevelCompletionCard()).isFalse();
     }
@@ -283,7 +278,7 @@ class LevelCompletionCardPlacementTest {
     void clearingTheSceneRemovesTheCard() {
         // Prepare
         arm(CARD);
-        tab.paintTile(3, 3);
+        tab.paintTile(of(3, 3));
 
         // Execute
         tab.clearScene();

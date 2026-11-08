@@ -32,8 +32,7 @@ public interface EnemyConverter extends TilesExtractor {
             .description(record.getDescription())
             .enemyType(record.getEnemyType())
             .tiles(toTileGrid(record.getTileIds(), record.getRows(), record.getColumns()))
-            .renderingStarterRow(record.getRenderingStarterRow())
-            .renderingStarterColumn(record.getRenderingStarterColumn())
+            .renderingStarter(record.getRenderingStarter())
             .updatedAt(record.getUpdatedAt())
             .data(copyOf(record.getData()))
             .build();
@@ -51,8 +50,7 @@ public interface EnemyConverter extends TilesExtractor {
             .rows(enemy.getRows())
             .columns(enemy.getColumns())
             .tileIds(extractTileIds(enemy.getTiles()))
-            .renderingStarterRow(enemy.getRenderingStarterRow())
-            .renderingStarterColumn(enemy.getRenderingStarterColumn())
+            .renderingStarter(enemy.getRenderingStarter())
             .updatedAt(enemy.getUpdatedAt())
             .data(copyOf(enemy.getData()))
             .build();

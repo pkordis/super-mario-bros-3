@@ -5,6 +5,7 @@ import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import lombok.RequiredArgsConstructor;
 
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floor;
 import static java.lang.Math.min;
 
@@ -57,7 +59,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     private static final double STOMP_RANGE_PIXELS = 19.0;
 
-    private final Map<Long, List<T>> cellsByKey = new HashMap<>();
+    private final Map<Coordinates, List<T>> cellsByKey = new HashMap<>();
     private final EnemySpawner enemySpawner;
 
     /**
@@ -106,7 +108,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         for (int cellY = minCellY; cellY <= maxCellY; cellY++) {
             for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
                 cellsByKey
-                    .computeIfAbsent(keyOf(cellX, cellY), ignored -> new ArrayList<>())
+                    .computeIfAbsent(of(cellX, cellY), ignored -> new ArrayList<>())
                     .add(object);
             }
         }
@@ -139,7 +141,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         final Set<T> alreadyAdded = Collections.newSetFromMap(new IdentityHashMap<>());
         for (int cellY = minCellY; cellY <= maxCellY; cellY++) {
             for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
-                final List<T> bucket = cellsByKey.get(keyOf(cellX, cellY));
+                final List<T> bucket = cellsByKey.get(of(cellX, cellY));
                 if (bucket == null) {
                     continue;
                 }
@@ -220,14 +222,6 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      */
     private int cellIndex(final double coordinate) {
         return (int) floor(coordinate / TILE_SPRITE_SIZE);
-    }
-
-    /**
-     * Packs a signed 2D cell coordinate into a single long key (X in the high 32 bits, Y in the
-     * low 32), so negative indices (objects left of / above the origin) hash distinctly.
-     */
-    private static long keyOf(final int cellX, final int cellY) {
-        return (((long) cellX) << 32) | (cellY & 0xFFFFFFFFL);
     }
 
     /**

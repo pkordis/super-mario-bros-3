@@ -18,6 +18,7 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.dizitart.no2.common.module.NitriteModule.module;
@@ -222,8 +223,7 @@ class PipePortalServiceLinksTest {
             .id(id)
             .type(type)
             .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
-            .row(4)
-            .column(2)
+            .coordinates(of(2, 4))
             .build();
     }
 }

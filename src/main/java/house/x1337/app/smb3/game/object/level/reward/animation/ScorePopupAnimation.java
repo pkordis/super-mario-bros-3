@@ -8,8 +8,8 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
 import house.x1337.app.smb3.game.object.level.PopAnimation;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -33,7 +33,7 @@ public final class ScorePopupAnimation extends PopAnimation {
     public ScorePopupAnimation(
         final GameEngine gameEngine,
         final Reward.Data rewardData,
-        final Offset offset
+        final Coordinates offset
     ) {
         super(gameEngine, rewardData, offset);
     }

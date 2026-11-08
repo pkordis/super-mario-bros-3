@@ -4,8 +4,8 @@ import com.jme3.scene.Geometry;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimationSingleTiled;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import lombok.Getter;
 
@@ -37,7 +37,7 @@ public abstract class BlockBounceAnimation extends GameObjectAnimationSingleTile
 
     protected BlockBounceAnimation(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         super(
             gameEngine,

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -35,8 +36,7 @@ class MongoPipePortalCodecTest {
             .type(IN_AND_OUT)
             .virtualObjectType(PIPE_PORTAL_VERTICAL)
             .levelSceneId("scene-1")
-            .row(7)
-            .column(12)
+            .coordinates(of(12, 7))
             .linksToId("portal-2")
             .build();
         final BsonDocument document = new BsonDocument();
@@ -57,6 +57,13 @@ class MongoPipePortalCodecTest {
             .as("The repository clears links on this field name")
             .isEqualTo("portal-2");
         assertThat(document.getString("virtualObjectType").getValue()).isEqualTo("PIPE_PORTAL_VERTICAL");
+        final BsonDocument coordinates = document.getDocument("coordinates");
+        assertThat(coordinates.getInt32("x").getValue())
+            .as("The anchor column is stored as x of the nested coordinates document")
+            .isEqualTo(12);
+        assertThat(coordinates.getInt32("y").getValue())
+            .as("The anchor row is stored as y of the nested coordinates document")
+            .isEqualTo(7);
         assertThat(decoded).isEqualTo(original);
     }
 

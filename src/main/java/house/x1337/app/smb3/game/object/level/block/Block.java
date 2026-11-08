@@ -22,8 +22,8 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.service.LevelObjectService;
 import lombok.Getter;
@@ -41,6 +41,7 @@ import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_S
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
  * A single-tile block, parameterized by its {@link LevelObjectType} into the flavours the ROM
@@ -81,7 +82,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
 
     private final GameEngine gameEngine;
     private final ImageResource imageResource;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private LevelObjectType type;
     private ItemType reward;
@@ -261,7 +262,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
             );
             return;
         }
-        final Offset switchOffset = Offset.of(offset.x(), offset.y() - 1);
+        final Coordinates switchOffset = of(offset.x(), offset.y() - 1);
         final SwitchBlock switchBlock = getBean(SwitchBlock.class, gameEngine, switchOffset);
         final SwitchBlockAnimator switchBlockAnimator = switchBlock.getSwitchBlockAnimator();
 
@@ -319,7 +320,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     private void bakeTileToTexture(
         final Geometry interactiveObjectsLayerGeometry,
         final LevelSceneDimensions dimensions,
-        final Offset targetOffset,
+        final Coordinates targetOffset,
         final int[] pixels
     ) {
         final Texture2D texture = (Texture2D) interactiveObjectsLayerGeometry

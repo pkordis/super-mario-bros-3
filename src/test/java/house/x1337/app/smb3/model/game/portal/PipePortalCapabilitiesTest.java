@@ -1,13 +1,14 @@
 package house.x1337.app.smb3.model.game.portal;
 
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
-import house.x1337.app.smb3.model.game.portal.PipePortal.Cell;
+import house.x1337.app.smb3.model.game.Coordinates;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -27,7 +28,7 @@ class PipePortalCapabilitiesTest {
         // Execute & Verify
         assertThat(portal.getRows()).isEqualTo(1);
         assertThat(portal.getColumns()).isEqualTo(2);
-        assertThat(portal.cells()).containsExactly(new Cell(ROW, COLUMN), new Cell(ROW, COLUMN + 1));
+        assertThat(portal.cells()).containsExactly(cell(ROW, COLUMN), cell(ROW, COLUMN + 1));
     }
 
     @Test
@@ -40,7 +41,7 @@ class PipePortalCapabilitiesTest {
         assertThat(portal.getRows()).isEqualTo(2);
         assertThat(portal.getColumns()).isEqualTo(1);
         assertThat(portal.getTopRow()).isEqualTo(ROW - 1);
-        assertThat(portal.cells()).containsExactly(new Cell(ROW - 1, COLUMN), new Cell(ROW, COLUMN));
+        assertThat(portal.cells()).containsExactly(cell(ROW - 1, COLUMN), cell(ROW, COLUMN));
     }
 
     @Test
@@ -51,14 +52,14 @@ class PipePortalCapabilitiesTest {
         final PipePortal vertical = portal(PIPE_PORTAL_VERTICAL, ROW, COLUMN);
 
         // Execute & Verify
-        assertThat(horizontal.occupies(ROW, COLUMN + 1)).isTrue();
-        assertThat(horizontal.occupies(ROW, COLUMN + 2)).as("Past the right edge").isFalse();
-        assertThat(horizontal.occupies(ROW - 1, COLUMN)).as("Above a one-row portal").isFalse();
-        assertThat(horizontal.occupies(ROW, COLUMN - 1)).as("Left of the anchor").isFalse();
-        assertThat(vertical.occupies(ROW - 1, COLUMN)).isTrue();
-        assertThat(vertical.occupies(ROW + 1, COLUMN)).as("Below the anchor").isFalse();
-        assertThat(vertical.occupies(ROW - 2, COLUMN)).as("Above the top row").isFalse();
-        assertThat(vertical.occupies(ROW, COLUMN + 1)).as("Right of a one-column portal").isFalse();
+        assertThat(horizontal.occupies(cell(ROW, COLUMN + 1))).isTrue();
+        assertThat(horizontal.occupies(cell(ROW, COLUMN + 2))).as("Past the right edge").isFalse();
+        assertThat(horizontal.occupies(cell(ROW - 1, COLUMN))).as("Above a one-row portal").isFalse();
+        assertThat(horizontal.occupies(cell(ROW, COLUMN - 1))).as("Left of the anchor").isFalse();
+        assertThat(vertical.occupies(cell(ROW - 1, COLUMN))).isTrue();
+        assertThat(vertical.occupies(cell(ROW + 1, COLUMN))).as("Below the anchor").isFalse();
+        assertThat(vertical.occupies(cell(ROW - 2, COLUMN))).as("Above the top row").isFalse();
+        assertThat(vertical.occupies(cell(ROW, COLUMN + 1))).as("Right of a one-column portal").isFalse();
     }
 
     @Test
@@ -85,7 +86,7 @@ class PipePortalCapabilitiesTest {
 
         // Execute & Verify
         assertThat(portal.cells()).isEmpty();
-        assertThat(portal.occupies(ROW, COLUMN)).isFalse();
+        assertThat(portal.occupies(cell(ROW, COLUMN))).isFalse();
     }
 
     @Test
@@ -104,8 +105,11 @@ class PipePortalCapabilitiesTest {
         return PipePortal.builder()
             .type(IN)
             .virtualObjectType(type)
-            .row(row)
-            .column(column)
+            .coordinates(cell(row, column))
             .build();
+    }
+
+    private static Coordinates cell(final int row, final int column) {
+        return of(column, row);
     }
 }

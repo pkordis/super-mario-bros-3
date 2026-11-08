@@ -22,9 +22,9 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -53,6 +53,7 @@ import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KICKED;
 import static house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -89,7 +90,7 @@ class PitFallTest {
     private static final int START_COLUMN = 17;
 
     /** A mushroom block in the floor between the pits, so whichever way the mushroom goes it meets one. */
-    private static final Offset MUSHROOM_BLOCK = Offset.of(20, FLOOR_ROW);
+    private static final Coordinates MUSHROOM_BLOCK = of(20, FLOOR_ROW);
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -144,7 +145,7 @@ class PitFallTest {
     @DisplayName("A walking Goomba falls into the pit instead of walking across it")
     void aGoombaFallsIntoThePit() {
         // Prepare
-        final Goomba goomba = new Goomba(gameEngine, Offset.of(START_COLUMN, WALK_ROW));
+        final Goomba goomba = new Goomba(gameEngine, of(START_COLUMN, WALK_ROW));
         goomba.init();
         goomba.faceClosestPlayer();
 
@@ -156,7 +157,7 @@ class PitFallTest {
     @DisplayName("A Para-Goomba hops into the pit and falls out of the level")
     void aParaGoombaFallsIntoThePit() {
         // Prepare
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(START_COLUMN, WALK_ROW));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(START_COLUMN, WALK_ROW));
         paraGoomba.init();
         paraGoomba.faceClosestPlayer();
 
@@ -254,7 +255,7 @@ class PitFallTest {
     }
 
     private KoopaTroopa troopaAt(final int column, final KoopaTroopaMode mode) {
-        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(column, WALK_ROW));
+        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, of(column, WALK_ROW));
         troopa.init();
         troopa.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, mode.name())));
         troopa.faceClosestPlayer();

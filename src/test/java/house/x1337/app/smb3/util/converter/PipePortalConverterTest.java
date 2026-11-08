@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PipePortalConverterTest {
@@ -25,8 +26,7 @@ class PipePortalConverterTest {
             .type(IN_AND_OUT)
             .virtualObjectType(PIPE_PORTAL_VERTICAL)
             .levelSceneId(SCENE_ID)
-            .row(7)
-            .column(12)
+            .coordinates(of(12, 7))
             .linksToId("portal-2")
             .build();
 
@@ -40,8 +40,7 @@ class PipePortalConverterTest {
         assertThat(portal.getType()).isEqualTo(IN_AND_OUT);
         assertThat(portal.getVirtualObjectType()).isEqualTo(PIPE_PORTAL_VERTICAL);
         assertThat(portal.getLevelSceneId()).isEqualTo(SCENE_ID);
-        assertThat(portal.getRow()).isEqualTo(7);
-        assertThat(portal.getColumn()).isEqualTo(12);
+        assertThat(portal.getCoordinates()).isEqualTo(of(12, 7));
         assertThat(portal.getLinksToId()).isEqualTo("portal-2");
         assertThat(portal.isLinked()).isTrue();
         assertThat(restored).isEqualTo(original);
@@ -75,8 +74,7 @@ class PipePortalConverterTest {
         final PipePortal portal = PipePortal.builder()
             .type(IN_AND_OUT)
             .virtualObjectType(PIPE_PORTAL_VERTICAL)
-            .row(3)
-            .column(4)
+            .coordinates(of(4, 3))
             .build();
 
         // Execute

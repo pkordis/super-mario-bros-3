@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,12 +28,9 @@ public final class LevelSceneRecord implements Serializable {
     private int rows;
     private int columns;
     private long updatedAt;
-    private Integer renderingStarterRow;
-    private Integer renderingStarterColumn;
-    private Integer spawnPointRow;
-    private Integer spawnPointColumn;
-    private Integer levelCompletionCardRow;
-    private Integer levelCompletionCardColumn;
+    private Coordinates renderingStarter;
+    private Coordinates spawnPoint;
+    private Coordinates levelCompletionCard;
     @Singular
     private Map<String, LevelSceneLayerData> layers;
 

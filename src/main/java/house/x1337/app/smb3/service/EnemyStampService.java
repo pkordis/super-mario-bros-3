@@ -37,13 +37,12 @@ public class EnemyStampService implements EnemyConverter {
         enemyRepository.upsert(toEnemyRecord(enemy));
         cache.put(enemy.getId(), enemy);
         log.info(
-            "Upserted enemy (id={}, type={}, {}x{} tiles, rendering starter at row={}, column={}).",
+            "Upserted enemy (id={}, type={}, {}x{} tiles, rendering starter at {}).",
             enemy.getId(),
             enemy.getEnemyType(),
             enemy.getColumns(),
             enemy.getRows(),
-            enemy.getRenderingStarterRow(),
-            enemy.getRenderingStarterColumn()
+            enemy.getRenderingStarter()
         );
     }
 

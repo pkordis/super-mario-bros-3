@@ -8,7 +8,7 @@ import house.x1337.app.smb3.game.level.pipe.PipeEntryRulesAware;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
-import house.x1337.app.smb3.model.game.LevelObjectOffset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -27,7 +27,7 @@ import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_UP;
-import static house.x1337.app.smb3.model.game.LevelObjectOffset.fromPlayerOffset;
+import static house.x1337.app.smb3.model.game.Coordinates.fromPlayerOffset;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_UP;
@@ -101,7 +101,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
         if (isNotHolding(direction)) {
             return Optional.empty();
         }
-        final LevelObjectOffset inFront = fromPlayerOffset(
+        final Coordinates inFront = fromPlayerOffset(
             this,
             pipeEntryProbes().resolve(false, isOnLeftHalf(playerX)).horizontal().first()
         );
@@ -116,12 +116,12 @@ public interface LevelScenePlayerPipeUsingCapabilities
         if (isNotHolding(DOWN)) {
             return Optional.empty();
         }
-        final LevelObjectOffset leftFoot = fromPlayerOffset(
+        final Coordinates leftFoot = fromPlayerOffset(
             this,
             pipeEntryProbes().resolve(false, isOnLeftHalf(playerX)).vertical().first()
         );
         return findPortal(portals, tiles, playerX, leftFoot, DOWN)
-            .filter(portal -> isAligned(playerX, false, isSmall(), leftFoot.x() == portal.getColumn()));
+            .filter(portal -> isAligned(playerX, false, isSmall(), leftFoot.x() == portal.getCoordinates().x()));
     }
 
     private Optional<PipePortal> findUpsideDownPipe(
@@ -133,12 +133,12 @@ public interface LevelScenePlayerPipeUsingCapabilities
         if (!runtimeState.isHitCeiling() || runtimeState.isDucking() || isNotHolding(UP)) {
             return Optional.empty();
         }
-        final LevelObjectOffset head = fromPlayerOffset(
+        final Coordinates head = fromPlayerOffset(
             this,
             pipeEntryProbes().resolve(true, isOnLeftHalf(playerX)).vertical().second()
         );
         return findPortal(portals, tiles, playerX, head, UP)
-            .filter(portal -> isAligned(playerX, true, isSmall(), head.x() == portal.getColumn()));
+            .filter(portal -> isAligned(playerX, true, isSmall(), head.x() == portal.getCoordinates().x()));
     }
 
     /** The enterable portal whose pipe the probed cell reaches, if that pipe is entered holding {@code direction}. */
@@ -146,11 +146,11 @@ public interface LevelScenePlayerPipeUsingCapabilities
         final List<PipePortal> portals,
         final Tile[][] tiles,
         final int playerX,
-        final LevelObjectOffset cell,
+        final Coordinates cell,
         final PipeEntryDirection direction
     ) {
         return portals.stream()
-            .filter(portal -> isEnterable(portal) && isEntryCell(portal, cell.y(), cell.x()))
+            .filter(portal -> isEnterable(portal) && isEntryCell(portal, cell))
             .filter(portal -> entryDirection(tiles, portal, playerX).filter(direction::equals).isPresent())
             .findFirst();
     }
@@ -363,9 +363,9 @@ public interface LevelScenePlayerPipeUsingCapabilities
 
     private void placeInside(final PipePortal portal, final PipeEntryDirection direction) {
         final PlayerPosition position = getPosition();
-        final double centredX = portal.getColumn() * TILE_SPRITE_SIZE + TILE_SPRITE_SIZE / 2.0;
+        final double centredX = portal.getCoordinates().x() * TILE_SPRITE_SIZE + TILE_SPRITE_SIZE / 2.0;
         final double lipTop = portal.getTopRow() * TILE_SPRITE_SIZE;
-        final double lipBottom = (portal.getRow() + 1) * TILE_SPRITE_SIZE;
+        final double lipBottom = (portal.getCoordinates().y() + 1) * TILE_SPRITE_SIZE;
         switch (direction) {
             case UP -> {
                 position.setX(centredX);
@@ -376,7 +376,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
                 position.setY(lipBottom - PLAYER_BOX_HEIGHT);
             }
             case LEFT, RIGHT -> {
-                position.setX(portal.getColumn() * TILE_SPRITE_SIZE);
+                position.setX(portal.getCoordinates().x() * TILE_SPRITE_SIZE);
                 position.setY(lipBottom - PLAYER_BOX_HEIGHT);
             }
         }
@@ -384,7 +384,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
 
     private void standOn(final PipePortal portal) {
         final PlayerPosition position = getPosition();
-        position.setX(portal.getColumn() * TILE_SPRITE_SIZE);
+        position.setX(portal.getCoordinates().x() * TILE_SPRITE_SIZE);
         position.setY(portal.getTopRow() * TILE_SPRITE_SIZE - PLAYER_BOX_HEIGHT);
         position.snapshotPrevious();
         setVisibility(FOREGROUND);

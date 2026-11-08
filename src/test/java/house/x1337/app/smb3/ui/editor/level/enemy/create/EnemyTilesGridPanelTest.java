@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EnemyTilesGridPanelTest {
@@ -17,8 +18,7 @@ class EnemyTilesGridPanelTest {
         panel.render(blankParts(3, 2));
 
         // Verify - an enemy is anchored where it meets the ground
-        assertThat(panel.getRenderingStarterRow()).isEqualTo(2);
-        assertThat(panel.getRenderingStarterColumn()).isZero();
+        assertThat(panel.getRenderingStarter()).isEqualTo(of(0, 2));
     }
 
     private int[][][] blankParts(final int rows, final int columns) {

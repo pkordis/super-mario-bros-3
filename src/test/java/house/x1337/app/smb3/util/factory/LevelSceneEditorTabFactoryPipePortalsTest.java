@@ -22,6 +22,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -141,8 +142,7 @@ class LevelSceneEditorTabFactoryPipePortalsTest {
             .type(IN)
             .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
             .levelSceneId("scene-1")
-            .row(3)
-            .column(1)
+            .coordinates(of(1, 3))
             .build();
     }
 

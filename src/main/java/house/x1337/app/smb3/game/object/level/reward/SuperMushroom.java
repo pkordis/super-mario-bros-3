@@ -16,8 +16,8 @@ import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Data;
@@ -28,6 +28,7 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floor;
@@ -85,7 +86,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
 
     private final PowerUpCollectProtection collectProtection = new PowerUpCollectProtection();
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private LevelObjectType type;
     private SuperMushroomImageResource imageResourceType;
@@ -255,7 +256,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         }
         final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
         final int feetRow = position.plusY(SPRITE_SIZE_PIXELS).row();
-        if (!getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
+        if (!getCollisionGrid().isBlockBumpActiveAt(of(centerColumn, feetRow))) {
             return;
         }
         velocity = velocity.withY(BLOCK_BUMP_YVEL);
@@ -419,7 +420,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         // The level's sides are not a wall for the mushroom (the grid reports them open): rather than
         // about-facing, it keeps rolling off the edge, and its manager deletes it once it is past the
         // screen's delete edge (the camera is clamped at the level's ends).
-        return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
+        return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(of(leadingColumn, midRow));
     }
 
     /**
@@ -429,7 +430,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private boolean isGroundBelow(final PixelPosition proposed) {
         final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
         final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
-        return gameEngine.getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
+        return gameEngine.getCollisionGrid().isGroundSolidTile(of(centerColumn, feetRow));
     }
 
     /**

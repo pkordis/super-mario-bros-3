@@ -24,12 +24,9 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .description(levelSceneRecord.getDescription())
             .dimensions(new LevelSceneDimensions(levelSceneRecord.getColumns(), levelSceneRecord.getRows()))
             .updatedAt(levelSceneRecord.getUpdatedAt())
-            .renderingStarterRow(levelSceneRecord.getRenderingStarterRow())
-            .renderingStarterColumn(levelSceneRecord.getRenderingStarterColumn())
-            .spawnPointRow(levelSceneRecord.getSpawnPointRow())
-            .spawnPointColumn(levelSceneRecord.getSpawnPointColumn())
-            .levelCompletionCardRow(levelSceneRecord.getLevelCompletionCardRow())
-            .levelCompletionCardColumn(levelSceneRecord.getLevelCompletionCardColumn())
+            .renderingStarter(levelSceneRecord.getRenderingStarter())
+            .spawnPoint(levelSceneRecord.getSpawnPoint())
+            .levelCompletionCard(levelSceneRecord.getLevelCompletionCard())
             .airLayer(toLevelSceneLayer(AIR, levelSceneRecord))
             .airDecorationsLayer(toLevelSceneLayer(DECORATIONS_AIR, levelSceneRecord))
             .landDecorationsLayer(toLevelSceneLayer(DECORATIONS_LAND, levelSceneRecord))
@@ -47,12 +44,9 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .rows(levelScene.getDimensions().rows())
             .columns(levelScene.getDimensions().columns())
             .updatedAt(System.currentTimeMillis())
-            .renderingStarterRow(levelScene.getRenderingStarterRow())
-            .renderingStarterColumn(levelScene.getRenderingStarterColumn())
-            .spawnPointRow(levelScene.getSpawnPointRow())
-            .spawnPointColumn(levelScene.getSpawnPointColumn())
-            .levelCompletionCardRow(levelScene.getLevelCompletionCardRow())
-            .levelCompletionCardColumn(levelScene.getLevelCompletionCardColumn());
+            .renderingStarter(levelScene.getRenderingStarter())
+            .spawnPoint(levelScene.getSpawnPoint())
+            .levelCompletionCard(levelScene.getLevelCompletionCard());
         for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
             builder.layer(type.name(), toLayerData(type, levelScene.getLayer(type)));
         }

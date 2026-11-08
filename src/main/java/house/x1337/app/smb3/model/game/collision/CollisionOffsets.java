@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.model.game.collision;
 
-import static house.x1337.app.smb3.model.game.Offset.of;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
  * Pixel-level collision probe offsets ported from the SMB3 disassembly

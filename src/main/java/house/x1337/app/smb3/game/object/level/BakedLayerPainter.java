@@ -3,8 +3,8 @@ package house.x1337.app.smb3.game.object.level;
 import com.jme3.scene.Geometry;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 
 import java.nio.ByteBuffer;
 
@@ -22,7 +22,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
  * placed across several cells can reach any of them by passing the cell explicitly.
  */
 public interface BakedLayerPainter {
-    Offset getOffset();
+    Coordinates getOffset();
 
     /**
      * Paints one 16x16 tile of ARGB pixels into this object's cell of a baked layer. Used when a tile
@@ -62,7 +62,7 @@ public interface BakedLayerPainter {
         final Geometry bakedLayerGeometry,
         final LevelSceneDimensions dimensions,
         final int[] pixels,
-        final Offset cell
+        final Coordinates cell
     ) {
         if (cell.x() < 0 || cell.x() >= dimensions.columns() || cell.y() < 0 || cell.y() >= dimensions.rows()) {
             return;
@@ -115,7 +115,7 @@ public interface BakedLayerPainter {
     default void eraseFromBakedTexture(
         final Geometry bakedLayerGeometry,
         final LevelSceneDimensions dimensions,
-        final Offset cell
+        final Coordinates cell
     ) {
         // An all-zero ARGB tile is exactly "transparent black" in every channel.
         paintToBakedTexture(

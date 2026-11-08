@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.dizitart.no2.common.module.NitriteModule.module;
 
@@ -64,8 +65,7 @@ class NitriteLevelSceneRepositoryTest {
     void storesTheLevelCompletionCard() {
         // Prepare
         final LevelSceneRecord withCard = record("scene-1", "1-1");
-        withCard.setLevelCompletionCardRow(21);
-        withCard.setLevelCompletionCardColumn(168);
+        withCard.setLevelCompletionCard(of(168, 21));
         repository.upsert(withCard);
         repository.upsert(record("scene-2", "1-1 bonus room"));
 
@@ -74,10 +74,8 @@ class NitriteLevelSceneRepositoryTest {
         final LevelSceneRecord readWithoutCard = repository.findById("scene-2").orElseThrow();
 
         // Verify
-        assertThat(readWithCard.getLevelCompletionCardRow()).isEqualTo(21);
-        assertThat(readWithCard.getLevelCompletionCardColumn()).isEqualTo(168);
-        assertThat(readWithoutCard.getLevelCompletionCardRow()).isNull();
-        assertThat(readWithoutCard.getLevelCompletionCardColumn()).isNull();
+        assertThat(readWithCard.getLevelCompletionCard()).isEqualTo(of(168, 21));
+        assertThat(readWithoutCard.getLevelCompletionCard()).isNull();
     }
 
     private static LevelSceneRecord record(final String id, final String title) {

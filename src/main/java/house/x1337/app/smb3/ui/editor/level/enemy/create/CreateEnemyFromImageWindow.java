@@ -164,8 +164,7 @@ public final class CreateEnemyFromImageWindow extends JDialog {
             .description(description)
             .enemyType(enemyType)
             .tiles(enemyStampService.toTileGrid(tileIds, rows, columns))
-            .renderingStarterRow(gridPanel.getRenderingStarterRow())
-            .renderingStarterColumn(gridPanel.getRenderingStarterColumn())
+            .renderingStarter(gridPanel.getRenderingStarter())
             .updatedAt(currentTimeMillis())
             .data(data)
             .build();
@@ -182,8 +181,8 @@ public final class CreateEnemyFromImageWindow extends JDialog {
                     enemyType.getLabel(),
                     columns,
                     rows,
-                    enemy.getRenderingStarterRow(),
-                    enemy.getRenderingStarterColumn(),
+                    enemy.getRenderingStarter().y(),
+                    enemy.getRenderingStarter().x(),
                     enemy.renderingStarterTileId(),
                     describe(data)
                 ),

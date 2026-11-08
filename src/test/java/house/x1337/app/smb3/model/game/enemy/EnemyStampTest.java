@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -34,10 +35,10 @@ class EnemyStampTest {
         final EnemyStamp enemy = enemy(2, 3, 1, 0);
 
         // Execute & Verify
-        assertThat(enemy.tileAt(0, 0).getId()).isEqualTo(10);
-        assertThat(enemy.tileAt(0, 2).getId()).isEqualTo(12);
-        assertThat(enemy.tileAt(1, 0).getId()).isEqualTo(20);
-        assertThat(enemy.tileAt(1, 2).getId()).isEqualTo(22);
+        assertThat(enemy.tileAt(of(0, 0)).getId()).isEqualTo(10);
+        assertThat(enemy.tileAt(of(2, 0)).getId()).isEqualTo(12);
+        assertThat(enemy.tileAt(of(0, 1)).getId()).isEqualTo(20);
+        assertThat(enemy.tileAt(of(2, 1)).getId()).isEqualTo(22);
         assertThat(enemy.renderingStarterTile().getId())
             .as("The anchor is the lower-left part of this grid")
             .isEqualTo(20);
@@ -69,6 +70,11 @@ class EnemyStampTest {
             .isFalse();
         assertThat(enemy(2, 3, 1, 3).isWellFormed())
             .as("anchor column outside the grid")
+            .isFalse();
+        final EnemyStamp unanchored = enemy(2, 3, 1, 0);
+        unanchored.setRenderingStarter(null);
+        assertThat(unanchored.isWellFormed())
+            .as("No rendering starter at all")
             .isFalse();
 
         // A ragged grid, as a hand-edited document might produce.
@@ -111,8 +117,7 @@ class EnemyStampTest {
             .id("enemy-1")
             .enemyType(GOOMBA_NORMAL)
             .tiles(tiles)
-            .renderingStarterRow(starterRow)
-            .renderingStarterColumn(starterColumn)
+            .renderingStarter(of(starterColumn, starterRow))
             .build();
     }
 

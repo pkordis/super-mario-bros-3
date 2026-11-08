@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.enemy.create;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 
 import javax.swing.JPanel;
@@ -14,6 +15,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Cursor.HAND_CURSOR;
 import static java.awt.Cursor.getPredefinedCursor;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
@@ -37,10 +39,7 @@ public final class EnemyTilesGridPanel extends JPanel {
     private int columns;
 
     @Getter
-    private int renderingStarterRow;
-
-    @Getter
-    private int renderingStarterColumn;
+    private Coordinates renderingStarter;
 
     public void render(final int[][][] partPixels) {
         this.rows = partPixels.length;
@@ -52,8 +51,7 @@ public final class EnemyTilesGridPanel extends JPanel {
             }
         }
         // The lower-left cell: an enemy is anchored where it meets the ground.
-        this.renderingStarterRow = rows - 1;
-        this.renderingStarterColumn = 0;
+        this.renderingStarter = of(0, rows - 1);
 
         final Dimension size = new Dimension(columns * CELL_SIZE, rows * CELL_SIZE);
         setPreferredSize(size);
@@ -62,17 +60,16 @@ public final class EnemyTilesGridPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(final MouseEvent event) {
-                moveRenderingStarterTo(event.getX() / CELL_SIZE, event.getY() / CELL_SIZE);
+                moveRenderingStarterTo(of(event.getX() / CELL_SIZE, event.getY() / CELL_SIZE));
             }
         });
     }
 
-    private void moveRenderingStarterTo(final int column, final int row) {
-        if (column < 0 || column >= columns || row < 0 || row >= rows) {
+    private void moveRenderingStarterTo(final Coordinates cell) {
+        if (cell.x() < 0 || cell.x() >= columns || cell.y() < 0 || cell.y() >= rows) {
             return;
         }
-        renderingStarterColumn = column;
-        renderingStarterRow = row;
+        renderingStarter = cell;
         repaint();
     }
 
@@ -141,8 +138,8 @@ public final class EnemyTilesGridPanel extends JPanel {
         graphics2D.setStroke(new BasicStroke(RENDERING_STARTER_STROKE));
         final int inset = RENDERING_STARTER_STROKE / 2;
         graphics2D.drawRect(
-            renderingStarterColumn * CELL_SIZE + inset,
-            renderingStarterRow * CELL_SIZE + inset,
+            renderingStarter.x() * CELL_SIZE + inset,
+            renderingStarter.y() * CELL_SIZE + inset,
             CELL_SIZE - RENDERING_STARTER_STROKE,
             CELL_SIZE - RENDERING_STARTER_STROKE
         );

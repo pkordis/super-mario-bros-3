@@ -20,6 +20,7 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.TURN_AROUND_FACE_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +52,8 @@ class PlayerCarryStateTest {
     @BeforeEach
     void prepare() {
         final LevelScene levelScene = mock(LevelScene.class);
+        // The player is built at the scene's spawn point.
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         gameEngine = mock(GameEngine.class);
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         playerData = mock(PlayerData.class);

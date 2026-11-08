@@ -7,8 +7,8 @@ import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Getter;
@@ -24,7 +24,7 @@ import static house.x1337.app.smb3.model.game.WorldOffset.of;
 public abstract class PopAnimation implements GameEngineAware, GameRenderer {
     private final GameEngine gameEngine;
     private final Reward.Data rewardData;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private WorldOffset worldOffset;
 
@@ -33,7 +33,7 @@ public abstract class PopAnimation implements GameEngineAware, GameRenderer {
 
     public WorldOffset adjustWorldOffset(
         final WorldOffset worldOffset,
-        final Offset offset
+        final Coordinates offset
     ) {
         // Do not adjust if not overridden
         return worldOffset;

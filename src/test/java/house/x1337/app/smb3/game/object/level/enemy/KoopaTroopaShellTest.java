@@ -7,8 +7,8 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -36,11 +36,11 @@ import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFam
 import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.SHELL_SHAKE_THRESHOLD_TICKS;
 import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.TAIL_STRIKE_HIT_COOLDOWN_TICKS;
 import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy.WAKE_UP_TICKS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -98,8 +98,8 @@ class KoopaTroopaShellTest {
     private StaticEnvironmentCollisionGrid collisionGrid;
     private GameEngine gameEngine;
     private boolean[][] solids;
-    private Set<Offset> oneWayPlatforms;
-    private Set<Offset> bumpedBlockCells;
+    private Set<Coordinates> oneWayPlatforms;
+    private Set<Coordinates> bumpedBlockCells;
 
     @BeforeEach
     void prepare() {
@@ -111,13 +111,17 @@ class KoopaTroopaShellTest {
         bumpedBlockCells = new HashSet<>();
 
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isGroundSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isGroundSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
         when(collisionGrid.isBlockBumpActiveAt(any()))
-            .thenAnswer(invocation -> bumpedBlockCells.contains(invocation.<Offset>getArgument(0)));
+            .thenAnswer(invocation -> bumpedBlockCells.contains(invocation.<Coordinates>getArgument(0)));
 
         final LevelScene levelScene = mock(LevelScene.class);
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
@@ -429,7 +433,7 @@ class KoopaTroopaShellTest {
         // Prepare - a deep floor so the arc has room, and a panel on the row the apex sinks into
         solids[FLOOR_ROW] = new boolean[COLUMNS];
         solidRow(DEEP_FLOOR_ROW);
-        oneWayPlatforms.add(Offset.of(APEX_COLUMN, APEX_FEET_ROW));
+        oneWayPlatforms.add(of(APEX_COLUMN, APEX_FEET_ROW));
         final KoopaTroopa troopa = troopaAt(5, DEEP_FLOOR_ROW - 1);
         troopa.onTailAttack(playerAtPixelX(2 * TILE_SPRITE_SIZE));
 
@@ -459,7 +463,7 @@ class KoopaTroopaShellTest {
         // 4 px of its top line on that very frame, whatever the fall speed.
         // Prepare - a panel two rows under a troopa with no floor of its own beneath it
         solids[FLOOR_ROW] = new boolean[COLUMNS];
-        oneWayPlatforms.add(Offset.of(5, WALK_ROW + 2));
+        oneWayPlatforms.add(of(5, WALK_ROW + 2));
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
         troopa.onCollisionFromAbove(descendingPlayer());
 
@@ -789,7 +793,7 @@ class KoopaTroopaShellTest {
     // -------------------------------------------------------------------------
 
     private KoopaTroopa troopaAt(final int column, final int row) {
-        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(column, row));
+        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, of(column, row));
         troopa.init();
         return troopa;
     }
@@ -827,7 +831,7 @@ class KoopaTroopaShellTest {
     private void bumpTheBlockUnder(final KoopaTroopa troopa) {
         final int centerColumn = troopa.getPosition().plusX(TILE_SPRITE_SIZE / 2.0).column();
         final int feetRow = troopa.getPosition().plusY(TILE_SPRITE_SIZE).row();
-        bumpedBlockCells.add(Offset.of(centerColumn, feetRow));
+        bumpedBlockCells.add(of(centerColumn, feetRow));
     }
 
     /** A player falling onto the troopa; its position and its kill chain are read by the stomp. */
@@ -888,6 +892,6 @@ class KoopaTroopaShellTest {
      * panel top and still be able to stand on it.
      */
     private boolean isGroundSolid(final int column, final int row) {
-        return isSolid(column, row) || oneWayPlatforms.contains(Offset.of(column, row));
+        return isSolid(column, row) || oneWayPlatforms.contains(of(column, row));
     }
 }

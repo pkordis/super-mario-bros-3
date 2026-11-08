@@ -2,6 +2,7 @@ package house.x1337.app.smb3.model.game.enemy;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,8 +24,7 @@ public final class EnemyStamp implements EnemyCapabilities {
     private String description;
     private EnemyType enemyType;
     private Tile[][] tiles;
-    private int renderingStarterRow;
-    private int renderingStarterColumn;
+    private Coordinates renderingStarter;
     private long updatedAt;
 
     @Builder.Default

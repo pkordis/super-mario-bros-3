@@ -11,9 +11,9 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.VenusFireTrapAnimat
 import house.x1337.app.smb3.game.object.level.enemy.family.PiranhaPlantFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.projectile.PiranhaFireballMotionManager;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -60,7 +60,7 @@ public final class VenusFireTrap implements PiranhaPlantFamilyEnemy {
     private final LevelObjectType type = VENUS_FIRE_TRAP;
     private final Dimensions spriteDimensions = PART_DIMENSIONS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private FixedPointVelocity velocity = STILL;
     private Geometry spriteGeometry;

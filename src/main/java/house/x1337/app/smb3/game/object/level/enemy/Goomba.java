@@ -14,9 +14,9 @@ import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -38,6 +38,7 @@ import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMoti
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.shellKill;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.strikeFrom;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Data
@@ -62,7 +63,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private EnemyKnockMotion whamMotion;
     private FixedPointVelocity velocity = STILL;
@@ -164,7 +165,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
         getBean(TailAttackFlashMotionManager.class).spawn(
             gameEngine,
-            Offset.of(
+            of(
                 playerX + tailSideOffset,
                 levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
             )

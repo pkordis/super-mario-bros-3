@@ -15,9 +15,9 @@ import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
@@ -44,6 +44,7 @@ import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMoti
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.KNOCK_X_VELOCITY_FIXED_POINT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.LAUNCH_Y_VELOCITY_FIXED_POINT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.Dimensions.doubleTileHeight;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
@@ -72,7 +73,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private FixedPointVelocity velocity = STILL;
     private Geometry leftShellFootGeometry;
@@ -348,7 +349,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         }
         final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int feetRow = position.plusY(BODY_SIZE_PIXELS).row();
-        if (!gameEngine.getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow))) {
+        if (!gameEngine.getCollisionGrid().isBlockBumpActiveAt(of(centerColumn, feetRow))) {
             return;
         }
         onBumpedFromBelow();
@@ -380,7 +381,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
         getBean(TailAttackFlashMotionManager.class).spawn(
             gameEngine,
-            Offset.of(
+            of(
                 levelScenePlayer.getPosition().getX() + tailSideOffset,
                 levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
             )

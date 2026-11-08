@@ -27,12 +27,9 @@ public interface LevelSceneRecordNormalizer {
             .rows(rows)
             .columns(columns)
             .updatedAt(record.getUpdatedAt())
-            .renderingStarterRow(record.getRenderingStarterRow())
-            .renderingStarterColumn(record.getRenderingStarterColumn())
-            .spawnPointRow(record.getSpawnPointRow())
-            .spawnPointColumn(record.getSpawnPointColumn())
-            .levelCompletionCardRow(record.getLevelCompletionCardRow())
-            .levelCompletionCardColumn(record.getLevelCompletionCardColumn());
+            .renderingStarter(record.getRenderingStarter())
+            .spawnPoint(record.getSpawnPoint())
+            .levelCompletionCard(record.getLevelCompletionCard());
         for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
             final LevelSceneLayerData existing = (layers != null) ? layers.get(type.name()) : null;
             final int[] tileIds = normalizeTileIds(
