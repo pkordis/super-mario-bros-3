@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.virtualobject;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.model.game.Coordinates;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -42,21 +43,18 @@ public final class PlacePipePortalWindow extends JDialog {
     private final JComboBox<PipePortalType> typeCombo = new JComboBox<>(PipePortalType.values());
     private final JTextArea descriptionArea = new JTextArea(4, 28);
     private final VirtualObjectType virtualObjectType;
-    private final int row;
-    private final int column;
+    private final Coordinates anchor;
 
     private PipePortalDetails result;
 
     public PlacePipePortalWindow(
         final Window owner,
         final VirtualObjectType virtualObjectType,
-        final int row,
-        final int column
+        final Coordinates anchor
     ) {
         super(owner, "Place Pipe Portal", APPLICATION_MODAL);
         this.virtualObjectType = virtualObjectType;
-        this.row = row;
-        this.column = column;
+        this.anchor = anchor;
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setResizable(false);
@@ -68,10 +66,9 @@ public final class PlacePipePortalWindow extends JDialog {
     public static PlacePipePortalWindow launch(
         final Window owner,
         final VirtualObjectType virtualObjectType,
-        final int row,
-        final int column
+        final Coordinates anchor
     ) {
-        return getBean(PlacePipePortalWindow.class, owner, virtualObjectType, row, column);
+        return getBean(PlacePipePortalWindow.class, owner, virtualObjectType, anchor);
     }
 
     /** @return what the author entered on Place; empty when the window was cancelled or closed */
@@ -111,7 +108,9 @@ public final class PlacePipePortalWindow extends JDialog {
         fieldGbc.gridy = 0;
 
         form.add(new JLabel("Object:"), labelGbc);
-        form.add(new JLabel("%s  (col %d / row %d)".formatted(virtualObjectType.getLabel(), column, row)), fieldGbc);
+        final String placement = "%s  (col %d / row %d)"
+            .formatted(virtualObjectType.getLabel(), anchor.x(), anchor.y());
+        form.add(new JLabel(placement), fieldGbc);
 
         labelGbc.gridy++;
         fieldGbc.gridy++;

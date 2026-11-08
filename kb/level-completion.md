@@ -34,13 +34,14 @@ editor does not draw them.
 - **Drawing:** `LevelSceneEditorGrid.drawLevelCompletionCard`, a 4 px yellow border on its cell after the pipe
   portals, only while the NPC layer is visible. Like every 4 px editor marker it bleeds one antialiased pixel past
   the cell edge.
-- **Storage:** like the spawn point, two fields on the scene rather than a collection of its own.
-  - The tab holds `levelCompletionCardRow` / `levelCompletionCardColumn` as `int`, `-1` for none
-    (`hasLevelCompletionCard()`); `resetData` (new and cleared scenes) and `fromImport` reset them.
-  - `LevelScene` and `LevelSceneRecord` hold them as `Integer`, `null` for none. `LevelSceneEditorTabFactory` turns
-    the tab's `-1` into `null` and back, and a scene with only one of the two set opens with no card.
-  - `LevelSceneConverter` copies them both ways, and `LevelSceneRecordNormalizer` must copy them too: it rebuilds the
+- **Storage:** like the spawn point, one `Coordinates` field on the scene (`x` = column, `y` = row) rather than a
+  collection of its own.
+  - The tab holds `levelCompletionCard`, `null` for none (`hasLevelCompletionCard()`); `resetData` (new and
+    cleared scenes) and `fromImport` reset it.
+  - `LevelScene` and `LevelSceneRecord` hold it as `Coordinates`, `null` for none. `LevelSceneEditorTabFactory`
+    opens a scene whose card has a negative component with no card.
+  - `LevelSceneConverter` copies it both ways, and `LevelSceneRecordNormalizer` must copy it too: it rebuilds the
     record field by field, so a field it forgets is dropped on every save.
-  - Mongo (`PojoCodecProvider`) and Nitrite (Jackson) map the whole record, so the two fields need no repository
-    change. Scenes saved before SMB3-42 read as `null`, no card.
+  - Mongo stores it as a nested `levelCompletionCard: {x, y}` document (the driver's record codec). Scenes saved
+    without a card have no such field and read as `null`.
 - **Runtime:** nothing yet. SMB3-44 turns the placeholder into the card the player collects.

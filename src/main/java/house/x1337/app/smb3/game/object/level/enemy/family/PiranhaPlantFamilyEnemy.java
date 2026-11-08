@@ -8,7 +8,6 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.PiranhaPlantFamilyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -22,6 +21,7 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_PIPE_PLANT;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantState.HIDDEN;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.abs;
 import static java.lang.Math.floor;
 
@@ -237,7 +237,7 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
         final double tailSideOffset = playerOnTheLeft ? WHAM_TAIL_OFFSET_PIXELS : -WHAM_TAIL_OFFSET_PIXELS;
         getBean(TailAttackFlashMotionManager.class).spawn(
             getGameEngine(),
-            Offset.of(
+            of(
                 playerX + tailSideOffset,
                 levelScenePlayer.getPosition().getY() + WHAM_TAIL_OFFSET_PIXELS
             )

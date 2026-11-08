@@ -9,9 +9,9 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.PiranhaPlantAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.family.PiranhaPlantFamilyEnemy;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
@@ -37,7 +37,7 @@ public final class PiranhaPlant implements PiranhaPlantFamilyEnemy {
     private final LevelObjectType type = PIRANHA_PLANT;
     private final Dimensions spriteDimensions = PART_DIMENSIONS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private FixedPointVelocity velocity = STILL;
     private Geometry spriteGeometry;

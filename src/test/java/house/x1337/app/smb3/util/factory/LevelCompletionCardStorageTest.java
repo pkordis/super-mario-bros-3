@@ -3,6 +3,7 @@ package house.x1337.app.smb3.util.factory;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
@@ -20,6 +21,7 @@ import org.mockito.MockedStatic;
 import java.util.List;
 import java.util.Optional;
 
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -62,7 +64,7 @@ class LevelCompletionCardStorageTest {
     @DisplayName("A placed card keeps its cell through the scene, the record and back to a new tab")
     void placedCardSurvivesSaveAndReload() {
         // Prepare
-        final LevelSceneEditorTab source = tab(4, 7);
+        final LevelSceneEditorTab source = tab(of(7, 4));
 
         // Execute
         final LevelScene saved = LevelSceneEditorTabFactory.fromLevelSceneEditor(source);
@@ -72,21 +74,17 @@ class LevelCompletionCardStorageTest {
         LevelSceneEditorTabFactory.fromScene(loaded);
 
         // Verify
-        assertThat(saved.getLevelCompletionCardRow()).isEqualTo(4);
-        assertThat(saved.getLevelCompletionCardColumn()).isEqualTo(7);
-        assertThat(record.getLevelCompletionCardRow()).isEqualTo(4);
-        assertThat(record.getLevelCompletionCardColumn()).isEqualTo(7);
-        assertThat(loaded.getLevelCompletionCardRow()).isEqualTo(4);
-        assertThat(loaded.getLevelCompletionCardColumn()).isEqualTo(7);
-        verify(target).setLevelCompletionCardRow(4);
-        verify(target).setLevelCompletionCardColumn(7);
+        assertThat(saved.getLevelCompletionCard()).isEqualTo(of(7, 4));
+        assertThat(record.getLevelCompletionCard()).isEqualTo(of(7, 4));
+        assertThat(loaded.getLevelCompletionCard()).isEqualTo(of(7, 4));
+        verify(target).setLevelCompletionCard(of(7, 4));
     }
 
     @Test
     @DisplayName("A scene without a card stores null and opens with no card in the tab")
     void noCardStaysNull() {
         // Prepare
-        final LevelSceneEditorTab source = tab(-1, -1);
+        final LevelSceneEditorTab source = tab(null);
 
         // Execute
         final LevelScene saved = LevelSceneEditorTabFactory.fromLevelSceneEditor(source);
@@ -96,14 +94,10 @@ class LevelCompletionCardStorageTest {
         LevelSceneEditorTabFactory.fromScene(loaded);
 
         // Verify
-        assertThat(saved.getLevelCompletionCardRow()).as("The scene's own 'none'").isNull();
-        assertThat(saved.getLevelCompletionCardColumn()).isNull();
-        assertThat(record.getLevelCompletionCardRow()).isNull();
-        assertThat(record.getLevelCompletionCardColumn()).isNull();
-        assertThat(loaded.getLevelCompletionCardRow()).isNull();
-        assertThat(loaded.getLevelCompletionCardColumn()).isNull();
-        verify(target).setLevelCompletionCardRow(-1);
-        verify(target).setLevelCompletionCardColumn(-1);
+        assertThat(saved.getLevelCompletionCard()).as("The scene's own 'none'").isNull();
+        assertThat(record.getLevelCompletionCard()).isNull();
+        assertThat(loaded.getLevelCompletionCard()).isNull();
+        verify(target).setLevelCompletionCard(null);
     }
 
     @Test
@@ -118,21 +112,19 @@ class LevelCompletionCardStorageTest {
         LevelSceneEditorTabFactory.fromScene(loaded);
 
         // Verify
-        assertThat(loaded.getLevelCompletionCardRow()).isNull();
-        verify(target).setLevelCompletionCardRow(-1);
-        verify(target).setLevelCompletionCardColumn(-1);
+        assertThat(loaded.getLevelCompletionCard()).isNull();
+        verify(target).setLevelCompletionCard(null);
     }
 
-    private static LevelSceneEditorTab tab(final int cardRow, final int cardColumn) {
+    private static LevelSceneEditorTab tab(final Coordinates card) {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getLayers()).thenReturn(List.of());
         when(tab.getSceneId()).thenReturn("scene-1");
         when(tab.getRows()).thenReturn(ROWS);
         when(tab.getColumns()).thenReturn(COLUMNS);
         when(tab.getPipePortals()).thenReturn(List.of());
-        when(tab.getLevelCompletionCardRow()).thenReturn(cardRow);
-        when(tab.getLevelCompletionCardColumn()).thenReturn(cardColumn);
-        when(tab.hasLevelCompletionCard()).thenReturn(cardRow >= 0 && cardColumn >= 0);
+        when(tab.getLevelCompletionCard()).thenReturn(card);
+        when(tab.hasLevelCompletionCard()).thenReturn(card != null);
         return tab;
     }
 

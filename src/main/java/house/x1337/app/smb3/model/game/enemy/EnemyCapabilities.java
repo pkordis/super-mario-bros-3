@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.model.game.enemy;
 
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 /**
@@ -24,12 +25,11 @@ public sealed interface EnemyCapabilities permits EnemyStamp {
     }
 
     /**
-     * @param row    grid row
-     * @param column grid column
+     * @param cell the grid cell: {@code x} is its column, {@code y} its row
      * @return the part at that cell of the enemy's grid
      */
-    default Tile tileAt(final int row, final int column) {
-        return ((EnemyStamp) this).getTiles()[row][column];
+    default Tile tileAt(final Coordinates cell) {
+        return ((EnemyStamp) this).getTiles()[cell.y()][cell.x()];
     }
 
     /**
@@ -38,7 +38,7 @@ public sealed interface EnemyCapabilities permits EnemyStamp {
      */
     default Tile renderingStarterTile() {
         final EnemyStamp enemy = (EnemyStamp) this;
-        return tileAt(enemy.getRenderingStarterRow(), enemy.getRenderingStarterColumn());
+        return tileAt(enemy.getRenderingStarter());
     }
 
     /**
@@ -82,10 +82,12 @@ public sealed interface EnemyCapabilities permits EnemyStamp {
                 return false;
             }
         }
-        return enemy.getRenderingStarterRow() >= 0
-            && enemy.getRenderingStarterRow() < getRows()
-            && enemy.getRenderingStarterColumn() >= 0
-            && enemy.getRenderingStarterColumn() < getColumns();
+        final Coordinates renderingStarter = enemy.getRenderingStarter();
+        return renderingStarter != null
+            && renderingStarter.y() >= 0
+            && renderingStarter.y() < getRows()
+            && renderingStarter.x() >= 0
+            && renderingStarter.x() < getColumns();
     }
 
     /**

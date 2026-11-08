@@ -8,7 +8,7 @@ import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.input.PlayerInputHandler;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
@@ -32,6 +32,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INVINCIBILITY_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.RACCOON_TRANSITION_TICKS;
@@ -73,8 +74,9 @@ public interface LevelScenePlayerRuntimeStateAware
         // checks a single fixed point above the player's head. Adding a right-edge
         // probe (X+14) at the same heightOffset falsely detects a normal rightward
         // wall collision as low-clearance, causing the player to slide through walls.
-        final boolean tileAbove = collisionGrid.collidesAtOffset(this, Offset.of(8, heightOffset)) &&
-            !collisionGrid.isOneWayTileFromPlayer(this, 8, heightOffset);
+        final Coordinates probe = of(8, heightOffset);
+        final boolean tileAbove = collisionGrid.collidesAtOffset(this, probe) &&
+            !collisionGrid.isOneWayTileFromPlayer(this, probe);
         return tileAbove && !runtimeState.isInAir();
     }
 

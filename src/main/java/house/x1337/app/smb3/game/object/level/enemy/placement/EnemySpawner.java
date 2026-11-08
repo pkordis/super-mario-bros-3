@@ -11,7 +11,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.service.LevelObjectData;
@@ -34,6 +34,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floor;
 import static java.lang.Math.floorDiv;
 import static java.util.Collections.unmodifiableMap;
@@ -77,7 +78,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         final Tile[][] tiles = layer.getTiles();
         for (int row = 0; row < tiles.length; row++) {
             for (int column = 0; column < tiles[row].length; column++) {
-                recordPlacementAt(tiles[row][column], row, column);
+                recordPlacementAt(tiles[row][column], of(column, row));
             }
         }
     }
@@ -181,19 +182,18 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      */
     private void recordPlacementAt(
         final Tile tile,
-        final int row,
-        final int column
+        final Coordinates cell
     ) {
         if (!tile.isRenderable()) {
             return;
         }
         final Optional<EnemyStamp> enemy = enemyStampService.findByRenderingStarterTileId(tile.getId());
         if (enemy.isEmpty()) {
-            warnAboutUnclassifiedEnemyTile(enemyStampService, tile, row, column);
+            warnAboutUnclassifiedEnemyTile(enemyStampService, tile, cell);
             return;
         }
         final EnemyStamp stamp = enemy.orElseThrow();
-        placements.add(new EnemyPlacement(stamp.getEnemyType(), Offset.of(column, row), dataOf(stamp)));
+        placements.add(new EnemyPlacement(stamp.getEnemyType(), cell, dataOf(stamp)));
     }
 
     private static Map<String, Object> dataOf(final EnemyStamp stamp) {
@@ -203,7 +203,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     /**
      * Builds the placement's enemy and hands it to the manager that drives its type. The instance is
      * built exactly as {@code LevelObjectRecordCapabilities#toLevelObject} builds a multi-tiled object
-     * ({@code gameEngine} plus its placement {@link Offset}, then its attributes):
+     * ({@code gameEngine} plus its placement {@link Coordinates}, then its attributes):
      * {@code EnemyType.GOOMBA} → {@code LevelObjectTypeMultiTiled.GOOMBA} → {@code Goomba}.
      *
      * <p>The attributes are the enemy's stored custom data with the {@link EnemyType}'s mode written
@@ -233,8 +233,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     private void warnAboutUnclassifiedEnemyTile(
         final EnemyStampService enemyStampService,
         final Tile tile,
-        final int row,
-        final int column
+        final Coordinates cell
     ) {
         if (tile.getType() == null || tile.getType().getCategory() != ENEMY) {
             return;
@@ -245,8 +244,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         log.warn(
             "Enemy tile (id={}) at row={}, column={} anchors no enemy; nothing spawned.",
             tile.getId(),
-            row,
-            column
+            cell.y(),
+            cell.x()
         );
     }
 

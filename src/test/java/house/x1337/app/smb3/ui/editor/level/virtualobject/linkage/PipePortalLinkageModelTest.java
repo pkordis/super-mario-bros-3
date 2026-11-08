@@ -21,6 +21,7 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -487,8 +488,7 @@ class PipePortalLinkageModelTest {
             .type(type)
             .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
             .levelSceneId(levelSceneId)
-            .column(column)
-            .row(row)
+            .coordinates(of(column, row))
             .build();
     }
 
@@ -506,8 +506,7 @@ class PipePortalLinkageModelTest {
             .levelSceneId(portal.getLevelSceneId())
             .linksToId(portal.getLinksToId())
             .virtualObjectType(portal.getVirtualObjectType())
-            .column(portal.getColumn())
-            .row(portal.getRow())
+            .coordinates(portal.getCoordinates())
             .build();
     }
 

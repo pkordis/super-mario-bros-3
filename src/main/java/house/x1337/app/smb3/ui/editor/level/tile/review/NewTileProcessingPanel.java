@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.tile.review;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import jakarta.annotation.PostConstruct;
 
@@ -13,8 +14,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Cursor.CROSSHAIR_CURSOR;
 import static java.awt.Cursor.getPredefinedCursor;
 
@@ -25,6 +28,12 @@ public final class NewTileProcessingPanel extends JPanel {
     private static final Color CHECKER_LIGHT = new Color(204, 204, 204);
     private static final Color CHECKER_DARK = new Color(153, 153, 153);
     private static final Color GRID_COLOR = new Color(0, 0, 0, 60);
+    private static final List<Coordinates> NEIGHBOUR_DIRECTIONS = List.of(
+        of(0, -1),
+        of(0, 1),
+        of(-1, 0),
+        of(1, 0)
+    );
 
     private final Dimension panelSize = new Dimension(PANEL_SIZE, PANEL_SIZE);
     private int[] workingPixels;
@@ -38,7 +47,7 @@ public final class NewTileProcessingPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(final MouseEvent e) {
-                handleClick(e.getX(), e.getY());
+                handleClick(of(e.getX() / PIXEL_SCALE, e.getY() / PIXEL_SCALE));
             }
         });
     }
@@ -57,46 +66,52 @@ public final class NewTileProcessingPanel extends JPanel {
         return workingPixels == null ? null : workingPixels.clone();
     }
 
-    private void handleClick(final int screenX, final int screenY) {
+    private void handleClick(final Coordinates pixel) {
         if (workingPixels == null) {
             return;
         }
-        final int col = screenX / PIXEL_SCALE;
-        final int row = screenY / PIXEL_SCALE;
-        if (col < 0 || col >= TILE_SPRITE_SIZE || row < 0 || row >= TILE_SPRITE_SIZE) {
+        if (isOutsideTheTile(pixel)) {
             return;
         }
-        final int clickedArgb = workingPixels[row * TILE_SPRITE_SIZE + col];
+        final int clickedArgb = workingPixels[indexOf(pixel)];
         if ((clickedArgb >>> 24) == 0) {
             return;
         }
-        floodFillTransparent(col, row, clickedArgb);
+        floodFillTransparent(pixel, clickedArgb);
         repaint();
     }
 
-    private void floodFillTransparent(final int startCol, final int startRow, final int targetArgb) {
-        final Deque<int[]> queue = new ArrayDeque<>();
-        queue.add(new int[]{startCol, startRow});
-        workingPixels[startRow * TILE_SPRITE_SIZE + startCol] = 0x00000000;
+    private void floodFillTransparent(final Coordinates start, final int targetArgb) {
+        final Deque<Coordinates> queue = new ArrayDeque<>();
+        queue.add(start);
+        workingPixels[indexOf(start)] = 0x00000000;
 
         while (!queue.isEmpty()) {
-            final int[] position = queue.poll();
-            final int cx = position[0];
-            final int cy = position[1];
+            final Coordinates position = queue.poll();
 
-            for (final int[] direction : new int[][]{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}) {
-                final int nx = cx + direction[0];
-                final int ny = cy + direction[1];
-                if (nx < 0 || nx >= TILE_SPRITE_SIZE || ny < 0 || ny >= TILE_SPRITE_SIZE) {
+            for (final Coordinates direction : NEIGHBOUR_DIRECTIONS) {
+                final Coordinates neighbour = of(
+                    position.x() + direction.x(),
+                    position.y() + direction.y()
+                );
+                if (isOutsideTheTile(neighbour)) {
                     continue;
                 }
-                final int index = ny * TILE_SPRITE_SIZE + nx;
+                final int index = indexOf(neighbour);
                 if (workingPixels[index] == targetArgb) {
                     workingPixels[index] = 0x00000000;
-                    queue.add(new int[]{nx, ny});
+                    queue.add(neighbour);
                 }
             }
         }
+    }
+
+    private static boolean isOutsideTheTile(final Coordinates pixel) {
+        return pixel.x() < 0 || pixel.x() >= TILE_SPRITE_SIZE || pixel.y() < 0 || pixel.y() >= TILE_SPRITE_SIZE;
+    }
+
+    private static int indexOf(final Coordinates pixel) {
+        return pixel.y() * TILE_SPRITE_SIZE + pixel.x();
     }
 
     @Override

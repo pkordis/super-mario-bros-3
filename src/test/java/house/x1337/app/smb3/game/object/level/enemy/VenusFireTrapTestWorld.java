@@ -21,7 +21,6 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -35,6 +34,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
@@ -133,7 +133,7 @@ final class VenusFireTrapTestWorld implements AutoCloseable {
 
     /** A plant placed on the pipe and configured as the spawner configures it, not yet in the scene. */
     VenusFireTrap plant(final PiranhaPlantMode mode) {
-        final VenusFireTrap plant = new VenusFireTrap(gameEngine, Offset.of(PIPE_COLUMN, STARTER_ROW));
+        final VenusFireTrap plant = new VenusFireTrap(gameEngine, of(PIPE_COLUMN, STARTER_ROW));
         plant.init();
         plant.configure(new LevelObjectData(Map.of(MODE_ATTRIBUTE, mode.name())));
         return plant;

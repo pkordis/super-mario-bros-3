@@ -7,7 +7,7 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.model.Pending;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import lombok.RequiredArgsConstructor;
 
@@ -75,7 +75,7 @@ public final class CoinRewardMotionManager implements MotionManager {
     public CompletableFuture<Integer> spawnCoinReward(
         final GameEngine gameEngine,
         final Reward reward,
-        final Offset offset
+        final Coordinates offset
     ) {
         // Spawn coin animation
         final CoinPopAnimation coinPopAnimation = getBean(

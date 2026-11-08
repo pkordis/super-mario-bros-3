@@ -4,7 +4,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.repository.LevelObjectRepository;
 import jakarta.annotation.PostConstruct;
@@ -99,7 +99,7 @@ public class LevelObjectService {
 
     public EmptyBlock createEmptyBlock(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         final Optional<Integer> emptyBlockId = getLevelObjectIdOfType(EMPTY_BLOCK);
         return (EmptyBlock) cache

@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.level.scene;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -31,12 +32,9 @@ public final class LevelScene implements LevelSceneCapabilities {
     private String description;
     private LevelSceneDimensions dimensions;
     private long updatedAt;
-    private Integer renderingStarterRow;
-    private Integer renderingStarterColumn;
-    private Integer spawnPointRow;
-    private Integer spawnPointColumn;
-    private Integer levelCompletionCardRow;
-    private Integer levelCompletionCardColumn;
+    private Coordinates renderingStarter;
+    private Coordinates spawnPoint;
+    private Coordinates levelCompletionCard;
 
     private LevelSceneLayer airLayer;
     private LevelSceneLayer airDecorationsLayer;

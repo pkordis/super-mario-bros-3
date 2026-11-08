@@ -3,7 +3,6 @@ package house.x1337.app.smb3.game.object.level.enemy;
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +20,7 @@ import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWo
 import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopaTestWorld.descendingPlayer;
 import static house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaShellCapabilities.WAKE_UP_TICKS;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -202,7 +202,7 @@ class KoopaParaTroopaDefeatTest {
         paratroopa.motionUpdate();
         world.tick(paratroopa, 10);
         for (int column = START_COLUMN - 4; column <= START_COLUMN + 1; column++) {
-            world.getBumpedBlockCells().add(Offset.of(column, REST_ROW + 1));
+            world.getBumpedBlockCells().add(of(column, REST_ROW + 1));
         }
 
         // Execute

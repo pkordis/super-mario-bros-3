@@ -9,8 +9,8 @@ import house.x1337.app.smb3.game.object.level.reward.core.PowerUpCollectProtecti
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import jakarta.annotation.PostConstruct;
@@ -48,7 +48,7 @@ public final class SuperLeaf implements RewardLevelObject {
 
     private final PowerUpCollectProtection collectProtection = new PowerUpCollectProtection();
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private Dimensions spriteDimensions;
     private Geometry spriteGeometry;

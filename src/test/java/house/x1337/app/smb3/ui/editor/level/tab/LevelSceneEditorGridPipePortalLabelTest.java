@@ -27,6 +27,7 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN_AND_OUT;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid.PIPE_PORTAL_LABEL_FONT;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -152,17 +153,19 @@ class LevelSceneEditorGridPipePortalLabelTest {
 
     private static PipePortal portal(final VirtualObjectType virtualObjectType, final PipePortalType type) {
         // Anchored on the lowest, leftmost cell of a 2 x 2 grid
-        return PipePortal.builder().virtualObjectType(virtualObjectType).type(type).row(1).column(0).build();
+        return PipePortal.builder()
+            .virtualObjectType(virtualObjectType)
+            .type(type)
+            .coordinates(of(0, 1))
+            .build();
     }
 
     private static BufferedImage paint(final boolean npcLayerVisible, final PipePortal portal) {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getRows()).thenReturn(GRID_SIZE);
         when(tab.getColumns()).thenReturn(GRID_SIZE);
-        when(tab.getRenderingStarterRow()).thenReturn(-1);
-        when(tab.getRenderingStarterColumn()).thenReturn(-1);
-        when(tab.getSpawnPointRow()).thenReturn(-1);
-        when(tab.getSpawnPointColumn()).thenReturn(-1);
+        when(tab.getRenderingStarter()).thenReturn(null);
+        when(tab.getSpawnPoint()).thenReturn(null);
         when(tab.getLayers()).thenReturn(List.of(layer(AIR, true), layer(NON_PLAYABLE_CHARACTERS, npcLayerVisible)));
         when(tab.getPipePortals()).thenReturn(List.of(portal));
 

@@ -17,6 +17,7 @@ import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KICKED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static java.lang.Integer.signum;
 import static java.lang.Math.round;
@@ -243,10 +244,14 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         final StaticEnvironmentCollisionGrid collisionGrid = getCollisionGrid();
         final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int midRow = position.plusY(BODY_SIZE_PIXELS / 2.0).row();
-        return collisionGrid.isWallOrCeilingSolidTile(position.column(), midRow)
-            || collisionGrid.isWallOrCeilingSolidTile(position.plusX(BODY_SIZE_PIXELS - 1).column(), midRow)
-            || collisionGrid.isWallOrCeilingSolidTile(centerColumn, position.row())
-            || collisionGrid.isGroundSolidTile(centerColumn, position.plusY(BODY_SIZE_PIXELS).row());
+        return collisionGrid.isWallOrCeilingSolidTile(of(position.column(), midRow))
+            || collisionGrid.isWallOrCeilingSolidTile(
+                of(position.plusX(BODY_SIZE_PIXELS - 1).column(), midRow)
+            )
+            || collisionGrid.isWallOrCeilingSolidTile(of(centerColumn, position.row()))
+            || collisionGrid.isGroundSolidTile(
+                of(centerColumn, position.plusY(BODY_SIZE_PIXELS).row())
+            );
     }
 
     @Override

@@ -5,7 +5,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBounceAnimation;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBreakAnimation;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -43,7 +43,7 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
 
     public void spawnBreak(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         for (final BrickBlockBreakAnimation existing : activeBreaks) {
             if (existing.getOffset().equals(offset)) {
@@ -55,7 +55,7 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
 
     public void spawnBounce(
         final GameEngine gameEngine,
-        final Offset offset,
+        final Coordinates offset,
         final GameObjectAnimatorSingleTiled<?> animator
     ) {
         // Don't spawn if a bounce is already active at this tile
@@ -68,7 +68,7 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
     }
 
     @Override
-    public boolean isBlockBumpActiveAt(final Offset cell) {
+    public boolean isBlockBumpActiveAt(final Coordinates cell) {
         for (final BrickBlockBounceAnimation bounce : activeBounces) {
             if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
                 return true;

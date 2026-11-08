@@ -14,8 +14,8 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnim
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.service.LevelObjectData;
@@ -32,11 +32,11 @@ import java.util.Set;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
@@ -61,7 +61,7 @@ final class KoopaParaTroopaTestWorld implements AutoCloseable {
     static final int WALK_FRAME_COUNT = 2;
 
     private final boolean[][] solids = new boolean[ROWS][COLUMNS];
-    private final Set<Offset> bumpedBlockCells = new HashSet<>();
+    private final Set<Coordinates> bumpedBlockCells = new HashSet<>();
     private final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
     private final ActiveObjectGrid<ActiveLevelObject> activeObjectGrid;
     private final GameEngine gameEngine = mock(GameEngine.class);
@@ -76,13 +76,17 @@ final class KoopaParaTroopaTestWorld implements AutoCloseable {
         for (int column = 0; column < COLUMNS; column++) {
             solids[FLOOR_ROW][column] = true;
         }
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
         when(collisionGrid.isBlockBumpActiveAt(any()))
-            .thenAnswer(invocation -> bumpedBlockCells.contains(invocation.<Offset>getArgument(0)));
+            .thenAnswer(invocation -> bumpedBlockCells.contains(invocation.<Coordinates>getArgument(0)));
 
         // An NPC layer with no cells: a placement resolves to nothing, so spawning erases nothing.
         final LevelScene.LevelSceneLayer npcLayer = mock(LevelScene.LevelSceneLayer.class);
@@ -130,7 +134,7 @@ final class KoopaParaTroopaTestWorld implements AutoCloseable {
     }
 
     KoopaParaTroopa paratroopaAt(final int column, final int row) {
-        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, Offset.of(column, row));
+        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, of(column, row));
         paratroopa.init();
         return paratroopa;
     }
@@ -167,7 +171,7 @@ final class KoopaParaTroopaTestWorld implements AutoCloseable {
     void bumpTheBlockUnder(final KoopaParaTroopa paratroopa) {
         final int centerColumn = paratroopa.getPosition().plusX(TILE_SPRITE_SIZE / 2.0).column();
         final int feetRow = paratroopa.getPosition().plusY(TILE_SPRITE_SIZE).row();
-        bumpedBlockCells.add(Offset.of(centerColumn, feetRow));
+        bumpedBlockCells.add(of(centerColumn, feetRow));
     }
 
     /** A player at a sprite-pixel X on the rest row, published to the closest-player query. */

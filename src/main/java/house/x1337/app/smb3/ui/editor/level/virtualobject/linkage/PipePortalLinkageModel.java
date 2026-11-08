@@ -202,8 +202,8 @@ public class PipePortalLinkageModel implements PipePortalLinkRulesAware {
         return "%s · %s · col %d, row %d".formatted(
             sceneTitleOf(portal),
             description,
-            portal.getColumn(),
-            portal.getRow()
+            portal.getCoordinates().x(),
+            portal.getCoordinates().y()
         );
     }
 
@@ -271,7 +271,7 @@ public class PipePortalLinkageModel implements PipePortalLinkRulesAware {
 
     private Comparator<PipePortal> listOrder() {
         return comparing(this::sceneTitleOf, CASE_INSENSITIVE_ORDER)
-            .thenComparingInt(PipePortal::getColumn)
-            .thenComparingInt(PipePortal::getRow);
+            .thenComparingInt(portal -> portal.getCoordinates().x())
+            .thenComparingInt(portal -> portal.getCoordinates().y());
     }
 }

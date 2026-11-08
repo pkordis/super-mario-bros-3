@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.enemy.EnemyType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,8 +28,7 @@ public final class EnemyRecord implements Serializable {
     private int rows;
     private int columns;
     private int[] tileIds;
-    private int renderingStarterRow;
-    private int renderingStarterColumn;
+    private Coordinates renderingStarter;
     private long updatedAt;
 
     @Builder.Default

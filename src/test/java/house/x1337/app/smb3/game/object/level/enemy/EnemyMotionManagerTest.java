@@ -17,10 +17,10 @@ import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimati
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -39,6 +39,7 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.game.object.level.ActiveLevelObject.FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -739,8 +740,8 @@ class EnemyMotionManagerTest {
         }
 
         @Override
-        public Offset getOffset() {
-            return Offset.of(0, 0);
+        public Coordinates getOffset() {
+            return of(0, 0);
         }
 
         @Override

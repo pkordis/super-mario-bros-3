@@ -53,6 +53,7 @@ import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_UP;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -119,6 +120,10 @@ class PlayerPipeEntryTest {
         }
 
         levelScene = mock(LevelScene.class);
+
+        // The player is built at the scene's spawn point.
+
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
         when(levelScene.getStaticEnvironmentLayer()).thenReturn(LevelSceneLayer.builder().tiles(tiles).build());
         when(levelScene.getPipePortals()).thenReturn(ALL_PORTALS);
@@ -459,8 +464,7 @@ class PlayerPipeEntryTest {
         return PipePortal.builder()
             .type(type)
             .virtualObjectType(virtualObjectType)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

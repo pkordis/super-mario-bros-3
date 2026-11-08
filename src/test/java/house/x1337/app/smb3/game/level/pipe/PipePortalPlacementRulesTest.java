@@ -26,6 +26,7 @@ import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.fits
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.isOverPipeTermination;
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.overlapsAny;
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.validate;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -50,18 +51,22 @@ class PipePortalPlacementRulesTest {
     @DisplayName("A portal must fit inside the scene on every edge")
     void fitsInsideTheScene() {
         // Execute & Verify
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_VERTICAL, 0, 2))
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_VERTICAL, of(2, 0)))
             .as("A vertical portal anchored on row 0 pokes above the top")
             .isFalse();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_VERTICAL, 1, 2)).isTrue();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, 3, COLUMNS - 1))
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_VERTICAL, of(2, 1))).isTrue();
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, of(COLUMNS - 1, 3)))
             .as("A horizontal portal on the last column pokes past the right edge")
             .isFalse();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, 3, COLUMNS - 2)).isTrue();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, ROWS, 2)).as("Below the bottom").isFalse();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, ROWS - 1, 2)).isTrue();
-        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, 3, -1)).as("Left of the scene").isFalse();
-        assertThat(fitsInside(DIMENSIONS, null, 3, 2)).as("No type, no fit").isFalse();
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, of(COLUMNS - 2, 3))).isTrue();
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, of(2, ROWS)))
+            .as("Below the bottom")
+            .isFalse();
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, of(2, ROWS - 1))).isTrue();
+        assertThat(fitsInside(DIMENSIONS, PIPE_PORTAL_HORIZONTAL, of(-1, 3)))
+            .as("Left of the scene")
+            .isFalse();
+        assertThat(fitsInside(DIMENSIONS, null, of(2, 3))).as("No type, no fit").isFalse();
     }
 
     @Test
@@ -151,8 +156,7 @@ class PipePortalPlacementRulesTest {
         return PipePortal.builder()
             .type(IN)
             .virtualObjectType(type)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

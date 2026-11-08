@@ -2,6 +2,7 @@ package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,7 +28,6 @@ public final class PipePortalRecord implements Serializable {
     private PipePortalType type;
     private VirtualObjectType virtualObjectType;
     private String levelSceneId;
-    private int row;
-    private int column;
+    private Coordinates coordinates;
     private String linksToId;
 }

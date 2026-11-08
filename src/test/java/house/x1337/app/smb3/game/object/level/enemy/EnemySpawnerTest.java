@@ -10,7 +10,7 @@ import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.jme3.core.CameraState;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.service.LevelObjectData;
@@ -34,6 +34,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -66,7 +67,7 @@ class EnemySpawnerTest {
     private static final int ANCHOR_TILE_ID = 42;
     private static final int PLACED_ROW = 1;
     private static final int PLACED_COLUMN = 2;
-    private static final Offset PLACED_AT = Offset.of(PLACED_COLUMN, PLACED_ROW);
+    private static final Coordinates PLACED_AT = of(PLACED_COLUMN, PLACED_ROW);
     private static final double SCREEN_WIDTH_PIXELS = 256;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -499,8 +500,8 @@ class EnemySpawnerTest {
             .thenReturn(new AxisAlignedBoundingBox(left, -1000, left + SCREEN_WIDTH_PIXELS, 1000));
     }
 
-    private static Offset at(final int column) {
-        return Offset.of(column, PLACED_ROW);
+    private static Coordinates at(final int column) {
+        return of(column, PLACED_ROW);
     }
 
     /** A manager owning {@link Goomba}, holding whatever the spawner hands it. */

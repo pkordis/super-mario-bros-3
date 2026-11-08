@@ -13,7 +13,6 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator;
 import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +35,7 @@ import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.SLOT_COUNT;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -131,7 +131,7 @@ class EnemyDepthOrderTest {
         // Prepare - the paratroopa's wing is the one part drawn in front of its body (Troopa_Draw writes it
         // to Sprite_RAM-$08), so it is the one most able to cover another enemy's parts
         final EnemyDepthAllocator allocator = new EnemyDepthAllocator();
-        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
+        final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, of(ENEMY_COLUMN, ENEMY_ROW));
         paratroopa.init();
         paratroopa.setBaseDepth(allocator.next());
         paratroopa.spawnIntoScene();
@@ -316,7 +316,7 @@ class EnemyDepthOrderTest {
     // -------------------------------------------------------------------------
 
     private ParaGoomba paraGoombaWithDepth(final float baseDepth) {
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(ENEMY_COLUMN, ENEMY_ROW));
         paraGoomba.init();
         paraGoomba.setBaseDepth(baseDepth);
         paraGoomba.spawnIntoScene();
@@ -325,7 +325,7 @@ class EnemyDepthOrderTest {
 
     /** A Koopa Troopa in its shell at the same spot, with the feet placed whether or not they flicker on. */
     private KoopaTroopa wakingShellWithDepth(final float baseDepth, final boolean upsideDown) {
-        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, Offset.of(ENEMY_COLUMN, ENEMY_ROW));
+        final KoopaTroopa troopa = new KoopaTroopa(gameEngine, of(ENEMY_COLUMN, ENEMY_ROW));
         troopa.init();
         troopa.setBaseDepth(baseDepth);
         troopa.spawnIntoScene();

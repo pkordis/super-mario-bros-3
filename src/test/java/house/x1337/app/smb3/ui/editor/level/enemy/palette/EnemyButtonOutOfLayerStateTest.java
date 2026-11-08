@@ -18,6 +18,7 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.TileType.ENEMY_PART;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Color.GRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -261,6 +262,7 @@ class EnemyButtonOutOfLayerStateTest {
             .id("goomba")
             .enemyType(GOOMBA_NORMAL)
             .tiles(new Tile[][] {{NULL_TILE}})
+            .renderingStarter(of(0, 0))
             .build();
     }
 }

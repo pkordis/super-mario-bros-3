@@ -1,9 +1,9 @@
 package house.x1337.app.smb3.game.level.pipe;
 
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
-import house.x1337.app.smb3.model.game.portal.PipePortal.Cell;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 import java.util.List;
@@ -29,22 +29,20 @@ public interface PipePortalPlacementRules {
     /**
      * @param dimensions the scene's size
      * @param type       the kind of portal
-     * @param row        the anchor's row (the lowest one)
-     * @param column     the anchor's column (the leftmost one)
+     * @param anchor     the anchor cell: its leftmost column and its lowest row
      * @return {@code true} when every cell of the portal is inside the scene
      */
     static boolean fitsInside(
         final LevelSceneDimensions dimensions,
         final VirtualObjectType type,
-        final int row,
-        final int column
+        final Coordinates anchor
     ) {
         if (dimensions == null || type == null) {
             return false;
         }
-        final int topRow = row - type.getRows() + 1;
-        final int lastColumn = column + type.getColumns() - 1;
-        return topRow >= 0 && row < dimensions.rows() && column >= 0 && lastColumn < dimensions.columns();
+        final int topRow = anchor.y() - type.getRows() + 1;
+        final int lastColumn = anchor.x() + type.getColumns() - 1;
+        return topRow >= 0 && anchor.y() < dimensions.rows() && anchor.x() >= 0 && lastColumn < dimensions.columns();
     }
 
     /**
@@ -57,7 +55,7 @@ public interface PipePortalPlacementRules {
         if (staticEnvironmentTiles == null || portal.getVirtualObjectType() == null) {
             return false;
         }
-        for (final Cell cell : portal.cells()) {
+        for (final Coordinates cell : portal.cells()) {
             if (!isPipeTermination(staticEnvironmentTiles, cell)) {
                 return false;
             }
@@ -97,7 +95,7 @@ public interface PipePortalPlacementRules {
         final List<PipePortal> existing,
         final PipePortal candidate
     ) {
-        if (!fitsInside(dimensions, candidate.getVirtualObjectType(), candidate.getRow(), candidate.getColumn())) {
+        if (!fitsInside(dimensions, candidate.getVirtualObjectType(), candidate.getCoordinates())) {
             return Optional.of(OFF_GRID);
         }
         if (!isOverPipeTermination(staticEnvironmentTiles, candidate)) {
@@ -109,15 +107,15 @@ public interface PipePortalPlacementRules {
         return Optional.empty();
     }
 
-    private static boolean isPipeTermination(final Tile[][] tiles, final Cell cell) {
-        if (cell.row() < 0 || cell.row() >= tiles.length) {
+    private static boolean isPipeTermination(final Tile[][] tiles, final Coordinates cell) {
+        if (cell.y() < 0 || cell.y() >= tiles.length) {
             return false;
         }
-        final Tile[] row = tiles[cell.row()];
-        if (row == null || cell.column() < 0 || cell.column() >= row.length) {
+        final Tile[] row = tiles[cell.y()];
+        if (row == null || cell.x() < 0 || cell.x() >= row.length) {
             return false;
         }
-        final Tile tile = row[cell.column()];
+        final Tile tile = row[cell.x()];
         return tile != null && tile.isOfType(PIPE_TERMINATION_PART);
     }
 }

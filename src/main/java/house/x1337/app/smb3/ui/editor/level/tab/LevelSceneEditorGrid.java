@@ -2,6 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import jakarta.annotation.PostConstruct;
@@ -28,6 +29,7 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.LEVEL_COMPLETION_CARD;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Color.BLACK;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
@@ -65,7 +67,7 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
 
             @Override
             public void mouseMoved(final MouseEvent e) {
-                tab.updateStatus(e.getX() / TILE_SIZE, e.getY() / TILE_SIZE);
+                tab.updateStatus(cellUnder(e));
             }
 
             private void handle(final MouseEvent e) {
@@ -73,18 +75,21 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
                 if (!tab.hasPlaceableSelection()) {
                     return;
                 }
-                final int col = e.getX() / TILE_SIZE;
-                final int row = e.getY() / TILE_SIZE;
-                tab.updateStatus(col, row);
+                final Coordinates cell = cellUnder(e);
+                tab.updateStatus(cell);
                 if (e.getButton() == MouseEvent.BUTTON3) {
-                    tab.eraseTile(col, row);
+                    tab.eraseTile(cell);
                 } else {
-                    tab.paintTile(col, row);
+                    tab.paintTile(cell);
                 }
             }
         };
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
+    }
+
+    private static Coordinates cellUnder(final MouseEvent e) {
+        return of(e.getX() / TILE_SIZE, e.getY() / TILE_SIZE);
     }
 
     private void drawTile(
@@ -139,20 +144,20 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         }
 
         // Rendering-starter indicator — thick blue border on the marked cell
-        if (tab.getRenderingStarterRow() >= 0 && tab.getRenderingStarterColumn() >= 0) {
+        if (tab.hasRenderingStarter()) {
             graphics.setColor(new Color(30, 100, 255));
             graphics.setStroke(new BasicStroke(4f));
-            final int bx = tab.getRenderingStarterColumn() * TILE_SIZE + 2;
-            final int by = tab.getRenderingStarterRow() * TILE_SIZE + 2;
+            final int bx = tab.getRenderingStarter().x() * TILE_SIZE + 2;
+            final int by = tab.getRenderingStarter().y() * TILE_SIZE + 2;
             graphics.drawRect(bx, by, TILE_SIZE - 4, TILE_SIZE - 4);
         }
 
         // Spawn-point indicator — thick light-green border on the marked cell
-        if (tab.getSpawnPointRow() >= 0 && tab.getSpawnPointColumn() >= 0) {
+        if (tab.hasSpawnPoint()) {
             graphics.setColor(new Color(102, 255, 102));
             graphics.setStroke(new BasicStroke(4f));
-            final int sx = tab.getSpawnPointColumn() * TILE_SIZE + 2;
-            final int sy = tab.getSpawnPointRow() * TILE_SIZE + 2;
+            final int sx = tab.getSpawnPoint().x() * TILE_SIZE + 2;
+            final int sy = tab.getSpawnPoint().y() * TILE_SIZE + 2;
             graphics.drawRect(sx, sy, TILE_SIZE - 4, TILE_SIZE - 4);
         }
 
@@ -173,8 +178,8 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         graphics.setColor(LEVEL_COMPLETION_CARD.getColour());
         graphics.setStroke(new BasicStroke(4f));
         graphics.drawRect(
-            tab.getLevelCompletionCardColumn() * TILE_SIZE + 2,
-            tab.getLevelCompletionCardRow() * TILE_SIZE + 2,
+            tab.getLevelCompletionCard().x() * TILE_SIZE + 2,
+            tab.getLevelCompletionCard().y() * TILE_SIZE + 2,
             LEVEL_COMPLETION_CARD.getColumns() * TILE_SIZE - 4,
             LEVEL_COMPLETION_CARD.getRows() * TILE_SIZE - 4
         );
@@ -197,7 +202,7 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
             final Color colour = portal.getVirtualObjectType().getColour();
             graphics.setColor(colour);
             graphics.drawRect(
-                portal.getColumn() * TILE_SIZE + 2,
+                portal.getCoordinates().x() * TILE_SIZE + 2,
                 portal.getTopRow() * TILE_SIZE + 2,
                 portal.getColumns() * TILE_SIZE - 4,
                 portal.getRows() * TILE_SIZE - 4
@@ -215,7 +220,7 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
     ) {
         final String text = portal.getType().getShortLabel();
         final Rectangle area = new Rectangle(
-            portal.getColumn() * TILE_SIZE,
+            portal.getCoordinates().x() * TILE_SIZE,
             portal.getTopRow() * TILE_SIZE,
             portal.getColumns() * TILE_SIZE,
             portal.getRows() * TILE_SIZE

@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.game.object.level.enemy;
 
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -101,7 +101,7 @@ class VenusFireTrapDefeatTest {
         assertThat(plant.isHittable()).isFalse();
         assertThat(plant.getPendingScoreReward()).isEqualTo(SCORE_100);
         assertThat(plant.isExpired()).as("Gone the tick after the kill").isTrue();
-        verify(world.getTailAttackFlashMotionManager()).spawn(eq(world.getGameEngine()), any(Offset.class));
+        verify(world.getTailAttackFlashMotionManager()).spawn(eq(world.getGameEngine()), any(Coordinates.class));
         verify(world.getPoofMotionManager()).spawnPoofDeath(eq(world.getGameEngine()), any());
     }
 

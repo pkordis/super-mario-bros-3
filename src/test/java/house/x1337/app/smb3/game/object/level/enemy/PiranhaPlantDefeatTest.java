@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level.enemy;
 
 import house.x1337.app.smb3.game.object.level.CarriableLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import org.junit.jupiter.api.AfterEach;
@@ -141,7 +141,7 @@ class PiranhaPlantDefeatTest {
         assertThat(plant.isHittable()).as("Out of the broad-phase for good").isFalse();
         assertThat(plant.getPendingScoreReward()).isEqualTo(SCORE_100);
         verify(player, never()).nextKillChainReward();
-        verify(world.getTailAttackFlashMotionManager()).spawn(eq(world.getGameEngine()), any(Offset.class));
+        verify(world.getTailAttackFlashMotionManager()).spawn(eq(world.getGameEngine()), any(Coordinates.class));
 
         // Verify - the cloud's 16x16 quad has its top-left at the plant's top-left, in front of the pipe
         final ArgumentCaptor<WorldOffset> cloud = ArgumentCaptor.forClass(WorldOffset.class);

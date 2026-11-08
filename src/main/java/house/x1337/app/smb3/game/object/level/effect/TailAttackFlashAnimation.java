@@ -9,9 +9,9 @@ import house.x1337.app.smb3.game.engine.ForemostSpriteOverlay;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.Animation;
 import house.x1337.app.smb3.model.AnimationImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import lombok.Getter;
 
@@ -45,7 +45,7 @@ public final class TailAttackFlashAnimation implements Animation {
 
     public TailAttackFlashAnimation(
         final GameEngine gameEngine,
-        final Offset offset,
+        final Coordinates offset,
         final AnimationImageResource animationFrames
     ) {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();

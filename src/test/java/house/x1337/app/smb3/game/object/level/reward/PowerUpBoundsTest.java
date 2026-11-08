@@ -9,9 +9,9 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.reward.core.PowerUpCollectProtection;
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +28,7 @@ import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObje
 import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_LEFT;
 import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_TOP;
 import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_WIDTH;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
@@ -44,7 +45,7 @@ import static org.mockito.Mockito.when;
 class PowerUpBoundsTest {
     private static final int COLUMNS = 8;
     private static final int ROWS = 8;
-    private static final Offset BLOCK = Offset.of(3, 4);
+    private static final Coordinates BLOCK = of(3, 4);
     private static final double BLOCK_X = BLOCK.x() * (double) TILE_SPRITE_SIZE;
 
     private GameEngine gameEngine;

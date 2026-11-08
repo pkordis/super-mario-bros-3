@@ -8,9 +8,9 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.BakedLayerPainter;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -23,6 +23,7 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     EnemyMode getMode();
@@ -124,8 +125,8 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
      * anchor cell alone when the layer no longer matches any stamp. This keeps an enemy spawned by hand
      * (a test scene, or a Goomba adopting a Para-Goomba's slot) working.
      */
-    private List<Offset> placementCells(final LevelScene levelScene) {
-        final Offset anchor = getOffset();
+    private List<Coordinates> placementCells(final LevelScene levelScene) {
+        final Coordinates anchor = getOffset();
         final LevelScene.LevelSceneLayer layer = levelScene.getNonPlayableCharactersLayer();
         final Tile[][] tiles = layer == null ? null : layer.getTiles();
         if (tiles == null) {
@@ -146,20 +147,20 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
      * included only when the layer still holds that exact part, so a stamp that was painted over, or
      * that reaches off the edge of the level, erases nothing it does not own.
      */
-    private static List<Offset> stampCells(
+    private static List<Coordinates> stampCells(
         final EnemyStamp stamp,
-        final Offset anchor,
+        final Coordinates anchor,
         final Tile[][] tiles
     ) {
-        final List<Offset> cells = new ArrayList<>();
+        final List<Coordinates> cells = new ArrayList<>();
         for (int row = 0; row < stamp.getRows(); row++) {
             for (int column = 0; column < stamp.getColumns(); column++) {
-                final Tile part = stamp.tileAt(row, column);
+                final Tile part = stamp.tileAt(of(column, row));
                 if (part == null || !part.isRenderable()) {
                     continue;
                 }
-                final int levelRow = anchor.y() + row - stamp.getRenderingStarterRow();
-                final int levelColumn = anchor.x() + column - stamp.getRenderingStarterColumn();
+                final int levelRow = anchor.y() + row - stamp.getRenderingStarter().y();
+                final int levelColumn = anchor.x() + column - stamp.getRenderingStarter().x();
                 if (levelRow < 0 || levelRow >= tiles.length
                     || levelColumn < 0 || levelColumn >= tiles[levelRow].length) {
                     continue;
@@ -167,7 +168,7 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
                 if (tiles[levelRow][levelColumn].getId() != part.getId()) {
                     continue;
                 }
-                cells.add(Offset.of(levelColumn, levelRow));
+                cells.add(of(levelColumn, levelRow));
             }
         }
         return cells;

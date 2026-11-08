@@ -10,9 +10,9 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -31,6 +31,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.Dimensions.fullTile;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
@@ -46,7 +47,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private Geometry spriteGeometry;
     private Geometry leftWingGeometry;
@@ -224,7 +225,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         final Goomba goomba = getBean(
             Goomba.class,
             gameEngine,
-            Offset.of(position.x() / TILE_SPRITE_SIZE, position.y() / TILE_SPRITE_SIZE)
+            of(position.x() / TILE_SPRITE_SIZE, position.y() / TILE_SPRITE_SIZE)
         );
         goomba.configure(new LevelObjectData(
             Map.of(MODE_ATTRIBUTE, mode.name())

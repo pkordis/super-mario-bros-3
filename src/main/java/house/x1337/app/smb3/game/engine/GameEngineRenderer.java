@@ -15,6 +15,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.Animator;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -125,9 +126,10 @@ public interface GameEngineRenderer extends Application, GameRenderer {
     ) {
         final float startX;
         final float startY;
-        if (levelScene.getRenderingStarterColumn() != null && levelScene.getRenderingStarterRow() != null) {
-            startX = levelScene.getRenderingStarterColumn();
-            startY = (dimensions.rows() - 1) - levelScene.getRenderingStarterRow();
+        final Coordinates renderingStarter = levelScene.getRenderingStarter();
+        if (renderingStarter != null) {
+            startX = renderingStarter.x();
+            startY = (dimensions.rows() - 1) - renderingStarter.y();
         } else {
             startX = dimensions.columns() / 2.0F;
             startY = dimensions.rows() / 2.0F;

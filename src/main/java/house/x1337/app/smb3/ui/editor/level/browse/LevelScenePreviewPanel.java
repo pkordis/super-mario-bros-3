@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.browse;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
@@ -64,13 +65,12 @@ public class LevelScenePreviewPanel extends JPanel {
 
     private void drawTiles(final Graphics2D graphics2D) {
         final List<LevelSceneLayer> layers = levelScene.getLayersBottomToTop();
-        final Integer rsRow = levelScene.getRenderingStarterRow();
-        final Integer rsColumn = levelScene.getRenderingStarterColumn();
+        final Coordinates renderingStarter = levelScene.getRenderingStarter();
         final LevelSceneDimensions dimensions = levelScene.getDimensions();
-        final int startCol = (rsColumn != null && rsColumn >= 0) ? rsColumn : 0;
+        final int startCol = (renderingStarter != null && renderingStarter.x() >= 0) ? renderingStarter.x() : 0;
         final int startRow;
-        if (rsRow != null && rsRow >= 0) {
-            startRow = max(0, rsRow - PREVIEW_TILES_Y + 1);
+        if (renderingStarter != null && renderingStarter.y() >= 0) {
+            startRow = max(0, renderingStarter.y() - PREVIEW_TILES_Y + 1);
         } else {
             startRow = 0;
         }

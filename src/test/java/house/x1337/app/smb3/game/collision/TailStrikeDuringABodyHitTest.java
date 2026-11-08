@@ -9,8 +9,8 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
@@ -27,6 +27,7 @@ import java.util.List;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -62,6 +63,8 @@ class TailStrikeDuringABodyHitTest {
     @BeforeEach
     void prepare() {
         final LevelScene levelScene = mock(LevelScene.class);
+        // The player is built at the scene's spawn point.
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         gameEngine = mock(GameEngine.class);
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         playerData = mock(PlayerData.class);
@@ -196,7 +199,7 @@ class TailStrikeDuringABodyHitTest {
         }
 
         @Override
-        public Offset getOffset() {
+        public Coordinates getOffset() {
             return null;
         }
 

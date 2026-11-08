@@ -40,6 +40,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_ENTRY_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -68,14 +69,12 @@ class PlayerPipeEnteringTest {
     private static final PipePortal HORIZONTAL_PORTAL = PipePortal.builder()
         .type(IN)
         .virtualObjectType(PIPE_PORTAL_HORIZONTAL)
-        .row(8)
-        .column(6)
+        .coordinates(of(6, 8))
         .build();
     private static final PipePortal VERTICAL_PORTAL = PipePortal.builder()
         .type(IN)
         .virtualObjectType(PIPE_PORTAL_VERTICAL)
-        .row(10)
-        .column(7)
+        .coordinates(of(7, 10))
         .build();
 
     private final List<GameEvent> published = new ArrayList<>();
@@ -86,6 +85,8 @@ class PlayerPipeEnteringTest {
     @BeforeEach
     void prepare() {
         final LevelScene levelScene = mock(LevelScene.class);
+        // The player is built at the scene's spawn point.
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(16, 12));
         cameraState = mock(CameraState.class);
         gameEngine = mock(GameEngine.class);

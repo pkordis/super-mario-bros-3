@@ -12,7 +12,6 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.SolidLevelObject;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -32,6 +31,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_
 import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
 import static house.x1337.app.smb3.enumeration.TileType.NULL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 public interface StaticEnvironmentCollisionGridCapabilities {
     /**
@@ -157,7 +157,7 @@ public interface StaticEnvironmentCollisionGridCapabilities {
 
                 objects[row][col] = record.toLevelObject(
                     gameEngine,
-                    Offset.of(col, row)
+                    of(col, row)
                 );
                 objects[row][col].configure(new LevelObjectData(record.getData()));
             }

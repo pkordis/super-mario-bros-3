@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
@@ -63,12 +64,10 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private LevelSceneLayer activeLayer;
     private int rows;
     private int columns;
-    private int renderingStarterRow = -1;
-    private int renderingStarterColumn = -1;
-    private int spawnPointRow = -1;
-    private int spawnPointColumn = -1;
-    private int levelCompletionCardRow = -1;
-    private int levelCompletionCardColumn = -1;
+    /** Where each virtual marker sits; {@code null} while it is not placed. */
+    private Coordinates renderingStarter = null;
+    private Coordinates spawnPoint = null;
+    private Coordinates levelCompletionCard = null;
     private String sceneTitle = null;
     private String sceneDescription = null;
     private String sceneId = null;
@@ -111,7 +110,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         add(scrollPane, CENTER);
         add(statusLabel, SOUTH);
 
-        updateStatus(-1, -1);
+        updateStatus(null);
     }
 
     public void newScene(final int newRows, final int newCols) {
@@ -122,7 +121,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         levelSceneEditorGrid.setPreferredSize(new Dimension(columns * TILE_SIZE, rows * TILE_SIZE));
         levelSceneEditorGrid.revalidate();
         levelSceneEditorGrid.repaint();
-        updateStatus(-1, -1);
+        updateStatus(null);
     }
 
     public void clearScene() {
@@ -133,16 +132,13 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         }
         resetData();
         levelSceneEditorGrid.repaint();
-        updateStatus(-1, -1);
+        updateStatus(null);
     }
 
     private void resetData() {
-        renderingStarterRow = -1;
-        renderingStarterColumn = -1;
-        spawnPointRow = -1;
-        spawnPointColumn = -1;
-        levelCompletionCardRow = -1;
-        levelCompletionCardColumn = -1;
+        renderingStarter = null;
+        spawnPoint = null;
+        levelCompletionCard = null;
         sceneTitle = null;
         sceneDescription = null;
         sceneId = null;
@@ -150,15 +146,15 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     }
 
     public boolean hasRenderingStarter() {
-        return renderingStarterRow >= 0 && renderingStarterColumn >= 0;
+        return renderingStarter != null;
     }
 
     public boolean hasSpawnPoint() {
-        return spawnPointRow >= 0 && spawnPointColumn >= 0;
+        return spawnPoint != null;
     }
 
     public boolean hasLevelCompletionCard() {
-        return levelCompletionCardRow >= 0 && levelCompletionCardColumn >= 0;
+        return levelCompletionCard != null;
     }
 
     /**
@@ -191,21 +187,21 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         return t;
     }
 
-    public void paintTile(final int col, final int row) {
-        if (row < 0 || row >= rows || col < 0 || col >= columns) {
+    public void paintTile(final Coordinates cell) {
+        if (isOutsideTheScene(cell)) {
             return;
         }
         final VirtualObjectType selectedVirtualObject = paletteSelectionService.getSelectedVirtualObject();
         if (selectedVirtualObject != null) {
             switch (selectedVirtualObject.getCategory()) {
-                case PIPE_PORTAL -> placePipePortal(selectedVirtualObject, col, row);
-                case CARD -> placeLevelCompletionCard(col, row);
+                case PIPE_PORTAL -> placePipePortal(selectedVirtualObject, cell);
+                case CARD -> placeLevelCompletionCard(cell);
             }
             return;
         }
         final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
-            stampEnemy(selectedEnemy, col, row);
+            stampEnemy(selectedEnemy, cell);
             return;
         }
         final Tile selectedTile = paletteSelectionService.getSelectedTile();
@@ -214,19 +210,17 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         }
         if (selectedTile.isOfType(RENDERING_STARTER)) {
             // Virtual tile - do NOT modify the tile grid; just record the position.
-            renderingStarterRow = row;
-            renderingStarterColumn = col;
+            renderingStarter = cell;
             levelSceneEditorGrid.repaint();
             return;
         }
         if (selectedTile.isOfType(SPAWN_POINT)) {
             // Virtual tile - do NOT modify the tile grid; just record the position.
-            spawnPointRow = row;
-            spawnPointColumn = col;
+            spawnPoint = cell;
             levelSceneEditorGrid.repaint();
             return;
         }
-        activeLayer.getTiles()[row][col] = selectedTile;
+        activeLayer.getTiles()[cell.y()][cell.x()] = selectedTile;
         levelSceneEditorGrid.repaint();
     }
 
@@ -235,15 +229,19 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
      * pipe portal removes that object instead and leaves the layer's tiles alone. The card is drawn over the portals,
      * so on a cell holding both the card goes first.
      */
-    public void eraseTile(final int col, final int row) {
-        if (row >= 0 && row < rows && col >= 0 && col < columns) {
-            if (removeLevelCompletionCardAt(col, row) || removePipePortalAt(col, row)) {
+    public void eraseTile(final Coordinates cell) {
+        if (!isOutsideTheScene(cell)) {
+            if (removeLevelCompletionCardAt(cell) || removePipePortalAt(cell)) {
                 levelSceneEditorGrid.repaint();
                 return;
             }
-            activeLayer.getTiles()[row][col] = NULL_TILE;
+            activeLayer.getTiles()[cell.y()][cell.x()] = NULL_TILE;
             levelSceneEditorGrid.repaint();
         }
+    }
+
+    private boolean isOutsideTheScene(final Coordinates cell) {
+        return cell.y() < 0 || cell.y() >= rows || cell.x() < 0 || cell.x() >= columns;
     }
 
     /** Whether a virtual object is armed, which places on a click only, never on a drag. */
@@ -256,15 +254,14 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
      * pass {@code PipePortalPlacementRules}; otherwise the author is told why and nothing is placed. The author then
      * picks the portal's type and description, and cancelling places nothing.
      */
-    private void placePipePortal(final VirtualObjectType type, final int col, final int row) {
+    private void placePipePortal(final VirtualObjectType type, final Coordinates cell) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return;
         }
         final PipePortal candidate = PipePortal.builder()
             .virtualObjectType(type)
             .levelSceneId(sceneId)
-            .row(row)
-            .column(col)
+            .coordinates(cell)
             .build();
         final PipePortalPrompt prompt = getBean(PipePortalPrompt.class);
         final Optional<String> broken = PipePortalPlacementRules.validate(
@@ -277,7 +274,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
             prompt.warn(this, broken.get());
             return;
         }
-        final Optional<PipePortalDetails> details = prompt.ask(this, type, row, col);
+        final Optional<PipePortalDetails> details = prompt.ask(this, type, cell);
         if (details.isEmpty()) {
             return;
         }
@@ -287,35 +284,33 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         levelSceneEditorGrid.repaint();
     }
 
-    private boolean removePipePortalAt(final int col, final int row) {
+    private boolean removePipePortalAt(final Coordinates cell) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return false;
         }
-        return pipePortals.removeIf(portal -> portal.occupies(row, col));
+        return pipePortals.removeIf(portal -> portal.occupies(cell));
     }
 
     /**
      * Puts the scene's level completion card on the clicked cell, on the NPC layer only. Any cell inside the scene
      * will do: there is no prompt and no placement rule. A scene has at most one card, so placing it again moves it.
      */
-    private void placeLevelCompletionCard(final int col, final int row) {
+    private void placeLevelCompletionCard(final Coordinates cell) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return;
         }
-        levelCompletionCardRow = row;
-        levelCompletionCardColumn = col;
+        levelCompletionCard = cell;
         levelSceneEditorGrid.repaint();
     }
 
-    private boolean removeLevelCompletionCardAt(final int col, final int row) {
+    private boolean removeLevelCompletionCardAt(final Coordinates cell) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return false;
         }
-        if (levelCompletionCardRow != row || levelCompletionCardColumn != col) {
+        if (!cell.equals(levelCompletionCard)) {
             return false;
         }
-        levelCompletionCardRow = -1;
-        levelCompletionCardColumn = -1;
+        levelCompletionCard = null;
         return true;
     }
 
@@ -336,16 +331,21 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
      * an enemy once that layer is active (switching to it on the click if need be) and releases it when the
      * layer moves away, and this keeps that true even if an enemy is armed by some other path.
      */
-    private void stampEnemy(final EnemyStamp enemy, final int col, final int row) {
+    private void stampEnemy(final EnemyStamp enemy, final Coordinates cell) {
         if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
             return;
         }
-        enemyLevelSceneGridStamper.stamp(activeLayer.getTiles(), enemy, col, row);
+        enemyLevelSceneGridStamper.stamp(activeLayer.getTiles(), enemy, cell);
         levelSceneEditorGrid.repaint();
     }
 
-    public void updateStatus(final int col, final int row) {
-        final String pos = (col >= 0 && row >= 0) ? "  |  col=" + col + "  row=" + row : "";
+    /**
+     * @param cell the cell under the mouse, or {@code null} when there is none to report
+     */
+    public void updateStatus(final Coordinates cell) {
+        final String pos = (cell != null && cell.x() >= 0 && cell.y() >= 0)
+            ? "  |  col=" + cell.x() + "  row=" + cell.y()
+            : "";
         final VirtualObjectType selectedVirtualObject = paletteSelectionService.getSelectedVirtualObject();
         if (selectedVirtualObject != null) {
             statusLabel.setText(
@@ -371,14 +371,14 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         }
         if (selectedTile.isOfType(RENDERING_STARTER)) {
             final String rs = hasRenderingStarter()
-                ? "  |  set at col=" + renderingStarterColumn + " row=" + renderingStarterRow
+                ? "  |  set at col=" + renderingStarter.x() + " row=" + renderingStarter.y()
                 : "  |  not placed yet";
             statusLabel.setText("Rendering Starter (virtual)" + rs);
             return;
         }
         if (selectedTile.isOfType(SPAWN_POINT)) {
             final String sp = hasSpawnPoint()
-                ? "  |  set at col=" + spawnPointColumn + " row=" + spawnPointRow
+                ? "  |  set at col=" + spawnPoint.x() + " row=" + spawnPoint.y()
                 : "  |  not placed yet";
             statusLabel.setText("Spawn Point (virtual)" + sp);
             return;

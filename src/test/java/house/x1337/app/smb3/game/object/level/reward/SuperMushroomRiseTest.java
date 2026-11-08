@@ -22,9 +22,9 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,8 +44,10 @@ import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.GROWING_CAPABLE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -67,7 +69,7 @@ class SuperMushroomRiseTest {
     private static final double TOLERANCE = 1e-6;
     private static final int COLUMNS = 8;
     private static final int ROWS = 8;
-    private static final Offset BLOCK = Offset.of(3, 4);
+    private static final Coordinates BLOCK = of(3, 4);
     private static final double BLOCK_X = BLOCK.x() * (double) TILE_SPRITE_SIZE;
     private static final double BLOCK_TOP_Y = BLOCK.y() * (double) TILE_SPRITE_SIZE;
     private static final int HOLD_FRAMES = 16;
@@ -90,10 +92,14 @@ class SuperMushroomRiseTest {
 
         // The dispensing block is the only terrain, and it is not mid-bump.
         final StaticEnvironmentCollisionGrid collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isBlock(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isBlock(invocation.getArgument(0), invocation.getArgument(1)));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isBlock(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isBlock(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final CameraState cameraState = mock(CameraState.class);

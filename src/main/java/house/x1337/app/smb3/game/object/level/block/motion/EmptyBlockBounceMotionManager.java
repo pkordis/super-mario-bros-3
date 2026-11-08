@@ -4,7 +4,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.animation.EmptyBlockBounceAnimation;
 import house.x1337.app.smb3.model.ImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
 
     public void spawnBounce(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         for (final EmptyBlockBounceAnimation existing : activeBounces) {
             if (existing.getOffset().equals(offset)) {
@@ -49,7 +49,7 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
     }
 
     @Override
-    public boolean isBlockBumpActiveAt(final Offset cell) {
+    public boolean isBlockBumpActiveAt(final Coordinates cell) {
         for (final EmptyBlockBounceAnimation bounce : activeBounces) {
             if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
                 return true;

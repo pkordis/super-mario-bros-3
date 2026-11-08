@@ -41,9 +41,9 @@ import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VER
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.NOT_OVER_PIPE_TERMINATION;
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.OFF_GRID;
 import static house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules.OVERLAPS_ANOTHER_PORTAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -121,18 +121,18 @@ class PipePortalPlacementTest {
     void validClickPlacesAPortal() {
         // Prepare
         arm(PIPE_PORTAL_HORIZONTAL);
-        when(prompt.ask(tab, PIPE_PORTAL_HORIZONTAL, 3, 2))
+        when(prompt.ask(tab, PIPE_PORTAL_HORIZONTAL, of(2, 3)))
             .thenReturn(Optional.of(new PipePortalDetails(IN_AND_OUT, "To the bonus room")));
 
         // Execute
-        tab.paintTile(2, 3);
+        tab.paintTile(of(2, 3));
 
         // Verify
         assertThat(tab.getPipePortals()).hasSize(1);
         final PipePortal portal = tab.getPipePortals().getFirst();
         assertThat(portal.getVirtualObjectType()).isEqualTo(PIPE_PORTAL_HORIZONTAL);
-        assertThat(portal.getRow()).as("The clicked cell is the lowest row").isEqualTo(3);
-        assertThat(portal.getColumn()).as("The clicked cell is the leftmost column").isEqualTo(2);
+        assertThat(portal.getCoordinates().y()).as("The clicked cell is the lowest row").isEqualTo(3);
+        assertThat(portal.getCoordinates().x()).as("The clicked cell is the leftmost column").isEqualTo(2);
         assertThat(portal.getType()).isEqualTo(IN_AND_OUT);
         assertThat(portal.getDescription()).isEqualTo("To the bonus room");
         assertThat(portal.getLevelSceneId()).isEqualTo("scene-1");
@@ -144,15 +144,16 @@ class PipePortalPlacementTest {
     void verticalPortalIsAnchoredOnItsLowerCell() {
         // Prepare
         arm(PIPE_PORTAL_VERTICAL);
-        when(prompt.ask(tab, PIPE_PORTAL_VERTICAL, 3, 6)).thenReturn(Optional.of(new PipePortalDetails(OUT, null)));
+        when(prompt.ask(tab, PIPE_PORTAL_VERTICAL, of(6, 3)))
+            .thenReturn(Optional.of(new PipePortalDetails(OUT, null)));
 
         // Execute
-        tab.paintTile(6, 3);
+        tab.paintTile(of(6, 3));
 
         // Verify
         final PipePortal portal = tab.getPipePortals().getFirst();
-        assertThat(portal.occupies(2, 6)).isTrue();
-        assertThat(portal.occupies(3, 6)).isTrue();
+        assertThat(portal.occupies(of(6, 2))).isTrue();
+        assertThat(portal.occupies(of(6, 3))).isTrue();
         assertThat(portal.getDescription()).isNull();
     }
 
@@ -164,11 +165,11 @@ class PipePortalPlacementTest {
         tab.setActiveLayer(layers.get(AIR));
 
         // Execute
-        tab.paintTile(2, 3);
+        tab.paintTile(of(2, 3));
 
         // Verify
         assertThat(tab.getPipePortals()).isEmpty();
-        verify(prompt, never()).ask(any(), any(), anyInt(), anyInt());
+        verify(prompt, never()).ask(any(), any(), any());
         verify(prompt, never()).warn(any(), any());
     }
 
@@ -179,7 +180,7 @@ class PipePortalPlacementTest {
         arm(PIPE_PORTAL_VERTICAL);
 
         // Execute
-        tab.paintTile(6, 0);
+        tab.paintTile(of(6, 0));
 
         // Verify
         assertRefusedWith(OFF_GRID);
@@ -192,7 +193,7 @@ class PipePortalPlacementTest {
         arm(PIPE_PORTAL_VERTICAL);
 
         // Execute
-        tab.paintTile(2, 4);
+        tab.paintTile(of(2, 4));
 
         // Verify
         assertRefusedWith(NOT_OVER_PIPE_TERMINATION);
@@ -207,11 +208,11 @@ class PipePortalPlacementTest {
         arm(PIPE_PORTAL_HORIZONTAL);
 
         // Execute
-        tab.paintTile(5, 3);
+        tab.paintTile(of(5, 3));
 
         // Verify
         verify(prompt).warn(tab, OVERLAPS_ANOTHER_PORTAL);
-        verify(prompt, never()).ask(any(), any(), anyInt(), anyInt());
+        verify(prompt, never()).ask(any(), any(), any());
         assertThat(tab.getPipePortals()).hasSize(1);
     }
 
@@ -220,10 +221,10 @@ class PipePortalPlacementTest {
     void cancellingPlacesNothing() {
         // Prepare
         arm(PIPE_PORTAL_HORIZONTAL);
-        when(prompt.ask(tab, PIPE_PORTAL_HORIZONTAL, 3, 2)).thenReturn(Optional.empty());
+        when(prompt.ask(tab, PIPE_PORTAL_HORIZONTAL, of(2, 3))).thenReturn(Optional.empty());
 
         // Execute
-        tab.paintTile(2, 3);
+        tab.paintTile(of(2, 3));
 
         // Verify
         assertThat(tab.getPipePortals()).isEmpty();
@@ -240,7 +241,7 @@ class PipePortalPlacementTest {
         layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[3][3] = enemyPart;
 
         // Execute - the horizontal portal's right cell
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(tab.getPipePortals()).containsExactly(vertical);
@@ -249,7 +250,7 @@ class PipePortalPlacementTest {
             .isSameAs(enemyPart);
 
         // Execute - a cell with no portal erases as before
-        tab.eraseTile(3, 3);
+        tab.eraseTile(of(3, 3));
 
         // Verify
         assertThat(layers.get(NON_PLAYABLE_CHARACTERS).getTiles()[3][3]).isSameAs(NULL_TILE);
@@ -270,7 +271,7 @@ class PipePortalPlacementTest {
 
     private void assertRefusedWith(final String reason) {
         verify(prompt).warn(tab, reason);
-        verify(prompt, never()).ask(any(), any(), anyInt(), anyInt());
+        verify(prompt, never()).ask(any(), any(), any());
         assertThat(tab.getPipePortals()).isEmpty();
     }
 
@@ -289,8 +290,7 @@ class PipePortalPlacementTest {
         return PipePortal.builder()
             .type(OUT)
             .virtualObjectType(type)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 

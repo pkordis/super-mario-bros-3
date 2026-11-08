@@ -15,6 +15,7 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -85,15 +86,12 @@ class LevelSceneEditorGridLevelCompletionCardTest {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getRows()).thenReturn(GRID_ROWS);
         when(tab.getColumns()).thenReturn(GRID_COLUMNS);
-        when(tab.getRenderingStarterRow()).thenReturn(-1);
-        when(tab.getRenderingStarterColumn()).thenReturn(-1);
-        when(tab.getSpawnPointRow()).thenReturn(-1);
-        when(tab.getSpawnPointColumn()).thenReturn(-1);
+        when(tab.getRenderingStarter()).thenReturn(null);
+        when(tab.getSpawnPoint()).thenReturn(null);
         when(tab.getLayers()).thenReturn(List.of(layer(AIR, true), layer(NON_PLAYABLE_CHARACTERS, npcLayerVisible)));
         when(tab.getPipePortals()).thenReturn(List.of());
         when(tab.hasLevelCompletionCard()).thenReturn(hasCard);
-        when(tab.getLevelCompletionCardRow()).thenReturn(hasCard ? CARD_ROW : -1);
-        when(tab.getLevelCompletionCardColumn()).thenReturn(hasCard ? CARD_COLUMN : -1);
+        when(tab.getLevelCompletionCard()).thenReturn(hasCard ? of(CARD_COLUMN, CARD_ROW) : null);
 
         final BufferedImage image = new BufferedImage(GRID_COLUMNS * TILE_SIZE, GRID_ROWS * TILE_SIZE, TYPE_INT_ARGB);
         final Graphics2D graphics = image.createGraphics();

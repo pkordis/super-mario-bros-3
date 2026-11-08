@@ -6,7 +6,6 @@ import house.x1337.app.smb3.enumeration.enemy.GoombaMode;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +19,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GO
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.RED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -161,7 +161,7 @@ class ParaGoombaModeTest {
     // -------------------------------------------------------------------------
 
     private ParaGoomba paraGoomba() {
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(0, 0));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(0, 0));
         paraGoomba.init();
         return paraGoomba;
     }

@@ -18,9 +18,9 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +32,7 @@ import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,7 +48,7 @@ import static org.mockito.Mockito.when;
 class CoinPowerSwitchSubstitutionTest {
     private static final int COLUMNS = 8;
     private static final int ROWS = 8;
-    private static final Offset COIN_OFFSET = Offset.of(2, 3);
+    private static final Coordinates COIN_OFFSET = of(2, 3);
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private PowerSwitchTimeWindow powerSwitchTimeWindow;

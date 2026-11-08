@@ -2,14 +2,14 @@ package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.object.GameObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import org.slf4j.Logger;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
 public interface LevelObject extends GameObject {
-    Offset getOffset();
+    Coordinates getOffset();
     LevelObjectType getType();
 
     default void onTailAttack(final LevelScenePlayer levelScenePlayer) {

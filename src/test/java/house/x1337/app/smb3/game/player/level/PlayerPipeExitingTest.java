@@ -48,6 +48,7 @@ import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
 import static house.x1337.app.smb3.game.engine.fade.FadeProfile.STANDARD;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_DOWN;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_SIDE;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_EXIT_TICKS_UP;
@@ -110,6 +111,10 @@ class PlayerPipeExitingTest {
         }
 
         final LevelScene levelScene = mock(LevelScene.class);
+
+        // The player is built at the scene's spawn point.
+
+        when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
         when(levelScene.getStaticEnvironmentLayer()).thenReturn(LevelSceneLayer.builder().tiles(tiles).build());
         cameraState = mock(CameraState.class);
@@ -438,6 +443,10 @@ class PlayerPipeExitingTest {
         final int row,
         final int column
     ) {
-        return PipePortal.builder().type(OUT).virtualObjectType(virtualObjectType).row(row).column(column).build();
+        return PipePortal.builder()
+            .type(OUT)
+            .virtualObjectType(virtualObjectType)
+            .coordinates(of(column, row))
+            .build();
     }
 }

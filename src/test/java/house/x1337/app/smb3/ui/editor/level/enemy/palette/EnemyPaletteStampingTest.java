@@ -13,6 +13,7 @@ import java.util.Arrays;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -89,7 +90,7 @@ class EnemyPaletteStampingTest {
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute
-        final int written = stamper.stamp(layer, enemy, 1, 3);
+        final int written = stamper.stamp(layer, enemy, of(1, 3));
 
         // Verify - the clicked cell holds the anchor part, the enemy extends up and to the right
         assertThat(written).isEqualTo(4);
@@ -108,7 +109,7 @@ class EnemyPaletteStampingTest {
         final Tile[][] layer = emptyLayer(4, 4);
 
         // Execute
-        final int written = stamper.stamp(layer, enemy, 0, 0);
+        final int written = stamper.stamp(layer, enemy, of(0, 0));
 
         // Verify
         assertThat(written).as("only the anchor row fits").isEqualTo(2);
@@ -129,7 +130,7 @@ class EnemyPaletteStampingTest {
         assertThat(broken.isWellFormed()).isFalse();
         assertThat(assembled.getWidth()).isEqualTo(TILE_SPRITE_SIZE);
         assertThat(assembled.getHeight()).isEqualTo(TILE_SPRITE_SIZE);
-        assertThat(stamper.stamp(layer, broken, 1, 1)).isZero();
+        assertThat(stamper.stamp(layer, broken, of(1, 1))).isZero();
         assertThat(layer[1][1]).isEqualTo(NULL_TILE);
     }
 
@@ -152,8 +153,7 @@ class EnemyPaletteStampingTest {
                 {topLeft, topRight},
                 {bottomLeft, bottomRight}
             })
-            .renderingStarterRow(1)
-            .renderingStarterColumn(0)
+            .renderingStarter(of(0, 1))
             .build();
     }
 

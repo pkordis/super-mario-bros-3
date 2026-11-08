@@ -24,6 +24,7 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
@@ -203,8 +204,7 @@ class LevelSceneServicePipePortalsTest {
             .type(type == PIPE_PORTAL_HORIZONTAL ? IN : OUT)
             .virtualObjectType(type)
             .levelSceneId(SCENE_ID)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

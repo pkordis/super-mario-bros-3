@@ -5,8 +5,8 @@ import com.jme3.scene.Node;
 import com.jme3.texture.Image;
 import com.jme3.texture.Texture2D;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.util.GameRenderer;
 import lombok.Data;
@@ -19,7 +19,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_O
 @Data
 public abstract class GameObjectAnimationSingleTiled implements GameRenderer {
     private final LevelSceneDimensions dimensions;
-    private final Offset offset;
+    private final Coordinates offset;
     private final WorldOffset worldOffset;
     private final Geometry spriteGeometry;
     private final Geometry interactiveLayerGeometry;
@@ -33,7 +33,7 @@ public abstract class GameObjectAnimationSingleTiled implements GameRenderer {
 
     public GameObjectAnimationSingleTiled(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         this.offset = offset;
         this.worldOffset = WorldOffset.of(
@@ -55,11 +55,11 @@ public abstract class GameObjectAnimationSingleTiled implements GameRenderer {
 
     public abstract Geometry generateSpriteGeometry(final GameEngine gameEngine);
 
-    public void onAnimationStart(final Offset offset) {
+    public void onAnimationStart(final Coordinates offset) {
         // Do nothing by default
     }
 
-    public void onAnimationStop(final Offset offset) {
+    public void onAnimationStop(final Coordinates offset) {
         // Do nothing by default
     }
 

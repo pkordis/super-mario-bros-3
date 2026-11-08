@@ -6,7 +6,6 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +17,7 @@ import java.util.Arrays;
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
@@ -62,10 +62,10 @@ class CollisionGridLevelEdgeTest {
     void besideTheLevelIsOpenToAnObject() {
         // Execute & Verify
         for (int row = 0; row < ROWS; row++) {
-            assertThat(grid.isWallOrCeilingSolidTile(-1, row))
+            assertThat(grid.isWallOrCeilingSolidTile(of(-1, row)))
                 .as("Left of column 0, row %d", row)
                 .isFalse();
-            assertThat(grid.isWallOrCeilingSolidTile(COLUMNS, row))
+            assertThat(grid.isWallOrCeilingSolidTile(of(COLUMNS, row)))
                 .as("Right of the last column, row %d", row)
                 .isFalse();
         }
@@ -75,29 +75,33 @@ class CollisionGridLevelEdgeTest {
     @DisplayName("Beside the level is no ground to an object either, even level with the floor or below it")
     void besideTheLevelHasNoGround() {
         // Execute & Verify
-        assertThat(grid.isGroundSolidTile(-1, ROWS - 1)).as("Left, level with the floor row").isFalse();
-        assertThat(grid.isGroundSolidTile(COLUMNS, ROWS - 1)).as("Right, level with the floor row").isFalse();
-        assertThat(grid.isGroundSolidTile(-1, ROWS)).as("Left, below the world").isFalse();
-        assertThat(grid.isGroundSolidTile(COLUMNS, ROWS)).as("Right, below the world").isFalse();
+        assertThat(grid.isGroundSolidTile(of(-1, ROWS - 1))).as("Left, level with the floor row").isFalse();
+        assertThat(grid.isGroundSolidTile(of(COLUMNS, ROWS - 1)))
+            .as("Right, level with the floor row")
+            .isFalse();
+        assertThat(grid.isGroundSolidTile(of(-1, ROWS))).as("Left, below the world").isFalse();
+        assertThat(grid.isGroundSolidTile(of(COLUMNS, ROWS))).as("Right, below the world").isFalse();
     }
 
     @Test
     @DisplayName("Within the level's columns, below the level is open, like the sky above it")
     void aboveAndBelowTheLevelAreOpen() {
         // Execute & Verify - the bottom edge opened in SMB3-14 (CollisionGridLevelBottomTest)
-        assertThat(grid.isGroundSolidTile(0, ROWS)).as("Below the level is no floor").isFalse();
-        assertThat(grid.isWallOrCeilingSolidTile(COLUMNS - 1, ROWS)).as("Nor a wall").isFalse();
-        assertThat(grid.isGroundSolidTile(0, -1)).as("Above the world is open").isFalse();
-        assertThat(grid.isWallOrCeilingSolidTile(COLUMNS - 1, -1)).as("For a head as well").isFalse();
+        assertThat(grid.isGroundSolidTile(of(0, ROWS))).as("Below the level is no floor").isFalse();
+        assertThat(grid.isWallOrCeilingSolidTile(of(COLUMNS - 1, ROWS))).as("Nor a wall").isFalse();
+        assertThat(grid.isGroundSolidTile(of(0, -1))).as("Above the world is open").isFalse();
+        assertThat(grid.isWallOrCeilingSolidTile(of(COLUMNS - 1, -1))).as("For a head as well").isFalse();
     }
 
     @Test
     @DisplayName("Terrain in the outermost columns is still solid to an object")
     void terrainInTheOutermostColumnsIsSolid() {
         // Execute & Verify
-        assertThat(grid.isGroundSolidTile(0, ROWS - 1)).as("Floor in column 0").isTrue();
-        assertThat(grid.isGroundSolidTile(COLUMNS - 1, ROWS - 1)).as("Floor in the last column").isTrue();
-        assertThat(grid.isWallOrCeilingSolidTile(0, ROWS - 1)).as("Wall in column 0").isTrue();
+        assertThat(grid.isGroundSolidTile(of(0, ROWS - 1))).as("Floor in column 0").isTrue();
+        assertThat(grid.isGroundSolidTile(of(COLUMNS - 1, ROWS - 1)))
+            .as("Floor in the last column")
+            .isTrue();
+        assertThat(grid.isWallOrCeilingSolidTile(of(0, ROWS - 1))).as("Wall in column 0").isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -112,10 +116,10 @@ class CollisionGridLevelEdgeTest {
         final LevelScenePlayer atTheRightEdge = largePlayerMovingUp(positionAt(LEVEL_WIDTH_PIXELS - 14, 32, 0));
 
         // Execute & Verify - the in-front probes at X + $01 and X + $0E, mid-body
-        assertThat(grid.collidesAtOffset(atTheLeftEdge, Offset.of(0x01, 0x0E)))
+        assertThat(grid.collidesAtOffset(atTheLeftEdge, of(0x01, 0x0E)))
             .as("X + $01 = -1 lies in column -1")
             .isTrue();
-        assertThat(grid.collidesAtOffset(atTheRightEdge, Offset.of(0x0E, 0x0E)))
+        assertThat(grid.collidesAtOffset(atTheRightEdge, of(0x0E, 0x0E)))
             .as("X + $0E = the level width lies in the column past the last")
             .isTrue();
     }

@@ -11,9 +11,9 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnim
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaBody;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
@@ -36,6 +36,7 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.Dimensions.doubleTileHeight;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
@@ -70,7 +71,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
     private final GameEngine gameEngine;
-    private final Offset offset;
+    private final Coordinates offset;
 
     private FixedPointVelocity velocity = STILL;
     private Geometry spriteGeometry;
@@ -282,14 +283,14 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private boolean isBlockBumpActiveUnderfoot() {
         final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int feetRow = position.plusY(BODY_SIZE_PIXELS).row();
-        return gameEngine.getCollisionGrid().isBlockBumpActiveAt(Offset.of(centerColumn, feetRow));
+        return gameEngine.getCollisionGrid().isBlockBumpActiveAt(of(centerColumn, feetRow));
     }
 
     private KoopaTroopa handOverToKoopaTroopa(final int hitCooldownTicks) {
         final KoopaTroopa troopa = getBean(
             KoopaTroopa.class,
             gameEngine,
-            Offset.of(position.x() / TILE_SPRITE_SIZE, position.y() / TILE_SPRITE_SIZE)
+            of(position.x() / TILE_SPRITE_SIZE, position.y() / TILE_SPRITE_SIZE)
         );
         troopa.configure(new LevelObjectData(
             Map.of(MODE_ATTRIBUTE, mode.name())

@@ -4,7 +4,6 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +13,7 @@ import java.util.Arrays;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -50,8 +50,8 @@ class CollisionGridOneWayPlatformTest {
         final StaticEnvironmentCollisionGrid grid = gridWithOneWayPlatformRow();
 
         // Sanity - the feet really are inside a one-way platform cell, so the test is not vacuous
-        assertThat(grid.isOneWayTileFromPlayer(player, Offset.of(4, 32))).isTrue();
-        assertThat(grid.collidesAtOffset(player, Offset.of(4, 32))).isTrue();
+        assertThat(grid.isOneWayTileFromPlayer(player, of(4, 32))).isTrue();
+        assertThat(grid.collidesAtOffset(player, of(4, 32))).isTrue();
 
         // Execute
         grid.handleCollision(player, false);

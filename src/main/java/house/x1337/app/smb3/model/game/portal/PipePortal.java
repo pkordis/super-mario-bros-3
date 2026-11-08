@@ -3,6 +3,7 @@ package house.x1337.app.smb3.model.game.portal;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,9 +24,5 @@ public final class PipePortal implements PipePortalCapabilities {
     private String levelSceneId;
     private String linksToId;
     private VirtualObjectType virtualObjectType;
-    private int column;
-    private int row;
-
-    public record Cell(int row, int column) {
-    }
+    private Coordinates coordinates;
 }

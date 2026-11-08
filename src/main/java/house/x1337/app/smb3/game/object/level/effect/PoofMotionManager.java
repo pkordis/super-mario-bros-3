@@ -4,7 +4,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimationOnlyMotionManager;
 import house.x1337.app.smb3.model.AnimationImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.effect.PoofSequence;
 import lombok.Getter;
@@ -38,7 +38,7 @@ public final class PoofMotionManager implements AnimationOnlyMotionManager<PoofA
     @Override
     public void spawn(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         final WorldOffset worldOffset = WorldOffset.of(
             offset.x(),

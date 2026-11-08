@@ -4,6 +4,7 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
  * The world-collision probes and shared constants every enemy that walks on the terrain needs.
@@ -67,7 +68,7 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
         }
         final int centerColumn = getPosition().plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
-        return getCollisionGrid().isGroundSolidTile(centerColumn, feetRow);
+        return getCollisionGrid().isGroundSolidTile(of(centerColumn, feetRow));
     }
 
     /**
@@ -92,7 +93,7 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
     default boolean isCeilingAbove(final PixelPosition proposed) {
         final int centerColumn = getPosition().plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int headRow = proposed.row();
-        return getCollisionGrid().isWallOrCeilingSolidTile(centerColumn, headRow);
+        return getCollisionGrid().isWallOrCeilingSolidTile(of(centerColumn, headRow));
     }
 
     /**
@@ -105,6 +106,6 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
         final int leadingColumn = getVelocity().movingRight()
             ? proposed.plusX(BODY_SIZE_PIXELS - 1).column()
             : proposed.column();
-        return getCollisionGrid().isWallOrCeilingSolidTile(leadingColumn, midRow);
+        return getCollisionGrid().isWallOrCeilingSolidTile(of(leadingColumn, midRow));
     }
 }

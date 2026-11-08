@@ -1,12 +1,12 @@
 package house.x1337.app.smb3.model.game.motion;
 
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.floor;
 
 public record PixelPosition(double x, double y) {
-    public static PixelPosition ofTile(final Offset offset) {
+    public static PixelPosition ofTile(final Coordinates offset) {
         return new PixelPosition(
             (double) offset.x() * TILE_SPRITE_SIZE,
             (double) offset.y() * TILE_SPRITE_SIZE

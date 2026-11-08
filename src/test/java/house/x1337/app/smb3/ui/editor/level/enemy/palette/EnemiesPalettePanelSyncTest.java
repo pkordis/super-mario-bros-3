@@ -25,6 +25,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -194,6 +195,7 @@ class EnemiesPalettePanelSyncTest {
             .id("goomba")
             .enemyType(GOOMBA_NORMAL)
             .tiles(new Tile[][] {{NULL_TILE}})
+            .renderingStarter(of(0, 0))
             .build();
     }
 }

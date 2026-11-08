@@ -6,7 +6,6 @@ import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +18,7 @@ import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.mock;
@@ -72,10 +72,10 @@ class CollisionGridLevelBottomTest {
         // Execute & Verify
         for (int column = 0; column < COLUMNS; column++) {
             player.getPosition().setX(column * (double) TILE_SPRITE_SIZE);
-            assertThat(grid.collidesAtOffset(player, Offset.of(0x04, 0x20)))
+            assertThat(grid.collidesAtOffset(player, of(0x04, 0x20)))
                 .as("Column %d, the row below the level", column)
                 .isFalse();
-            assertThat(grid.collidesAtOffset(player, Offset.of(0x04, 0x20 + 3 * TILE_SPRITE_SIZE)))
+            assertThat(grid.collidesAtOffset(player, of(0x04, 0x20 + 3 * TILE_SPRITE_SIZE)))
                 .as("Column %d, well below the level", column)
                 .isFalse();
         }
@@ -90,10 +90,10 @@ class CollisionGridLevelBottomTest {
             FEET_ON_THE_LEVEL_BOTTOM_Y));
 
         // Execute & Verify
-        assertThat(grid.collidesAtOffset(leftOfTheLevel, Offset.of(0x04, 0x20))).as("Left, below").isTrue();
-        assertThat(grid.collidesAtOffset(leftOfTheLevel, Offset.of(0x04, 0x10))).as("Left, inside").isTrue();
-        assertThat(grid.collidesAtOffset(rightOfTheLevel, Offset.of(0x04, 0x20))).as("Right, below").isTrue();
-        assertThat(grid.collidesAtOffset(rightOfTheLevel, Offset.of(0x04, 0x10))).as("Right, inside").isTrue();
+        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(0x04, 0x20))).as("Left, below").isTrue();
+        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(0x04, 0x10))).as("Left, inside").isTrue();
+        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(0x04, 0x20))).as("Right, below").isTrue();
+        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(0x04, 0x10))).as("Right, inside").isTrue();
     }
 
     @Test
@@ -101,9 +101,12 @@ class CollisionGridLevelBottomTest {
     void belowTheLevelIsOpenToAnObject() {
         // Execute & Verify
         for (int column = 0; column < COLUMNS; column++) {
-            assertThat(grid.isGroundSolidTile(column, ROWS)).as("Ground, column %d", column).isFalse();
-            assertThat(grid.isWallOrCeilingSolidTile(column, ROWS)).as("Wall, column %d", column).isFalse();
-            assertThat(grid.isGroundSolidTile(column, ROWS + 5)).as("Ground far below, column %d", column)
+            assertThat(grid.isGroundSolidTile(of(column, ROWS))).as("Ground, column %d", column).isFalse();
+            assertThat(grid.isWallOrCeilingSolidTile(of(column, ROWS)))
+                .as("Wall, column %d", column)
+                .isFalse();
+            assertThat(grid.isGroundSolidTile(of(column, ROWS + 5)))
+                .as("Ground far below, column %d", column)
                 .isFalse();
         }
     }
@@ -115,11 +118,14 @@ class CollisionGridLevelBottomTest {
         final LevelScenePlayer player = smallPlayer(positionAt(0, STANDING_ON_THE_FLOOR_Y));
 
         // Execute & Verify
-        assertThat(grid.isGroundSolidTile(0, FLOOR_ROW)).as("Ground in column 0").isTrue();
-        assertThat(grid.isWallOrCeilingSolidTile(FIRST_PIT_COLUMN - 1, FLOOR_ROW)).as("Wall at the pit's edge")
+        assertThat(grid.isGroundSolidTile(of(0, FLOOR_ROW))).as("Ground in column 0").isTrue();
+        assertThat(grid.isWallOrCeilingSolidTile(of(FIRST_PIT_COLUMN - 1, FLOOR_ROW)))
+            .as("Wall at the pit's edge")
             .isTrue();
-        assertThat(grid.isGroundSolidTile(FIRST_PIT_COLUMN, FLOOR_ROW)).as("No ground in the pit").isFalse();
-        assertThat(grid.collidesAtOffset(player, Offset.of(0x04, 0x20))).as("The player's feet").isTrue();
+        assertThat(grid.isGroundSolidTile(of(FIRST_PIT_COLUMN, FLOOR_ROW)))
+            .as("No ground in the pit")
+            .isFalse();
+        assertThat(grid.collidesAtOffset(player, of(0x04, 0x20))).as("The player's feet").isTrue();
     }
 
     // -------------------------------------------------------------------------

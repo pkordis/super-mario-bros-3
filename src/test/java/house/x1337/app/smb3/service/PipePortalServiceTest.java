@@ -17,6 +17,7 @@ import static house.x1337.app.smb3.enumeration.PipePortalType.IN;
 import static house.x1337.app.smb3.enumeration.PipePortalType.OUT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.inOrder;
@@ -102,8 +103,7 @@ class PipePortalServiceTest {
             .type(OUT)
             .virtualObjectType(PIPE_PORTAL_VERTICAL)
             .levelSceneId(SCENE_ID)
-            .row(6)
-            .column(9)
+            .coordinates(of(9, 6))
             .build();
         when(repository.findByLevelSceneId(SCENE_ID)).thenReturn(List.of(record));
 
@@ -126,8 +126,7 @@ class PipePortalServiceTest {
         return PipePortal.builder()
             .type(IN)
             .virtualObjectType(type)
-            .row(row)
-            .column(column)
+            .coordinates(of(column, row))
             .build();
     }
 }

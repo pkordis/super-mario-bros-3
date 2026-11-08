@@ -8,8 +8,8 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
 import house.x1337.app.smb3.game.object.level.PopAnimation;
 import house.x1337.app.smb3.model.AnimationImageResource;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import lombok.Getter;
 import lombok.Setter;
@@ -36,7 +36,7 @@ public final class CoinPopAnimation extends PopAnimation {
     public CoinPopAnimation(
         final GameEngine gameEngine,
         final Reward.Data rewardData,
-        final Offset offset
+        final Coordinates offset
     ) {
         super(gameEngine, rewardData, offset);
     }
@@ -44,7 +44,7 @@ public final class CoinPopAnimation extends PopAnimation {
     @Override
     public WorldOffset adjustWorldOffset(
         final WorldOffset worldOffset,
-        final Offset offset
+        final Coordinates offset
     ) {
         return of(
             offset.x() + dimensions.width() - dimensions.width() / 2,

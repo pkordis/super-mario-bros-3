@@ -1,11 +1,12 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 public interface CarriableLevelObject extends ActiveLevelObject {
     int CARRY_DROP_PIXELS = 13;
@@ -18,7 +19,7 @@ public interface CarriableLevelObject extends ActiveLevelObject {
     int KICK_WALL_PROBE_X_VELOCITY_FIXED_POINT = 1;
     int KICK_X_VELOCITY_FIXED_POINT = 48;
 
-    Offset NO_CARRY_ANCHOR_OFFSET = Offset.of(0, 0);
+    Coordinates NO_CARRY_ANCHOR_OFFSET = of(0, 0);
 
     LevelScenePlayer getCarrier();
     boolean isCarriable();
@@ -47,7 +48,7 @@ public interface CarriableLevelObject extends ActiveLevelObject {
         expire();
     }
 
-    default Offset getCarryAnchorOffset() {
+    default Coordinates getCarryAnchorOffset() {
         return NO_CARRY_ANCHOR_OFFSET;
     }
 
@@ -60,7 +61,7 @@ public interface CarriableLevelObject extends ActiveLevelObject {
         final double playerX,
         final double playerY
     ) {
-        final Offset anchorOffset = getCarryAnchorOffset();
+        final Coordinates anchorOffset = getCarryAnchorOffset();
         final double anchorY = playerY
             + (player.isSmall() ? CARRY_DROP_SMALL_PIXELS : CARRY_DROP_PIXELS)
             + anchorOffset.y();

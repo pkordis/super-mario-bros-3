@@ -6,8 +6,8 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
-import house.x1337.app.smb3.model.game.Offset;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +20,12 @@ import java.util.List;
 import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.min;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -73,13 +73,14 @@ class ParaGoombaHopTest {
         }
 
         collisionGrid = mock(StaticEnvironmentCollisionGrid.class);
-        when(collisionGrid.isGroundSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolid(invocation.getArgument(0), invocation.getArgument(1)));
-        when(collisionGrid.isWallOrCeilingSolidTile(anyInt(), anyInt()))
-            .thenAnswer(invocation -> isSolidToHeadAndWalls(
-                invocation.getArgument(0),
-                invocation.getArgument(1)
-            ));
+        when(collisionGrid.isGroundSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolid(cell.x(), cell.y());
+        });
+        when(collisionGrid.isWallOrCeilingSolidTile(any())).thenAnswer(invocation -> {
+            final Coordinates cell = invocation.getArgument(0);
+            return isSolidToHeadAndWalls(cell.x(), cell.y());
+        });
         when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.empty());
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -386,7 +387,7 @@ class ParaGoombaHopTest {
         // :412 is OAT_BOUNDBOX01 | OAT_BOUNCEOFFOTHERS. Two Para-Goombas walk straight through one
         // another; the broadphase only steers objects that opt in on both sides.
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
-        final Goomba goomba = new Goomba(gameEngine, Offset.of(START_COLUMN, REST_ROW));
+        final Goomba goomba = new Goomba(gameEngine, of(START_COLUMN, REST_ROW));
 
         // Execute & Verify
         assertThat(paraGoomba.bouncesOffOtherObjects()).isFalse();
@@ -398,7 +399,7 @@ class ParaGoombaHopTest {
     void collisionBoxMatchesTheGoombas() {
         // Prepare - the same Object_BoundBox row 01 both objects select
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
-        final Goomba goomba = new Goomba(gameEngine, Offset.of(START_COLUMN, REST_ROW));
+        final Goomba goomba = new Goomba(gameEngine, of(START_COLUMN, REST_ROW));
         goomba.init();
 
         // Verify
@@ -471,7 +472,7 @@ class ParaGoombaHopTest {
     }
 
     private ParaGoomba paraGoombaAt(final int column, final int row) {
-        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, Offset.of(column, row));
+        final ParaGoomba paraGoomba = new ParaGoomba(gameEngine, of(column, row));
         paraGoomba.init();
         return paraGoomba;
     }

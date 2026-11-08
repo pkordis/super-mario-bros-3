@@ -2,7 +2,7 @@ package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.model.AnimationImageResource;
-import house.x1337.app.smb3.model.game.Offset;
+import house.x1337.app.smb3.model.game.Coordinates;
 
 import java.util.Iterator;
 import java.util.List;
@@ -29,7 +29,7 @@ public interface AnimationOnlyMotionManager<A extends Animation> extends MotionM
 
     default void spawn(
         final GameEngine gameEngine,
-        final Offset offset
+        final Coordinates offset
     ) {
         final A animation = getBean(getAnimationType(), gameEngine, offset, getAnimationFrames());
         getActiveAnimations().add(animation);

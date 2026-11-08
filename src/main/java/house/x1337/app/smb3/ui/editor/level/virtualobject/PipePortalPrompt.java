@@ -2,6 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.virtualobject;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.model.game.Coordinates;
 
 import java.awt.Component;
 import java.util.Optional;
@@ -21,17 +22,15 @@ public class PipePortalPrompt {
      *
      * @param parent the component the window is centred on
      * @param type   the kind of portal being placed
-     * @param row    the anchor's row
-     * @param column the anchor's column
+     * @param anchor the anchor cell
      * @return what the author entered, or empty when they cancelled
      */
     public Optional<PipePortalDetails> ask(
         final Component parent,
         final VirtualObjectType type,
-        final int row,
-        final int column
+        final Coordinates anchor
     ) {
-        final PlacePipePortalWindow window = PlacePipePortalWindow.launch(getWindowAncestor(parent), type, row, column);
+        final PlacePipePortalWindow window = PlacePipePortalWindow.launch(getWindowAncestor(parent), type, anchor);
         window.setVisible(true);
         return window.getResult();
     }
