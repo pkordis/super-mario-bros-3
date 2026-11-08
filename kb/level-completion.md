@@ -46,7 +46,7 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     record field by field, so a field it forgets is dropped on every save.
   - Mongo stores it as a nested `levelCompletionCard: {x, y}` document (the driver's record codec). Scenes saved
     without a card have no such field and read as `null`.
-- **Runtime:** nothing yet. SMB3-44 turns the placeholder into the card the player collects.
+- **Runtime:** the card the player collects (SMB3-44, below).
 
 ## Held cards and the status bar (SMB3-43)
 
@@ -72,4 +72,44 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   - `HeadsUpDisplayFontRenderer` loads the three status-bar PNGs into `CARD_CACHE`;
     `HeadsUpDisplayRenderer.renderCards` blits each held card over its box. An empty slot keeps the base image's box,
     which is already the `` tiles.
-- **Not yet:** collecting a card (SMB3-44), and clearing the cards after a level with three plus the three-card bonus.
+- **Not yet:** clearing the cards after a level with three, and the three-card bonus (SMB3-48).
+
+## The card in the level (SMB3-44)
+
+- **ROM, untouched state** (`EndLevelCard_Untouched`, prg002.asm:5378-5390): on every frame where
+  `Counter_1 & 7 == 0` the frame goes 0, 1, 2, 0; then `Object_HitTestRespond` and `Object_DeleteOffScreen`.
+  `Counter_1` is incremented every frame in the NMI (prg031.asm:1634), so the phase is global, not the card's.
+  A new object starts on frame 0 (`Level_PrepareNewObject`, prg000.asm:4375). While gameplay is halted the card only
+  draws (halt action 11, `OA3_HALT_ENDCARDSPECIAL`, prg000.asm:4446-4462). Nothing reads the player's speed.
+- **ROM attributes:** bound box 1 (`OAT_BOUNDBOX01`, left 1, width 13, top 2, height 8: the top half),
+  `OAT_HITNOTKILL` and fire-immune (prg000.asm:363), `OA3_TAILATKIMMUNE` (prg002.asm:273).
+- **ROM touch** (`ObjHit_EndLevelCard`, prg002.asm:6146-6292): clears `Player_StarInv`, `Kill_Tally`,
+  `Level_PSwitchCnt`, `Level_AScrlConfig`, `Player_YVel` and the player's projectiles; `Level_TimerEn = $81` stops the
+  clock, and its bit 7 makes `PRG030_8DF4` skip the background tiles' bank cycling (prg030.asm:2216-2217);
+  `EndCard_Flag`; `Player_GetCard` with frame + 1; then the coins, the flight, `MUS1_COURSECLEAR` and the three-card
+  check that later tickets port.
+- **Port:**
+  - `game.engine.LevelFrameCounter` is `Counter_1`: `GameEngine.simpleUpdate` ticks it first on every simulation
+    tick, halted or not, and `buildLevel` resets it, so each run of the level replays the same phases.
+  - `game.level.completion.LevelCompletion`, one per engine (`GameEngine.getLevelCompletion()`), reset by
+    `buildLevel`. It owns a `LevelCompletionCardSpawner` and runs the touch once per run, publishing
+    `LevelCardCollected(card)`. `isUnderway()` and `getCollectedCard()` are for SMB3-45 to SMB3-49.
+  - `game.object.level.card.LevelCompletionCardSpawner` places the card while its column lies between the enemies'
+    look-ahead columns (32 px past the screen's left edge, 16 px past its right edge,
+    `ActiveLevelObjectMotionManager.SPAWN_LOOK_AHEAD_*`), and again after it was deleted. That window is inside the
+    delete edges, so a card never spawns where it would be deleted. A collected card is retired for the run.
+  - `LevelCompletionCard` (`LevelObjectTypeVirtual.LEVEL_COMPLETION_CARD`) turns in `advance(counter)`. The tick it
+    was placed on does not count, so the first change comes 1 to 8 ticks later. Its box reuses the power-ups'
+    box 1 arithmetic, widened a pixel per side for the half-open test. `onTailAttack` is an explicit no-op and
+    `isKilledByRammedObject` is false. The sprite is one quad on the card's cell at `Z_DEPTH_ITEM_REWARD`; a face
+    change swaps its texture (`LevelCompletionCardImageResource`).
+  - `LevelCompletionCardMotionManager` turns, hit-tests (inserts into the broadphase) and deletes the card off
+    screen with the shared delete edges; `postCollision` hides a collected card. `updateWhileHalted` is the default
+    no-op, as in the ROM.
+  - The touch: `PlayerData.addCard`, `PlayerTimer.pause()`, `GameObjectAnimator.freeze()` on every tile animator
+    (undone by the next `buildLevel`), `PowerSwitchTimeWindow.reset()`, the kill tally to 0, the player's DY to 0.
+  - A paused timer stays on the status bar with its value (`PlayerTimer.isShown`, used by the HUD), as the ROM's
+    stopped clock does. Before SMB3-44 the HUD hid any timer that was not counting.
+  - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
+- **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
+  bonus (SMB3-48), the flight and the messages (SMB3-49), and the music.

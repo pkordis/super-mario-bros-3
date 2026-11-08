@@ -155,7 +155,7 @@ mixin/helper (the ground+wall probe pair above) rather than a monolithic base cl
 ### Manager difference vs. leaf
 Identical to `SuperLeafMotionManager` except the broadphase insert is gated on
 `mushroom.isCollectable()` (the `Objects_Timer2` window), so an emerging mushroom cannot be
-picked up. Sprite is symmetric 16×16 (`sprites/reward/mashroom/mushroom_normal.png`), so
+picked up. Sprite is symmetric 16×16 (`sprites/reward/mushroom/mushroom_normal.png`), so
 `positionSprite()` needs NO mirroring (dropped the leaf's negative-X-scale flip). Reward is
 `SCORE_1000` (`PUp_GeneralCollect` → `Score_PopUp #$09`), same as the leaf. Grow/Super-suit
 grant from `ObjHit_PUpMush` is still deferred (mirrors the leaf's deferred Raccoon grant).

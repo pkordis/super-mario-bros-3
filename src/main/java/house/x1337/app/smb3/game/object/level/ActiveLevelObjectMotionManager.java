@@ -9,6 +9,8 @@ import java.util.List;
 public interface ActiveLevelObjectMotionManager<E extends ActiveLevelObject> extends MotionManager {
     int DELETE_PAST_LEFT_EDGE_PIXELS = 48;
     int DELETE_PAST_RIGHT_EDGE_PIXELS = 32;
+    int SPAWN_LOOK_AHEAD_LEFT_PIXELS = 32;
+    int SPAWN_LOOK_AHEAD_RIGHT_PIXELS = 16;
 
     List<E> getActiveInstances();
     List<ScorePopupAnimation> getActiveScorePopups();

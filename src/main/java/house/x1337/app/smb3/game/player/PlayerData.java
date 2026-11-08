@@ -40,8 +40,8 @@ public final class PlayerData {
         return playerTimer.getTime();
     }
 
-    public boolean hasTimerActive() {
-        return playerTimer.isActive();
+    public boolean isTimerShown() {
+        return playerTimer.isShown();
     }
 
     public void addCoin() {

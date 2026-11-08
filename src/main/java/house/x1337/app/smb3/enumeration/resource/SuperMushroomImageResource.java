@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SuperMushroomImageResource implements EnumeratedImageResourceType {
-    GROWING_CAPABLE("classpath:/sprites/reward/mashroom/mushroom_normal.png"),
-    LIFE_AWARDING_GREEN("classpath:/sprites/reward/mashroom/mushroom_one_up_green.png");
+    GROWING_CAPABLE("classpath:/sprites/reward/mushroom/mushroom_normal.png"),
+    LIFE_AWARDING_GREEN("classpath:/sprites/reward/musshroom/mushroom_one_up_green.png");
 
     private final String path;
 }

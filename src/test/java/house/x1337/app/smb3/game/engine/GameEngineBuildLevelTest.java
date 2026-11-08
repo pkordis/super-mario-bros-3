@@ -36,6 +36,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -165,5 +166,22 @@ class GameEngineBuildLevelTest {
         gameEngine.buildLevel(carryOver(RACCOON));
         assertThat(playerData.getCards()).as("After a level junction").containsExactly(STAR, FLOWER, null);
         assertThat(gameEngine.getPlayerData()).isSameAs(playerData);
+    }
+
+    @Test
+    @DisplayName("Every run starts the frame counter over and the level's completion with the card uncollected")
+    void aRebuildStartsTheCounterAndTheCompletionOver() {
+        // Prepare
+        gameEngine.buildLevel();
+        for (int tick = 0; tick < 13; tick++) {
+            gameEngine.getLevelFrameCounter().tick();
+        }
+
+        // Execute
+        gameEngine.buildLevel(carryOver(RACCOON));
+
+        // Verify
+        assertThat(gameEngine.getLevelFrameCounter().getTicks()).isZero();
+        verify(gameEngine.getLevelCompletion(), times(2)).reset();
     }
 }
