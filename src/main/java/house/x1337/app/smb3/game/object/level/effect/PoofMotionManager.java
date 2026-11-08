@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
@@ -59,6 +60,22 @@ public final class PoofMotionManager implements AnimationOnlyMotionManager<PoofA
         final WorldOffset worldOffset
     ) {
         spawn(gameEngine, worldOffset, poofDeath());
+    }
+
+    /**
+     * Removes the switch-block puffs, which are special objects ({@code SOBJ_POOF}) and so are cleared by the card
+     * touch (dasm prg002.asm:6158-6163). Poof deaths are object states, not special objects, and are left to play.
+     */
+    public void removeSwitchPuffs() {
+        final PoofSequence switchPuff = oneShot();
+        final Iterator<PoofAnimation> iterator = activeAnimations.iterator();
+        while (iterator.hasNext()) {
+            final PoofAnimation poofAnimation = iterator.next();
+            if (switchPuff.equals(poofAnimation.getSequence())) {
+                poofAnimation.detach();
+                iterator.remove();
+            }
+        }
     }
 
     private void spawn(

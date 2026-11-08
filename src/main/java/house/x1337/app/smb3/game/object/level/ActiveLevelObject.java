@@ -87,6 +87,10 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         // Do nothing: an object with no expiry of its own has nothing to retire.
     }
 
+    default boolean isExpired() {
+        return false;
+    }
+
     default boolean hasLeftTheLevelSideways() {
         final double left = getPosition().x();
         final double right = left + getSpriteDimensions().width() / PIXELS_TO_GAME_UNITS;

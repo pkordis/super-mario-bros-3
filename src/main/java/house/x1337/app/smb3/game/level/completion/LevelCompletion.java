@@ -5,15 +5,30 @@ import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
+import house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager;
+import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
+import house.x1337.app.smb3.game.object.level.card.LevelCompletionCardMotionManager;
 import house.x1337.app.smb3.game.object.level.card.LevelCompletionCardSpawner;
+import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
+import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
+import house.x1337.app.smb3.game.object.level.projectile.PiranhaFireballMotionManager;
+import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
 import house.x1337.app.smb3.model.event.LevelCompleted;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.WorldOffset;
+import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Getter;
 
+import java.util.Iterator;
+import java.util.List;
+
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.game.player.PlayerData.CARD_SLOTS;
 import static java.lang.Math.floor;
@@ -54,6 +69,10 @@ public final class LevelCompletion implements GameEngineAware {
     static final int EXIT_SPRITE_X = 0x20;
 
     private static final int SPRITE_X_MASK = 0xFF;
+
+    /** The NES screen's width, and the lines below its top that count as on screen (dasm prg000.asm:5166-5168). */
+    static final int SCREEN_WIDTH_PIXELS = 256;
+    static final int SCREEN_LINES = 240;
 
     private final GameEngine gameEngine;
     private final LevelCompletionCardSpawner cardSpawner;
@@ -127,6 +146,7 @@ public final class LevelCompletion implements GameEngineAware {
         player.getRuntimeState().setKillTally(0);
         player.getPosition().setDY(0);
         player.startRunningOff();
+        clearTheObjects(player);
 
         gameEngine.publish(new LevelCardCollected(card));
     }
@@ -184,6 +204,86 @@ public final class LevelCompletion implements GameEngineAware {
         }
         phase = Phase.COMPLETED;
         gameEngine.publish(new LevelCompleted());
+    }
+
+    /**
+     * The touch's sweep of the screen ({@code ObjHit_EndLevelCard}, dasm prg002.asm:6158-6226).
+     *
+     * <p>Every special-object slot is cleared: here the piranha fireballs and the switch-block puffs. Then each object
+     * slot except the card's own: an object on screen pops out a coin and goes up in a poof; one off screen is just
+     * deleted. Placed enemies the scroll has not reached yet are in no slot and are left alone, and a reward already
+     * collected this tick is left to its manager. Either way the object is gone for this run, and a held one is out of
+     * the player's hands.
+     */
+    private void clearTheObjects(final LevelScenePlayer player) {
+        getMotionManagers(PiranhaFireballMotionManager.class).forEach(PiranhaFireballMotionManager::removeAll);
+        getMotionManagers(PoofMotionManager.class).forEach(PoofMotionManager::removeSwitchPuffs);
+
+        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
+        final List<? extends ActiveLevelObjectMotionManager> managers =
+            getMotionManagers(ActiveLevelObjectMotionManager.class);
+        for (final ActiveLevelObjectMotionManager<?> manager : managers) {
+            if (manager instanceof LevelCompletionCardMotionManager) {
+                continue;
+            }
+            final Iterator<? extends ActiveLevelObject> iterator = manager.getActiveInstances().iterator();
+            while (iterator.hasNext()) {
+                final ActiveLevelObject object = iterator.next();
+                if (isInNoSlot(object)) {
+                    continue;
+                }
+                if (isOnScreen(object.getPosition(), screen)) {
+                    popOutACoin(object, player);
+                }
+                if (player.getRuntimeState().getCarriedObject() == object) {
+                    player.getRuntimeState().setCarriedObject(null);
+                }
+                object.expire();
+                object.detach();
+                iterator.remove();
+                if (object instanceof final EnemyLevelObject enemy) {
+                    getActiveObjectGrid().retirePlacementOf(enemy);
+                }
+            }
+        }
+    }
+
+    private static boolean isInNoSlot(final ActiveLevelObject object) {
+        return (object instanceof final EnemyLevelObject enemy && !enemy.isSpawnedIntoScene())
+            || (object instanceof final RewardLevelObject reward && reward.isCollected());
+    }
+
+    /**
+     * {@code Object_AnySprOffscreen} after {@code Object_DetermineHorzVisY} and {@code Object_DetermineVertVisY} with
+     * {@code Y = 0} (dasm prg002.asm:6174-6180): whatever the object's size, only a 16 x 16 box at its X and Y is
+     * tested. Its X must be on the 256 px screen and its bottom ({@code Y + 16}) within the 240 lines below the top.
+     *
+     * @param position the object's top-left
+     * @param screen   the view
+     * @return whether the object counts as on screen
+     */
+    static boolean isOnScreen(
+        final PixelPosition position,
+        final AxisAlignedBoundingBox screen
+    ) {
+        final double spriteX = floor(position.x()) - floor(screen.left());
+        final double spriteBottom = floor(position.y()) + TILE_SPRITE_SIZE - floor(screen.top());
+        return spriteX >= 0 && spriteX < SCREEN_WIDTH_PIXELS && spriteBottom >= 0 && spriteBottom < SCREEN_LINES;
+    }
+
+    private void popOutACoin(
+        final ActiveLevelObject object,
+        final LevelScenePlayer player
+    ) {
+        final PixelPosition position = object.getPosition();
+        final int rows = gameEngine.getLevelScene().getDimensions().rows();
+        final WorldOffset poofBottomLeft = WorldOffset.of(
+            (float) (position.x() / TILE_SPRITE_SIZE),
+            rows - (float) ((position.y() + TILE_SPRITE_SIZE) / TILE_SPRITE_SIZE),
+            Z_DEPTH_POOF
+        );
+        getMotionManagers(PoofMotionManager.class).forEach(poofs -> poofs.spawnPoofDeath(gameEngine, poofBottomLeft));
+        getMotionManagers(CoinRewardMotionManager.class).forEach(coins -> coins.spawnPoppedOutCoin(player, position));
     }
 
     private void haltThePlayerAtTheExit() {

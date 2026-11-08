@@ -84,6 +84,10 @@ public final class PiranhaFireballMotionManager implements MotionManager {
 
     @Override
     public void reset() {
+        removeAll();
+    }
+
+    public void removeAll() {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
             remove(slot);
         }
