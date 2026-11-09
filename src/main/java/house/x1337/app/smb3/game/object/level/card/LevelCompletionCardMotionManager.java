@@ -41,6 +41,10 @@ public final class LevelCompletionCardMotionManager implements ActiveLevelObject
         }
     }
 
+    /**
+     * A card collected on this tick is taken out of the scene, and its spin-away takes its place
+     * ({@code ObjHit_EndLevelCard} draws the new frame on the touch frame, prg002.asm:6247-6249).
+     */
     @Override
     public void postCollision() {
         final Iterator<LevelCompletionCard> iterator = activeInstances.iterator();
@@ -49,6 +53,7 @@ public final class LevelCompletionCardMotionManager implements ActiveLevelObject
             if (card.isCollected()) {
                 card.detach();
                 iterator.remove();
+                spinAway(card);
             }
         }
     }
@@ -57,5 +62,12 @@ public final class LevelCompletionCardMotionManager implements ActiveLevelObject
     public void reset() {
         activeInstances.forEach(LevelCompletionCard::detach);
         activeInstances.clear();
+    }
+
+    private static void spinAway(final LevelCompletionCard card) {
+        card.getGameEngine().getMotionManagers().stream()
+            .filter(LevelCompletionCardSpinAwayMotionManager.class::isInstance)
+            .map(LevelCompletionCardSpinAwayMotionManager.class::cast)
+            .forEach(spinAways -> spinAways.spawn(card));
     }
 }
