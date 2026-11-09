@@ -17,6 +17,9 @@ SMB3-42 to SMB3-49; this file grows with each of them.
 `src/main/resources/sprites/object/card/level_completion/{mushroom,flower,star}.png`, one 16 × 16 PNG per face. They
 are the in-level card, used by the runtime card (SMB3-44). The editor does not draw them.
 
+`src/main/resources/sprites/object/card/spin_away/{mushroom,flower,star}/frame_{0,1,2}.png` are the white pictures of
+the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each face.
+
 `src/main/resources/hud/card/{mushroom,flower,star}.png` are the status-bar cards (SMB3-43), different art: see
 `kb/sprites_extraction.md` §9 for how they were extracted. `LevelCompletionCardType` carries both paths per card.
 
@@ -104,15 +107,15 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     `isKilledByRammedObject` is false. The sprite is one quad on the card's cell at `Z_DEPTH_ITEM_REWARD`; a face
     change swaps its texture (`LevelCompletionCardImageResource`).
   - `LevelCompletionCardMotionManager` turns, hit-tests (inserts into the broadphase) and deletes the card off
-    screen with the shared delete edges; `postCollision` detaches a collected card. `updateWhileHalted` is the default
-    no-op, as in the ROM.
+    screen with the shared delete edges; `postCollision` detaches a collected card and starts its spin-away (SMB3-64).
+    `updateWhileHalted` is the default no-op, as in the ROM.
   - The touch: `PlayerData.addCard`, `PlayerTimer.pause()`, `GameObjectAnimator.freeze()` on every tile animator
     (undone by the next `buildLevel`), `PowerSwitchTimeWindow.reset()`, the kill tally to 0, the player's DY to 0.
   - A paused timer stays on the status bar with its value (`PlayerTimer.isShown`, used by the HUD), as the ROM's
     stopped clock does. Before SMB3-44 the HUD hid any timer that was not counting.
   - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
 - **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
-  bonus (SMB3-48), the messages (SMB3-49), the card's spin-away (SMB3-64), and the music.
+  bonus (SMB3-48), the messages (SMB3-49), and the music. The card's spin-away is SMB3-64.
 
 ## The run-off (SMB3-45)
 
@@ -170,7 +173,7 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
   - `LevelCompletion` runs the states as `Phase` (`CARD_FLYING_OFF`, `COURSE_CLEAR`, `EXITING`, `COMPLETED`), from
     `tick()` on each un-halted tick after the players move, with `phaseTimer` as `Objects_Timer`.
   - `CardFlight` times state 4 from the card's cell (the spawner's, read before it is retired). The card itself is
-    still detached at the touch; SMB3-64 draws the flight.
+    detached at the touch, and SMB3-64's spin-away draws the flight along the same `CardFlight`.
   - `TimeBonus.convertStep` is one `DoTimeBonus` step. `PlayerTimer.takeOff` takes the time off without expiring
     the timer, so the paused clock shows 000.
   - `CourseClearMusicStandIn` stands in for `MUS1_COURSECLEAR` with `COURSE_CLEAR_MUSIC_TICKS = 0`: no music yet, so
@@ -327,3 +330,46 @@ are the in-level card, used by the runtime card (SMB3-44). The editor does not d
     rising through every halt, as before.
   - `SUB Level_VertScroll` followed by `SBC #24` subtracts 25 when the probe is above the screen's top. The port
     always subtracts 24.
+
+## The card spins away (SMB3-64)
+
+- **ROM:**
+  - **The touch** (`ObjHit_EndLevelCard`, prg002.asm:6233-6259): `YVel = -$28`, state 4, and the frame becomes
+    `EndLevelCard_Frame[face]`: 3, 4 or 5 for the Mushroom, the Flower and the Star (prg002.asm:6144). State 0
+    then draws the new frame in place on the touch frame.
+  - **Each frame after** (`EndLevelCard_WaitFlyAway`, prg002.asm:5630-5649): `Object_ApplyYVel`, which moves it 3,
+    2, 3, 2 px up. There is no X movement, gravity, hit test or delete. When `Objects_SprVVis` says its bottom is
+    above the screen's top, it goes to state 5, which never draws it again.
+  - **The spin** (`EndLevelCard_AnimateSpinAway`, prg002.asm:5544-5563): sprite bank 5 becomes chr007. When
+    `Counter_1 & 3 == 0`, the frame goes down by 3, and from below 3 it wraps by adding 12. Mushroom 3, 12, 9, 6;
+    Flower 4, 13, 10, 7; Star 5, 14, 11, 8.
+  - **The pictures** (`ObjP41`, prg002.asm:454-455): frames 3-5 are face-on (`$F7`, `$F9`, `$FB`), 6-8 and 12-14
+    narrow (`$E3`, `$E5`, `$F5`), 9-11 edge-on (`$FD` for all three). The card turns face-on, narrow, edge-on,
+    narrow, one picture every 4 frames. `EndLevelCard_Draw` (prg002.asm:6294-6327) draws two 8 x 16 sprites, the
+    right half mirrored, with palette 1. Every one of the seven tiles uses colour index 2 alone.
+  - **Halted:** halt action 11 is `EndLevelCard_Draw` (prg000.asm:4462): drawn, not moved or turned.
+- **Assets:** `sprites/object/card/spin_away/<face>/frame_0.png` to `frame_2.png`, one folder per face. The
+  manager loads them as `spin_away/<mushroom,flower,star>/frame_{0,2}.png`, so frames 0-8 come three per face in
+  `LevelCompletionCardType` order (`AnimationImageResourceConverter` expands the `<...>` list, then the range).
+  Each is the 8 x 16 tile from `CHR/chr007.pcx` (local tiles `P & $3E` and `+ 1`) with its mirror on the right.
+  Index 2 is drawn (252, 252, 252), the palette-1 index-2 colour of the in-level Mushroom card
+  (`level_completion/mushroom.png`, matched pixel by pixel against chr004's `$51`). Everything else is clear. Each
+  face's `frame_2` is the same edge-on line.
+- **Port:**
+  - `LevelCompletionCardMotionManager.postCollision` detaches a collected card and calls
+    `LevelCompletionCardSpinAwayMotionManager.spawn(card)`, found among the engine's motion managers. The
+    spin-away starts at the card's cell with its face-on picture, so it shows on the touch tick in the card's place.
+  - `LevelCompletionCardSpinAwayAnimation` follows the ROM frame by frame. On each tick that is not halted it tests
+    whether its bottom is above `CameraState.getActiveObjectRegion(0).top()` before it moves. It then moves along a
+    `CardFlight`, the same arithmetic `LevelCompletion` times state 4 with, so the two end on the same tick. Then it
+    spins on `LevelFrameCounter & 3 == 0`. X stays at the card's column. The tick the test says it is off the top,
+    it is expired and the manager detaches it.
+  - `CardFlight` is now public, for the animation in the card package.
+  - The manager is an `AnimationOnlyMotionManager`. `updateWhileHalted` is the default no-op, so it freezes on
+    screen. `reset()` detaches it, so R, a death or the run-off restart clear it. It is never inserted into the
+    active-object grid.
+  - Tests: `LevelCompletionCardSpinAwayTest` (the touch, the start, the 3, 2, 3, 2 rise with a scrolling screen, the
+    spin order on `Counter_1`, the removal tick, the halt, the reset and the grid) and
+    `LevelCompletionCardSpinAwayPicturesTest` (white or clear, mirrored, the shared edge-on picture).
+- **Not checked:** no capture of a card being collected exists in `captures/`, so the pictures and their white are
+  checked against chr007 and the in-level card's palette, not against the original running.

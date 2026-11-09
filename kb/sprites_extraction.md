@@ -200,6 +200,16 @@ index 5 in the score table = 100 pts.
 | Brick poof          | `sprites/object/brick/poof_1..4.png`                  | 4-frame destruction anim              |
 | Small Mario (level) | `sprites/player/mario/level/shrunk/`                  | Multiple frames                       |
 
+### Loading frames: the path pattern
+
+An `AnimationImageResource` field is injected with `@Value("classpath:/...")`, and `AnimationImageResourceConverter`
+turns the path into frames. Both parts of the pattern are optional:
+
+- `{n,m}` is frame numbers `n` to `m`, both included: `poof/frame_{0,3}.png` is 4 frames.
+- `<a,b,c>` lists alternatives, usually folders, expanded first and in order: `spin_away/<mushroom,flower,star>/
+  frame_{0,2}.png` is `mushroom/frame_0` to `frame_2`, then the Flower's, then the Star's, 9 frames in all. Several
+  lists combine with the first varying slowest; an empty alternative is an error.
+
 ---
 
 ## 7. Extraction rules and pitfalls
