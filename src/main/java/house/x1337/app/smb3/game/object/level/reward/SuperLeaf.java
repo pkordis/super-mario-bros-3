@@ -38,7 +38,7 @@ public final class SuperLeaf implements RewardLevelObject {
 
     private final LevelObjectType type = SUPER_LEAF;
 
-    /** Points awarded (and captioned) when the leaf is collected — 1000, as in the ROM. */
+    /** Points awarded (and captioned) when the leaf is collected: 1000. */
     private final Reward rewardType = SCORE_1000;
 
     /** Injected by the bean factory; package-private setter so a test can supply the art without one. */
@@ -94,8 +94,8 @@ public final class SuperLeaf implements RewardLevelObject {
                 updateFacingAndPosition();
                 return;
             }
-            // Rise complete: fall through into the flutter phase on this same frame
-            // (dasm PRG001_ABE7 clears the timer and continues at PRG001_ABEC).
+            // Rise complete: clear the rise state and fall through into the flutter phase on this
+            // same frame.
             rising = false;
         }
 
@@ -123,8 +123,8 @@ public final class SuperLeaf implements RewardLevelObject {
      * collected, and — for a small player — starts the small→Super grow transition via
      * {@link LevelScenePlayer#onRewardConsumption}. The leaf itself vanishes on contact
      * ({@link #detachesOnCollect()}), the same tick it is collected and before any grow freeze
-     * begins, exactly like the mushroom. (The ROM's {@code ObjHit_SuperLeaf} also grants the
-     * Raccoon suit; that is still deferred.)
+     * begins, exactly like the mushroom. (Collecting the leaf should also grant the Raccoon suit;
+     * that is still deferred.)
      *
      * @param levelScenePlayer the player that collected the leaf
      */
@@ -148,11 +148,11 @@ public final class SuperLeaf implements RewardLevelObject {
 
     /**
      * @return {@code true} once the spawn collect-protection window has elapsed. While the leaf is
-     *         still emerging it cannot be picked up (dasm {@code ObjInit_SuperLeaf} sets
-     *         {@code Objects_Timer2 = $10}; {@code Player_HitEnemy} skips the hit response while it is
-     *         nonzero), so its manager keeps it out of the collision broadphase until then. Without
-     *         this, a leaf dispensed while the player is flush against the block is collected on its
-     *         first frame — the original requires the player to move or jump to reach it.
+     *         still emerging it cannot be picked up (a 16-tick collect protection starts when it spawns,
+     *         and touching the player has no effect while it runs), so its manager keeps it out of the
+     *         collision broadphase until then. Without this, a leaf dispensed while the player is flush
+     *         against the block is collected on its first frame, whereas the player should have to move
+     *         or jump to reach it.
      */
     @Override
     public boolean isCollectable() {
@@ -162,8 +162,7 @@ public final class SuperLeaf implements RewardLevelObject {
     /**
      * The leaf disappears on contact, the same tick it is collected — before the
      * grow freeze a small player triggers next tick — leaving only its rising
-     * "1000" caption during the transition, mirroring the mushroom (dasm
-     * {@code ObjHit_SuperLeaf}, as {@code ObjHit_PUpMush} does for the mushroom).
+     * "1000" caption during the transition, mirroring the mushroom.
      */
     @Override
     public boolean detachesOnCollect() {

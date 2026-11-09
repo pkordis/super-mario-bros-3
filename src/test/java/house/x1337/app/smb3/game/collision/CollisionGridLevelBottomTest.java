@@ -25,9 +25,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The level's bottom edge is no floor (SMB3-14). The ROM's player probe returns before fetching a tile
- * once it reaches the level's bottom (dasm prg008 {@code Player_GetTileAndSlope} @ PRG008_B406-PRG008_B414),
- * and so does the object probe (prg000 @ PRG000_C7F1). Only a real tile holds anything up.
+ * The level's bottom edge is no floor (SMB3-14). The player's tile probe finds nothing once it reaches
+ * the level's bottom, and neither does the object probe. Only a real tile holds anything up.
  */
 class CollisionGridLevelBottomTest {
     private static final double TOLERANCE = 1e-9;
@@ -38,7 +37,7 @@ class CollisionGridLevelBottomTest {
     /** Columns 0 to 3 have a floor on the bottom row; columns 4 to 7 are a pit. */
     private static final int FIRST_PIT_COLUMN = 4;
 
-    /** Where a grounded player's feet ({@code +$20}) are on the level's bottom edge. */
+    /** Where a grounded player's feet ({@code +32}) are on the level's bottom edge. */
     private static final double FEET_ON_THE_LEVEL_BOTTOM_Y = ROWS * (double) TILE_SPRITE_SIZE - 32;
 
     /** Where a grounded player stands on the floor row. */
@@ -66,16 +65,16 @@ class CollisionGridLevelBottomTest {
     @Test
     @DisplayName("Below the level is open to the player's probes, in every column of the level")
     void belowTheLevelIsOpenToThePlayer() {
-        // Prepare - feet probe +$04,+$20 from a sprite whose feet are on the level's bottom edge
+        // Prepare - feet probe +4,+32 from a sprite whose feet are on the level's bottom edge
         final LevelScenePlayer player = smallPlayer(positionAt(0, FEET_ON_THE_LEVEL_BOTTOM_Y));
 
         // Execute & Verify
         for (int column = 0; column < COLUMNS; column++) {
             player.getPosition().setX(column * (double) TILE_SPRITE_SIZE);
-            assertThat(grid.collidesAtOffset(player, of(0x04, 0x20)))
+            assertThat(grid.collidesAtOffset(player, of(4, 32)))
                 .as("Column %d, the row below the level", column)
                 .isFalse();
-            assertThat(grid.collidesAtOffset(player, of(0x04, 0x20 + 3 * TILE_SPRITE_SIZE)))
+            assertThat(grid.collidesAtOffset(player, of(4, 32 + 3 * TILE_SPRITE_SIZE)))
                 .as("Column %d, well below the level", column)
                 .isFalse();
         }
@@ -90,10 +89,10 @@ class CollisionGridLevelBottomTest {
             FEET_ON_THE_LEVEL_BOTTOM_Y));
 
         // Execute & Verify
-        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(0x04, 0x20))).as("Left, below").isTrue();
-        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(0x04, 0x10))).as("Left, inside").isTrue();
-        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(0x04, 0x20))).as("Right, below").isTrue();
-        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(0x04, 0x10))).as("Right, inside").isTrue();
+        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(4, 32))).as("Left, below").isTrue();
+        assertThat(grid.collidesAtOffset(leftOfTheLevel, of(4, 16))).as("Left, inside").isTrue();
+        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(4, 32))).as("Right, below").isTrue();
+        assertThat(grid.collidesAtOffset(rightOfTheLevel, of(4, 16))).as("Right, inside").isTrue();
     }
 
     @Test
@@ -125,7 +124,7 @@ class CollisionGridLevelBottomTest {
         assertThat(grid.isGroundSolidTile(of(FIRST_PIT_COLUMN, FLOOR_ROW)))
             .as("No ground in the pit")
             .isFalse();
-        assertThat(grid.collidesAtOffset(player, of(0x04, 0x20))).as("The player's feet").isTrue();
+        assertThat(grid.collidesAtOffset(player, of(4, 32))).as("The player's feet").isTrue();
     }
 
     // -------------------------------------------------------------------------

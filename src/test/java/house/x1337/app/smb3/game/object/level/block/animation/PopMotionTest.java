@@ -49,8 +49,8 @@ class PopMotionTest {
     private static final int COVERED = -1;
 
     /**
-     * Frames 101 to 148: the first line of the 100's digits. Frame 149 has none. The coin was removed at
-     * {@code CoinPUp_Y = 88}, so the score sprite's top is line 89.
+     * Frames 101 to 148: the first line of the 100's digits. Frame 149 has none. The coin was removed with its
+     * sprite's top at line 88, so the score sprite's top is line 89.
      */
     private static final int[] CAPTURED_CAPTION_DIGITS_LINES = {
         96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81,
@@ -60,8 +60,8 @@ class PopMotionTest {
     private static final int CAPTURED_SCORE_SPRITE_TOP_LINE = 89;
 
     /**
-     * {@code Counter_1} on the 100's first update, modulo 4. Its rises on every other frame fall on its 17th update
-     * and those every 4th frame on its 33rd, so it was a multiple of 4.
+     * The global frame counter on the 100's first update, modulo 4. Its rises on every other frame fall on its 17th
+     * update and those every 4th frame on its 33rd, so it was a multiple of 4.
      */
     private static final int CAPTURED_CAPTION_FIRST_UPDATE_FRAME = 0;
     private static final int UNLIMITED_RISES = 255;

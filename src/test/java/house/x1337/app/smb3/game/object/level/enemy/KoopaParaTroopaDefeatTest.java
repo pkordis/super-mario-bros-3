@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
@@ -33,8 +33,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Every way a Koopa Paratroopa is defeated ends with its slot handed to a walking green
- * {@link KoopaTroopa}: the collide entry is {@code OCSPECIAL_KILLCHANGETO | OBJ_GREENTROOPA} (dasm
- * prg004.asm:114). The paratroopa implements none of the aftermath; the troopa does.
+ * {@link KoopaTroopa}. The paratroopa implements none of the aftermath; the troopa does.
  */
 class KoopaParaTroopaDefeatTest {
     private static final double TOLERANCE = 1e-9;
@@ -77,7 +76,7 @@ class KoopaParaTroopaDefeatTest {
         // Execute
         paratroopa.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - PRG000_D2B4 rewrites the ID and PRG000_D31E zeroes YVel; XVel and the state stay
+        // Verify - the stomp swaps in the troopa and zeroes its Y velocity; the X velocity and the state stay
         final KoopaTroopa troopa = world.capturedReplacement();
         assertThat(troopa.getMode()).isEqualTo(GREEN);
         assertThat(troopa.getState()).isEqualTo(NORMAL);
@@ -86,7 +85,7 @@ class KoopaParaTroopaDefeatTest {
         assertThat(troopa.isFacingRight()).isTrue();
         assertThat(troopa.getVelocity().x()).isEqualTo(WALK_SPEED);
         assertThat(troopa.getVelocity().y()).isZero();
-        assertThat(troopa.getHitCooldownTicks()).as("Objects_Timer2 = 8").isEqualTo(STOMP_HIT_COOLDOWN_TICKS);
+        assertThat(troopa.getHitCooldownTicks()).as("Hit cooldown of 8 ticks").isEqualTo(STOMP_HIT_COOLDOWN_TICKS);
         assertThat(paratroopa.isExpired()).isTrue();
         assertThat(paratroopa.isHittable()).isFalse();
     }
@@ -104,9 +103,9 @@ class KoopaParaTroopaDefeatTest {
         paratroopa.onCollisionFromAbove(descendingPlayer());
 
         // Verify
-        assertThat(paratroopa.getPendingScoreReward()).as("Score_Get100PlusPts").isEqualTo(SCORE_100);
+        assertThat(paratroopa.getPendingScoreReward()).as("The chain score").isEqualTo(SCORE_100);
         assertThat(troopa.getPendingScoreReward()).isNull();
-        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
+        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
         verify(world.getActiveObjectGrid(), times(1).description("One hand-over only"))
             .spawnEnemy(any(EnemyLevelObject.class));
     }
@@ -126,7 +125,7 @@ class KoopaParaTroopaDefeatTest {
         assertThat(troopa.getState()).isEqualTo(NORMAL);
         assertThat(troopa.getPendingScoreReward()).isNull();
 
-        // Execute - once Objects_Timer2 has run out, a second stomp shells it as any troopa
+        // Execute - once the hit cooldown has run out, a second stomp shells it as any troopa
         for (int tick = 0; tick < STOMP_HIT_COOLDOWN_TICKS; tick++) {
             troopa.motionUpdate();
         }
@@ -150,7 +149,7 @@ class KoopaParaTroopaDefeatTest {
         // Execute
         paratroopa.onTailAttack(player);
 
-        // Verify - Enemy_Kill's OA3_DIESHELLED branch, which is the troopa's own response
+        // Verify - the defeat that leaves a shell, which is the troopa's own response
         final KoopaTroopa troopa = world.capturedReplacement();
         assertThat(troopa.getState()).isEqualTo(SHELLED);
         assertThat(troopa.isUpsideDown()).isTrue();
@@ -169,7 +168,7 @@ class KoopaParaTroopaDefeatTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Landing on a bumped block: an upside-down shell, thrown -$30, facing wiped, 100 points")
+    @DisplayName("Landing on a bumped block: an upside-down shell, thrown -48, facing wiped, 100 points")
     void aBlockBumpShellsItForAHundredPoints() {
         // Prepare - facing right, with the player on the left; the first tick is a landing
         final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
@@ -180,11 +179,11 @@ class KoopaParaTroopaDefeatTest {
         // Execute
         paratroopa.motionUpdate();
 
-        // Verify - Object_HandleBumpUnderneath's ID-change branch
+        // Verify - the block bump's branch that swaps the object for another
         final KoopaTroopa troopa = world.capturedReplacement();
         assertThat(troopa.getState()).isEqualTo(SHELLED);
-        assertThat(troopa.isUpsideDown()).as("FlipBits = SPR_VFLIP").isTrue();
-        assertThat(troopa.isFacingRight()).as("The assignment wipes SPR_HFLIP").isFalse();
+        assertThat(troopa.isUpsideDown()).as("Flipped vertically only").isTrue();
+        assertThat(troopa.isFacingRight()).as("Setting the flip wipes the facing").isFalse();
         assertThat(troopa.getVelocity().y()).isEqualTo(BUMP_LAUNCH_Y_VELOCITY);
         assertThat(troopa.getVelocity().x()).as("Away from the player").isEqualTo(KNOCK_X_VELOCITY);
         assertThat(troopa.getPendingScoreReward())
@@ -208,7 +207,7 @@ class KoopaParaTroopaDefeatTest {
         // Execute
         world.tick(paratroopa, 10);
 
-        // Verify - Object_TileFeet2 is sky the whole way up
+        // Verify - the tile under its feet is sky the whole way up
         verify(world.getActiveObjectGrid(), never()).spawnEnemy(any());
         assertThat(paratroopa.isExpired()).isFalse();
 

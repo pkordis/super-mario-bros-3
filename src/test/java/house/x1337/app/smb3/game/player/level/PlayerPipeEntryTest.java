@@ -62,7 +62,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * Pipe entry detection (dasm {@code Player_DoSpecialTiles}, prg008.asm:6133-6330) over the scene's pipe portals.
+ * Pipe entry detection over the scene's pipe portals.
  *
  * <p>The scene, 16 columns by 12 rows with a floor on row 11, holds three pipes, each under an {@code IN} portal:
  * <ul>

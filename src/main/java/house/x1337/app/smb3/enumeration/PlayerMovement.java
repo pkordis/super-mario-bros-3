@@ -14,13 +14,13 @@ import lombok.RequiredArgsConstructor;
  * <ul>
  *   <li>{@link #STILL} - on the ground, not moving horizontally.</li>
  *   <li>{@link #WALKING} - on the ground, moving, walk button only (no run).</li>
- *   <li>{@link #RUNNING} - on the ground, B held, speed ≥ TOPRUNSPEED but below
+ *   <li>{@link #RUNNING} - on the ground, B held, speed ≥ the top run speed but below
  *       power threshold. Still uses walk animation frames (accelerating).</li>
- *   <li>{@link #POWER_RUNNING} - on the ground, at or near TOPPOWERSPEED
- *       (abs(XVel) ≥ $37). Uses the spread-eagle running sprites.</li>
+ *   <li>{@link #POWER_RUNNING} - on the ground, at or near the top power speed
+ *       (horizontal speed ≥ 55/16 px per frame). Uses the spread-eagle running sprites.</li>
  *   <li>{@link #SKIDDING} - on the ground, pressing the opposite direction from
- *       current movement while abs(XVel) ≥ 2 raw ($02). Plays the skid sound and
- *       shows the braking sprite (prg008.asm: Player_SkidFrame). The player's
+ *       current movement while the horizontal speed is at least 2/16 px per frame.
+ *       Plays the skid sound and shows the braking sprite. The player's
  *       facing orientation is retained (does not flip to input direction).</li>
  *   <li>{@link #JUMPING} - airborne with upward (negative) vertical velocity.</li>
  *   <li>{@link #FALLING} - airborne with downward (positive) vertical velocity.</li>

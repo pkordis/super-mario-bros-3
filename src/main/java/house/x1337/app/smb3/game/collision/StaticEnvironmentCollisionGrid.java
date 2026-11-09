@@ -51,8 +51,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * The Y of the probe point that last hit a block, in level pixels: the head probe for a hit from below, and the
-     * tail's or a kicked shell's probe for a hit from the side. This is the ROM's {@code Temp_Var14} as
-     * {@code Level_DoBumpBlocks} sees it, which a coin out of the block launches from (prg000.asm:761-803).
+     * tail's or a kicked shell's probe for a hit from the side. A coin out of the block launches from this height.
      */
     private int bumpProbeY;
     public void tick() {
@@ -68,8 +67,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * Handles Player's collision against solid tiles (wall and ground).
-     * Returns {@code true} if a horizontal wall hit occurred this frame
-     * (dasm prg008 Player_DetectSolids: wall hit detection at PRG008_B4F3).
+     * Returns {@code true} if a horizontal wall hit occurred this frame.
      */
     public boolean handleCollision(
         final LevelScenePlayer levelScenePlayer,
@@ -77,7 +75,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     ) {
         final PlayerPosition position = levelScenePlayer.getPosition();
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
-        // dasm Player_DetectSolids @ prg008.asm:4386 clears Player_HitCeiling before anything else
+        // The ceiling flag is cleared before anything else
         runtimeState.setHitCeiling(false);
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
@@ -99,10 +97,9 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final boolean solidHoriz = (solidHoriz1 && !oneWayHoriz1) || (solidHoriz2 && !oneWayHoriz2);
 
         // Horizontal collision — eject the player from a wall, or slide them
-        // off a corner (dasm prg008 Player_DetectSolids @ PRG008_B4F3; JS
-        // reference index.html "eject player from wall").
+        // off a corner.
         //
-        // The original nudges Player_X by ±1 pixel every frame whenever the
+        // The player's X is nudged by ±1 pixel every frame whenever the
         // in-front probe detects a solid tile and the facing edge has not yet
         // reached a tile boundary — regardless of the player's horizontal
         // velocity. This ±1-per-frame slide (not a single full-overlap snap)
@@ -113,24 +110,24 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         // "moving into the wall" (non-zero DX) test breaks this corner-slide,
         // because a straight-up jump has DX == 0.
         //
-        // Velocity is a separate concern (dasm PRG008_B52F): XVel is halted
+        // Velocity is a separate concern: the horizontal velocity is halted
         // only when the player is actually pushing into the wall, so a corner
         // slide preserves horizontal motion while a head-on wall hit stops it.
         //
         // Probe direction (playerIsLeftHalf):
-        // - Left half (mod16 < 8): in-front probes check RIGHT (X+0x0E), so
+        // - Left half (mod16 < 8): in-front probes check RIGHT (X+14), so
         //   the wall is to the right. Push left (dir = -1) and align the right
         //   edge (rightEdgeOffset).
-        // - Right half (mod16 >= 8): in-front probes check LEFT (X+0x01), so
+        // - Right half (mod16 >= 8): in-front probes check LEFT (X+1), so
         //   the wall is to the left. Push right (dir = +1) and align the left
         //   edge (leftEdgeOffset).
         boolean hitWall = false;
         final int leftEdgeOffset = levelScenePlayer.isLarge() ? 2 : 3;
         final int rightEdgeOffset = levelScenePlayer.isLarge() ? 14 : 13;
         if (solidHoriz && !lowClearance) {
-            // Touching a wall keeps the walk animation cycling (dasm
-            // PRG008_B4F3: INC Player_WalkAnimTicks fires on any wall touch,
-            // before the alignment and velocity checks).
+            // Touching a wall keeps the walk animation cycling: the walk
+            // animation advances on any wall touch, before the alignment and
+            // velocity checks.
             hitWall = true;
 
             final int dir = playerIsLeftHalf ? -1 : 1;
@@ -139,7 +136,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
             final double localX = tileModulo(edgeX);
 
             // Halt horizontal velocity whenever the player is pushing into the
-            // wall (its sign opposes the ejection direction) — dasm PRG008_B52F.
+            // wall (its sign opposes the ejection direction).
             // This runs EVERY frame the wall is detected, independent of the
             // positional-nudge gate below. If it were only applied on frames
             // that nudge (floor(localX) != 0), then on the "flush" frames
@@ -192,8 +189,8 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         } else {
             // Moving up
             if (solidVert) {
-                // Head hitting objects. The ROM flags it for Player_DoSpecialTiles, which reads it to let the
-                // player into an upside-down pipe (prg008.asm:4565-4574: rising, airborne, head tile solid).
+                // Head hitting objects. The ceiling flag is what lets the player into an upside-down pipe
+                // (rising, airborne, head tile solid).
                 runtimeState.setHitCeiling(true);
                 position.setDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
                 handleVerticalCollision(levelScenePlayer, tVert);
@@ -221,11 +218,10 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * Dispatches {@link LevelObject#onCollisionFromAbove} to the tile(s) the player is resting on.
      *
      * <p>Unlike the upward case, the downward {@link ProbeLocation} holds two <em>distinct</em> points
-     * — the left and right foot ({@code $04,$20} and {@code $0B,$20} large; {@code $04,$20} and
-     * {@code $0B,$20} small, see {@code CollisionOffsets}) — where the upward probe repeats a single
-     * point. Both are dispatched so a tile is stomped whichever foot is over it, matching the ROM,
-     * where the press test sits inside the tile detection that runs for each probe. When both feet
-     * resolve to the same cell it is dispatched once.
+     * — the left and right foot ({@code (4, 32)} and {@code (11, 32)} for both sizes, see
+     * {@code CollisionOffsets}) — where the upward probe repeats a single point. Both are dispatched so a
+     * tile is stomped whichever foot is over it, since the press test sits inside the tile detection
+     * that runs for each probe. When both feet resolve to the same cell it is dispatched once.
      *
      * @param levelScenePlayer the player standing on the terrain
      * @param tVert            this frame's vertical probe pair (the feet, while descending/grounded)
@@ -254,15 +250,13 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * Dispatches {@link LevelObject#onTailAttack} to the <b>single</b> tile containing the tail's probe
-     * point (dasm prg008 {@code Player_TailAttack_HitBlocks}, which loads the
-     * {@code Player_TailAttack_Offsets} pair and calls {@code Player_GetTileAndSlope} — one tile lookup,
-     * stored into the tail's {@code Level_Tile_Whack} slot and passed to {@code Level_DoBumpBlocks}).
+     * point: one tile lookup, whose result is bumped like a block hit from below.
      *
      * <p>This used to sweep every cell overlapped by the tail's <em>object</em> hitbox
      * ({@link LevelScenePlayer#getTailAttackBounds()}). That box is 15px tall, so it straddled two tile
      * rows whenever the player was not tile-aligned, and the tail would break a brick a whole row above
-     * the real strike point. The object box remains correct for {@code ActiveObjectGrid}, where the ROM
-     * genuinely does a box overlap; only the terrain test is a point.
+     * the real strike point. The object box remains correct for {@code ActiveObjectGrid}, where the
+     * tail genuinely does a box overlap; only the terrain test is a point.
      *
      * @param levelScenePlayer the striking player
      * @param probeX           the probe point's X, in sprite-pixel space
@@ -290,10 +284,9 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * not — the counterpart to the directional probes, and the path by which pass-through tiles act on
      * contact (a P-Switch-substituted brick collected as a coin).
      *
-     * <p>The ROM tests its four discrete tile detects ({@code Level_Tile_GndL/GndR} and the head pair)
-     * in {@code Player_DoSpecialTiles} (dasm {@code prg008.asm PRG008_B604}); for a player one or two
-     * tiles tall those probes cover the same cells this box sweep does, and a box is cheaper to keep
-     * correct than a second probe table.
+     * <p>A box sweep is used instead of four discrete tile probes (two at the feet, two at the head): for a
+     * player one or two tiles tall those probes cover the same cells this box sweep does, and a box is
+     * cheaper to keep correct than a second probe table.
      *
      * @param levelScenePlayer the player to test
      * @param bounds           the player's hitbox in sprite-pixel space
@@ -413,14 +406,12 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
      *
      * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(Coordinates)}, the level's left and
-     * right edges are solid here: the player is held inside the level, the job the ROM gives the
-     * screen-edge clamp in {@code Player_DoScrolling} (dasm prg008 @ PRG008_B1CE). In the end-level run-off the right
-     * edge is open, so the player walks out of the level instead of stopping against it.
+     * right edges are solid here: the player is held inside the level, the same job a screen-edge clamp
+     * does while scrolling. In the end-level run-off the right edge is open, so the player walks out of
+     * the level instead of stopping against it.
      *
-     * <p>Below the level is open. The ROM's player probe gives up before fetching any tile once the probe
-     * reaches the level's bottom ({@code Player_GetTileAndSlope} @ PRG008_B406-PRG008_B414: high byte 1
-     * and low byte {@code >= $B0}, or a high byte above 1), so a pit has no floor and the player falls
-     * through it.
+     * <p>Below the level is open. The player's probe finds no tile at all once it reaches the level's
+     * bottom, so a pit has no floor and the player falls through it.
      */
     public boolean collidesAtOffset(
         final Player player,
@@ -461,18 +452,16 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * Queries the scene's static terrain for a probe that is <b>falling onto</b> a tile: is the tile at
-     * {@code (column, row)} something an object can come to rest on? This is the ROM's first solidity
-     * tier — {@code Tile_AttrTable[0..3]}, "solid at the ground (i.e. Player can stand on it)"
-     * (smb3.asm:2763) — so it includes the jump-through platforms, which is the whole point of them.
+     * {@code (column, row)} something an object can come to rest on? This is the first solidity tier,
+     * solid at the ground (a player can stand on it), so it includes the jump-through platforms, which
+     * is the whole point of them.
      *
      * <p>Off the left or right edge is open: the level's sides are not a wall to an object, which walks
-     * on and is deleted once it is past the screen's delete edge. That is the ROM's object tile probe,
-     * which reads no tile at all - tile {@code $00}, solid in no tileset - for any X outside the level
-     * (dasm prg000 {@code Object_DetectTile} @ PRG000_C832). Above and below the level are open too: the
-     * same probe jumps to PRG000_C832 for a Y at or past the level's bottom ({@code YHi >= 2}, or
-     * {@code YHi = 1} with {@code YLo >= $B0}, prg000 @ PRG000_C7F1), so an object walks off into a pit
-     * and falls out of the level. The player's probes are {@link #collidesAtOffset(Player, Coordinates)},
-     * which keeps both sides solid.
+     * on and is deleted once it is past the screen's delete edge. An object's tile probe reads an empty,
+     * non-solid tile for any X outside the level. Above and below the level are open too: the same holds
+     * for a Y at or past the level's bottom, so an object walks off into a pit and falls out of the
+     * level. The player's probes are {@link #collidesAtOffset(Player, Coordinates)}, which keeps both
+     * sides solid.
      *
      * @see #isWallOrCeilingSolidTile(Coordinates) for the head-and-walls tier
      */
@@ -485,15 +474,15 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * Queries the scene's static terrain for a probe that is <b>rising into</b> a tile or <b>walking
-     * into</b> it: is the tile at {@code (column, row)} solid to a head or a side? This is the ROM's
-     * second solidity tier — {@code Tile_AttrTable[4..7]}, "solid at the head and walls" (smb3.asm:2763)
-     * — which the jump-through platforms are deliberately below.
+     * into</b> it: is the tile at {@code (column, row)} solid to a head or a side? This is the second
+     * solidity tier, solid at the head and walls, which the jump-through platforms are deliberately
+     * below.
      *
-     * <p>The two tiers are not a player concession. The shared object tile detection builds
-     * {@code Objects_DetStat} from exactly this split (dasm prg000 @ PRG000_C559): the wall test and the
-     * ceiling test both {@code CMP Tile_AttrTable+4,Y} while the floor test, taken when {@code YVel >= 0},
-     * {@code CMP Tile_AttrTable,Y}. So a panel top stops a falling Goomba and is thin air to a hopping
-     * Para-Goomba's head and to anything walking into its side — the same thing the player sees.
+     * <p>The two tiers are not a player concession. The shared object tile detection uses exactly this
+     * split: the wall test and the ceiling test both check the head-and-walls tier, while the floor
+     * test, taken when the object's vertical velocity is zero or downward, checks the ground tier. So a
+     * panel top stops a falling Goomba and is thin air to a hopping Para-Goomba's head and to anything
+     * walking into its side — the same thing the player sees.
      *
      * <p>Bounds behave as in {@link #isGroundSolidTile(Coordinates)}: everything outside the level is open,
      * so an object walking into one of its sides keeps going instead of turning around at it.

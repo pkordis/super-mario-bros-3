@@ -24,10 +24,10 @@ import static com.jme3.texture.Image.Format.RGBA8;
 import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_HEIGHT;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_LEFT;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_TOP;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_WIDTH;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_HEIGHT;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_LEFT;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_TOP;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_WIDTH;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -35,12 +35,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The block power-ups' shared hitbox, {@code OAT_BOUNDBOX01} (dasm prg000 {@code Object_BoundBox} entry
- * 1), and the Super Leaf's use of it.
+ * The block power-ups' shared hitbox, and the Super Leaf's use of it.
  *
- * <p>The box is pinned against a direct transcription of {@code ObjectObject_Intersect}, which is
- * inclusive, rather than against hand-picked numbers: the engine's test is half-open and the player's box
- * keeps the ROM's literal extents, so it is the agreement of the two tests that matters.
+ * <p>The box is pinned against a direct implementation of an inclusive intersection test rather than
+ * against hand-picked numbers: the engine's test is half-open and the player's box keeps its literal
+ * extents, so it is the agreement of the two tests that matters.
  */
 class PowerUpBoundsTest {
     private static final int COLUMNS = 8;
@@ -62,13 +61,13 @@ class PowerUpBoundsTest {
     }
 
     @Test
-    @DisplayName("The box is OAT_BOUNDBOX01: left 1, width 13, top 2, height 8")
-    void theBoxIsBoundBoxOne() {
-        // Execute & Verify - prg000.asm:280, ".byte 1, 13, 2, 8"
-        assertThat(POWER_UP_BOUND_BOX_LEFT).isEqualTo(1);
-        assertThat(POWER_UP_BOUND_BOX_WIDTH).isEqualTo(13);
-        assertThat(POWER_UP_BOUND_BOX_TOP).isEqualTo(2);
-        assertThat(POWER_UP_BOUND_BOX_HEIGHT).isEqualTo(8);
+    @DisplayName("The power-up box is left 1, width 13, top 2, height 8")
+    void thePowerUpBoxHasItsFixedOffsetsAndSize() {
+        // Execute & Verify
+        assertThat(POWER_UP_BOUNDING_BOX_LEFT).isEqualTo(1);
+        assertThat(POWER_UP_BOUNDING_BOX_WIDTH).isEqualTo(13);
+        assertThat(POWER_UP_BOUNDING_BOX_TOP).isEqualTo(2);
+        assertThat(POWER_UP_BOUNDING_BOX_HEIGHT).isEqualTo(8);
     }
 
     @Test
@@ -86,12 +85,12 @@ class PowerUpBoundsTest {
 
     @ParameterizedTest
     @CsvSource({
-        // player box: left offset, width, top offset, height (Player_BoundBox)
+        // player box: left offset, width, top offset, height
         "3, 10, 5, 25",
         "4, 8, 17, 13"
     })
-    @DisplayName("Against the player's box it agrees with ObjectObject_Intersect at every whole-pixel offset")
-    void itAgreesWithTheRomIntersectionEverywhere(
+    @DisplayName("Against the player's box it agrees with an inclusive intersection at every whole-pixel offset")
+    void itAgreesWithAnInclusiveIntersectionEverywhere(
         final int playerLeftOffset,
         final int playerWidth,
         final int playerTopOffset,
@@ -116,7 +115,14 @@ class PowerUpBoundsTest {
                 );
                 assertThat(objectBox.intersects(playerBox))
                     .as("Player sprite at (%d, %d)", playerX, playerY)
-                    .isEqualTo(romIntersects(objectX, objectY, playerLeft, playerWidth, playerTop, playerHeight));
+                    .isEqualTo(intersectsInclusively(
+                        objectX,
+                        objectY,
+                        playerLeft,
+                        playerWidth,
+                        playerTop,
+                        playerHeight
+                    ));
             }
         }
     }
@@ -159,7 +165,7 @@ class PowerUpBoundsTest {
             assertThat(leaf.isCollectable()).as("Frame %d", frame).isFalse();
         }
         leaf.motionUpdate();
-        assertThat(leaf.isCollectable()).as("Objects_Timer2 = $10 has run out").isTrue();
+        assertThat(leaf.isCollectable()).as("The 16-frame collect protection has run out").isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -167,11 +173,11 @@ class PowerUpBoundsTest {
     // -------------------------------------------------------------------------
 
     /**
-     * {@code ObjectObject_Intersect} (prg000 {@code $D97B}) on {@code Object_CalcBoundBox}'s output: on
-     * each axis, the difference between the two boxes' near edges must not exceed the extent of whichever
-     * box lies first. Inclusive, so touching counts.
+     * An inclusive box intersection test on the power-up box: on each axis, the difference between the two
+     * boxes' near edges must not exceed the extent of whichever box lies first. Inclusive, so touching
+     * counts.
      */
-    private static boolean romIntersects(
+    private boolean intersectsInclusively(
         final int objectX,
         final int objectY,
         final int playerLeft,
@@ -179,16 +185,16 @@ class PowerUpBoundsTest {
         final int playerTop,
         final int playerHeight
     ) {
-        final int objectLeft = objectX + POWER_UP_BOUND_BOX_LEFT;
-        final int objectTop = objectY + POWER_UP_BOUND_BOX_TOP;
+        final int objectLeft = objectX + POWER_UP_BOUNDING_BOX_LEFT;
+        final int objectTop = objectY + POWER_UP_BOUNDING_BOX_TOP;
         final int dx = playerLeft - objectLeft;
-        final boolean overlapX = dx >= 0 ? dx <= POWER_UP_BOUND_BOX_WIDTH : -dx <= playerWidth;
+        final boolean overlapX = dx >= 0 ? dx <= POWER_UP_BOUNDING_BOX_WIDTH : -dx <= playerWidth;
         final int dy = playerTop - objectTop;
-        final boolean overlapY = dy >= 0 ? dy <= POWER_UP_BOUND_BOX_HEIGHT : -dy <= playerHeight;
+        final boolean overlapY = dy >= 0 ? dy <= POWER_UP_BOUNDING_BOX_HEIGHT : -dy <= playerHeight;
         return overlapX && overlapY;
     }
 
-    /** {@code Player_BoundBox} entry 1, as {@code LevelScenePlayer.getObjectCollisionBounds} builds it. */
+    /** The large player's box, as {@code LevelScenePlayer.getObjectCollisionBounds} builds it. */
     private static AxisAlignedBoundingBox largePlayerBox(final double x, final double y) {
         return new AxisAlignedBoundingBox(x + 3, y + 5, x + 13, y + 30);
     }

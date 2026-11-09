@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 
 class CollisionGridTailAttackTest {
 
-    /** Sprite-pixel Y offset of the tail's terrain probe (dasm {@code Player_TailAttack_Offsets}). */
+    /** Sprite-pixel Y offset of the tail's terrain probe. */
     private static final double PROBE_Y_OFFSET = 28;
     /** Sprite-pixel X offset of the tail's terrain probe when the player faces right. */
     private static final double PROBE_X_OFFSET_RIGHT = 21;

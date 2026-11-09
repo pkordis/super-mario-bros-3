@@ -35,14 +35,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The player's half of the carry: the two flags the ROM keeps rather than one, what a full pair of hands
+ * The player's half of the carry: the two flags kept rather than one, what a full pair of hands
  * costs, and the camera-facing pose a turn-around strikes.
  *
- * <p>The two flags are {@code Player_IsHolding} and {@code Player_ISHolding_OLD} (smb3.asm:1904-1905).
- * The second is the one {@code Object_HoldKickOrHurtPlayer} actually tests before allowing a pickup
- * (dasm prg000 @ PRG000_D343), and the lag is load-bearing: the release runs in the object loop and the
- * pickup test runs in the player collision pass that follows it, so without the lag one frame could do
- * both.
+ * <p>The two flags are the live carry ({@code isCarrying}) and its one-tick lag ({@code wasCarrying}).
+ * The lag is the one actually tested before allowing a pickup, and it is load-bearing: the release runs in
+ * the object loop and the pickup test runs in the player collision pass that follows it, so without the lag
+ * one frame could do both.
  */
 class PlayerCarryStateTest {
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -113,7 +112,7 @@ class PlayerCarryStateTest {
         // Verify
         assertThat(runtimeState.isCarrying()).as("hands are empty again").isFalse();
         assertThat(player.canPickUpCarriable())
-            .as("but Player_ISHolding_OLD still says otherwise, so nothing new is taken")
+            .as("But the lag flag still says otherwise, so nothing new is taken")
             .isFalse();
 
         // Execute - the following tick
@@ -126,9 +125,9 @@ class PlayerCarryStateTest {
     @Test
     @DisplayName("Two carriables overlapping on one pass yield one carry, not a stranded second object")
     void onlyOneObjectIsEverTaken() {
-        // The ROM's guard is Player_ISHolding_OLD alone, which has a one-tick blind spot it gets away
-        // with because it has eight object slots and a flag. A single reference does not: the second
-        // object would be left in OBJSTATE_HELD with nothing carrying it.
+        // The lag flag alone has a one-tick blind spot: two carriables overlapping on the same pass would both
+        // get past it. A single reference cannot hold both, so the second object would be left held with
+        // nothing carrying it.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = carryingPlayer(runtimeState);
@@ -140,7 +139,7 @@ class PlayerCarryStateTest {
 
         // Verify - the guard refuses a second pickup on this same pass, before any object is touched
         assertThat(player.canPickUpCarriable())
-            .as("even though Player_ISHolding_OLD alone would still say yes")
+            .as("Even though the lag flag alone would still say yes")
             .isFalse();
         assertThat(runtimeState.isWasCarrying()).as("the lag flag has not advanced").isFalse();
         assertThat(runtimeState.getCarriedObject()).isSameAs(first);
@@ -155,7 +154,7 @@ class PlayerCarryStateTest {
     @DisplayName("Release is one call site: it clears the carry and kicks the object exactly once")
     void theReleaseIsASingleCallSite() {
         // The single release call site, whose body SMB3-10 replaced outright: there is no drop, only a
-        // kick (dasm prg000 @ PRG000_CE2C, BIT Pad_Holding / BVC Player_KickObject).
+        // kick.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = carryingPlayer(runtimeState);
@@ -171,8 +170,8 @@ class PlayerCarryStateTest {
         assertThat(runtimeState.getCarriedObject()).isNull();
         verify(carried, times(1)).onKicked(eq(player), anyBoolean());
         assertThat(runtimeState.getTurnAroundFaceCounter())
-            .as("the camera-facing pose runs out on its own: PRG008_AF2F decrements and draws on "
-                + "Player_PipeFace alone, before it ever tests Player_IsHolding")
+            .as("The camera-facing pose runs out on its own: its counter is decremented and drawn on its own "
+                + "value alone, before the carry is ever tested")
             .isEqualTo(TURN_AROUND_FACE_TICKS);
     }
 
@@ -199,9 +198,8 @@ class PlayerCarryStateTest {
     @Test
     @DisplayName("A carrying player cannot duck, however hard DOWN is held")
     void carryingForcesThePlayerToStandUp() {
-        // The one restriction prg008 really does place on a carrying player that this port has an
-        // equivalent for: Player_IsHolding is ORed into the force-stand-up condition at PRG008_A6F2,
-        // beside the small-suit, Frog, slide and Kuribo tests.
+        // The one restriction on a carrying player that is implemented here: carrying is ORed into the
+        // force-stand-up condition, beside the small-suit, Frog, slide and Kuribo tests.
         // Prepare - a big player who can and does duck
         final PlayerInputHandler inputHandler = mock(PlayerInputHandler.class);
         when(inputHandler.isActive(HANDLER_DOWN)).thenReturn(true);
@@ -243,7 +241,7 @@ class PlayerCarryStateTest {
         player.getRuntimeState().setTurnAroundFaceCounter(0);
         player.handleHorizontalMovement(inputHandler);
 
-        // Verify - Player_FlipBits == Player_FlipBits_OLD, so nothing is re-armed
+        // Verify - the facing is the same as last tick's, so nothing is re-armed
         assertThat(player.getRuntimeState().getTurnAroundFaceCounter()).isZero();
     }
 
@@ -265,10 +263,10 @@ class PlayerCarryStateTest {
     }
 
     @Test
-    @DisplayName("The camera-facing counter yields seven posed ticks, matching the ROM's set-then-decrement")
+    @DisplayName("The camera-facing counter yields seven posed ticks, since it is set and then decremented")
     void theCameraFacingPoseLastsSevenTicks() {
-        // Set to 7 and decremented in the same breath the face-forward frame is chosen (dasm prg008 @
-        // PRG008_AF3F into PRG008_AF45), so the counter values 7 down to 1 are all drawn facing forward.
+        // Set to 7 and decremented in the same breath the face-forward frame is chosen, so the counter
+        // values 7 down to 1 are all drawn facing forward.
         // Counter arithmetic rather than rendering: the animator needs jME to assert against.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();

@@ -31,9 +31,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The Para-Goomba's hop/float cycle, as {@code ObjNorm_ParaGoomba} defines it (dasm prg004.asm:3011):
- * three little {@code -$10} hops, then a big {@code -$30} one followed by an {@code $50}-tick cooldown,
- * all under a net {@code +$02}-a-frame fall rather than the ground Goomba's {@code +$03}.
+ * The Para-Goomba's hop/float cycle: three little {@code -16} hops, then a big {@code -48} one followed by an
+ * {@code 80}-tick cooldown, all under a net {@code +2}-a-frame fall rather than the ground Goomba's {@code +3}.
  */
 class ParaGoombaHopTest {
     private static final double TOLERANCE = 1e-9;
@@ -41,12 +40,12 @@ class ParaGoombaHopTest {
     private static final int ROWS = 12;
     private static final int WALK_FRAME_COUNT = 2;
 
-    private static final int LITTLE_HOP_YVEL = -0x10;
-    private static final int BIG_HOP_YVEL = -0x30;
-    private static final int BIG_HOP_COOLDOWN_TICKS = 0x50;
+    private static final int LITTLE_HOP_Y_VELOCITY = -16;
+    private static final int BIG_HOP_Y_VELOCITY = -48;
+    private static final int BIG_HOP_COOLDOWN_TICKS = 80;
 
-    /** {@code Objects_Var5 & $3F} - the beat the grounded re-face lands on. */
-    private static final int REFACE_PERIOD_TICKS = 0x40;
+    /** The re-face clock {@code & 63} - the beat the grounded re-face lands on. */
+    private static final int REFACE_PERIOD_TICKS = 64;
 
     /** The floor, with the row the Para-Goomba rests on between hops directly above it. */
     private static final int FLOOR_ROW = 10;
@@ -115,18 +114,18 @@ class ParaGoombaHopTest {
         // Execute - long enough for two full cycles including both cooldowns
         final List<Integer> launches = recordHopLaunches(paraGoomba, 600);
 
-        // Verify - Var4 counts 1, 2, 3, then the 4th resets it and launches the big hop
+        // Verify - the hop counter counts 1, 2, 3, then the 4th resets it and launches the big hop
         assertThat(launches)
-            .as("Three -$10 hops then a -$30 one, repeating")
+            .as("Three -16 hops then a -48 one, repeating")
             .startsWith(
-                LITTLE_HOP_YVEL,
-                LITTLE_HOP_YVEL,
-                LITTLE_HOP_YVEL,
-                BIG_HOP_YVEL,
-                LITTLE_HOP_YVEL,
-                LITTLE_HOP_YVEL,
-                LITTLE_HOP_YVEL,
-                BIG_HOP_YVEL
+                LITTLE_HOP_Y_VELOCITY,
+                LITTLE_HOP_Y_VELOCITY,
+                LITTLE_HOP_Y_VELOCITY,
+                BIG_HOP_Y_VELOCITY,
+                LITTLE_HOP_Y_VELOCITY,
+                LITTLE_HOP_Y_VELOCITY,
+                LITTLE_HOP_Y_VELOCITY,
+                BIG_HOP_Y_VELOCITY
             );
     }
 
@@ -137,13 +136,13 @@ class ParaGoombaHopTest {
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
 
-        // Execute - at a net +$02/frame, -$10 buys (16+14+...+2)/16 px of climb and -$30 buys
-        // (48+46+...+2)/16. Measured from the launch, since Object_HitGround has just re-aligned it.
-        tickUntilLaunchOf(paraGoomba, LITTLE_HOP_YVEL, 50);
+        // Execute - at a net +2/frame, -16 buys (16+14+...+2)/16 px of climb and -48 buys
+        // (48+46+...+2)/16. Measured from the launch, since landing has just re-aligned it.
+        tickUntilLaunchOf(paraGoomba, LITTLE_HOP_Y_VELOCITY, 50);
         final double littleHopFrom = paraGoomba.getPosition().y();
         final double littleHopApex = apexOverNextTicks(paraGoomba, 20);
 
-        tickUntilLaunchOf(paraGoomba, BIG_HOP_YVEL, 300);
+        tickUntilLaunchOf(paraGoomba, BIG_HOP_Y_VELOCITY, 300);
         final double bigHopFrom = paraGoomba.getPosition().y();
         final double bigHopApex = apexOverNextTicks(paraGoomba, 40);
 
@@ -157,20 +156,20 @@ class ParaGoombaHopTest {
     }
 
     @Test
-    @DisplayName("The big hop is followed by an $50-tick cooldown before hopping resumes")
+    @DisplayName("The big hop is followed by an 80-tick cooldown before hopping resumes")
     void bigHopIsFollowedByAnEightyTickCooldown() {
         // Prepare - run up to the tick the big hop launches on
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
-        final int bigHopTick = tickUntilLaunchOf(paraGoomba, BIG_HOP_YVEL, 300);
+        final int bigHopTick = tickUntilLaunchOf(paraGoomba, BIG_HOP_Y_VELOCITY, 300);
 
         // Execute - the next launch of any size
-        final int nextHopTick = bigHopTick + tickUntilLaunchOf(paraGoomba, LITTLE_HOP_YVEL, 300);
+        final int nextHopTick = bigHopTick + tickUntilLaunchOf(paraGoomba, LITTLE_HOP_Y_VELOCITY, 300);
 
-        // Verify - Objects_Timer is run down a tick at a time (dasm prg000.asm:1855), and the hop test
+        // Verify - the object timer is run down a tick at a time, and the hop test
         // only passes once it has reached zero, so the gap is the timer itself
         assertThat(nextHopTick - bigHopTick)
-            .as("$50 ticks from the big hop to the next one")
+            .as("80 ticks from the big hop to the next one")
             .isEqualTo(BIG_HOP_COOLDOWN_TICKS);
         assertThat(paraGoomba.getHopCounter())
             .as("And the cycle starts over from the first little hop")
@@ -183,7 +182,7 @@ class ParaGoombaHopTest {
         // Prepare
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
-        tickUntilLaunchOf(paraGoomba, BIG_HOP_YVEL, 300);
+        tickUntilLaunchOf(paraGoomba, BIG_HOP_Y_VELOCITY, 300);
 
         // Execute - the big hop's whole flight, then a few ticks more
         tick(paraGoomba, 50);
@@ -197,25 +196,25 @@ class ParaGoombaHopTest {
     }
 
     @Test
-    @DisplayName("Falling accelerates by a net $02 a frame and settles at $3F, not the Goomba's $40")
+    @DisplayName("Falling accelerates by a net 2 a frame and settles at 63, not the Goomba's 64")
     void floatFallRateIsNetTwoPerFrame() {
         // Prepare - dropped into open sky so there is room to reach terminal velocity
         removeFloor();
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, 0);
         paraGoomba.faceClosestPlayer();
 
-        // Execute & Verify - Object_Move adds OBJECT_FALLRATE = $03, then the handler's DEC takes one back
+        // Execute & Verify - the move adds gravity of 3, then the float takes one back
         tick(paraGoomba, 1);
-        assertThat(paraGoomba.getVelocity().y()).as("$03 - $01").isEqualTo(2);
+        assertThat(paraGoomba.getVelocity().y()).as("3 - 1").isEqualTo(2);
 
         tick(paraGoomba, 30);
         assertThat(paraGoomba.getVelocity().y())
-            .as("31 frames x $02, still one step under the cap")
+            .as("31 frames x 2, still one step under the cap")
             .isEqualTo(62);
 
         tick(paraGoomba, 1);
         assertThat(paraGoomba.getVelocity().y())
-            .as("OBJECT_MAXFALL caps at $40 inside Object_Move, and the DEC lands after it")
+            .as("The fall caps at 64 inside the move, and the float's decrement lands after it")
             .isEqualTo(63);
 
         tick(paraGoomba, 20);
@@ -223,7 +222,7 @@ class ParaGoombaHopTest {
     }
 
     @Test
-    @DisplayName("Hitting a ceiling drops the rise to $01 instead of reversing it")
+    @DisplayName("Hitting a ceiling drops the rise to 1 instead of reversing it")
     void ceilingContactSetsYVelocityToOne() {
         // Prepare - a ceiling directly above the resting head, so the first little hop meets it at once
         solidRow(CEILING_ROW);
@@ -232,12 +231,12 @@ class ParaGoombaHopTest {
 
         // Execute - tick 1 launches the hop, tick 2 runs into the ceiling
         tick(paraGoomba, 1);
-        assertThat(paraGoomba.getVelocity().y()).as("Launched").isEqualTo(LITTLE_HOP_YVEL);
+        assertThat(paraGoomba.getVelocity().y()).as("Launched").isEqualTo(LITTLE_HOP_Y_VELOCITY);
         tick(paraGoomba, 1);
 
-        // Verify - DetStat & $08 overwrites whatever the move and the float left behind
+        // Verify - the ceiling contact overwrites whatever the move and the float left behind
         assertThat(paraGoomba.isCeilingContact()).isTrue();
-        assertThat(paraGoomba.getVelocity().y()).as("YVel = $01").isEqualTo(1);
+        assertThat(paraGoomba.getVelocity().y()).as("Y velocity = 1").isEqualTo(1);
         assertThat(paraGoomba.getPosition().y())
             .as("Head stopped flush under the ceiling tile")
             .isCloseTo(REST_ROW_PIXEL_Y, within(TOLERANCE));
@@ -256,10 +255,10 @@ class ParaGoombaHopTest {
         // Execute - 80 ticks is 40 px, far more than the 16 px of clearance to the wall's face
         tick(paraGoomba, 80);
 
-        // Verify - Object_FlipFace flips the bit only; XVel is reloaded from it every frame, so the
+        // Verify - the about-face flips the facing only; the X velocity is reloaded from it every frame, so the
         // next step is already rightward without anything negating a velocity
         assertThat(paraGoomba.isFacingRight()).as("Turned around").isTrue();
-        assertThat(paraGoomba.getVelocity().x()).as("Walking right at GroundTroop_XVel").isEqualTo(8);
+        assertThat(paraGoomba.getVelocity().x()).as("Walking right at the walk velocity").isEqualTo(8);
         assertThat(paraGoomba.getPosition().x())
             .as("Never overlaps the wall: its left edge stays at or past the wall's right edge")
             .isGreaterThanOrEqualTo((wallColumn + 1) * (double) TILE_SPRITE_SIZE);
@@ -268,8 +267,8 @@ class ParaGoombaHopTest {
     @Test
     @DisplayName("A panel top is no ceiling: the hop passes straight through it")
     void aPanelTopIsNotACeiling() {
-        // Prepare - the same geometry as the ceiling test, but the row is a jump-through panel. The ROM
-        // takes the ceiling test from Tile_AttrTable+4 (dasm prg000 @ PRG000_C59A), the tier the panels
+        // Prepare - the same geometry as the ceiling test, but the row is a jump-through panel. The
+        // ceiling test reads the wall/ceiling tier of solidity, which the panels
         // sit below, so to an object rising into one it is thin air - exactly what the player sees.
         panelRow(CEILING_ROW);
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
@@ -288,7 +287,7 @@ class ParaGoombaHopTest {
     @Test
     @DisplayName("A panel top is no wall either: it walks through the column, not into it")
     void aPanelTopIsNotAWall() {
-        // Prepare - the wall test reads the same Tile_AttrTable+4 tier (@ PRG000_C559)
+        // Prepare - the wall test reads the same wall/ceiling tier
         final int panelColumn = START_COLUMN - 2;
         for (int row = 0; row < ROWS; row++) {
             solids[row][panelColumn] = true;
@@ -321,7 +320,7 @@ class ParaGoombaHopTest {
         // Execute
         tickUntilGrounded(paraGoomba, 200);
 
-        // Verify - Object_HitGround aligns the feet to the panel's top, from the Tile_AttrTable tier
+        // Verify - landing aligns the feet to the panel's top, from the ground tier
         assertThat(paraGoomba.isGrounded()).isTrue();
         assertThat(paraGoomba.getPosition().y())
             .as("Resting with its feet on the panel")
@@ -343,31 +342,31 @@ class ParaGoombaHopTest {
         // Execute
         tick(paraGoomba, 63);
 
-        // Verify - Var5 & $3F is non-zero on every one of those ticks
+        // Verify - the re-face clock & 63 is non-zero on every one of those ticks
         assertThat(paraGoomba.isFacingRight()).as("Still walking away after 63 ticks").isFalse();
 
         // Execute - the 64th
         tick(paraGoomba, 1);
 
         // Verify
-        assertThat(paraGoomba.isFacingRight()).as("GroundTroop_FlipTowardsPlayer on the beat").isTrue();
+        assertThat(paraGoomba.isFacingRight()).as("Turned towards the player on the beat").isTrue();
     }
 
     @Test
     @DisplayName("A 64-tick beat that falls mid-flight is ignored, and the next grounded one is taken")
     void doesNotRefaceWhileAirborne() {
         // Prepare - ride the big hop, which is long enough in the air to swallow a whole beat, and only
-        // then put a player on the far side. Var5 keeps ticking through the flight, so a turn before
+        // then put a player on the far side. The re-face clock keeps ticking through the flight, so a turn before
         // landing could only have come from the clock alone.
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
-        tickUntilLaunchOf(paraGoomba, BIG_HOP_YVEL, 300);
+        tickUntilLaunchOf(paraGoomba, BIG_HOP_Y_VELOCITY, 300);
         givenPlayerAtPixelX((COLUMNS - 2) * (double) TILE_SPRITE_SIZE);
 
         // Execute - up to and onto the next beat, still mid-flight
         tick(paraGoomba, REFACE_PERIOD_TICKS - paraGoomba.getRefaceClock() % REFACE_PERIOD_TICKS);
 
-        // Verify - the beat landed, but DetStat & $04 was clear, so nothing happened
+        // Verify - the beat landed, but there was no ground contact, so nothing happened
         assertThat(paraGoomba.getRefaceClock() % REFACE_PERIOD_TICKS).as("On the beat").isZero();
         assertThat(paraGoomba.isGrounded()).as("And in mid-air for it").isFalse();
         assertThat(paraGoomba.isFacingRight()).as("So it kept walking away").isFalse();
@@ -383,8 +382,8 @@ class ParaGoombaHopTest {
     @Test
     @DisplayName("It does not bump off other objects, unlike the ground Goomba")
     void doesNotBounceOffOtherObjects() {
-        // Prepare - dasm prg000.asm:413 gives OBJ_PARAGOOMBA plain OAT_BOUNDBOX01, where OBJ_GOOMBA at
-        // :412 is OAT_BOUNDBOX01 | OAT_BOUNCEOFFOTHERS. Two Para-Goombas walk straight through one
+        // Prepare - the Para-Goomba has the plain bounding box only, where the ground Goomba also opts in
+        // to bouncing off others. Two Para-Goombas walk straight through one
         // another; the broadphase only steers objects that opt in on both sides.
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         final Goomba goomba = new Goomba(gameEngine, of(START_COLUMN, REST_ROW));
@@ -397,7 +396,7 @@ class ParaGoombaHopTest {
     @Test
     @DisplayName("Its collision box is the Goomba's inset box, and stomp depth still measures the sprite top")
     void collisionBoxMatchesTheGoombas() {
-        // Prepare - the same Object_BoundBox row 01 both objects select
+        // Prepare - the same bounding box both objects select
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         final Goomba goomba = new Goomba(gameEngine, of(START_COLUMN, REST_ROW));
         goomba.init();
@@ -405,7 +404,7 @@ class ParaGoombaHopTest {
         // Verify
         assertThat(paraGoomba.getBounds()).isEqualTo(goomba.getBounds());
         assertThat(paraGoomba.getStompReferenceTop())
-            .as("Measured from Objects_Y, not from the inset box top")
+            .as("Measured from the tracked Y, not from the inset box top")
             .isCloseTo(paraGoomba.getPosition().y(), within(TOLERANCE));
         assertThat(paraGoomba.getBounds().top())
             .as("The box really is inset, so the two are genuinely different")
@@ -520,9 +519,8 @@ class ParaGoombaHopTest {
     }
 
     /**
-     * Mirrors {@code StaticEnvironmentCollisionGrid#isGroundSolidTile} — the ROM's
-     * {@code Tile_AttrTable[0..3]} tier: outside the level is solid, sky is not, and a jump-through
-     * panel counts.
+     * Mirrors {@code StaticEnvironmentCollisionGrid#isGroundSolidTile}, the ground tier: outside the level is
+     * solid, sky is not, and a jump-through panel counts.
      */
     private boolean isSolid(final int column, final int row) {
         if (row < 0) {
@@ -535,8 +533,8 @@ class ParaGoombaHopTest {
     }
 
     /**
-     * Mirrors {@code StaticEnvironmentCollisionGrid#isWallOrCeilingSolidTile} — the ROM's
-     * {@code Tile_AttrTable[4..7]} tier, which the jump-through panels sit below.
+     * Mirrors {@code StaticEnvironmentCollisionGrid#isWallOrCeilingSolidTile}, the wall/ceiling tier, which the
+     * jump-through panels sit below.
      */
     private boolean isSolidToHeadAndWalls(final int column, final int row) {
         if (row < 0 || row >= ROWS || column < 0 || column >= COLUMNS) {

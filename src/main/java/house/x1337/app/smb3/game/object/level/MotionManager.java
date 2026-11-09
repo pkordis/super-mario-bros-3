@@ -26,9 +26,9 @@ public interface MotionManager extends ImageResourceLoader {
 
     /**
      * Called once per simulation tick <b>instead of</b> {@link #update()} while gameplay is halted
-     * (dasm {@code Player_HaltGame} — e.g. the small→Super grow freeze). Almost everything must stand
-     * still, so the default does nothing. Managers that own an animation the ROM keeps running
-     * through the freeze — the rising score caption — override this to advance only that animation.
+     * (e.g. the small→Super grow freeze). Almost everything must stand still, so the default does
+     * nothing. Managers that own an animation that keeps running through the freeze — the rising
+     * score caption — override this to advance only that animation.
      */
     default void updateWhileHalted() {
         // Do nothing

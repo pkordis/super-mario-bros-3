@@ -4,18 +4,16 @@ import com.jme3.texture.Texture;
 import house.x1337.app.smb3.model.game.enemy.EnemyAnimatorAssets;
 
 /**
- * The Para-Goomba's three sprite bundles. There are three rather than one because
- * {@code ParaGoomba_Draw} (dasm prg004.asm:3130) is the Goomba's body draw plus two hand-written
- * hardware sprites: the body cycles off {@code Counter_1} while the wings cycle off
- * {@code Objects_Var3}, which runs at a variable rate. Pre-composing body+wings into single frames
- * would couple two clocks the ROM keeps apart.
+ * The Para-Goomba's three sprite bundles. There are three rather than one because the Para-Goomba is
+ * drawn as the Goomba's body plus two separate wing sprites: the body cycles off the level frame counter
+ * while the wings cycle off the Para-Goomba's own wing clock, which runs at a variable rate.
+ * Pre-composing body+wings into single frames would couple two clocks that are kept apart.
  *
  * @param walk     the two-frame body walk cycle, a mirror pair exactly as the Goomba's is
- * @param wingUp   the raised wing pair ({@code $CD}), left then right. The ROM stores one pattern for
- *                 both wings and mirrors the right one in hardware via {@code SPR_HFLIP} in attribute
- *                 {@code $42}; shipping the mirror as explicit art keeps the animator flip-free, as
+ * @param wingUp   the raised wing pair, left then right. The right wing is the left one mirrored;
+ *                 shipping the mirror as explicit art keeps the animator flip-free, as
  *                 {@code GoombaAnimator} already is.
- * @param wingDown the lowered wing pair ({@code $CF}), left then right
+ * @param wingDown the lowered wing pair, left then right
  */
 public record ParaGoombaAnimatorAssets(
     Texture[] walk,

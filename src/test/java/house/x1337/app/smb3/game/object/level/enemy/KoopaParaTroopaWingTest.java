@@ -28,9 +28,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The paratroopa's one wing, from {@code Troopa_Draw} (dasm prg004.asm:4391-4434): on the body column
- * opposite the head, 8 px above the middle body row, flipped with the body, beating off the walk's own
- * {@code Var5}, and drawn in front of the body because it is written to the slots before it.
+ * The paratroopa's one wing: on the body column opposite the head, 8 px above the middle body row, flipped with the
+ * body, beating off the walk's own animation clock, and drawn in front of the body because it comes before it in
+ * draw order.
  */
 class KoopaParaTroopaWingTest {
     private static final float TOLERANCE = 1e-6f;
@@ -70,7 +70,7 @@ class KoopaParaTroopaWingTest {
             }
         }
 
-        // Verify - (Var5 + 3) & 4 with Var5 advancing every 2 frames
+        // Verify - (clock + 3) & 4 with the animation clock advancing every 2 frames
         assertThat(beats).hasSizeGreaterThan(4);
         for (int beat = 1; beat < beats.size(); beat++) {
             assertThat(beats.get(beat) - beats.get(beat - 1)).as("Beat %d", beat).isEqualTo(8);
@@ -100,8 +100,8 @@ class KoopaParaTroopaWingTest {
             }
         }
 
-        // Verify - the frame flips when Var5 reaches a multiple of 4, the wing one Var5 step later. Unlike
-        // the Para-Goomba's separate Var3, this is a single clock.
+        // Verify - the frame flips when the animation clock reaches a multiple of 4, the wing one clock step later.
+        // Unlike the Para-Goomba's separate wing counter, this is a single clock.
         for (final int beat : beats.subList(1, beats.size())) {
             assertThat(frameChanges).as("A body frame change 2 ticks before the beat at %d", beat).contains(beat - 2);
         }
@@ -154,7 +154,7 @@ class KoopaParaTroopaWingTest {
         final float oddBody = paratroopa.spriteDrawOffset(FEET_ANCHOR).y();
         final float oddWing = paratroopa.wingDrawOffset(FEET_ANCHOR).y();
 
-        // Verify - the middle row ($C2/$C4) starts at canvas row 11 in walk_1 and 9 in walk_2, so the 16 px
+        // Verify - the middle row starts at canvas row 11 in walk_1 and 9 in walk_2, so the 16 px
         // wing spans canvas rows 3..18 and 1..16: 13 and 15 px above each quad's bottom edge
         assertThat(evenWing - evenBody).isCloseTo(13 * PIXELS_TO_GAME_UNITS, within(TOLERANCE));
         assertThat(oddWing - oddBody).isCloseTo(15 * PIXELS_TO_GAME_UNITS, within(TOLERANCE));
@@ -174,7 +174,7 @@ class KoopaParaTroopaWingTest {
         // Execute
         world.tick(paratroopa, 3);
 
-        // Verify - Sprite_RAM-$08 is before the body's slots, and the earlier slot wins
+        // Verify - the wing comes before the body in draw order, and the earlier one wins
         final float body = paratroopa.getSpriteGeometry().getLocalTranslation().z;
         final float wing = paratroopa.getWingGeometry().getLocalTranslation().z;
         assertThat(body).isCloseTo(baseDepthOfSlot(9), within(TOLERANCE));
@@ -208,7 +208,7 @@ class KoopaParaTroopaWingTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Facing left shows the unflipped wing file, facing right the SPR_HFLIP one")
+    @DisplayName("Facing left shows the unflipped wing file, facing right the mirrored one")
     void theWingFileFollowsTheFacing() {
         // Prepare - a real animator over stand-in textures
         final Texture[] up = {mock(Texture.class), mock(Texture.class)};
@@ -223,7 +223,7 @@ class KoopaParaTroopaWingTest {
         when(paratroopa.getWingGeometry()).thenReturn(wingGeometry);
         when(paratroopa.isWingUp()).thenReturn(true);
 
-        // Execute & Verify - the wing copies the back body sprite's attribute (prg004.asm:4431-4434)
+        // Execute & Verify - the wing copies the back body sprite's flip
         when(paratroopa.isFacingRight()).thenReturn(false);
         animator.applyWingFrame(paratroopa);
         verify(material).setTexture("ColorMap", up[KoopaParaTroopaAnimator.UNFLIPPED_WING]);

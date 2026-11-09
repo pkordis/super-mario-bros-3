@@ -39,7 +39,7 @@ The ticket said the timing "matches the ROM". It nearly did, apart from item 3.
 
 ## The fix
 
-- **One box.** `RewardLevelObject.powerUpBoundsAt(position)` and the four `POWER_UP_BOUND_BOX_*`
+- **One box.** `RewardLevelObject.powerUpBoundsAt(position)` and the four `POWER_UP_BOUNDING_BOX_*`
   constants. `SuperMushroom` (both variants) and `SuperLeaf` override `getBounds()` with it. The leaf's
   horizontal-only `HITBOX_*` copy is gone, so the leaf gains the vertical part. `Coin` is untouched.
 - **Inclusive vs half-open.** `LevelScenePlayer.getObjectCollisionBounds` keeps `Player_BoundBox`'s

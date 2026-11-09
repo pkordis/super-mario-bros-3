@@ -5,7 +5,7 @@ import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOPRUNSPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_RUN_SPEED;
 import static house.x1337.app.smb3.GameConstants.PMETER_CHARGE_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_DRAIN_FRAMES;
 import static house.x1337.app.smb3.GameConstants.PMETER_FULL_HOLD_FRAMES;
@@ -36,9 +36,9 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
         final PlayerPosition position = getPosition();
         final PlayerData playerData = getPlayerData();
 
-        // Player_RunFlag: set when on ground, holding B, speed >= TOPRUNSPEED
+        // Run flag: set when on ground, holding B, speed >= PLAYER_TOP_RUN_SPEED
         final boolean running = inputRun && !runtimeState.isInAir()
-            && abs(position.getDX()) >= PLAYER_TOPRUNSPEED - 0.001;
+            && abs(position.getDX()) >= PLAYER_TOP_RUN_SPEED - 0.001;
         runtimeState.setRunning(running);
 
         // P-meter update

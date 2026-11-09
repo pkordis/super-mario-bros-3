@@ -34,9 +34,8 @@ public interface GameObjectAnimator<A extends AnimatableLevelObject> extends Mot
     );
 
     /**
-     * Stops the animation on the frame it shows, until the level is rebuilt. The port of setting bit 7 of
-     * {@code Level_TimerEn}, which makes {@code PRG030_8DF4} skip the background tiles' bank cycling
-     * (prg030.asm:2216-2217): the end-level card sets it when the player touches it (prg002.asm:6228-6230).
+     * Stops the animation on the frame it shows, until the level is rebuilt: the background tiles stop cycling
+     * their frames. The end-level card does this when the player touches it.
      *
      * <p>A repaint the animator makes for another reason, such as the P-switch substitution ending, still happens.
      */

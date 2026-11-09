@@ -47,11 +47,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Power-ups the player leaves behind are deleted off screen and never come back, as dasm prg000
- * {@code Object_DeleteOffScreen} does for them: every power-up's normal routine calls it each frame
- * (prg001 {@code ObjNorm_PUpMush}, {@code ObjNorm_PUp1UpMush}, {@code ObjNorm_SuperLeaf}), except a
- * mushroom still held in its block ({@code PowerUp_DoRaise} jumps past the call while the timer is
- * {@code >= $2d}). Between the delete edges nothing freezes a power-up.
+ * Power-ups the player leaves behind are deleted off screen and never come back: every power-up runs the
+ * off-screen deletion each frame, except a mushroom still held in its block (the deletion is skipped
+ * during the 16-frame hold). Between the delete edges nothing freezes a power-up.
  */
 class PowerUpOffScreenDeletionTest {
     private static final double TOLERANCE = 1e-6;
@@ -118,7 +116,7 @@ class PowerUpOffScreenDeletionTest {
         "95, 351, false",
         "96, 352, true"
     })
-    @DisplayName("A rising mushroom is deleted at the ROM's delete edges, 48 px left and 32 px right of the screen")
+    @DisplayName("A rising mushroom is deleted at the delete edges, 48 px left and 32 px right of the screen")
     void aMushroomIsDeletedAtTheDeleteEdges(final double left, final double right, final boolean deleted) {
         // Prepare - past the hold, so the mushroom creeps up in place at X = 48
         final SuperMushroom mushroom = dispenseMushroom(GROWING_CAPABLE);
@@ -161,13 +159,13 @@ class PowerUpOffScreenDeletionTest {
         final SuperMushroom mushroom = dispenseMushroom(GROWING_CAPABLE);
         givenTheScreenAt(1000, 0);
 
-        // Execute & Verify - PowerUp_DoRaise skips Object_DeleteOffScreen while the timer is >= $2d
+        // Execute & Verify - the hold skips the off-screen deletion
         for (int frame = 1; frame <= HOLD_FRAMES; frame++) {
             tickMushrooms(1);
             assertThat(mushrooms.getActiveInstances()).as("Frame %d: held", frame).containsExactly(mushroom);
         }
 
-        // Execute - the first rise frame reaches the call at PRG001_A937
+        // Execute - the first rise frame runs the off-screen deletion
         tickMushrooms(1);
 
         // Verify
@@ -202,7 +200,7 @@ class PowerUpOffScreenDeletionTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("A leaf at Y 512 is deleted and one above it is not, as Objects_YHi >= 2 decides")
+    @DisplayName("A leaf at Y 512 is deleted and one above it is not")
     void aLeafAtTheTwoPageLineIsDeleted() {
         // Prepare - spawned 14 px above their cells; the first rise frame lifts them 2 px, to 512 and 496
         final SuperLeaf fallen = dispenseLeaf(of(BLOCK.x(), 33));

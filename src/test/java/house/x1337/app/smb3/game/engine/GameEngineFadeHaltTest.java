@@ -21,8 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * A blocking fade halts the engine's gameplay as a halting player does: the ROM's {@code Palette_FadeIn} /
- * {@code Palette_FadeOut} loops leave nothing else running. Built on an engine that is never started.
+ * A blocking fade halts the engine's gameplay as a halting player does: nothing else runs while the screen
+ * fades in or out. Built on an engine that is never started.
  */
 class GameEngineFadeHaltTest {
     private final FadingEngine fadingEngine = new FadingEngine();

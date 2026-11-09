@@ -58,14 +58,13 @@ import static org.mockito.Mockito.when;
  * that are still live participants in collision, so a defeated one playing out its death animation is
  * intangible.
  *
- * <p>The ROM gets this structurally — a defeated object's state routine never reaches
- * {@code Player_HitEnemy} — so there is no flag to port, only the equivalent effect to pin.
+ * <p>There is no intangibility flag to set: a defeated enemy never reaches the player-contact code, so
+ * this pins the effect instead.
  *
- * <p>It is also the one place that decides where an enemy may be (SMB3-3): a live enemy past the ROM's
- * deletion edges or fallen out of the level is deleted and its placement released
- * ({@code Object_DeleteOffScreen}), one above or below the screen carries on, and a defeated one plays
- * out its death and leaves its placement spent ({@code Object_SetDeadEmpty}). The spawner end of the same
- * lifecycle is {@code EnemySpawnerTest}.
+ * <p>It is also the one place that decides where an enemy may be (SMB3-3): a live enemy past the
+ * deletion edges or fallen out of the level is deleted and its placement released, one above or below
+ * the screen carries on, and a defeated one plays out its death and leaves its placement spent. The
+ * spawner end of the same lifecycle is {@code EnemySpawnerTest}.
  */
 class EnemyMotionManagerTest {
     private static final int LEVEL_COLUMNS = 10_000;
@@ -175,7 +174,7 @@ class EnemyMotionManagerTest {
     @Test
     @DisplayName("An enemy its own logic expired is retired, and its placement stays spent")
     void expiredEnemyIsRemoved() {
-        // Prepare - a squash run out, say: Object_SetDeadEmpty, which leaves Level_ObjectsSpawned set
+        // Prepare - a squash run out, say, which leaves the placement marked as spawned
         final StubEnemy enemy = enemyAt(32);
         enemy.setExpired(true);
         manager.spawn(enemy);
@@ -212,7 +211,7 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
-    // The spawn frame (ObjState_Initializing)
+    // The spawn frame
     // -------------------------------------------------------------------------
 
     @Test
@@ -227,7 +226,7 @@ class EnemyMotionManagerTest {
         // Execute - the spawn frame
         manager.update();
 
-        // Verify - Level_PrepareNewObject + ObjInit_*, then the slot is done for the frame
+        // Verify - the enemy is initialised, and that is all it does this frame
         assertThat(enemy.getSpawnIntoSceneCount()).as("Initialised").isEqualTo(1);
         assertThat(enemy.motionUpdates).as("But not moved").isZero();
         assertThat(broadPhase.query(enemy.getBounds())).as("Nor offered to the collision pass").isEmpty();
@@ -246,7 +245,7 @@ class EnemyMotionManagerTest {
     @Test
     @DisplayName("An enemy that adopted another's slot carries straight on, with no init frame")
     void anAdoptedSlotHasNoInitFrame() {
-        // Prepare - the Para-Goomba's Goomba: Level_ObjectID rewritten, Objects_State left as it was
+        // Prepare - the Para-Goomba's Goomba: a new enemy in the same slot, its state carried over
         final StubEnemy enemy = enemyAt(32);
         enemy.setSpawnedIntoScene(false);
         enemy.setAdoptedASlot(true);
@@ -262,7 +261,7 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Leaving the screen (Object_DeleteOffScreen)
+    // Leaving the screen
     // -------------------------------------------------------------------------
 
     @Test
@@ -287,9 +286,9 @@ class EnemyMotionManagerTest {
     }
 
     @Test
-    @DisplayName("The deletion edges are the ROM's: at 48 px left of the screen, and beyond 32 px right of it")
-    void theDeletionEdgesAreTheRoms() {
-        // Prepare - the fixture's screen spans x = -1000 to 1000; Object_DeleteOffScreen compares Objects_X
+    @DisplayName("The deletion edges are at 48 px left of the screen, and beyond 32 px right of it")
+    void theDeletionEdgesSitJustOutsideTheScreen() {
+        // Prepare - the fixture's screen spans x = -1000 to 1000; the test compares the enemy's X
         final StubEnemy keptLeft = enemyAt(-1047);
         final StubEnemy deletedLeft = enemyAt(-1048);
         final StubEnemy keptRight = enemyAt(1032);
@@ -313,14 +312,14 @@ class EnemyMotionManagerTest {
     @Test
     @DisplayName("An enemy above or below the screen but within its columns carries on as normal")
     void anEnemyAboveTheScreenKeepsRunning() {
-        // Prepare - far above the screen (in a non-vertical level the ROM's test is X only)
+        // Prepare - far above the screen (in a non-vertical level the test is X only)
         final StubEnemy enemy = enemyAt(32, -5000);
         manager.spawn(enemy);
 
         // Execute
         manager.update();
 
-        // Verify - the ROM runs every occupied slot each frame, seen or not
+        // Verify - every live enemy runs each frame, seen or not
         assertThat(enemy.motionUpdates).as("Ticked").isEqualTo(1);
         assertThat(manager.getActiveInstances()).as("Kept").containsExactly(enemy);
         assertThat(broadPhase.query(enemy.getBounds())).as("And collidable").containsExactly(enemy);
@@ -330,7 +329,7 @@ class EnemyMotionManagerTest {
     @Test
     @DisplayName("A defeated enemy plays its death out beside the screen rather than being deleted")
     void aDefeatedEnemyIsExemptFromDeletionOffScreen() {
-        // Prepare - ObjState_Killed and ObjState_Squashed never call Object_DeleteOffScreen
+        // Prepare - a killed or squashed enemy is never deleted off screen
         final StubEnemy enemy = enemyAt(100_000);
         enemy.setDefeated(true);
         enemy.setHittable(false);
@@ -349,7 +348,7 @@ class EnemyMotionManagerTest {
     @DisplayName("An object in the player's hands is never deleted off screen, but is once it is put down")
     void carriedEnemyIsExemptFromDeletionOffScreen() {
         // A carried object is not being simulated, it is being placed, from a player who is on screen by
-        // definition (ObjState_Held never calls Object_DeleteOffScreen). Once released it is an ordinary
+        // definition (a held object is never deleted off screen). Once released it is an ordinary
         // object again, which is why the second half of this asserts the deletion applies straight away.
         // Prepare - far beyond the fixture's screen, but carried
         final StubEnemy enemy = enemyAt(100_000);
@@ -384,9 +383,8 @@ class EnemyMotionManagerTest {
     @Test
     @DisplayName("A pending reward credits the player's score and raises a caption, in one pass")
     void aPendingRewardCreditsTheScore() {
-        // The ROM splits a kill's award in two: the kill calls Score_PopUp, which only QUEUES the value
-        // into Scores_Value, and Scores_GiveAndDraw (dasm prg007.asm:2154-2189) later walks that queue
-        // giving the points and drawing the sprite. postCollision is that walk, so it has to do both -
+        // A kill's award is split in two: the kill only QUEUES the value, and a later pass walks that
+        // queue giving the points and drawing the sprite. postCollision is that walk, so it has to do both -
         // for a long time it only did the second half and every enemy kill scored nothing.
         // Prepare
         final StubEnemy enemy = enemyAt(32);
@@ -406,8 +404,7 @@ class EnemyMotionManagerTest {
     @DisplayName("The 1-up at the top of the kill ladder grants a life rather than silently paying zero")
     void theOneUpAtTheTopOfTheLadderGrantsALife() {
         // add(Reward.Data) and not addPoints: ONE_UP carries a life and no points, so crediting points
-        // alone would swallow the reward a long chain exists to earn (prg007.asm:2135 - the 1-up's own
-        // ScoreAdd entry is $00).
+        // alone would swallow the reward a long chain exists to earn (the 1-up itself is worth 0 points).
         // Prepare
         final StubEnemy enemy = enemyAt(32);
         enemy.setPendingScoreReward(Reward.ONE_UP);
@@ -439,7 +436,7 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Leaving the level sideways (Object_DeleteOffScreen at a clamped camera)
+    // Leaving the level sideways (the off-screen deletion at a clamped camera)
     // -------------------------------------------------------------------------
 
     @Test
@@ -493,7 +490,7 @@ class EnemyMotionManagerTest {
     }
 
     @Test
-    @DisplayName("An enemy wholly beyond the level's edge but inside the ROM's margin stays in play")
+    @DisplayName("An enemy wholly beyond the level's edge but inside the off-screen margin stays in play")
     void enemyJustBeyondTheEdgeIsKept() {
         // Prepare - both wholly out of the level, neither far enough out to be deleted
         givenTheCameraClampedAtTheLeftEdge();
@@ -504,7 +501,7 @@ class EnemyMotionManagerTest {
         // Execute
         manager.update();
 
-        // Verify - the ROM has no level-edge rule of its own; only the screen-relative test applies
+        // Verify - there is no level-edge rule of its own; only the screen-relative test applies
         assertThat(leftward.hasLeftTheLevelSideways()).as("Out of the level").isTrue();
         assertThat(leftward.motionUpdates).as("Still ticked").isEqualTo(1);
         assertThat(manager.getActiveInstances()).containsExactly(leftward);
@@ -513,13 +510,13 @@ class EnemyMotionManagerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Falling out of the bottom of the level (Objects_YHi >= 2)
+    // Falling out of the bottom of the level (Y 512 and below)
     // -------------------------------------------------------------------------
 
     @Test
     @DisplayName("A live enemy that reaches Y 512 is deleted once and its placement released")
     void aLiveEnemyBelowTheLevelIsReleased() {
-        // Prepare - on screen horizontally, at the ROM's two-page line; a pixel higher is still in play
+        // Prepare - on screen horizontally, at the 512 px line; a pixel higher is still in play
         final StubEnemy fallen = enemyAt(32, FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS);
         final StubEnemy notYet = enemyAt(64, FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS - 1);
         manager.spawn(fallen);
@@ -529,7 +526,7 @@ class EnemyMotionManagerTest {
         manager.update();
         manager.update();
 
-        // Verify - Object_DeleteOffScreen's Objects_YHi >= 2 branch goes to Object_Delete, before the tick
+        // Verify - a live enemy that falls out is deleted before its tick
         assertThat(fallen.motionUpdates).as("Deleted before it moved").isZero();
         assertThat(fallen.isExpired()).isTrue();
         assertThat(fallen.getDetachCount()).isEqualTo(1);
@@ -551,7 +548,7 @@ class EnemyMotionManagerTest {
         manager.update();
         manager.update();
 
-        // Verify - Object_FallAndDelete goes to Object_SetDeadEmpty, which keeps the spawned bit set
+        // Verify - a defeated enemy that falls out is retired, which keeps its placement marked as spawned
         assertThat(enemy.isExpired()).isTrue();
         assertThat(enemy.getDetachCount()).isEqualTo(1);
         assertThat(manager.getActiveInstances()).isEmpty();
@@ -560,7 +557,7 @@ class EnemyMotionManagerTest {
     }
 
     @Test
-    @DisplayName("In a level taller than the NES allows, the line drops to the level's own bottom edge")
+    @DisplayName("In a level taller than 512 px, the line drops to the level's own bottom edge")
     void aTallLevelMovesTheLineToItsBottom() {
         // Prepare - 40 rows is 640 px, so 512 px is still inside the level
         when(gameEngine.getLevelScene().getDimensions()).thenReturn(new LevelSceneDimensions(LEVEL_COLUMNS, 40));

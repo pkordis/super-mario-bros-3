@@ -23,21 +23,19 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 /**
  * Fixed HUD (status bar) rendered at the bottom of the game window.
  *
- * <p>This mirrors the NES IRQ-driven status bar that begins at scan-line 192
- * (prg031.asm: the name table scroll is fixed at that point to always display
- * the status bar). The HUD uses its own orthographic camera and viewport so it
+ * <p>The status bar begins 192 px down the screen and never scrolls with the
+ * level. The HUD uses its own orthographic camera and viewport so it
  * remains fixed regardless of where the game camera scrolls.
  *
  * <p>The HUD is rendered as a single texture generated programmatically by
- * {@link HeadsUpDisplayRenderer} at 1:1 NES resolution (240×48 px) and scaled by
+ * {@link HeadsUpDisplayRenderer} at 1:1 resolution (240×48 px) and scaled by
  * {@code TILE_SCALE} (4×) to fill the viewport region. This produces
  * pixel-perfect rendering without tile-based composition.
  *
  * <p>The HUD scene graph is independent of the main game scene — nothing from
  * the game renders into the HUD region and vice versa.
  *
- * <p>From prg026.asm {@code StatusBar_UpdateValues}: the status bar updates
- * P-meter, coins, lives, score, and time each frame.
+ * <p>The status bar updates the P-meter, coins, lives, score, and time each frame.
  */
 @Slf4j
 @Getter
@@ -66,8 +64,8 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
 
     /**
      * [P] flash tick counter. Decremented every frame when P-meter is full.
-     * From prg026.asm {@code MaxPower_Tick}: the flash state is determined by
-     * bit 3 of this counter ({@code tick & 0x08}). When bit 3 is clear, [P]
+     * The flash state is determined by bit 3 of this counter
+     * ({@code tick & 8}). When bit 3 is clear, [P]
      * shows lit; when set, [P] shows dark. This produces an 8-frame-on /
      * 8-frame-off flash cycle (16-frame period).
      */
@@ -108,11 +106,6 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
      * Called once per frame from the game loop. Syncs HUD state from the
      * current player/game data and re-renders the HUD texture when dirty.
      *
-     * <p>Mirrors prg026.asm {@code StatusBar_UpdateValues} which calls:
-     * {@code StatusBar_Fill_PowerMT}, {@code StatusBar_Fill_Coins},
-     * {@code StatusBar_Fill_Lives}, {@code StatusBar_Fill_Score},
-     * {@code StatusBar_Fill_Time}.
-     *
      * @param timePerFrame time per frame in seconds
      */
     public void update(final float timePerFrame) {
@@ -146,12 +139,12 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
             final int power = levelPlayer.getPlayerData().getPlayerPower();
             final boolean full = power >= PMETER_LEVELS;
 
-            // [P] flash animation (prg026.asm MaxPower_Tick):
+            // [P] flash animation:
             // When at max power, decrement tick each frame. Bit 3 determines
-            // lit vs dark: (tick & 0x08) == 0 → lit, otherwise → dark.
+            // lit vs dark: (tick & 8) == 0 → lit, otherwise → dark.
             if (full) {
-                maxPowerTick = (maxPowerTick - 1) & 0xFF;
-                final boolean flashLit = (maxPowerTick & 0x08) == 0;
+                maxPowerTick = (maxPowerTick - 1) & 255;
+                final boolean flashLit = (maxPowerTick & 8) == 0;
                 playerData.setPowerMeterFull(flashLit);
 
                 if (flashLit != lastPFlashLit) {

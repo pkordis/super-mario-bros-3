@@ -17,8 +17,8 @@ import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantMode.RED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The Piranha Plant's registration: "Piranha Plant - Green" ({@code $A0}) and "Piranha Plant - Red"
- * ({@code $A2}) both build a {@link PiranhaPlant}, which reads its mode in {@code configure}.
+ * The Piranha Plant's registration: "Piranha Plant - Green" and "Piranha Plant - Red" both build a
+ * {@link PiranhaPlant}, which reads its mode in {@code configure}.
  */
 class PiranhaPlantModeTest {
     private PiranhaPlantTestWorld world;
@@ -55,13 +55,13 @@ class PiranhaPlantModeTest {
     }
 
     @Test
-    @DisplayName("The modes carry the ROM's rise distances: 25 px green, 33 px red")
+    @DisplayName("The modes carry their rise distances: 25 px green, 33 px red")
     void theModesCarryTheRiseDistances() {
         // Prepare & Execute
         final PiranhaPlant green = world.plant(GREEN);
         final PiranhaPlant red = world.plant(RED);
 
-        // Verify - ObjInit_GreenPiranha / ObjInit_RedPiranha's TargetingYVal
+        // Verify
         assertThat(green.getRiseDistancePixels()).isEqualTo(25);
         assertThat(red.getRiseDistancePixels()).isEqualTo(33);
     }

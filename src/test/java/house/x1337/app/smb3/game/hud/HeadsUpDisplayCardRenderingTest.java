@@ -29,8 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * The status bar's three card boxes: a held card is drawn over its box as {@code StatusBar_DrawCardPiece} writes the
- * card's tiles (dasm prg031.asm:2810-2876), and an empty box stays as {@code hud_base.png} has it.
+ * The status bar's three card boxes: a held card is drawn over its box, and an empty box stays as
+ * {@code hud_base.png} has it.
  */
 class HeadsUpDisplayCardRenderingTest {
     private static final int[] SLOT_X = {168, 192, 216};

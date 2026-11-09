@@ -29,9 +29,8 @@ class NormalAnimatorAssetsTest {
     private static final String FRAMES_CONTEXT = "sprites/player/mario/level/normal/";
 
     /**
-     * {@code Player_HoldingFrames} for the not-small sizes (dasm prg008.asm:109):
-     * {@code $29, $2A, $2B, $2A}. Three poses on a four-beat cycle, so the second file appears twice
-     * and the animator can index it straight off the walk-frame counter with no special case.
+     * The hold cycle for the not-small sizes: three poses on a four-beat cycle, so the second file appears
+     * twice and the animator can index it straight off the walk-frame counter with no special case.
      */
     private static final List<String> HOLD_FILENAMES = List.of(
         "holding_1.png",
@@ -97,7 +96,7 @@ class NormalAnimatorAssetsTest {
     @DisplayName("The hold cycle is four beats over three poses, with the second pose repeated")
     void theHoldCycleRepeatsItsSecondPose() {
         // The repeat is shipped as a real asset reference rather than left to the animator, so a plain
-        // linear walk of the array reproduces the ROM's asymmetric $29 -> $2A -> $2B -> $2A. Collapsing
+        // linear walk of the array reproduces the asymmetric pose 1 -> 2 -> 3 -> 2 cycle. Collapsing
         // it to three entries would silently turn the cycle symmetric.
         assertThat(HOLD_FILENAMES).as("a four-beat cycle").hasSize(4);
         assertThat(HOLD_FILENAMES.get(3))
@@ -129,8 +128,8 @@ class NormalAnimatorAssetsTest {
     @Test
     @DisplayName("The kick frame needs the full canvas, because the foot reaches past the body")
     void theKickFrameUsesTheFullCanvas() throws IOException {
-        // PF_KICK_BIG is the one big-Mario pose wider than the body: prg029.asm:688 pulls a third
-        // top-row sprite down into the bottom row to become the extended foot.
+        // The kick is the one big-Mario pose wider than the body: a third top-row sprite is pulled down
+        // into the bottom row to become the extended foot.
         final BufferedImage frame = readFrame(KICK_FILENAME);
 
         assertThat(frame.getWidth()).as("%s fills the canvas", KICK_FILENAME).isEqualTo(CANVAS_WIDTH);

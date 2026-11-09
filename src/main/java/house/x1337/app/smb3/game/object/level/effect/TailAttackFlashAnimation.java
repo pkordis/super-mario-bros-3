@@ -49,8 +49,8 @@ public final class TailAttackFlashAnimation implements Animation {
         final AnimationImageResource animationFrames
     ) {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
-        // Not rootNode: the flash goes into the overlay rendered after the whole game scene, because the
-        // ROM gives it Sprite_RAM slot 0 and no depth in the main scene's sort can guarantee that.
+        // Not rootNode: the flash goes into the overlay rendered after the whole game scene, because it must be
+        // drawn in front of every other sprite and no depth in the main scene's sort can guarantee that.
         this.overlay = getBean(ForemostSpriteOverlay.class);
         this.framesByFlip = buildTextures(animationFrames);
         this.worldOffset = WorldOffset.of(

@@ -186,7 +186,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         final int ticksSinceStart = isExitingPipe()
             ? PIPE_EXIT_TICKS_SIDE - pipeCountdown
             : PIPE_ENTRY_TICKS - pipeCountdown;
-        return (ticksSinceStart & 0x0C) >> 2;
+        return (ticksSinceStart & 12) >> 2;
     }
 
     public boolean isCarrying() {
@@ -202,12 +202,12 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     /**
-     * Advances the turn-around pose by one tick (dasm {@code DEC Player_PipeFace} @ PRG008_AF45).
+     * Advances the turn-around pose by one tick.
      *
      * <p>Called <em>after</em> the animator has run, for the same reason
-     * {@link #decrementHurtInvincibility()} is: the ROM decrements it inside the frame-selection code,
-     * one instruction after the test that chose the face-forward frame, so this tick's pose belongs to
-     * the pre-decrement value.
+     * {@link #decrementHurtInvincibility()} is: the counter is decremented inside the frame selection,
+     * right after the test that chose the face-forward frame, so this tick's pose belongs to the
+     * pre-decrement value.
      */
     public void decrementTurnAroundFace() {
         if (turnAroundFaceCounter > 0) {
@@ -230,7 +230,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         return growShrinkCounter > 0;
     }
 
-    /** Advances the grow transition by one frame (dasm {@code DEC Player_Grow}). */
+    /** Advances the grow transition by one frame. */
     public void decrementGrow() {
         if (growShrinkCounter > 0) {
             growShrinkCounter--;
@@ -242,7 +242,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         return poofCounter > 0;
     }
 
-    /** Advances the poof transition by one frame (dasm {@code DEC Player_SuitLost}). */
+    /** Advances the poof transition by one frame. */
     public void decrementPoof() {
         if (poofCounter > 0) {
             poofCounter--;
@@ -257,13 +257,11 @@ public class PlayerRuntimeState implements KillTallyAware {
     /**
      * Whether the player sprite is drawn on this tick, given the flashing invincibility phase.
      *
-     * <p>Mirrors {@code Player_Draw} @ PRG029_CEC8 exactly, including the read order: the ROM loads the
-     * counter, decrements <em>memory</em>, then masks the value it had already loaded — so the phase
-     * belongs to the pre-decrement value. {@link #decrementHurtInvincibility} is therefore called after
-     * this, not before.
+     * <p>The read order matters: the counter is read, then decremented, and the phase mask is applied to
+     * the value read before the decrement, so the phase belongs to the pre-decrement value.
+     * {@link #decrementHurtInvincibility} is therefore called after this, not before.
      *
-     * <p>A player who fell into a pit is never drawn: {@code Player_Die_FellOff} (prg029) only waits out
-     * its countdown.
+     * <p>A player who fell into a pit is never drawn: that death only waits out its countdown.
      *
      * @return {@code true} to draw the player, {@code false} to skip it this tick
      */
@@ -274,7 +272,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         return !isHurtInvincible() || (hurtInvincibilityCounter & INVINCIBILITY_BLANK_PHASE_MASK) == 0;
     }
 
-    /** Advances the flashing invincibility by one frame (dasm {@code DEC Player_FlashInv}). */
+    /** Advances the flashing invincibility by one frame. */
     public void decrementHurtInvincibility() {
         if (hurtInvincibilityCounter > 0) {
             hurtInvincibilityCounter--;
@@ -289,7 +287,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     /**
-     * Engages ducking (dasm: {@code Player_IsDucking = suit value}).
+     * Engages ducking.
      * Called when the player is grounded and DOWN is held.
      */
     public void duck() {
@@ -297,7 +295,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     /**
-     * Disengages ducking (dasm: {@code Player_IsDucking = 0}).
+     * Disengages ducking.
      * Called when the player lands with DOWN released, or when forced
      * by size change / holding / sliding conditions.
      */

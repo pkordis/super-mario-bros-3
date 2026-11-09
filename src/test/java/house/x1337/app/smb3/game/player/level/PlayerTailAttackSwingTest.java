@@ -29,20 +29,17 @@ import static org.mockito.Mockito.when;
 /**
  * Where the tail swing strikes, and who owns the facing while it runs.
  *
- * <p>Every tail geometry the ROM computes is keyed off {@code Player_FlipBits} — the <b>drawn</b> facing
- * — and never off the player's intent:
+ * <p>Every tail geometry is keyed off the <b>drawn</b> facing and never off the player's intent:
  *
  * <ul>
- *   <li>{@code Player_TailAttackXOff} (dasm prg000 @ PRG000_DB2F) is indexed by the flip bit, and the
- *       unflipped (left-facing) entry is {@code +$11}: the box sits <b>behind</b> the drawn facing, where
- *       the tail actually is.</li>
- *   <li>{@code Player_TailAttackAnim} (prg008 @ PRG008_B103) EORs {@code SPR_HFLIP} on counter
- *       {@code $0B} and back on {@code $03}, so the sprite spins mid-swing — and the two strike frames
- *       straddle that flip ({@code $0C} before, {@code $09} after). The swing therefore covers both sides
- *       of the player: behind first, in front second.</li>
- *   <li>The pad's facing update is skipped for the entire countdown (prg008 @ PRG008_AE11), which is what
- *       lets the spin survive a held direction — and stops a held direction from dragging the hitbox onto
- *       the wrong side mid-swing.</li>
+ *   <li>The tail box's X offset is picked by the drawn facing, and the left-facing offset is {@code +17}: the
+ *       box sits <b>behind</b> the drawn facing, where the tail actually is.</li>
+ *   <li>The swing mirrors the sprite on counter {@code 11} and back on {@code 3}, so the sprite spins
+ *       mid-swing — and the two strike frames straddle that flip ({@code 12} before, {@code 9} after). The
+ *       swing therefore covers both sides of the player: behind first, in front second.</li>
+ *   <li>The pad's facing update is skipped for the entire countdown, which is what lets the spin survive a
+ *       held direction — and stops a held direction from dragging the hitbox onto the wrong side
+ *       mid-swing.</li>
  * </ul>
  */
 class PlayerTailAttackSwingTest {
@@ -50,18 +47,18 @@ class PlayerTailAttackSwingTest {
     private static final double PLAYER_X = 160;
     private static final double PLAYER_Y = 96;
 
-    /** {@code Player_TailAttackXOff}: {@code +$11} behind left-facing art, {@code -$0A} behind right. */
+    /** Tail box X offset: {@code +17} behind left-facing art, {@code -10} behind right. */
     private static final double BOX_OFFSET_BEHIND_LEFT_FACING = 17;
     private static final double BOX_OFFSET_BEHIND_RIGHT_FACING = -10;
     private static final double BOX_WIDTH = 10;
 
-    /** {@code Temp_Var7 = Player_SpriteY + $10}, {@code Temp_Var8 = $0F}. */
+    /** The tail box starts 16 px below the sprite's top and is 15 px tall. */
     private static final double BOX_TOP_OFFSET = 16;
     private static final double BOX_HEIGHT = 15;
 
-    private static final int STRIKE_FRAME_EARLY = 0x0C;
-    private static final int STRIKE_FRAME_LATE = 0x09;
-    private static final int SWING_START = 0x12;
+    private static final int STRIKE_FRAME_EARLY = 12;
+    private static final int STRIKE_FRAME_LATE = 9;
+    private static final int SWING_START = 18;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -96,7 +93,7 @@ class PlayerTailAttackSwingTest {
         // Prepare
         final LevelScenePlayer player = raccoonFacing(RIGHT);
 
-        // Execute - $0C, before the sprite is mirrored
+        // Execute - 12, before the sprite is mirrored
         atSwingFrame(player, STRIKE_FRAME_EARLY);
 
         // Verify - the tail is still trailing behind him, and so is the box
@@ -104,7 +101,7 @@ class PlayerTailAttackSwingTest {
         assertThat(player.getTailAttackSwingFacing()).isEqualTo(RIGHT);
         assertBoxSpans(player.getTailAttackBounds(), BOX_OFFSET_BEHIND_RIGHT_FACING);
 
-        // Execute - $09, after the mirror
+        // Execute - 9, after the mirror
         atSwingFrame(player, STRIKE_FRAME_LATE);
 
         // Verify - swung round to the front
@@ -128,23 +125,23 @@ class PlayerTailAttackSwingTest {
     }
 
     @Test
-    @DisplayName("The swing is drawn mirrored only on the counter range the ROM EORs over")
-    void theMirrorCoversExactlyTheRomsFlipWindow() {
+    @DisplayName("The swing is drawn mirrored only on the counter range of its flip window")
+    void theMirrorCoversExactlyTheFlipWindow() {
         // Prepare
         final LevelScenePlayer player = raccoonFacing(RIGHT);
 
-        // Execute & Verify - EOR lands on $0B and is undone on $03
+        // Execute & Verify - the mirror lands on 11 and is undone on 3
         atSwingFrame(player, SWING_START);
         assertThat(player.getTailAttackSwingFacing()).as("Not yet mirrored").isEqualTo(RIGHT);
 
-        atSwingFrame(player, 0x0B);
-        assertThat(player.getTailAttackSwingFacing()).as("Mirrored from $0B").isEqualTo(LEFT);
+        atSwingFrame(player, 11);
+        assertThat(player.getTailAttackSwingFacing()).as("Mirrored from 11").isEqualTo(LEFT);
 
-        atSwingFrame(player, 0x04);
-        assertThat(player.getTailAttackSwingFacing()).as("Still mirrored at $04").isEqualTo(LEFT);
+        atSwingFrame(player, 4);
+        assertThat(player.getTailAttackSwingFacing()).as("Still mirrored at 4").isEqualTo(LEFT);
 
-        atSwingFrame(player, 0x03);
-        assertThat(player.getTailAttackSwingFacing()).as("Mirrored back on $03").isEqualTo(RIGHT);
+        atSwingFrame(player, 3);
+        assertThat(player.getTailAttackSwingFacing()).as("Mirrored back on 3").isEqualTo(RIGHT);
 
         atSwingFrame(player, 0);
         assertThat(player.getTailAttackSwingFacing()).as("And after the swing").isEqualTo(RIGHT);
@@ -160,7 +157,7 @@ class PlayerTailAttackSwingTest {
         atSwingFrame(player, STRIKE_FRAME_LATE);
         final AxisAlignedBoundingBox bounds = player.getTailAttackBounds();
 
-        // Verify - Player_SpriteY + $10, height $0F: waist to just above the feet, never the chest
+        // Verify - sprite top + 16, height 15: waist to just above the feet, never the chest
         assertThat(bounds.top()).isCloseTo(PLAYER_Y + BOX_TOP_OFFSET, within(TOLERANCE));
         assertThat(bounds.bottom()).isCloseTo(PLAYER_Y + BOX_TOP_OFFSET + BOX_HEIGHT, within(TOLERANCE));
     }
@@ -168,7 +165,7 @@ class PlayerTailAttackSwingTest {
     @Test
     @DisplayName("The block probe stays in front of the player, since it only fires after the mirror")
     void blockProbeLandsInFrontOfThePlayer() {
-        // Prepare - Player_TailAttack_HitBlocks runs on $09 alone, which is inside the flip window, so
+        // Prepare - the tail hits blocks on 9 alone, which is inside the flip window, so
         // the behind-the-drawn-facing offset resolves to the tile the player is facing.
         final LevelScenePlayer player = raccoonFacing(RIGHT);
 
@@ -184,7 +181,7 @@ class PlayerTailAttackSwingTest {
     @Test
     @DisplayName("A direction held during the swing cannot steer it")
     void heldDirectionCannotSteerTheSwing() {
-        // Prepare - mid-swing, with LEFT held: the ROM skips the pad's facing update for the whole
+        // Prepare - mid-swing, with LEFT held: the pad's facing update is skipped for the whole
         // countdown, so neither the sprite nor the hitbox may turn round with the player's intent
         final LevelScenePlayer player = raccoonFacing(RIGHT);
         atSwingFrame(player, STRIKE_FRAME_EARLY);
@@ -209,11 +206,11 @@ class PlayerTailAttackSwingTest {
     @Test
     @DisplayName("The swing counter keeps ticking after the suit is lost, so the facing unfreezes")
     void theCounterRunsDownEvenWithoutATailAndFreesTheFacing() {
-        // Prepare — the state a hit taken mid-swing leaves behind: the counter survives the hurt (the
-        // ROM's Player_GetHurt never writes it), and the poof has since made the player tailless. The
-        // counter block the ROM runs it down with (prg008 @ PRG008_A1DE) is outside Player_Update and
-        // outside every halt, so losing the tail must not strand it — while it is nonzero the pad cannot
-        // turn the player, and a stranded counter means a sprite that never mirrors again.
+        // Prepare — the state a hit taken mid-swing leaves behind: the counter survives the hurt (getting
+        // hurt never writes it), and the poof has since made the player tailless. The counter is run down
+        // outside the player's update and outside every halt, so losing the tail must not strand it — while
+        // it is nonzero the pad cannot turn the player, and a stranded counter means a sprite that never
+        // mirrors again.
         final LevelScenePlayer player = raccoonFacing(RIGHT);
         atSwingFrame(player, STRIKE_FRAME_LATE);
         player.setMode(NORMAL);

@@ -25,23 +25,23 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The wing flap runs off {@code Objects_Var3}, which is deliberately <b>not</b> the body clock: the body
- * frame is {@code (Counter_1 >> 3) & 1} (an unconditional 8-tick toggle) while {@code Var3} advances
- * {@code +1} a frame, {@code +3} while rising out of the big hop, and is pinned to {@code 0} on the
- * ground between hop cycles (dasm prg004.asm:3043-3058 and :3084).
+ * The wing flap runs off the wing clock, which is deliberately <b>not</b> the body clock: the body
+ * frame is {@code (levelFrameCounter >> 3) & 1} (an unconditional 8-tick toggle) while the wing clock
+ * advances {@code +1} a frame, {@code +3} while rising out of the big hop, and is pinned to {@code 0} on
+ * the ground between hop cycles.
  */
 class ParaGoombaWingClockTest {
     private static final int COLUMNS = 24;
     private static final int ROWS = 12;
     private static final int WALK_FRAME_COUNT = 2;
 
-    /** {@code Objects_Var3 & $08} - 8 ticks raised, 8 ticks lowered. */
+    /** {@code wingClock & 8} - 8 ticks raised, 8 ticks lowered. */
     private static final int WING_FLAP_HALF_PERIOD = 8;
 
     /** {@code Goomba.TICKS_PER_WALK_FRAME}, the body's own cadence. */
     private static final int TICKS_PER_BODY_FRAME = 8;
 
-    private static final int BIG_HOP_YVEL = -0x30;
+    private static final int BIG_HOP_Y_VELOCITY = -48;
 
     private static final int FLOOR_ROW = 10;
     private static final int REST_ROW = FLOOR_ROW - 1;
@@ -93,21 +93,21 @@ class ParaGoombaWingClockTest {
     @Test
     @DisplayName("The wings beat 8 ticks up and 8 ticks down off their own clock")
     void wingsBeatEveryEightTicks() {
-        // Prepare - the first little hop is airborne for 17 ticks, so Var3 runs unpinned throughout
+        // Prepare - the first little hop is airborne for 17 ticks, so the wing clock runs unpinned throughout
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
         tick(paraGoomba, 1);
         assertThat(paraGoomba.getWingClock()).as("Pinned to 0 on the launching tick").isZero();
         assertThat(paraGoomba.isWingUp()).isFalse();
 
-        // Execute & Verify - Var3 climbs 1 a tick through the hop, flipping the $08 bit every 8
+        // Execute & Verify - the wing clock climbs 1 a tick through the hop, flipping its 8 bit every 8
         tick(paraGoomba, WING_FLAP_HALF_PERIOD - 1);
         assertThat(paraGoomba.getWingClock()).isEqualTo(7);
         assertThat(paraGoomba.isWingUp()).as("Still lowered on the 7th tick").isFalse();
 
         tick(paraGoomba, 1);
         assertThat(paraGoomba.getWingClock()).isEqualTo(WING_FLAP_HALF_PERIOD);
-        assertThat(paraGoomba.isWingUp()).as("Raised as the $08 bit comes in").isTrue();
+        assertThat(paraGoomba.isWingUp()).as("Raised as the 8 bit comes in").isTrue();
 
         tick(paraGoomba, WING_FLAP_HALF_PERIOD);
         assertThat(paraGoomba.getWingClock()).isEqualTo(WING_FLAP_HALF_PERIOD * 2);
@@ -117,12 +117,12 @@ class ParaGoombaWingClockTest {
     @Test
     @DisplayName("The wings beat three times faster than normal while rising out of the big hop")
     void wingsBeatFasterWhileRisingOutOfTheBigHop() {
-        // Prepare - Var4 is back to 0 for the big hop, which is the condition the extra pair of INCs
-        // hangs off; during the little hops Var4 is 1-3 and the clock runs at the plain rate.
+        // Prepare - the hop counter is back to 0 for the big hop, which is the condition the extra +2
+        // hangs off; during the little hops the hop counter is 1-3 and the clock runs at the plain rate.
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
         tickUntilBigHopLaunch(paraGoomba, 300);
-        assertThat(paraGoomba.getHopCounter()).as("Var4 reset by the big hop").isZero();
+        assertThat(paraGoomba.getHopCounter()).as("Hop counter reset by the big hop").isZero();
 
         // Execute - one tick into the climb
         final int clockAtLaunch = paraGoomba.getWingClock();
@@ -131,7 +131,7 @@ class ParaGoombaWingClockTest {
 
         // Verify - +2 extra on top of the unconditional +1
         assertThat(paraGoomba.getVelocity().y()).as("Still rising").isNegative();
-        assertThat(risingStep).as("Var3 += 3 a tick on the way up").isEqualTo(3);
+        assertThat(risingStep).as("Wing clock += 3 a tick on the way up").isEqualTo(3);
 
         // Execute - carry on to the top of the climb and past it
         tickUntilFalling(paraGoomba, 60);
@@ -184,7 +184,7 @@ class ParaGoombaWingClockTest {
     @Test
     @DisplayName("The wings are held still and lowered while the big hop's cooldown runs down")
     void wingsAreStillWhileWaitingOutTheCooldown() {
-        // Prepare - land the big hop, so Var4 is 0 and every grounded tick re-zeroes Var3
+        // Prepare - land the big hop, so the hop counter is 0 and every grounded tick re-zeroes the wing clock
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.faceClosestPlayer();
         tickUntilBigHopLaunch(paraGoomba, 300);
@@ -195,7 +195,7 @@ class ParaGoombaWingClockTest {
             paraGoomba.motionUpdate();
             assertThat(paraGoomba.getHopCooldownTicks()).as("Still in the cooldown").isPositive();
             assertThat(paraGoomba.getPosition().y()).as("Sitting on the floor").isEqualTo(REST_ROW_PIXEL_Y);
-            assertThat(paraGoomba.getWingClock()).as("Var3 = 0 on grounded tick %d", tick + 1).isZero();
+            assertThat(paraGoomba.getWingClock()).as("Wing clock = 0 on grounded tick %d", tick + 1).isZero();
             assertThat(paraGoomba.isWingUp()).as("So the wings stay folded").isFalse();
         }
     }
@@ -207,7 +207,7 @@ class ParaGoombaWingClockTest {
     private void tickUntilBigHopLaunch(final ParaGoomba paraGoomba, final int limit) {
         for (int tick = 0; tick < limit; tick++) {
             paraGoomba.motionUpdate();
-            if (paraGoomba.isGroundContact() && paraGoomba.getVelocity().y() == BIG_HOP_YVEL) {
+            if (paraGoomba.isGroundContact() && paraGoomba.getVelocity().y() == BIG_HOP_Y_VELOCITY) {
                 return;
             }
         }

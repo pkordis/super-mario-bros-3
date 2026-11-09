@@ -25,14 +25,14 @@ class PowerSwitchTimeWindowTest {
     }
 
     @Test
-    @DisplayName("The window lasts exactly 512 ticks — $80 counts of 4 frames each")
+    @DisplayName("The window lasts exactly 512 ticks — 128 counts of 4 frames each")
     void windowLastsFiveHundredAndTwelveTicks() {
         // Prepare
         final PowerSwitchTimeWindow pSwitch = new PowerSwitchTimeWindow();
         pSwitch.activate();
 
         // Execute & Verify
-        assertThat(TOTAL_TICKS).as("Ported duration").isEqualTo(512);
+        assertThat(TOTAL_TICKS).as("Duration").isEqualTo(512);
         for (int tick = 1; tick < TOTAL_TICKS; tick++) {
             pSwitch.tick();
             assertThat(pSwitch.isActive()).as("Still active at tick %d", tick).isTrue();

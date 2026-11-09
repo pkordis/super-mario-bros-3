@@ -15,9 +15,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The line a pit death is measured against (dasm prg008 @ PRG008_A3FA: the sprite's top on screen line
- * 192, the bottom of the playfield): the lower of the level's bottom and the view's bottom. The view is
- * 12 rows, 192 px, tall.
+ * The line a pit death is measured against (the sprite's top on screen line 192, the bottom of the
+ * playfield): the lower of the level's bottom and the view's bottom. The view is 12 rows, 192 px, tall.
  */
 class CameraStateVisibleBottomTest {
     private static final double VIEW_HEIGHT_PIXELS = 192;
@@ -60,7 +59,7 @@ class CameraStateVisibleBottomTest {
 
     @ParameterizedTest(name = "Sprite top {0}")
     @CsvSource({"-500", "-16", "0"})
-    @DisplayName("Nothing above the view ever counts, which is the ROM's Player_AboveTop gate")
+    @DisplayName("Nothing above the view ever counts")
     void nothingAboveTheViewCounts(final double spriteTop) {
         // Prepare
         final CameraState cameraState = cameraOver(27, 240, 432);

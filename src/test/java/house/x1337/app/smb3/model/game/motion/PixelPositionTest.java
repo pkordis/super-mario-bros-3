@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.within;
 
 /**
  * The sprite-pixel position every active object carries: Y grows down, one tile is 16 pixels, and
- * the sub-pixel remainder lives in the {@code double} rather than in a ROM-style fraction
+ * the sub-pixel remainder lives in the {@code double} rather than in a separate fraction
  * accumulator.
  */
 class PixelPositionTest {
@@ -48,7 +48,7 @@ class PixelPositionTest {
     @Test
     @DisplayName("Offsetting by a delta is how an inset collision box is anchored")
     void offsettingByADeltaAnchorsAnInsetBox() {
-        // Prepare - the Goomba's Object_BoundBox row 01 inset
+        // Prepare - the Goomba's collision box inset
         final PixelPosition spriteTopLeft = new PixelPosition(64.0, 32.0);
 
         // Execute

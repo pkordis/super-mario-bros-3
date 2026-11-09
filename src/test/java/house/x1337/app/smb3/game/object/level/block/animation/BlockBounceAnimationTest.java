@@ -47,7 +47,7 @@ class BlockBounceAnimationTest {
     private static final int[] TRACED_BOUNCE_HEIGHTS = {0, 4, 7, 9, 10, 10, 9, 7, 4, 0};
 
     /** Colour written into the block's cell before the bounce borrows it. */
-    private static final byte TILE_MARKER = (byte) 0x7B;
+    private static final byte TILE_MARKER = (byte) 123;
 
     private Node rootNode;
     private Image bakedLayerImage;

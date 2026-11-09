@@ -56,16 +56,16 @@ public interface LevelScenePlayerPipeUsingCapabilities
      * {@code IN_AND_OUT} portal and holds its direction.
      *
      * <ul>
-     *   <li>Never while tail attacking or already in a pipe (prg008.asm:6135-6138, 6285-6286).</li>
-     *   <li><b>Side pipe</b> (grounded): the tile in front of the feet ({@code Level_Tile_InFL}) is a vertical
-     *   portal's anchor and the {@code Pipe_PadDirForEnter} direction is held. No alignment window.</li>
-     *   <li><b>Upright pipe</b> (grounded, checked when the side pipe test fails): the left foot's tile
-     *   ({@code Level_Tile_GndL}) is a cell of a {@code DOWN} portal, DOWN is held and the player is aligned.</li>
+     *   <li>Never while tail attacking or already in a pipe.</li>
+     *   <li><b>Side pipe</b> (grounded): the tile in front of the feet is a vertical portal's anchor and the
+     *   direction that enters the pipe is held. No alignment window.</li>
+     *   <li><b>Upright pipe</b> (grounded, checked when the side pipe test fails): the left foot's tile is a cell of a
+     *   {@code DOWN} portal, DOWN is held and the player is aligned.</li>
      *   <li><b>Upside-down pipe</b> (airborne): the head struck the ceiling this tick, the player is not ducking,
-     *   the head tile ({@code Level_Tile_GndR} while rising) is a cell of an {@code UP} portal, UP is held and the
-     *   player is aligned.</li>
+     *   the head tile (probed while rising) is a cell of an {@code UP} portal, UP is held and the player is
+     *   aligned.</li>
      * </ul>
-     * Directions are read held ({@code Pad_Holding}), never as a fresh press.
+     * Directions are read held, never as a fresh press.
      *
      * @return {@code true} when the player started going into a pipe
      */
@@ -229,8 +229,8 @@ public interface LevelScenePlayerPipeUsingCapabilities
         }
 
         advanceAnimation();
-        // Player_Draw is where the ROM decrements Player_FlashInv, and it is not called once a side pipe hides the
-        // player
+        // The hurt-flash countdown only runs while the player is drawn, and a side pipe stops drawing the player
+        // once it hides them
         if (!runtimeState.isHiddenInPipe()) {
             runtimeState.decrementHurtInvincibility();
         }
@@ -272,8 +272,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
         final PlayerPosition position = getPosition();
         position.snapshotPrevious();
 
-        // The exit starts once the screen has faded back in: Palette_FadeIn runs to the end before Level_MainLoop
-        // (dasm prg030 PRG030_8B9A)
+        // The exit starts once the screen has faded back in: gameplay stays halted until the fade-in ends
         if (getGameEngine().getFadingEngine().isHaltingGameplay()) {
             return;
         }

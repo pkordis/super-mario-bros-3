@@ -27,10 +27,10 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
 import static house.x1337.app.smb3.enumeration.VirtualLevelObjectType.LEVEL_COMPLETION_CARD;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_HEIGHT;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_LEFT;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_TOP;
-import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUND_BOX_WIDTH;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_HEIGHT;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_LEFT;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_TOP;
+import static house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject.POWER_UP_BOUNDING_BOX_WIDTH;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Getter
@@ -124,13 +124,13 @@ public final class LevelCompletionCard implements ActiveLevelObject, GameRendere
     @Override
     public AxisAlignedBoundingBox getBounds() {
         final PixelPosition position = getPosition();
-        final double inclusiveLeft = position.x() + POWER_UP_BOUND_BOX_LEFT;
-        final double inclusiveTop = position.y() + POWER_UP_BOUND_BOX_TOP;
+        final double inclusiveLeft = position.x() + POWER_UP_BOUNDING_BOX_LEFT;
+        final double inclusiveTop = position.y() + POWER_UP_BOUNDING_BOX_TOP;
         return new AxisAlignedBoundingBox(
             inclusiveLeft - 1,
             inclusiveTop - 1,
-            inclusiveLeft + POWER_UP_BOUND_BOX_WIDTH + 1,
-            inclusiveTop + POWER_UP_BOUND_BOX_HEIGHT + 1
+            inclusiveLeft + POWER_UP_BOUNDING_BOX_WIDTH + 1,
+            inclusiveTop + POWER_UP_BOUNDING_BOX_HEIGHT + 1
         );
     }
 

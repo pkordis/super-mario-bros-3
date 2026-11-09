@@ -25,12 +25,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins the advanced→Normal suit loss a damaging hit causes (dasm {@code Player_GetHurt} @ PRG000_D9D3).
+ * Pins the advanced→Normal suit loss a damaging hit causes.
  *
- * <p>Three things have to happen together, and the ROM writes all three in the same breath: the shared
- * {@code Player_SuitLost} poof starts, {@code Player_QueueSuit} names Normal as where it lands, and
- * {@code Player_FlashInv} is armed. Arming it here rather than when the poof ends is safe precisely
- * because nothing decrements it while the poof is on screen — see {@link HurtInvincibilityFlickerTest}.
+ * <p>Three things have to happen together, at the same moment: the shared suit-loss poof starts, the queued
+ * suit names Normal as where it lands, and the flashing invincibility is armed. Arming it here rather than
+ * when the poof ends is safe precisely because nothing decrements it while the poof is on screen — see
+ * {@link HurtInvincibilityFlickerTest}.
  */
 class PlayerHurtDemotionTest {
     @ParameterizedTest
@@ -47,10 +47,10 @@ class PlayerHurtDemotionTest {
 
         // Verify
         assertThat(runtimeState.getPoofCounter())
-            .as("the same $17 poof the Super Leaf plays")
+            .as("The same 23-tick poof the Super Leaf plays")
             .isEqualTo(SUIT_LOSS_TRANSITION_TICKS);
         assertThat(runtimeState.getQueuedMode())
-            .as("Player_QueueSuit = $02, i.e. back to plain Super")
+            .as("Queued suit is back to plain Super")
             .isEqualTo(NORMAL);
         assertThat(runtimeState.getHurtInvincibilityCounter()).isEqualTo(HURT_INVINCIBILITY_TICKS);
         assertThat(runtimeState.isTransitioning())
@@ -64,9 +64,8 @@ class PlayerHurtDemotionTest {
     @Test
     @DisplayName("A big Normal player shrinks, riding the grow counter in reverse and flashing during it")
     void bigNormalPlayerShrinks() {
-        // The ROM shrinks Super here (PRG000_DA4E): Player_QueueSuit = $02 then DEC to small,
-        // Player_Grow = $2f (the same counter the mushroom grow uses, played backwards), and
-        // Player_FlashInv = $71. Prepare
+        // A hit shrinks Super here: the suit is queued as small, the grow counter is set to 47 (the same
+        // counter the mushroom grow uses, played backwards), and the flashing invincibility to 113. Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setTo(RUNNING);
         final LevelScenePlayer player = hurtablePlayer(NORMAL, runtimeState, positionWithVelocity(3.0, 0));
@@ -76,11 +75,11 @@ class PlayerHurtDemotionTest {
 
         // Verify
         assertThat(runtimeState.getGrowShrinkCounter())
-            .as("the same $2f counter the small→Super grow runs")
+            .as("The same 47-tick counter the small→Super grow runs")
             .isEqualTo(NORMAL_TRANSITION_TICKS);
         assertThat(runtimeState.getPoofCounter()).as("a shrink is not a poof").isZero();
         assertThat(runtimeState.getQueuedMode())
-            .as("Player_QueueSuit = $02 then DEC, i.e. down to small")
+            .as("Queued suit is down to small")
             .isEqualTo(SHRUNK);
         assertThat(runtimeState.getHurtInvincibilityCounter()).isEqualTo(HURT_INVINCIBILITY_TICKS);
         assertThat(runtimeState.isTransitioning())
@@ -94,9 +93,9 @@ class PlayerHurtDemotionTest {
     @Test
     @DisplayName("The shrink flickers the whole way: the flash advances every grow tick, unlike a poof")
     void invincibilityRunsThroughTheShrink() {
-        // A grow/shrink falls through to JSR Player_Draw every tick (prg029 @ PRG029_D224), and that is
-        // where DEC Player_FlashInv lives — so unlike the poof, the flash runs during the transition and
-        // the player visibly flickers while shrinking. Prepare
+        // A grow/shrink still draws the player every tick, and drawing the player is where the flash counts
+        // down — so unlike the poof, the flash runs during the transition and the player visibly flickers
+        // while shrinking. Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setTo(RUNNING);
         final LevelScenePlayer player = hurtablePlayer(NORMAL, runtimeState, positionWithVelocity(0, 0));
@@ -125,9 +124,9 @@ class PlayerHurtDemotionTest {
     @Test
     @DisplayName("A small player dies: the hit starts the death throe, not a shrink or a poof")
     void smallPlayerDies() {
-        // The ROM kills small here (Player_Die @ PRG000_DA8E): Player_XVel = 0, Player_YVel = -64, and
-        // Player_IsDying = 1 — no suit change, no poof, no grow counter.
-        // Prepare - running, to prove the throe zeroes horizontal motion as Player_Die does
+        // A hit kills a small player: the horizontal velocity is zeroed, the player rises at -4 px/frame and
+        // starts dying — no suit change, no poof, no grow counter.
+        // Prepare - running, to prove the throe zeroes horizontal motion
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setTo(RUNNING);
         final PlayerPosition position = positionWithVelocity(3.0, 0);
@@ -142,13 +141,13 @@ class PlayerHurtDemotionTest {
             .as("the throe opens with the still pause, body held in place before launching")
             .isTrue();
         assertThat(runtimeState.getDeathPauseCounter())
-            .as("Event_Countdown seeded to $30 = 48 ticks")
-            .isEqualTo(0x30);
+            .as("Death pause seeded to 48 ticks")
+            .isEqualTo(48);
         assertThat(runtimeState.getPoofCounter()).as("a death is not a poof").isZero();
         assertThat(runtimeState.getGrowShrinkCounter()).as("nor a shrink").isZero();
         assertThat(runtimeState.getHurtInvincibilityCounter()).as("death grants no flashing").isZero();
-        assertThat(position.getDX()).as("Player_XVel = 0").isZero();
-        assertThat(position.getDY()).as("Player_YVel = -64 = -4.0 px/frame rise").isEqualTo(-4.0);
+        assertThat(position.getDX()).as("Horizontal velocity is zeroed").isZero();
+        assertThat(position.getDY()).as("Rises at -4.0 px/frame").isEqualTo(-4.0);
     }
 
     @Test
@@ -190,7 +189,7 @@ class PlayerHurtDemotionTest {
     @Test
     @DisplayName("A hit during a transition is ignored, so the poof cannot restart itself")
     void aTransitionInProgressAbsorbsTheHit() {
-        // Prepare - mid-poof, as the ROM's Player_SuitLost / Player_HaltGame guards cover
+        // Prepare - mid-poof, which the hurt guards cover
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setPoofCounter(10);
         runtimeState.setQueuedMode(RACCOON);
@@ -235,8 +234,8 @@ class PlayerHurtDemotionTest {
     @DisplayName("The invincibility is held at full length for the whole poof, then the player is Normal")
     void invincibilityOnlyStartsOnceThePoofIsOver() {
         // This is what makes arming the counter at hurt time equivalent to arming it when the poof ends:
-        // the transition tick advances the poof and nothing else, exactly as the ROM's draw dispatcher
-        // does when it plays the cloud and returns before ever reaching Player_Draw's DEC.
+        // the transition tick advances the poof and nothing else: while the cloud plays, the player is not
+        // drawn, so the flash never counts down.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         final LevelScenePlayer player = hurtablePlayer(RACCOON, runtimeState, positionWithVelocity(0, 0));
@@ -282,8 +281,8 @@ class PlayerHurtDemotionTest {
     @Test
     @DisplayName("A hit taken at a run leaves the run intact all the way through the poof")
     void momentumSurvivesTheHitAndThePoof() {
-        // Player_GetHurt writes Player_SuitLost, Player_QueueSuit, Player_FlashInv and Player_Flip, and
-        // nothing else — notably not Player_XVel, which only Player_Die zeroes. So the speed the player
+        // Getting hurt changes the suit, the poof, the flashing invincibility and the facing, and
+        // nothing else — notably not the horizontal velocity, which only dying zeroes. So the speed the player
         // was carrying is the speed they come out of the poof with, and the P-meter keeps charging
         // because the run flag is recomputed from that velocity before anything reads it.
         // Prepare - running flat out

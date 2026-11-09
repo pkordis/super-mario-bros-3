@@ -85,9 +85,8 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLe
     }
 
     /**
-     * While gameplay is halted (dasm {@code Player_HaltGame}) the enemies and the broadphase stand still,
-     * but a caption already in flight keeps rising — the one object animation the ROM advances through
-     * the freeze.
+     * While gameplay is halted the enemies and the broadphase stand still, but a caption already in flight
+     * keeps rising — the one object animation that advances through the freeze.
      */
     @Override
     default void updateWhileHalted() {

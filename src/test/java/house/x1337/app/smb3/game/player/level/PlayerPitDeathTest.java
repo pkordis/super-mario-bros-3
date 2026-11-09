@@ -10,7 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
-import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_Y_VELOCITY;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
@@ -27,8 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The pit death itself (dasm prg008 @ PRG008_A3FA): whatever the suit, {@code Player_Die} followed by
- * {@code Player_IsDying = 2}, which skips the throe. The check that triggers it is
+ * The pit death itself: whatever the suit, the player dies with the fell-off death kind, which skips the
+ * throe. The check that triggers it is
  * {@code PlayerPitFallTest}'s subject; the ending is {@code PlayerDeathEventChainTest}'s.
  */
 class PlayerPitDeathTest {
@@ -48,11 +48,11 @@ class PlayerPitDeathTest {
 
         // Verify
         assertThat(runtimeState.isDying()).as("Dying").isTrue();
-        assertThat(runtimeState.getDeathKind()).as("Player_IsDying = 2").isEqualTo(FELL_OFF);
+        assertThat(runtimeState.getDeathKind()).as("Fell off").isEqualTo(FELL_OFF);
         assertThat(runtimeState.isDeathPausing()).as("No 48-tick hang").isFalse();
-        assertThat(position.getDX()).as("Player_Die zeroes XVel").isCloseTo(0.0, within(TOLERANCE));
+        assertThat(position.getDX()).as("Dying zeroes the horizontal velocity").isCloseTo(0.0, within(TOLERANCE));
         assertThat(position.getDY()).as("No rise velocity").isCloseTo(0.0, within(TOLERANCE));
-        assertThat(runtimeState.isSpriteDrawnThisTick()).as("Player_Die_FellOff draws nothing").isFalse();
+        assertThat(runtimeState.isSpriteDrawnThisTick()).as("A pit death draws nothing").isFalse();
         verify(player).announceDeath(FELL_OFF);
     }
 
@@ -71,7 +71,7 @@ class PlayerPitDeathTest {
         // Verify
         assertThat(hurtableBefore).as("The flashing shields it from a hit").isFalse();
         assertThat(runtimeState.getDeathKind()).as("But not from a pit").isEqualTo(FELL_OFF);
-        assertThat(runtimeState.getHurtInvincibilityCounter()).as("Player_Die clears Player_FlashInv").isZero();
+        assertThat(runtimeState.getHurtInvincibilityCounter()).as("Dying ends the flashing").isZero();
     }
 
     @Test
@@ -81,7 +81,7 @@ class PlayerPitDeathTest {
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setCarriedObject(mock(CarriableLevelObject.class));
         runtimeState.setTo(FLYING);
-        runtimeState.setPlayerFlyTime(0x40);
+        runtimeState.setPlayerFlyTime(64);
         runtimeState.setPlayerWagCount(8);
         runtimeState.setPlayerTailAttackCountdown(6);
         final LevelScenePlayer player = playerIn(RACCOON, runtimeState, positionWithVelocity(1.0, 1.0));
@@ -111,7 +111,7 @@ class PlayerPitDeathTest {
         // Verify
         assertThat(runtimeState.getDeathKind()).as("Still the throe").isEqualTo(THROE);
         assertThat(runtimeState.getDeathPauseCounter()).isEqualTo(PLAYER_DEATH_PAUSE_TICKS);
-        assertThat(position.getDY()).isCloseTo(PLAYER_DEATH_RISE_YVEL, within(TOLERANCE));
+        assertThat(position.getDY()).isCloseTo(PLAYER_DEATH_RISE_Y_VELOCITY, within(TOLERANCE));
         verify(player, times(1)).announceDeath(THROE);
         verify(player, never()).announceDeath(FELL_OFF);
     }
@@ -144,7 +144,7 @@ class PlayerPitDeathTest {
         // Verify
         assertThat(runtimeState.getDeathKind()).isEqualTo(THROE);
         assertThat(runtimeState.isDeathPausing()).isTrue();
-        assertThat(position.getDY()).isCloseTo(PLAYER_DEATH_RISE_YVEL, within(TOLERANCE));
+        assertThat(position.getDY()).isCloseTo(PLAYER_DEATH_RISE_Y_VELOCITY, within(TOLERANCE));
         assertThat(runtimeState.isSpriteDrawnThisTick()).as("The dead frame is drawn").isTrue();
         verify(player).announceDeath(THROE);
     }

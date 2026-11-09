@@ -36,41 +36,39 @@ import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.NONE;
 
 /**
- * The level's completion, from the card touch to the level's end, as the end-level card object runs it in the ROM
- * ({@code ObjNorm_EndLevelCard}, dasm prg002.asm:5367-5385) when the cards are not a triple match.
+ * The level's completion, from the card touch to the level's end, as the end-level card runs it when the cards are
+ * not a triple match.
  *
  * <ol>
- *     <li>The touch ({@code ObjHit_EndLevelCard}, prg002.asm:6146-6292): see {@link #collect}.</li>
- *     <li>State 4, the card's flight ({@code EndLevelCard_WaitFlyAway}, prg002.asm:5630-5649): until the card is off
- *         the top of the screen ({@link CardFlight}). Then state 5 starts with a {@link #COURSE_CLEAR_TICKS} timer.
- *         </li>
- *     <li>State 5 ({@code EndLevelCard_MsgAndCard}, prg002.asm:5676-5755): one {@link TimeBonus} step per tick once
- *         the course-clear music has ended. It ends when the timer is 0, the clock is all converted and the player
- *         is at the exit. Then state 7 starts with an {@link #EXIT_TICKS} timer.</li>
- *     <li>State 7 ({@code EndLevelCard_Exit}, prg002.asm:5808-5829): when the timer runs out, three held cards are
- *         cleared and the level ends ({@link LevelCompleted}).</li>
+ *     <li>The touch: see {@link #collect}.</li>
+ *     <li>State 4, the card's flight: until the card is off the top of the screen ({@link CardFlight}). Then state 5
+ *         starts with a {@link #COURSE_CLEAR_TICKS} timer.</li>
+ *     <li>State 5: one {@link TimeBonus} step per tick once the course-clear music has ended. It ends when the timer
+ *         is 0, the clock is all converted and the player is at the exit. Then state 7 starts with an
+ *         {@link #EXIT_TICKS} timer.</li>
+ *     <li>State 7: when the timer runs out, three held cards are cleared and the level ends
+ *         ({@link LevelCompleted}).</li>
  * </ol>
  *
- * <p>Like the ROM's {@code Objects_Timer}, the state timer goes down at the start of every tick that is not halted
- * (prg000.asm:1849-1855), before the state runs. In states 4 and 5 the player is halted once it reaches the exit,
- * sprite X 32 on the screen ({@code EndLevelCard_PlayerRunOff}, prg002.asm:5651-5671): it has walked off the right
- * of the screen and the 8-bit sprite X has wrapped round.
+ * <p>Like every object timer, the state timer goes down at the start of every tick that is not halted, before the
+ * state runs. In states 4 and 5 the player is halted once it reaches the exit, screen X 32: it has walked off the
+ * right of the screen and its screen X, kept to 0-255, has wrapped round.
  */
 @Getter
 @Prototype
 public final class LevelCompletion implements GameEngineAware {
-    /** State 5's timer, set as the card leaves the screen (dasm prg002.asm:5640-5642). */
-    static final int COURSE_CLEAR_TICKS = 0x60;
+    /** State 5's timer, set as the card leaves the screen. */
+    static final int COURSE_CLEAR_TICKS = 96;
 
-    /** State 7's timer (dasm prg002.asm:5797-5799). */
-    static final int EXIT_TICKS = 0x80;
+    /** State 7's timer. */
+    static final int EXIT_TICKS = 128;
 
-    /** {@code Player_SpriteX / 2 == $10} (dasm prg002.asm:5663-5666): screen X 32 or 33. */
-    static final int EXIT_SPRITE_X = 0x20;
+    /** Screen X 32 or 33: the player's screen X halved equals this value halved. */
+    static final int EXIT_SPRITE_X = 32;
 
-    private static final int SPRITE_X_MASK = 0xFF;
+    private static final int SPRITE_X_MASK = 255;
 
-    /** The NES screen's width, and the lines below its top that count as on screen (dasm prg000.asm:5166-5168). */
+    /** The screen's width, and the lines below its top that count as on screen. */
     static final int SCREEN_WIDTH_PIXELS = 256;
     static final int SCREEN_LINES = 240;
 
@@ -172,7 +170,7 @@ public final class LevelCompletion implements GameEngineAware {
     }
 
     private void tickCardFlyingOff() {
-        // Objects_SprVVis is worked out before the card moves on this frame
+        // The card's visibility is worked out before it moves on this frame
         final boolean offScreen = cardFlight.isAboveTheTopOf(screenTop());
         cardFlight.advance();
         if (offScreen) {
@@ -184,7 +182,7 @@ public final class LevelCompletion implements GameEngineAware {
 
     private void tickCourseClear() {
         haltThePlayerAtTheExit();
-        // DoTimeBonus reports "not done" while the music plays, and on the frame of its last step
+        // The time bonus reports "not done" while the music plays, and on the frame of its last step
         final boolean converting = musicStandIn.isPlaying() || TimeBonus.convertStep(runningOffPlayer.getPlayerData());
         if (converting || phaseTimer > 0 || !isPlayerAtTheExit()) {
             return;
@@ -207,7 +205,7 @@ public final class LevelCompletion implements GameEngineAware {
     }
 
     /**
-     * The touch's sweep of the screen ({@code ObjHit_EndLevelCard}, dasm prg002.asm:6158-6226).
+     * The touch's sweep of the screen.
      *
      * <p>Every special-object slot is cleared: here the piranha fireballs and the switch-block puffs. Then each object
      * slot except the card's own: an object on screen pops out a coin and goes up in a poof; one off screen is just
@@ -254,8 +252,7 @@ public final class LevelCompletion implements GameEngineAware {
     }
 
     /**
-     * {@code Object_AnySprOffscreen} after {@code Object_DetermineHorzVisY} and {@code Object_DetermineVertVisY} with
-     * {@code Y = 0} (dasm prg002.asm:6174-6180): whatever the object's size, only a 16 x 16 box at its X and Y is
+     * The on-screen test for the touch's sweep: whatever the object's size, only a 16 x 16 box at its X and Y is
      * tested. Its X must be on the 256 px screen and its bottom ({@code Y + 16}) within the 240 lines below the top.
      *
      * @param position the object's top-left
@@ -302,7 +299,7 @@ public final class LevelCompletion implements GameEngineAware {
         return gameEngine.getCameraState().getActiveObjectRegion(0).top();
     }
 
-    /** Where the completion is; the ROM's {@code Objects_DetStat} for the card. */
+    /** Where the completion is; the card's state. */
     public enum Phase {
         NOT_STARTED,
         CARD_FLYING_OFF,

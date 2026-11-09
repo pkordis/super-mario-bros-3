@@ -21,7 +21,7 @@ public final class GoombaAnimator implements EnemyAnimator<GoombaAnimatorAssets,
 
     /**
      * The Goomba's sprite for this tick: the flattened frame once stomped, otherwise the current step of
-     * the walk cycle (dasm {@code ObjState_Squashed} substitutes frame 3 for the whole squish).
+     * the walk cycle (the squished frame is shown for the whole squish).
      */
     @Override
     public Texture frameTexture(final Goomba goomba) {

@@ -18,13 +18,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * How a pit death ends: {@code PlayerDeathStarted(FELL_OFF)}, then {@code PlayerDeathMusicFinished} once
- * the death music is over, then a single {@code PlayerDied}. The ROM waits {@code Event_Countdown = $C0}
- * (dasm prg008 @ PRG008_A3FA) and exits the level on the frame {@code Player_Die_FellOff} (prg029) reads
- * it as zero. Until there is a sound engine the stand-in counts that wait.
+ * the death music is over, then a single {@code PlayerDied}. The wait is 192 ticks, and the level is left
+ * on the tick that reads the count as zero. Until there is a sound engine the stand-in counts that wait.
  *
  * <p>Each tick below is one simulation tick of a halted game. The first is the tick the death began on:
  * the engine runs the player before the motion managers, so the stand-in's first count lands on the
- * death's own tick, as the ROM's first decrement does.
+ * death's own tick.
  */
 class PlayerDeathEventChainTest {
     private GameEventBus bus;
@@ -50,7 +49,7 @@ class PlayerDeathEventChainTest {
         bus.publish(new PlayerDeathStarted(FELL_OFF));
 
         // Execute & Verify - the death's own tick, then 191 more
-        assertThat(PLAYER_PIT_DEATH_COUNTDOWN_TICKS).as("Event_Countdown = $C0").isEqualTo(192);
+        assertThat(PLAYER_PIT_DEATH_COUNTDOWN_TICKS).as("The pit-death wait is 192 ticks").isEqualTo(192);
         tick(PLAYER_PIT_DEATH_COUNTDOWN_TICKS);
         assertThat(musicFinished.get()).as("Not yet").isZero();
         assertThat(standIn.isArmed()).isTrue();

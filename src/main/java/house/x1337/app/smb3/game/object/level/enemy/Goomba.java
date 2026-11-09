@@ -27,7 +27,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -46,14 +46,14 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @RequiredArgsConstructor
 public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
-    private static final int BOUND_BOX_HEIGHT = 8;
-    private static final int BOUND_BOX_LEFT_OFFSET = 1;
-    private static final int BOUND_BOX_TOP_OFFSET = 2;
-    private static final int BOUND_BOX_WIDTH = 13;
+    private static final int BOUNDING_BOX_HEIGHT = 8;
+    private static final int BOUNDING_BOX_LEFT_OFFSET = 1;
+    private static final int BOUNDING_BOX_TOP_OFFSET = 2;
+    private static final int BOUNDING_BOX_WIDTH = 13;
     private static final int MAX_FALL_FIXED_POINT = 64;
     private static final int SQUISH_TICKS = 16;
     private static final int TICKS_PER_WALK_FRAME = 8;
-    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
+    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
     @Accessors(fluent = true)
@@ -110,7 +110,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            position.plus(BOUNDING_BOX_LEFT_OFFSET, BOUNDING_BOX_TOP_OFFSET),
             BOUNDS_PIXELS
         );
     }
@@ -142,10 +142,10 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         squished = true;
         squishTicksRemaining = SQUISH_TICKS;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
-        // Halt horizontal movement, as ObjState_Squashed does on touching the ground.
+        // A squashed Goomba stops moving horizontally.
         velocity = velocity.withX(0);
         animator.applyCurrentFrame(this);
-        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
     }
 
     @Override
@@ -235,8 +235,8 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
             return;
         }
 
-        // Objects_Timer2 is run down by the central object loop (dasm prg000.asm:1862), whatever state
-        // the object is in, so it is decremented before any of the state branches below.
+        // The hit cooldown runs down whatever state the Goomba is in, so it is decremented before any of
+        // the state branches below.
         if (hitCooldownTicks > 0) {
             hitCooldownTicks--;
         }
@@ -320,7 +320,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
             return;
         }
 
-        // A tail-struck Goomba is drawn inverted (Objects_FlipBits |= SPR_VFLIP). The quad's origin is
+        // A tail-struck Goomba is drawn vertically flipped. The quad's origin is
         // its bottom-left corner, so a negative Y scale mirrors it about that edge and hangs it below the
         // anchor; lifting the translation by one quad height puts it back over the same ground. Enemy
         // sprites already render with face culling off, which is what a negative scale needs.

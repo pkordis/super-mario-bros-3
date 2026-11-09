@@ -21,9 +21,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@code SObj_PlayerCollide} (dasm prg007.asm:4772-4838) for the piranha fireball. With {@code i = 0} for a
- * small or ducking player and {@code 1} otherwise: {@code 0 <= Y + 8 - Player_Y - {18, 10}[i] < {$10, $16}[i]}
- * and {@code 0 <= X + 6 - Player_X < 16}, tested only on ticks where {@code slot + Counter_1} is odd.
+ * How the piranha fireball hits the player. With {@code i = 0} for a small or ducking player and {@code 1}
+ * otherwise: {@code 0 <= fireball Y + 8 - player Y - {18, 10}[i] < {16, 22}[i]} and
+ * {@code 0 <= fireball X + 6 - player X < 16}, tested only on ticks where {@code slot + tick counter} is odd.
  */
 class PiranhaFireballHitTest {
     private static final double PLAYER_X = 100;
@@ -51,7 +51,7 @@ class PiranhaFireballHitTest {
         // Prepare
         final LevelScenePlayer player = world.playerAt(PLAYER_X, PLAYER_Y);
 
-        // Execute & Verify - SObjYOff_PlayerSize[1] = 10, SObj_VLimit[1] = $16
+        // Execute & Verify - Y offset 10, hit height 22
         assertHit(player, PLAYER_X - 6, PLAYER_Y + 2, true);
         assertHit(player, PLAYER_X - 7, PLAYER_Y + 2, false);
         assertHit(player, PLAYER_X + 9, PLAYER_Y + 2, true);
@@ -68,7 +68,7 @@ class PiranhaFireballHitTest {
         final LevelScenePlayer player = world.playerAt(PLAYER_X, PLAYER_Y);
         when(player.isSmall()).thenReturn(true);
 
-        // Execute & Verify - SObjYOff_PlayerSize[0] = 18, SObj_VLimit[0] = $10
+        // Execute & Verify - Y offset 18, hit height 16
         assertHit(player, PLAYER_X, PLAYER_Y + 9, false);
         assertHit(player, PLAYER_X, PLAYER_Y + 10, true);
         assertHit(player, PLAYER_X, PLAYER_Y + 25, true);
@@ -165,7 +165,7 @@ class PiranhaFireballHitTest {
     void aHaltFreezesIt() {
         // Prepare
         final LevelScenePlayer player = world.playerAt(PLAYER_X, PLAYER_Y);
-        final PiranhaFireball fireball = world.spawn(PLAYER_X, PLAYER_Y + 10, 0x0B, 0);
+        final PiranhaFireball fireball = world.spawn(PLAYER_X, PLAYER_Y + 10, 11, 0);
         final double x = fireball.getPosition().x();
 
         // Execute
@@ -185,7 +185,7 @@ class PiranhaFireballHitTest {
     void itStaysOutOfTheBroadPhase() {
         // Prepare
         world.playerAt(PLAYER_X, PLAYER_Y);
-        world.spawn(PLAYER_X, PLAYER_Y + 10, 0x0B, 0);
+        world.spawn(PLAYER_X, PLAYER_Y + 10, 11, 0);
 
         // Execute
         world.tick(10);

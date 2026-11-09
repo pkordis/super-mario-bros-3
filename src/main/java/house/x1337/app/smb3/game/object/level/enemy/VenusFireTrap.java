@@ -117,7 +117,7 @@ public final class VenusFireTrap implements PiranhaPlantFamilyEnemy {
 
     @Override
     public DimensionsPixels getBoundsPixels() {
-        return new DimensionsPixels(BOUND_BOX_WIDTH, mode.getBoundBoxHeightPixels());
+        return new DimensionsPixels(BOUNDING_BOX_WIDTH, mode.getBoundingBoxHeightPixels());
     }
 
     @Override

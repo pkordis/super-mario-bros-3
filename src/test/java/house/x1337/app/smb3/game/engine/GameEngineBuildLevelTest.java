@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * How a run of the level starts: from its start (small, timer at 300), or through a level junction, where the suit and
- * the running timer carry over (dasm prg030.asm:4374-4377). Built on an engine that is never started, with the tile
+ * the running timer carry over. Built on an engine that is never started, with the tile
  * rendering and the grids left out.
  */
 class GameEngineBuildLevelTest {

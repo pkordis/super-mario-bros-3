@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The time bonus steps as {@code DoTimeBonus} does (dasm prg000.asm:603-651): 10 off and 500 points while the
- * hundreds or tens digit is non-zero, then 1 off and 50 points.
+ * The time bonus steps 10 off and 500 points while the hundreds or tens digit is non-zero, then 1 off and 50 points.
  */
 class TimeBonusTest {
     @Test

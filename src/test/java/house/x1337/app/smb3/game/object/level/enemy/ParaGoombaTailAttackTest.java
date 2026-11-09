@@ -43,15 +43,14 @@ import static org.mockito.Mockito.when;
 /**
  * A tail attack kills a Para-Goomba outright, wings and all - one hit, not two.
  *
- * <p>{@code Object_RespondToTailAttack} (dasm prg000.asm:5906) falls into {@code Enemy_Kill} with no
- * collide-table gate, so {@code $73}'s {@code OCSPECIAL_KILLCHANGETO} never fires and there is no
- * de-winged stage to survive.
+ * <p>The tail attack goes straight to the kill with no check of what the enemy turns into when stomped, so there
+ * is no de-winged stage to survive.
  *
- * <p>What the port does with it is nonetheless a <b>slot handover</b>: the Para-Goomba hands its slot to
- * a ground {@link Goomba} - the same handover the stomp performs, minus the {@code Objects_Timer2} grace
- * the kill path never sets - and that Goomba takes the blow. The corpse the ROM throws is a ground
- * Goomba's anyway: {@code KILLACT_JUSTDRAWMIRROR} (prg004.asm:328) stops running {@code ParaGoomba_Draw},
- * so the wings go, and the shared {@code ObjState_Killed} tumbles the bare body off the level. So these
+ * <p>What the code does with it is nonetheless a <b>slot handover</b>: the Para-Goomba hands its slot to
+ * a ground {@link Goomba} - the same handover the stomp performs, minus the hit cooldown
+ * the kill path never sets - and that Goomba takes the blow. The corpse thrown is a ground
+ * Goomba's anyway: a killed Para-Goomba is no longer drawn with its wings,
+ * and the shared killed state tumbles the bare body off the level. So these
  * tests assert the handover and the strike landing on the replacement; the throw itself is
  * {@code GoombaTailAttackTest}'s subject.
  */
@@ -61,11 +60,11 @@ class ParaGoombaTailAttackTest {
     private static final int ROWS = 12;
     private static final int WALK_FRAME_COUNT = 2;
 
-    /** {@code Player_X ± $10} / {@code Player_Y + $10}. */
-    private static final double TAIL_OFFSET = 0x10;
+    /** The flash's offset from the player: {@code X ± 16} / {@code Y + 16}. */
+    private static final double TAIL_OFFSET = 16;
 
-    /** {@code ObjectToObject_HitXVel}'s rightward entry, as a carried shell resolves it. */
-    private static final int SHELL_KNOCK_RIGHT = 0x08;
+    /** The rightward knock a carried shell gives the enemy it hits. */
+    private static final int SHELL_KNOCK_RIGHT = 8;
 
     private static final int FLOOR_ROW = 10;
     private static final int REST_ROW = FLOOR_ROW - 1;
@@ -163,7 +162,7 @@ class ParaGoombaTailAttackTest {
     @Test
     @DisplayName("The replacement arrives with no hit cooldown, so the strike that created it lands")
     void replacementArrivesWithoutTheStompCooldown() {
-        // Prepare - the stomp path's Objects_Timer2 = 8 would swallow the blow; the kill path sets none
+        // Prepare - the stomp path's hit cooldown of 8 would swallow the blow; the kill path sets none
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
 
         // Execute
@@ -189,7 +188,7 @@ class ParaGoombaTailAttackTest {
         // Execute
         paraGoomba.onTailAttack(playerAt((START_COLUMN - 1) * (double) TILE_SPRITE_SIZE));
 
-        // Verify - the ROM keeps the same slot, so the sub-tile position carries across
+        // Verify - the same slot is kept, so the sub-tile position carries across
         final Goomba replacement = captureSpawnedGoomba();
         assertThat(replacement.getPosition().x()).isCloseTo(struckAtX, within(TOLERANCE));
         assertThat(replacement.getPosition().y()).isCloseTo(struckAtY, within(TOLERANCE));
@@ -232,8 +231,8 @@ class ParaGoombaTailAttackTest {
 
         // Verify - the replacement spawns it, from the position it inherited
         final Coordinates spawnedAt = captureFlashOffset();
-        assertThat(spawnedAt.x()).as("Player_X + $10").isEqualTo((int) (playerX + TAIL_OFFSET));
-        assertThat(spawnedAt.y()).as("Player_Y + $10").isEqualTo((int) (REST_ROW_PIXEL_Y + TAIL_OFFSET));
+        assertThat(spawnedAt.x()).as("Player X + 16").isEqualTo((int) (playerX + TAIL_OFFSET));
+        assertThat(spawnedAt.y()).as("Player Y + 16").isEqualTo((int) (REST_ROW_PIXEL_Y + TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("Between the player and the Para-Goomba")
             .isBetween((int) playerX, (int) paraGoomba.getPosition().x() + TILE_SPRITE_SIZE);
@@ -285,7 +284,7 @@ class ParaGoombaTailAttackTest {
             deepest = max(deepest, replacement.getPosition().y());
         }
 
-        // Verify - ObjState_Killed runs Object_Move with no ground alignment
+        // Verify - the killed state moves it with no ground alignment
         assertThat(deepest)
             .as("Sank below the floor the Para-Goomba had been standing on")
             .isGreaterThan(FLOOR_ROW * (double) TILE_SPRITE_SIZE);
@@ -353,7 +352,7 @@ class ParaGoombaTailAttackTest {
     @Test
     @DisplayName("A shell rolled or carried into a Para-Goomba kills it outright, wings and all")
     void aKickedObjectKillsThroughTheReplacement() {
-        // ObjectKill_SetShellKillVars (prg000.asm:2689-2706) is state-only and knows nothing about what
+        // A shell's kill only changes the struck enemy's state and knows nothing about what
         // it is killing, so there is no de-winging branch for it to take either.
         // Prepare
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);

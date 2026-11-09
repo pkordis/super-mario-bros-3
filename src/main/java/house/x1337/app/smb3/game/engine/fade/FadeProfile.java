@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * How long a fade takes and whether the game waits for it.
  *
- * <p>Every ROM fade darkens or brightens the whole palette one brightness row ({@code $10}) per step, so only the
- * timing changes from one context to another. Four steps cover the four rows from full colour to black; a profile with
+ * <p>Every fade darkens or brightens the whole palette one brightness row per step, so only the timing changes
+ * from one context to another. Four steps cover the four rows from full colour to black; a profile with
  * more steps holds at black (or at full colour) for the rest.
  */
 @Getter

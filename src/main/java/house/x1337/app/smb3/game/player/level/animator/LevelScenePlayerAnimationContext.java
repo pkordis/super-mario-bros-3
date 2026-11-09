@@ -44,23 +44,23 @@ public class LevelScenePlayerAnimationContext {
     }
 
     public void update(final LevelScenePlayer levelScenePlayer) {
-        // The death throe owns rendering for its whole duration (dasm Player_IsDying): the dead frame
-        // (PF_DIE) replaces every other sprite until the level restarts. Checked first because a dying
+        // The death throe owns rendering for its whole duration: the dead frame replaces every other
+        // sprite until the level restarts. Checked first because a dying
         // player is neither changing size nor poofing, and nothing should ever draw it as its mode.
         if (levelScenePlayer.getRuntimeState().isDying()) {
             deathAnimator.update(levelScenePlayer);
             return;
         }
-        // The size transitions own rendering for their whole duration (dasm Player_Grow): a dedicated
+        // The size transitions own rendering for their whole duration: a dedicated
         // animator plays the size shimmer, then rendering returns to the mode animators. The one grow
         // counter runs in both directions — a small→Super grow and the Normal→Shrunk shrink a hit
-        // causes — so the queued mode is what tells the two apart (dasm reverses the frame index when
-        // the suit is small, prg029 @ PRG029_D22E).
+        // causes — so the queued mode is what tells the two apart (the frame order is reversed when
+        // the suit is small).
         if (levelScenePlayer.getRuntimeState().isChangingSize()) {
             sizeChangingAnimator.update(levelScenePlayer);
             return;
         }
-        // Likewise every suit change that is not a size change (dasm Player_SuitLost): the poof cloud
+        // Likewise every suit change that is not a size change: the poof cloud
         // replaces the player sprite until the queued mode takes effect — whether that is the Raccoon
         // suit being gained or an advanced suit being lost to a hit.
         if (levelScenePlayer.getRuntimeState().isTurningToRaccoon()) {

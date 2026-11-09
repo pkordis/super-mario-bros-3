@@ -32,9 +32,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * How a Piranha Plant hurts and dies. It is {@code OA3_NOTSTOMPABLE}, so every contact hurts
- * (prg000.asm:3855-3870); a tail or a shell kills it only while it is out of the pipe, and its
- * {@code KILLACT_POOFDEATH} leaves a cloud where it was (prg000.asm:3219-3224).
+ * How a Piranha Plant hurts and dies. It cannot be stomped, so every contact hurts; a tail or a shell
+ * kills it only while it is out of the pipe, and its death leaves a cloud where it was.
  */
 class PiranhaPlantDefeatTest {
     private static final double TOLERANCE = 1e-9;
@@ -58,8 +57,8 @@ class PiranhaPlantDefeatTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("The green box is OAT_BOUNDBOX02 and the red one OAT_BOUNDBOX10, both from the plant's top")
-    void theBoundBoxesMatchTheRom() {
+    @DisplayName("The green box is 12x24 px and the red one 12x20 px, both from the plant's top")
+    void theGreenAndRedBoxesHaveTheirOwnSizes() {
         // Prepare
         final PiranhaPlant green = world.plant(GREEN);
         final PiranhaPlant red = world.plant(RED);
@@ -68,7 +67,7 @@ class PiranhaPlantDefeatTest {
         final AxisAlignedBoundingBox greenBox = green.getBounds();
         final AxisAlignedBoundingBox redBox = red.getBounds();
 
-        // Verify - left 2, width 12, top 2, height 24 / 20 (prg000.asm:278, 286)
+        // Verify - left 2, width 12, top 2, height 24 / 20
         assertThat(greenBox.left()).isCloseTo(PLANT_X + 2, within(TOLERANCE));
         assertThat(greenBox.right()).isCloseTo(PLANT_X + 14, within(TOLERANCE));
         assertThat(greenBox.top()).isCloseTo(ORIGIN_Y + 2, within(TOLERANCE));
@@ -104,7 +103,7 @@ class PiranhaPlantDefeatTest {
     }
 
     @Test
-    @DisplayName("Hidden, it still hurts on contact and stays in the broad-phase, as Player_HitEnemy runs in state 0")
+    @DisplayName("Hidden, it still hurts on contact and stays in the broad-phase, as the hit check runs in state 0")
     void hiddenItStillHurts() {
         // Prepare
         final PiranhaPlant plant = world.plant(GREEN);
@@ -135,7 +134,7 @@ class PiranhaPlantDefeatTest {
         // Execute
         plant.onTailAttack(player);
 
-        // Verify - Enemy_Kill's chain score, read without advancing it
+        // Verify - the kill's chain score, read without advancing it
         assertThat(plant.isKilled()).isTrue();
         assertThat(plant.isDefeated()).isTrue();
         assertThat(plant.isHittable()).as("Out of the broad-phase for good").isFalse();
@@ -166,13 +165,13 @@ class PiranhaPlantDefeatTest {
         // Execute
         plant.motionUpdate();
 
-        // Verify - ObjState_Killed's Object_PoofDie: the slot holds only the cloud now
+        // Verify - a poof death: the plant is gone and only the cloud remains
         assertThat(plant.isExpired()).isTrue();
         assertThat(plant.getPosition().y()).isCloseTo(y, within(TOLERANCE));
     }
 
     @Test
-    @DisplayName("A hidden plant ignores the tail: Objects_SprHVis = 1 keeps Player_TailAttackDo away")
+    @DisplayName("A hidden plant ignores the tail: being out of sight keeps the tail attack away")
     void aHiddenPlantIgnoresTheTail() {
         // Prepare
         final PiranhaPlant plant = world.spawnedPlant(GREEN);

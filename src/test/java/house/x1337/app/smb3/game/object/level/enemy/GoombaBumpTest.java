@@ -32,8 +32,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Two Goombas that walk into each other must turn around and separate, exactly as walking into a solid
- * tile turns one around — the ROM's {@code Object_BumpOffOthers} (dasm prg000 @ PRG000_CC2B), which
- * {@code OBJ_GOOMBA} opts into via {@code OAT_BOUNCEOFFOTHERS}.
+ * tile turns one around. A Goomba opts into this through {@code bouncesOffOtherObjects}.
  *
  * <p>These drive the real pipeline order: both Goombas move, both are inserted into the broadphase, and
  * only then does the bump pass run — the same sequence {@code GameEngine} uses.
@@ -100,7 +99,7 @@ class GoombaBumpTest {
         assertThat(left.isFacingRight()).isTrue();
         assertThat(right.isFacingRight()).isFalse();
 
-        // Execute - the ROM boxes are inset (13px wide, +1 from each sprite edge), so adjacent Goombas
+        // Execute - the collision boxes are inset (13px wide, +1 from each sprite edge), so adjacent Goombas
         // start 3px apart; closing at 1px a tick combined, the fourth tick turns the 3px gap into a 1px
         // overlap, and that tick's bump pass resolves it.
         for (int tick = 0; tick < 4; tick++) {
@@ -150,7 +149,7 @@ class GoombaBumpTest {
         // Prepare - walk them into each other with the bump pass disabled so they end up ~5px deep, the
         // state an author stacking placements nearly on top of each other would produce. A blind
         // about-face would flip both every tick and never let them part; turning away from the neighbour
-        // is idempotent, so they commit to opposite directions. (The ROM boxes are 13px wide inset by 1,
+        // is idempotent, so they commit to opposite directions. (The collision boxes are 13px wide inset by 1,
         // starting 3px apart; 8 free ticks at 0.5px/tick each close that into a ~5px overlap, deep but
         // not so deep that their centres have crossed - which would make "away" point the wrong way.)
         final Goomba left = goombaAt(5, WALK_ROW);
@@ -185,7 +184,7 @@ class GoombaBumpTest {
         assertThat(lower.isFacingRight()).isFalse();
         assertThat(upper.isFacingRight()).isFalse();
 
-        // Execute - the faller closes on the head and overlaps it vertically. The ROM box is only 8px
+        // Execute - the faller closes on the head and overlaps it vertically. The collision box is only 8px
         // tall (sprite +2..+10), so the faller has to cover most of the 16px gap before the boxes meet;
         // gravity accelerates from rest, so give it enough ticks to land flush on the lower's row.
         for (int tick = 0; tick < 16; tick++) {

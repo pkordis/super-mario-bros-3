@@ -27,8 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * whatever slack there is on the right, which is the assumption
  * {@link LevelScenePlayerAnimatorSpecifications#getRightPadding()} encodes. {@code kicking.png} inverts
  * it: the kicking foot extends in the direction of travel, so the overhang falls on the <em>leading</em>
- * side — 3 transparent columns for {@code normal}, 2 for {@code raccoon}, and none on the right
- * ({@code PF_KICK_BIG} pulls a third top-row sprite down to be the foot, dasm prg029.asm:688).
+ * side — 3 transparent columns for {@code normal}, 2 for {@code raccoon}, and none on the right (the
+ * kick pose pulls a third top-row sprite down to be the foot).
  *
  * <p>So there is nothing for {@code rightPadding} to consume and the <em>unmirrored</em> draw is the one
  * that has to move. The arithmetic below is {@code LevelScenePlayerAnimator#rebuildWithTexture}'s, stated

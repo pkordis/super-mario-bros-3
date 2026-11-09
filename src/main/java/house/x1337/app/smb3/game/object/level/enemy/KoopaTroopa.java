@@ -27,7 +27,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -61,7 +61,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Prototype
 @RequiredArgsConstructor
 public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor {
-    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
+    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaTroopa");
     private static final int LEDGE_RECOVERY_STEPS = 2;
     private static final double WHAM_TAIL_OFFSET_PIXELS = 16;
@@ -121,7 +121,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            position.plus(BOUNDING_BOX_LEFT_OFFSET, BOUNDING_BOX_TOP_OFFSET),
             BOUNDS_PIXELS
         );
     }
@@ -191,7 +191,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         }
         if (hitCooldownTicks == 0 && state == KICKED) {
             hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
-            levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+            levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
             velocity = STILL;
             enterShell();
             return;
@@ -201,7 +201,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         }
         hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
-        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
         enterShell();
     }
 

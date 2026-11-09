@@ -16,9 +16,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the fire plant's bundles: two 16x16 heads ({@code $F1 $F3} and {@code $F5 $F7}, prg005.asm:425) and
- * one 16x16 stem per colour. The stem is the plain plant's green one in both, because
- * {@code ObjNorm_Piranha} forces {@code SPR_PAL2} on it (prg005.asm:1407-1430).
+ * Pins the fire plant's bundles: two 16x16 heads and one 16x16 stem per colour. The stem is the plain
+ * plant's green one in both, because the stem is always drawn in the green sprite palette.
  */
 class VenusFireTrapAnimatorAssetsTest {
     private static final List<String> CONTEXTS = List.of(

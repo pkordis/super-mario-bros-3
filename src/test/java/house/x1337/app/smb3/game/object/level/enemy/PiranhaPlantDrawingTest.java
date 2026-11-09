@@ -32,8 +32,8 @@ import static org.mockito.Mockito.spy;
 
 /**
  * Where the plant's two quads go. They are drawn in the baked layers' {@code Transparent} bucket at
- * {@code Z_DEPTH_PIPE_PLANT}, so the pipe layer covers the part inside the pipe the way the ROM's
- * behind-background mask does (dasm prg005.asm:1432-1488), and nothing is drawn in state 0.
+ * {@code Z_DEPTH_PIPE_PLANT}, so the pipe layer covers the part inside the pipe, and nothing is drawn in
+ * state 0.
  */
 class PiranhaPlantDrawingTest {
     private static final float TOLERANCE = 1e-5f;

@@ -10,19 +10,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The shared killed-enemy death throw: {@code Enemy_Kill} (dasm prg000 @ PRG000_DBCF) launching the
- * enemy, then {@code ObjState_Killed} letting it fall clean off the level.
+ * The shared killed-enemy death throw: the kill launching the enemy, then the killed state letting it
+ * fall clean off the level.
  */
 class EnemyKnockMotionTest {
     private static final double TOLERANCE = 1e-9;
 
-    /** {@code -$50} in 4.4 fixed point. */
-    private static final double LAUNCH_PIXELS_PER_TICK = -0x50 / 16.0;
+    /** {@code -80} in 4.4 fixed point. */
+    private static final double LAUNCH_PIXELS_PER_TICK = -80 / 16.0;
 
-    /** {@code EnemyKill_XVels} is {@code ±$08}. */
-    private static final double KNOCK_PIXELS_PER_TICK = 0x08 / 16.0;
+    /** The knock-away X velocity is {@code ±8}. */
+    private static final double KNOCK_PIXELS_PER_TICK = 8 / 16.0;
 
-    /** {@code OBJECT_FALLRATE} per tick. */
+    /** The object gravity per tick. */
     private static final double GRAVITY_PIXELS_PER_TICK = 3 / 16.0;
 
     @Test
@@ -52,9 +52,9 @@ class EnemyKnockMotionTest {
         motion.advance();
 
         // Verify
-        assertThat(motion.isUpsideDown()).as("Objects_FlipBits |= SPR_VFLIP").isTrue();
+        assertThat(motion.isUpsideDown()).as("flipped upside down").isTrue();
         assertThat(motion.getStepVelocity().pixelStepY())
-            .as("launched at -$50/16 px per tick")
+            .as("launched at -80/16 px per tick")
             .isCloseTo(LAUNCH_PIXELS_PER_TICK, within(TOLERANCE));
         assertThat(motion.getStepVelocity().pixelStepX())
             .as("knocked away from the attacker on its left")
@@ -80,7 +80,7 @@ class EnemyKnockMotionTest {
         final EnemyKnockMotion motion = EnemyKnockMotion.strikeFrom(LEFT);
         motion.advance();
 
-        // Execute & Verify - Object_Move only ever touches Y for a killed object
+        // Execute & Verify - a killed object's motion only ever changes its Y velocity
         for (int tick = 0; tick < 40; tick++) {
             motion.advance();
             assertThat(motion.getStepVelocity().pixelStepX())
@@ -97,7 +97,7 @@ class EnemyKnockMotionTest {
         motion.advance();
         motion.advance();
 
-        // Execute & Verify - each tick is exactly OBJECT_FALLRATE slower than the last
+        // Execute & Verify - each tick is exactly the object gravity slower than the last
         double previousStepY = motion.getStepVelocity().pixelStepY();
         boolean everDescended = false;
         for (int tick = 0; tick < 40; tick++) {
@@ -122,9 +122,9 @@ class EnemyKnockMotionTest {
             motion.advance();
         }
 
-        // Verify - OBJECT_MAXFALL = $40, i.e. 4 px per tick
-        assertThat(motion.getStepVelocity().pixelStepY()).isCloseTo(0x40 / 16.0, within(TOLERANCE));
-        assertThat(motion.getVelocity().y()).isEqualTo(0x40);
+        // Verify - terminal velocity is 64, i.e. 4 px per tick
+        assertThat(motion.getStepVelocity().pixelStepY()).isCloseTo(64 / 16.0, within(TOLERANCE));
+        assertThat(motion.getVelocity().y()).isEqualTo(64);
     }
 
     @Test

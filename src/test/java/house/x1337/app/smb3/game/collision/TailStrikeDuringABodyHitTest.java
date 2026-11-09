@@ -35,26 +35,24 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The rare original-game moment where one frame both hurts the player and kills the enemy that hurt him.
+ * The rare moment where one frame both hurts the player and kills the enemy that hurt him.
  *
- * <p>The ROM resolves the two in a fixed order inside the object loop (dasm prg000 @ PRG000_C9B6): the
- * enemy's handler runs first and ends in {@code Player_HitEnemy} (reached through
- * {@code Object_HandleBumpUnderneath}), and {@code Object_HitByTailOrBouncer} follows immediately after.
- * So an enemy whose box overlaps the player's {@code Player_BoundBox} <em>and</em> the tail box pays the
- * player a hit and then dies to the swing, on the same frame.
+ * <p>The two are resolved in a fixed order for each enemy: its body contact with the player is handled
+ * first, and the tail strike follows immediately after. So an enemy whose box overlaps the player's box
+ * <em>and</em> the tail box pays the player a hit and then dies to the swing, on the same frame.
  *
- * <p>Nothing in {@code Player_GetHurt} (@ PRG000_D9D3 ... PRG000_DA6D) interferes: it writes the queued
- * suit, {@code Player_SuitLost}, {@code Player_FlashInv} and {@code Player_Flip}, and never
- * {@code Player_TailAttack}. That is the whole reason the kill still lands — which is what this test
- * exists to hold onto, because the port used to clear the swing counter while neutralising motion for the
- * suit-loss poof, and the strike dispatched later in the same tick then found nothing to fire.
+ * <p>Getting hurt does not interfere: it queues the suit loss and starts the invincibility flash, and
+ * never touches the tail swing. That is the whole reason the kill still lands — which is what this test
+ * exists to hold onto, because an earlier version of this code cleared the swing counter while
+ * neutralising motion for the suit-loss poof, and the strike dispatched later in the same tick then found
+ * nothing to fire.
  */
 class TailStrikeDuringABodyHitTest {
     /** The player's reference top; its box spans X {@code [+3, +13]}, Y {@code [+5, +30]}. */
     private static final double PLAYER_Y = 64;
 
-    /** {@code $09}: the swing's late kick frame, mirrored, so the box is in front at {@code +17..+27}. */
-    private static final int STRIKE_FRAME_LATE = 0x09;
+    /** {@code 9}: the swing's late kick frame, mirrored, so the box is in front at {@code +17..+27}. */
+    private static final int STRIKE_FRAME_LATE = 9;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -99,14 +97,14 @@ class TailStrikeDuringABodyHitTest {
             .as("The raccoon suit was poofed off by the body hit")
             .isEqualTo(NORMAL);
         assertThat(player.getRuntimeState().getPlayerTailAttackCountdown())
-            .as("And the hit left the swing counter alone, as Player_GetHurt does")
+            .as("And the hit left the swing counter alone")
             .isEqualTo(STRIKE_FRAME_LATE);
     }
 
     @Test
     @DisplayName("The same contact one frame off a kick frame only hurts, and kills nothing")
     void offAStrikeFrameTheContactOnlyHurts() {
-        // Prepare - identical geometry, counter one short of $09
+        // Prepare - identical geometry, counter one short of 9
         final ActiveObjectGrid<ActiveLevelObject> grid = new ActiveObjectGrid<>(mock(EnemySpawner.class));
         final HurtingEnemy enemy = new HurtingEnemy(new AxisAlignedBoundingBox(12, 80, 28, 90));
         grid.insert(enemy);

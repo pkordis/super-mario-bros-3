@@ -27,9 +27,9 @@ import static java.lang.Math.floor;
 
 public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
     int ANIMATION_COUNTER_MASK = 255;
-    int BOUND_BOX_LEFT_OFFSET = 2;
-    int BOUND_BOX_TOP_OFFSET = 2;
-    int BOUND_BOX_WIDTH = 12;
+    int BOUNDING_BOX_LEFT_OFFSET = 2;
+    int BOUNDING_BOX_TOP_OFFSET = 2;
+    int BOUNDING_BOX_WIDTH = 12;
     int CENTRE_ON_PIPE_PIXELS = 8;
     int HEAD_FRAME_SHIFT = 3;
     int PART_SIZE_PIXELS = TILE_SPRITE_SIZE;
@@ -179,7 +179,7 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
     @Override
     default AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            getPosition().plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            getPosition().plus(BOUNDING_BOX_LEFT_OFFSET, BOUNDING_BOX_TOP_OFFSET),
             getBoundsPixels()
         );
     }

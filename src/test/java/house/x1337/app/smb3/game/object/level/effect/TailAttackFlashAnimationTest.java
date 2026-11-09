@@ -17,11 +17,10 @@ import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 
 /**
- * The tail-attack flash's timing, checked against the ROM without needing a renderer.
+ * The tail-attack flash's timing, checked without needing a renderer.
  *
- * <p>{@code Object_RespondToTailAttack} seeds {@code ShellKillFlash_Cnt = $0a} and prg007 @ PRG007_A268
- * decrements it once per tick, cycling the palette on {@code Counter_1 AND #$03} and toggling the
- * vertical flip on {@code Counter_1} bit 2.
+ * <p>The flash lives for a 10-tick countdown that drops once per tick, cycling the palette on the frame
+ * counter's two low bits and toggling the vertical flip on its bit 2.
  */
 class TailAttackFlashAnimationTest {
     private static final String FRAMES_CONTEXT = "sprites/effect/wham/";
@@ -33,15 +32,15 @@ class TailAttackFlashAnimationTest {
     private final TailAttackFlashAnimation animation = mock(TailAttackFlashAnimation.class, CALLS_REAL_METHODS);
 
     @Test
-    @DisplayName("The flash lives for the ROM's 10 ticks")
+    @DisplayName("The flash lives for 10 ticks")
     void lifetimeIsTenTicks() {
-        assertThat(LIFETIME_TICKS).as("ShellKillFlash_Cnt = $0a").isEqualTo(10);
+        assertThat(LIFETIME_TICKS).as("Flash countdown starts at 10").isEqualTo(10);
     }
 
     @Test
     @DisplayName("The palette advances every tick and wraps after four")
     void paletteAdvancesEveryTickAndWraps() {
-        // The ROM reads Counter_1 & $03, which changes on every frame — not every few frames like the
+        // The palette is the frame counter & 3, which changes on every frame — not every few frames like the
         // poof cloud — so the flash shimmers through all four colours twice over its short life.
         final int[] actual = new int[LIFETIME_TICKS];
         for (int tick = 0; tick < LIFETIME_TICKS; tick++) {
@@ -56,7 +55,7 @@ class TailAttackFlashAnimationTest {
     @Test
     @DisplayName("The vertical flip alternates every four ticks")
     void flipAlternatesEveryFourTicks() {
-        // Counter_1 bit 2 (dasm prg007: LSR A x3 / ROR A / AND #SPR_VFLIP).
+        // Bit 2 of the frame counter.
         final boolean[] actual = new boolean[LIFETIME_TICKS];
         for (int tick = 0; tick < LIFETIME_TICKS; tick++) {
             actual[tick] = animation.isFlippedVerticallyAt(tick);

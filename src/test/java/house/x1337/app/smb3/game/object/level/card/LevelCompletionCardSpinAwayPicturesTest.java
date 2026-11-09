@@ -13,9 +13,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The spin-away pictures, extracted from {@code CHR/chr007.pcx}: for each face, the 8 x 16 sprite pattern of
- * {@code ObjP41} (dasm prg002.asm:454-455) on the left and its mirror on the right, as {@code EndLevelCard_Draw}
- * draws it (prg002.asm:6308-6323). Every tile uses colour index 2 alone, drawn white; everything else is clear.
+ * The spin-away pictures: for each face, an 8 x 16 sprite on the left and its mirror on the right. Every tile uses a
+ * single colour, drawn white; everything else is clear.
  */
 class LevelCompletionCardSpinAwayPicturesTest {
     private static final int SIZE = 16;
@@ -45,7 +44,7 @@ class LevelCompletionCardSpinAwayPicturesTest {
     }
 
     @Test
-    @DisplayName("The edge-on picture ($FD) is the same for all three faces, and the six others all differ")
+    @DisplayName("The edge-on picture is the same for all three faces, and the six others all differ")
     void theEdgeOnPictureIsShared() throws IOException {
         // Prepare
         final Set<String> faces = new HashSet<>();

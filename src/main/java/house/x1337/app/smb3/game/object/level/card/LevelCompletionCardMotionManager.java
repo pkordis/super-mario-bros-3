@@ -43,7 +43,7 @@ public final class LevelCompletionCardMotionManager implements ActiveLevelObject
 
     /**
      * A card collected on this tick is taken out of the scene, and its spin-away takes its place
-     * ({@code ObjHit_EndLevelCard} draws the new frame on the touch frame, prg002.asm:6247-6249).
+     * (the spin-away's first picture is drawn on the touch frame itself).
      */
     @Override
     public void postCollision() {

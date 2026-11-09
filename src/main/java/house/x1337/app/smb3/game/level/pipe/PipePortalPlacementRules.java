@@ -16,9 +16,7 @@ import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
  * Where a pipe portal may go. The editor checks these before it places a portal, and the runtime checks them again
  * because the pipe under a portal can be erased after the portal was placed.
  *
- * <p>The ROM decides which pipes can be entered from per-tileset tile ids: the lip tiles {@code TILE1_PIPETB1..4},
- * {@code TILE3_PIPETB5} and {@code TILE1_PIPEH1_B}, gated by {@code PipeTile_EnableByTileset} (dasm prg008.asm:6097).
- * Here a portal marks the pipe instead, and it must cover lip tiles only: every cell over a
+ * <p>A portal marks a pipe as one that can be entered, and it must cover lip tiles only: every cell over a
  * {@code PIPE_TERMINATION_PART} tile on the static environment layer.
  */
 public interface PipePortalPlacementRules {

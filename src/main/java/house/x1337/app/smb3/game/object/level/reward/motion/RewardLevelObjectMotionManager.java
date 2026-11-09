@@ -79,7 +79,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
                 continue;
             }
 
-            // Like the ROM's power-ups, a reward runs wherever it is: there is no activation window.
+            // Like the power-ups, a reward runs wherever it is: there is no activation window.
             instance.motionUpdate();
 
             if (instance.isExpired() || isDeletedOffScreen(instance, screen)) {
@@ -110,7 +110,7 @@ public interface RewardLevelObjectMotionManager<C extends RewardLevelObject> ext
     }
 
     /**
-     * Drops this manager's live population when the level restarts (dasm: a death re-enters the level
+     * Drops this manager's live population when the level restarts (a death re-enters the level
      * fresh). Reward instances and their rising score captions are spawned during play and normally
      * clear themselves as they are collected or expire, but a restart can fire mid-flight — a reward
      * still rolling, a caption still rising — so their nodes must be detached here or they would linger

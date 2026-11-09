@@ -58,12 +58,10 @@ import static org.mockito.Mockito.when;
  * A block mushroom (Super or 1-Up) rising out of its block: when it can be collected, from where, and
  * where it ends up.
  *
- * <p>The ROM's rules (dasm prg001 {@code ObjInit_PUpMush} / {@code PowerUp_DoRaise} /
- * {@code PowerUp_DoHitTest}): spawned one pixel above the block cell; held, undrawn and un-hit-tested
+ * <p>The rules: spawned one pixel above the block cell; held, undrawn and un-hit-tested
  * for 16 frames; then creeping up a pixel every 3 frames, hit-tested on every one of them. The only
- * thing between a rising mushroom and the player is its {@code OAT_BOUNDBOX01} box, tested inclusively
- * by {@code ObjectObject_Intersect}. The frames below are this entity's own ticks, the first being the
- * tick it was dispensed on.
+ * thing between a rising mushroom and the player is its power-up box, tested inclusively. The frames
+ * below are this entity's own ticks, the first being the tick it was dispensed on.
  */
 class SuperMushroomRiseTest {
     private static final double TOLERANCE = 1e-6;
@@ -74,7 +72,7 @@ class SuperMushroomRiseTest {
     private static final double BLOCK_TOP_Y = BLOCK.y() * (double) TILE_SPRITE_SIZE;
     private static final int HOLD_FRAMES = 16;
     private static final int LAST_RISE_FRAME = 61;
-    /** Rise frames 1, 4, ... 43 (dasm Objects_Var1 counting down from 2), i.e. ticks 17, 20, ... 59. */
+    /** Rise frames 1, 4, ... 43 (a counter counting down from 2), i.e. ticks 17, 20, ... 59. */
     private static final int FIRST_CREEP_FRAME = HOLD_FRAMES + 1;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -151,7 +149,7 @@ class SuperMushroomRiseTest {
         // Execute - the first rise frame
         tick(player);
 
-        // Verify - Timer2 ran out with the hold, and nothing else stands in the way
+        // Verify - the collect protection ran out with the hold, and nothing else stands in the way
         assertThat(mushroom.getPosition().y()).as("The first pixel of the creep").isEqualTo(BLOCK_TOP_Y - 2);
         assertThat(mushroom.isCollected()).as("Collectable on the very first rise frame").isTrue();
     }
@@ -179,7 +177,7 @@ class SuperMushroomRiseTest {
 
         tick(player);
         assertThat(visiblePixels(mushroom)).as("4 px above the block").isEqualTo(4);
-        assertThat(mushroom.isCollected()).as("Collected at the ROM's k = 3").isTrue();
+        assertThat(mushroom.isCollected()).as("Collected with the third creep pixel").isTrue();
         assertThat(mushroom.isRising()).as("Well before the rise finishes").isTrue();
     }
 
@@ -229,7 +227,7 @@ class SuperMushroomRiseTest {
         // Prepare
         final SuperMushroom mushroom = dispense(variant);
 
-        // Verify - the spawn pixel (prg001.asm:2282-2289)
+        // Verify - the spawn pixel
         assertThat(mushroom.getPosition().x()).isEqualTo(BLOCK_X);
         assertThat(mushroom.getPosition().y()).as("One pixel above the cell's origin").isEqualTo(BLOCK_TOP_Y - 1);
 
@@ -310,14 +308,14 @@ class SuperMushroomRiseTest {
 
     /**
      * A large standing player at a sprite position, its hitbox derived exactly as
-     * {@code LevelScenePlayer.getObjectCollisionBounds()} does: {@code Player_BoundBox} entry 1,
+     * {@code LevelScenePlayer.getObjectCollisionBounds()} does for a large player:
      * X {@code [+3, +13)}, Y {@code [+5, +30)}.
      */
     private static LevelScenePlayer largePlayerAt(final double x, final double y) {
         return playerWithBox(new AxisAlignedBoundingBox(x + 3, y + 5, x + 13, y + 30));
     }
 
-    /** As {@link #largePlayerAt}, for {@code Player_BoundBox} entry 0: X {@code [+4, +12)}, Y {@code [+17, +30)}. */
+    /** As {@link #largePlayerAt}, for a small player: X {@code [+4, +12)}, Y {@code [+17, +30)}. */
     private static LevelScenePlayer smallPlayerAt(final double x, final double y) {
         return playerWithBox(new AxisAlignedBoundingBox(x + 4, y + 17, x + 12, y + 30));
     }

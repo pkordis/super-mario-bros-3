@@ -154,4 +154,9 @@ this project. Every agent **must** comply with it at all times:
 Before committing any Java file, verify that it conforms to every rule above.
 When in doubt, consult `.editorconfig` for the authoritative settings.
 
+Also mandatory: `.kiro/steering/code-generation-rules.md`. In short: no
+dasm/porting/address/original-value references in identifiers, Javadoc or comments (findings
+go to Jira and `kb/` only, and code never references `kb/`), decimal literals instead
+of hex for values taken from dasm, and instance methods preferred over static ones.
+
 ---

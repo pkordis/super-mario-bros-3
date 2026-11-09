@@ -21,9 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * rather than cycled — the airborne pin and the standing-still force — are therefore worth stating as
  * filenames, so that renaming, reordering or re-cutting the art fails here.
  *
- * <p>The ROM's authority for the airborne pin is {@code Player_HoldingFrames} (dasm prg008.asm:109)
- * read through {@code PRG008_AF15}: airborne takes row-relative index {@code 0}, or {@code 1} when
- * small, which is {@code PF_HOLDBIG_BASE} and {@code PF_HOLDSMALL_BASE+1} respectively.
+ * <p>The airborne pin takes row-relative index {@code 0}, or {@code 1} when small, which is the first big-suit hold
+ * pose and the second small one respectively.
  */
 class CarryHoldFrameSelectionTest {
     /** The {@code hold} arrays as the three {@code assets.json} descriptors declare them, in order. */
@@ -44,7 +43,7 @@ class CarryHoldFrameSelectionTest {
     @Test
     @DisplayName("Small Mario holds the second pose in mid-air, not the first")
     void theSmallAirbornePoseIsTheSecondOfItsTwo() {
-        // PF_HOLDSMALL_BASE+1. The one place the small row differs from the big one, and the reason
+        // The second small hold pose. The one place the small row differs from the big one, and the reason
         // AIRBORNE_HOLD_FRAME_SMALL exists at all.
         assertThat(SMALL_HOLD_CYCLE.get(AIRBORNE_HOLD_FRAME_SMALL)).isEqualTo("holding_2.png");
         assertThat(AIRBORNE_HOLD_FRAME_SMALL)
@@ -55,14 +54,13 @@ class CarryHoldFrameSelectionTest {
     @Test
     @DisplayName("The big suits hold the first pose in mid-air")
     void theBigAirbornePoseIsTheFirstOfItsThree() {
-        // PF_HOLDBIG_BASE.
         assertThat(BIG_HOLD_CYCLE.get(AIRBORNE_HOLD_FRAME)).isEqualTo("holding_1.png");
     }
 
     @Test
     @DisplayName("A player standing still holds the beat-2 pose, which differs per mode")
     void theStandingPoseIsBeatTwo() {
-        // PRG008_AE03 forces Player_WalkFrame = 2 when no direction is held and XVel is zero, so the
+        // The walk frame is forced to 2 when no direction is held and the horizontal velocity is zero, so the
         // standing hold pose is whatever beat 2 happens to be - the third pose for the big suits, and
         // back to the first for small, whose cycle only has two.
         assertThat(BIG_HOLD_CYCLE.get(STANDING_WALK_FRAME)).isEqualTo("holding_3.png");

@@ -13,10 +13,9 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * When a piranha fireball goes away, and how many can exist. {@code SpecialObj_UpdateAndDraw} removes one
- * at {@code X - Horz_Scroll >= 248} or with {@code Y + 16} off the vertical screen (dasm
- * prg007.asm:3122-3152), checked before it moves; the plant may use only special slots 3 down to 0
- * ({@code SpecialObj_FindEmptyAbortY}, prg000.asm:668-687).
+ * When a piranha fireball goes away, and how many can exist. One is removed at
+ * {@code X - view left >= 248} or with {@code Y + 16} off the vertical screen, checked before it moves; the
+ * plant may use only fireball slots 3 down to 0.
  */
 class PiranhaFireballLifetimeTest {
     private static final double VIEW_LEFT = 320;
@@ -63,7 +62,7 @@ class PiranhaFireballLifetimeTest {
     @DisplayName("Flying left, it is removed on the tick it starts past the view's left edge")
     void flyingLeftItGoesAtTheEdge() {
         // Prepare - 1 px a tick, starting 2 px in
-        final PiranhaFireball fireball = world.spawn(VIEW_LEFT + 2, VIEW_TOP + 50, -0x10, 0);
+        final PiranhaFireball fireball = world.spawn(VIEW_LEFT + 2, VIEW_TOP + 50, -16, 0);
 
         // Execute - it moves to +1, then to 0, then to -1
         world.tick(3);
@@ -98,8 +97,8 @@ class PiranhaFireballLifetimeTest {
     @DisplayName("A level reset removes every fireball and its sprite")
     void aResetRemovesThemAll() {
         // Prepare
-        world.spawn(VIEW_LEFT + 10, VIEW_TOP + 50, 0x0B, 0x05);
-        world.spawn(VIEW_LEFT + 20, VIEW_TOP + 50, -0x0B, 0x05);
+        world.spawn(VIEW_LEFT + 10, VIEW_TOP + 50, 11, 5);
+        world.spawn(VIEW_LEFT + 20, VIEW_TOP + 50, -11, 5);
 
         // Execute
         world.getManager().reset();
@@ -140,7 +139,7 @@ class PiranhaFireballLifetimeTest {
     @DisplayName("A slot freed by a removal is taken by the next spawn")
     void aFreedSlotIsReused() {
         // Prepare - slot 3 leaves the screen, slots 2..0 stay
-        world.spawn(VIEW_LEFT + 247, VIEW_TOP + 50, 0x10, 0);
+        world.spawn(VIEW_LEFT + 247, VIEW_TOP + 50, 16, 0);
         world.spawn(VIEW_LEFT + 10, VIEW_TOP + 50, 0, 0);
         world.spawn(VIEW_LEFT + 20, VIEW_TOP + 50, 0, 0);
         world.spawn(VIEW_LEFT + 30, VIEW_TOP + 50, 0, 0);

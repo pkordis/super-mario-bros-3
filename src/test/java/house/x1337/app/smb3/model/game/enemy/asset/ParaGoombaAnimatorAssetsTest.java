@@ -18,8 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pins the Para-Goomba's asset bundle: three descriptor keys, one per action, and six files whose
- * dimensions match the hardware sprites they back - a 16x16 body frame (two 8x16 sprites side by side)
- * and an 8x16 wing.
+ * dimensions match the sprites they back - a 16x16 body frame (two 8x16 sprites side by side) and an
+ * 8x16 wing.
  */
 class ParaGoombaAnimatorAssetsTest {
     private static final String FRAMES_CONTEXT_TEMPLATE = "sprites/enemy/paragoomba/%s/";
@@ -79,10 +79,10 @@ class ParaGoombaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("Each of the four wing frames is one 8x16 hardware sprite")
+    @DisplayName("Each of the four wing frames is one 8x16 sprite")
     void wingFramesAreHalfATileWide() throws IOException {
-        // Prepare & Execute & Verify - ParaGoomba_Draw writes a single Sprite_RAM entry per wing, and the
-        // object is OA1_HEIGHT32, so a wing is 8 px across and 16 px tall
+        // Prepare & Execute & Verify - each wing is drawn as a single sprite, and the Para-Goomba is
+        // 32 px tall, so a wing is 8 px across and 16 px tall
         for (final GoombaMode mode : GoombaMode.values()) {
             for (final String filename : EXPECTED_FILENAMES.subList(WALK_FRAME_COUNT, EXPECTED_FILENAMES.size())) {
                 final BufferedImage frame = readFrame(mode, filename);
@@ -98,8 +98,8 @@ class ParaGoombaAnimatorAssetsTest {
     @Test
     @DisplayName("Each wing beat ships its mirror as art, so the animator never flips a quad")
     void wingPairsAreHorizontalMirrors() throws IOException {
-        // Prepare - the ROM stores one pattern for both wings and mirrors the right one through
-        // SPR_HFLIP; carrying the mirror as a file keeps ParaGoombaAnimator flip-free
+        // Prepare - the right wing is the left one mirrored; carrying the mirror as a file keeps
+        // ParaGoombaAnimator flip-free
         assertMirrored("paragoomba_wing_up_left.png", "paragoomba_wing_up_right.png");
 
         // Execute & Verify

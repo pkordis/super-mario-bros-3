@@ -81,12 +81,11 @@ public final class GameEngine extends GameEngineCapabilities {
     private double simulationAccumulator = 0.0;
 
     /**
-     * @return whether gameplay is halted: by a player (dasm {@code Player_HaltGame}, prg008 PRG008_A1B4), or by a
-     *         blocking screen fade, during which the ROM's {@code Palette_FadeIn} / {@code Palette_FadeOut} loops
-     *         (prg026) leave nothing else running. While halted the countdown timer and the whole active-object
-     *         pipeline are frozen, and non-halting players freeze themselves in {@code updateFrame}; only the
-     *         halting player's own transition (e.g. the grow flicker) advances. Mirrors the ROM, where ~150
-     *         object/camera/timer sites early-out on {@code Player_HaltGame}.
+     * @return whether gameplay is halted: by a player, or by a blocking screen fade, which leaves nothing else
+     *         running while the screen fades in or out. While halted the countdown timer and the whole
+     *         active-object pipeline are frozen, and non-halting players freeze themselves in
+     *         {@code updateFrame}; only the halting player's own transition (e.g. the grow flicker) advances.
+     *         Objects, the camera and the timer all stop while gameplay is halted.
      */
     public boolean isGameplayHalted() {
         if (fadingEngine.isHaltingGameplay()) {
@@ -170,8 +169,8 @@ public final class GameEngine extends GameEngineCapabilities {
         viewPort.getCamera().setViewPort(0f, 1f, HUD_VIEWPORT_BOTTOM, 1f);
 
         // Build the level, player, HUD and timer. Extracted so the death-restart can replay exactly
-        // this sequence from scratch (dasm: a player death drops back to the map and re-enters the
-        // level fresh — here the engine stays up and the level is rebuilt in place).
+        // this sequence from scratch (a player death re-enters the level fresh: the engine stays up and
+        // the level is rebuilt in place).
         buildLevel();
 
         // Post views render in the order they are created, and three are stacked over the finished frame: the
@@ -236,7 +235,7 @@ public final class GameEngine extends GameEngineCapabilities {
         // enemy is duplicated.
         setupLevel(levelScene);
 
-        // Every run starts its Counter_1 phases over, with the end-level card uncollected.
+        // Every run starts its level frame counter phases over, with the end-level card uncollected.
         levelFrameCounter.reset();
         levelCompletion.reset();
 
@@ -304,7 +303,7 @@ public final class GameEngine extends GameEngineCapabilities {
         // are no-ops and it snapshots nothing, so the same path serves both.
         while (simulationAccumulator >= SIMULATION_DT) {
             simulationAccumulator -= SIMULATION_DT;
-            // Counter_1 counts every frame, halted or not (prg031.asm:1634).
+            // The level frame counter counts every frame, halted or not.
             levelFrameCounter.tick();
             // First, and outside the halt branch below: a blocking fade halts gameplay, so a fade ticked from
             // anything the halt skips would never finish.
@@ -312,12 +311,11 @@ public final class GameEngine extends GameEngineCapabilities {
             allPlayers.forEach(Player::updateFrame);
 
             if (gameContext == LEVEL_SCENE) {
-                // While any player is halting gameplay (dasm Player_HaltGame — e.g.
-                // the small→Super grow transition), freeze the countdown timer and
-                // the whole active-object pipeline EXCEPT the rising score captions,
-                // which keep animating (the "1000" over a mushroom collected at the
-                // start of the grow — the sole object the ROM advances through the
-                // freeze). The halting player advanced its own transition inside
+                // While any player is halting gameplay (e.g. the small→Super grow
+                // transition), freeze the countdown timer and the whole active-object
+                // pipeline EXCEPT the rising score captions, which keep animating (the
+                // "1000" over a mushroom collected at the start of the grow — the sole
+                // object that advances through the freeze). The halting player advanced its own transition inside
                 // updateFrame above; every other player froze itself. The camera
                 // follows the (now-stationary) player node and the un-advanced
                 // vertical scroll, so it holds still too.

@@ -33,9 +33,8 @@ import static org.mockito.Mockito.when;
 /**
  * A Goomba hurts the player on every contact that is not a stomp, and is itself unharmed by them.
  *
- * <p>The ROM decides this with one comparison and no horizontal test at all ({@code Player_HitEnemy},
- * dasm prg000 @ PRG000_D218): fail the stomp depth check and control reaches PRG000_D355, "Player
- * potentially gonna get hurt". So side contact and being jumped into from below are the same case, and
+ * <p>This comes down to one comparison and no horizontal test at all: fail the stomp depth check and the
+ * player may get hurt. So side contact and being jumped into from below are the same case, and
  * the engine's two separate callbacks for them must both lead to the player's hurt path.
  */
 class GoombaHurtsPlayerTest {
@@ -130,7 +129,7 @@ class GoombaHurtsPlayerTest {
         // Execute
         goomba.onCollisionFromAbove(player);
 
-        // Verify - the ROM's stomp branch never reaches the hurt code
+        // Verify - the stomp branch never reaches the hurt code
         verify(player, never()).getHurtBy(any());
         assertThat(goomba.isSquished()).isTrue();
         assertThat(goomba.getPendingScoreReward()).isNotNull();

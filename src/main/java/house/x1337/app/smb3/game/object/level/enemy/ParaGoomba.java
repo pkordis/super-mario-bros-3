@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -39,7 +39,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Prototype
 @RequiredArgsConstructor
 public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
-    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
+    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = fullTile("ParaGoomba");
 
     private final ParaGoombaAnimator animator = getBean(ParaGoombaAnimator.class);
@@ -89,7 +89,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            position.plus(BOUNDING_BOX_LEFT_OFFSET, BOUNDING_BOX_TOP_OFFSET),
             BOUNDS_PIXELS
         );
     }
@@ -128,7 +128,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         }
         deWinged = true;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
-        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
         replaceWithGroundGoomba(STOMP_HIT_COOLDOWN_TICKS);
         setExpired(true);
     }
@@ -178,8 +178,8 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     /**
-     * One frame of {@code ObjNorm_ParaGoomba}, in the handler's own order: move, net-float the Y
-     * velocity, advance the two clocks, then react to whatever the move detected.
+     * One frame of the Para-Goomba, in a fixed order: move, net-float the Y velocity, advance the two
+     * clocks, then react to whatever the move detected.
      */
     @Override
     public void motionUpdate() {
@@ -187,13 +187,13 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
             return;
         }
 
-        // Objects_Timer is decremented by the central object loop before the handler runs
-        // (dasm prg000.asm:1855), so the hop test below sees this frame's decremented value.
+        // The hop cooldown is decremented before anything else runs, so the hop test below sees this
+        // frame's decremented value.
         if (hopCooldownTicks > 0) {
             hopCooldownTicks--;
         }
 
-        // Facing IS direction, as for the ground troop: XVel is reloaded from the flip bit every frame.
+        // Facing IS direction, as for the ground troop: the X velocity is rederived from facing every frame.
         velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
 
         advanceWalkFrame();
@@ -245,7 +245,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     /**
-     * {@code Objects_Var5++} every frame. It only ever has an effect on a frame that also made ground
+     * The re-facing clock advances every frame. It only ever has an effect on a frame that also made ground
      * contact, which is what makes the re-facing "every 64 ticks, but only while grounded".
      */
     private void advanceRefaceClock() {
@@ -253,9 +253,9 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     /**
-     * {@code Objects_Var3}: {@code +1} a frame, plus {@code +2} more while rising with
-     * {@code Var4 == 0} - i.e. on the way up out of the big hop, where the wings beat faster. Read after
-     * the float decrement, as the handler does.
+     * The wing clock: {@code +1} a frame, plus {@code +2} more while rising with
+     * {@code hopCounter == 0} - i.e. on the way up out of the big hop, where the wings beat faster. Read
+     * after the float decrement.
      */
     private void advanceWingClock() {
         final int risingBonus = hopCounter == 0 && velocity.rising() ? RISING_WING_FLAP_BONUS : 0;
@@ -273,7 +273,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     /**
-     * {@code DetStat & $04} - the landing branch: re-face the player on the 64-tick beat, fold the wings
+     * The landing branch: re-face the player on the 64-tick beat, fold the wings
      * while between hop cycles, and launch the next hop once the post-big-hop cooldown has run out.
      */
     private void onGroundContact() {
@@ -281,7 +281,8 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
             faceClosestPlayer();
         }
         if (hopCounter == 0) {
-            // Var3 = 0 on every grounded frame between cycles, so the wings sit still through the cooldown.
+            // The wing clock is reset on every grounded frame between cycles, so the wings sit still through
+            // the cooldown.
             wingClock = 0;
             applyWingPhase();
         }
@@ -302,9 +303,9 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     private void moveHorizontally() {
         final PixelPosition proposed = position.steppedX(velocity);
         if (isWallAhead(proposed)) {
-            // Object_FlipFace: flip only, no velocity negate - the next frame rederives XVel from facing.
-            // The handler defers this to its last instruction; doing it here, where the move is blocked,
-            // is the Goomba's arrangement and differs in nothing observable.
+            // Flip only, no velocity negate - the next frame rederives the X velocity from facing.
+            // Flipping here, where the move is blocked, rather than at the end of the frame, is the Goomba's
+            // arrangement and differs in nothing observable.
             facingRight = !facingRight;
             return;
         }
@@ -317,7 +318,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         final PixelPosition proposed = position.steppedY(velocity);
 
         if (velocity.descending() && isGroundBelow(proposed)) {
-            // Object_HitGround: align the feet to the tile top it landed on.
+            // Align the feet to the tile top it landed on.
             final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
             position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
             velocity = velocity.withY(0);
@@ -338,9 +339,9 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     /**
-     * {@code Object_Move}'s {@code OBJECT_FALLRATE} capped at {@code OBJECT_MAXFALL}, then the handler's
-     * {@code DEC Objects_YVel}. Net {@code +$02} a frame, and a terminal fall of {@code $3F} rather than
-     * the Goomba's {@code $40}, because the decrement lands after the cap.
+     * The usual enemy gravity capped at the maximum fall speed, then the wing lift taken off. Net
+     * {@code +2} a frame, and a terminal fall of {@code 63} rather than the Goomba's {@code 64}, because
+     * the lift lands after the cap.
      */
     private void applyFloatingGravity() {
         velocity = velocity
@@ -355,7 +356,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         }
 
         // Always upright and always winged: this class only ever draws the live, flying object. The
-        // inverted SPR_VFLIP corpse belongs to the replacement Goomba, which both defeat responses hand
+        // inverted corpse belongs to the replacement Goomba, which both defeat responses hand
         // the slot to before this Para-Goomba stops being drawn at all.
         worldOffset.applyTo(spriteGeometry);
         positionWings(worldOffset);

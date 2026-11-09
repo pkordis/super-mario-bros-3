@@ -15,8 +15,7 @@ public interface Player
     PlayerPosition getPosition();
 
     /**
-     * Whether this player is currently halting gameplay (dasm
-     * {@code Player_HaltGame}, prg008 PRG008_A1B4 — set while dying, moving
+     * Whether this player is currently halting gameplay (set while dying, moving
      * through a pipe, losing a suit, star wearing off, or growing/shrinking).
      * While any player halts gameplay the countdown timer, all active objects,
      * the camera and every other player freeze; only the halting player's own

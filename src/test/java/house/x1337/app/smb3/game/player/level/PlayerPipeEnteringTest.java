@@ -53,7 +53,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The pipe-entering state (dasm {@code Level_PipeEnter}, prg029.asm:1323-1434, driven by {@code Event_Countdown}):
+ * The pipe-entering state, driven by an event countdown:
  * gameplay halts, the player slides into the pipe for 60 ticks behind the pipe tiles with the camera held, then asks
  * for the trip to the linked pipe.
  */
@@ -231,9 +231,9 @@ class PlayerPipeEnteringTest {
             beats.add(player.getRuntimeState().getPipeWalkBeat());
         }
 
-        // Verify - ticks since the entry stand in for Counter_1: beat = (ticks & $0C) >> 2
+        // Verify - ticks since the entry stand in for the global frame counter: beat = (ticks & 12) >> 2
         for (int tick = 1; tick <= SIDE_MOVING_TICKS; tick++) {
-            assertThat(beats.get(tick - 1)).as("Tick %d", tick).isEqualTo((tick & 0x0C) >> 2);
+            assertThat(beats.get(tick - 1)).as("Tick %d", tick).isEqualTo((tick & 12) >> 2);
         }
     }
 

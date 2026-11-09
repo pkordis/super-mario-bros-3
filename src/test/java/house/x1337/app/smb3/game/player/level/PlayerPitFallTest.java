@@ -50,9 +50,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * A real player, ticked through {@code updateFrame} over a real collision grid with a pit in it: the
- * open bottom edge lets it fall, the pit check kills it once its sprite's top leaves the view (dasm
- * prg008 @ PRG008_A3FA), and the death then runs as {@code Player_Die_FellOff} (prg029) does, ending
- * through the death-music events.
+ * open bottom edge lets it fall, the pit check kills it once its sprite's top leaves the view, and the
+ * fell-off death then runs, ending through the death-music events.
  */
 class PlayerPitFallTest {
     private static final double TOLERANCE = 1e-9;

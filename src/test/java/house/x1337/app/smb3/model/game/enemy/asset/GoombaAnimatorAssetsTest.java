@@ -21,7 +21,7 @@ class GoombaAnimatorAssetsTest {
     private static final int WALK_FRAME_COUNT = 2;
 
     @Test
-    @DisplayName("The mode's assets.json names the walk cycle in Objects_Frame order, then the squished frame")
+    @DisplayName("The mode's assets.json names the walk cycle in frame order, then the squished frame")
     void descriptorNamesTheWalkCycle() {
         // Prepare
         final List<String> requestedFilenames = new ArrayList<>();
@@ -59,7 +59,7 @@ class GoombaAnimatorAssetsTest {
     @Test
     @DisplayName("The squished frame is a full tile whose art is flattened against the tile's bottom")
     void squishedFrameIsBottomAligned() throws IOException {
-        // The stomped Goomba keeps its walking quad — nothing repositions it (dasm ObjState_Squashed only
+        // The stomped Goomba keeps its walking quad — nothing repositions it (the squashed state only
         // swaps the frame). The flattened look therefore has to come from the art itself sitting in the
         // lower half of the tile; art centred in the tile would leave the Goomba floating.
         final BufferedImage squished = readFrame(SQUISHED_FRAME_FILENAME);
@@ -77,7 +77,7 @@ class GoombaAnimatorAssetsTest {
             .as("the bottom row carries art, so the Goomba rests on the ground")
             .isPositive();
         assertThat(squished.getRGB(0, 0) >>> 24)
-            .as("transparency survived the conversion from the original bitmap")
+            .as("transparency survived the conversion from the source bitmap")
             .isZero();
     }
 

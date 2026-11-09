@@ -17,9 +17,9 @@ import static house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa.MIDDL
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the Koopa Paratroopa's bundles. {@code Troopa_Draw} draws the walking troopa's own body for the
- * paratroopa (dasm prg004.asm:4323), so the body frames stay pixel-for-pixel copies of the troopa's. The
- * wing files are the ROM's own {@code $CD}/{@code $CF} patterns, at the rows they occupy in their sprite.
+ * Pins the Koopa Paratroopa's bundles. The paratroopa's body is drawn as the walking troopa's own body, so
+ * the body frames stay pixel-for-pixel copies of the troopa's. The wing files are the paratroopa's own
+ * raised and lowered wing patterns, at the rows they occupy in their sprite.
  */
 class KoopaParaTroopaAnimatorAssetsTest {
     private static final String GREEN_CONTEXT = "sprites/enemy/koopa/paratroopa/green/";
@@ -80,13 +80,13 @@ class KoopaParaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("The wing art sits where the ROM's $CD and $CF patterns sit in their 8x16 sprite")
-    void theWingArtSitsAtTheRomsRows() throws IOException {
-        // Prepare - first and last rows with art, read off CHR/chr079.pcx: $CC/$CD is rows 2..14, $CE/$CF
-        // is rows 7..15. The Para-Goomba's files carry the same shapes 2 and 4 rows higher, which is what
-        // left a gap under the paratroopa's wing when they were reused.
+    @DisplayName("The wing art sits where the raised and lowered wing patterns sit in their 8x16 sprite")
+    void theWingArtSitsAtTheWingPatternRows() throws IOException {
+        // Prepare - first and last rows with art in the source sprite sheet: the raised wing is rows 2..14,
+        // the lowered wing rows 7..15. The Para-Goomba's files carry the same shapes 2 and 4 rows higher,
+        // which is what left a gap under the paratroopa's wing when they were reused.
         final List<String> poses = List.of("up", "down");
-        final List<int[]> romRows = List.of(new int[] {2, 14}, new int[] {7, 15});
+        final List<int[]> artRows = List.of(new int[] {2, 14}, new int[] {7, 15});
 
         for (int pose = 0; pose < poses.size(); pose++) {
             for (final String side : List.of("left", "right")) {
@@ -98,15 +98,15 @@ class KoopaParaTroopaAnimatorAssetsTest {
                 assertThat(wing.getWidth()).isEqualTo(TILE_SPRITE_SIZE / 2);
                 assertThat(wing.getHeight()).isEqualTo(TILE_SPRITE_SIZE);
                 assertThat(firstArtRow(wing, 0, wing.getWidth())).as("%s_%s top", poses.get(pose), side)
-                    .isEqualTo(romRows.get(pose)[0]);
+                    .isEqualTo(artRows.get(pose)[0]);
                 assertThat(lastArtRow(wing)).as("%s_%s bottom", poses.get(pose), side)
-                    .isEqualTo(romRows.get(pose)[1]);
+                    .isEqualTo(artRows.get(pose)[1]);
             }
         }
     }
 
     @Test
-    @DisplayName("Each wing beat ships its SPR_HFLIP mirror as the _left file")
+    @DisplayName("Each wing beat ships its horizontal mirror as the _left file")
     void theLeftWingsMirrorTheRightOnes() throws IOException {
         for (final String pose : List.of("up", "down")) {
             // Prepare
@@ -130,7 +130,7 @@ class KoopaParaTroopaAnimatorAssetsTest {
     @DisplayName("The middle body row the wing hangs from starts where KoopaParaTroopa says, in both frames")
     void theMiddleRowMatchesTheWalkArt() throws IOException {
         for (int frame = 0; frame < WALK_FILENAMES.size(); frame++) {
-            // Prepare - the back column holds only $C4 above the feet, and $C4's first row has art
+            // Prepare - the back column holds only one pattern above the feet, and that pattern's first row has art
             final BufferedImage walk = read(GREEN_CONTEXT + WALK_FILENAMES.get(frame));
 
             // Execute
@@ -181,7 +181,7 @@ class KoopaParaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("The red wing is the green wing: both are drawn with SPR_PAL1")
+    @DisplayName("The red wing is the green wing: both are drawn with the same sprite palette")
     void theRedWingIsTheGreenWing() throws IOException {
         for (final String pose : List.of("up", "down")) {
             for (final String side : List.of("left", "right")) {

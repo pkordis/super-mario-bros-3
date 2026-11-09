@@ -11,5 +11,5 @@ public enum PiranhaPlantMode implements EnemyMode {
 
     private final String framesFolder;
     private final int riseDistancePixels;
-    private final int boundBoxHeightPixels;
+    private final int boundingBoxHeightPixels;
 }

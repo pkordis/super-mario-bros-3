@@ -63,14 +63,14 @@ public final class GameConstants {
     // -------------------------------------------------------------------------
     // HUD — fixed status bar at the bottom of the screen
     //
-    // The NES original splits its 240 scanlines into 192 game + 48 status bar
-    // (3 tiles × 16 px/tile). We mirror that ratio: the bottom 3 tile-rows are
-    // reserved for the HUD and the upper 12 tile-rows are the scrollable game
-    // area. The HUD is rendered in a separate viewport so it remains fixed
-    // regardless of camera movement.
+    // The screen's 240 lines split into 192 of game area and 48 of status bar
+    // (3 tiles × 16 px/tile): the bottom 3 tile-rows are reserved for the HUD
+    // and the upper 12 tile-rows are the scrollable game area. The HUD is
+    // rendered in a separate viewport so it remains fixed regardless of
+    // camera movement.
     // -------------------------------------------------------------------------
 
-    /** Height of the HUD region in tile rows (3 tiles = 48 NES scanlines). */
+    /** Height of the HUD region in tile rows (3 tiles = 48 sprite-space px). */
     public static final int HUD_TILES_Y = 3;
 
     /** Height of the game area in tile rows (total viewport tiles minus HUD). */
@@ -97,8 +97,8 @@ public final class GameConstants {
     // Timing
     //
     // SIMULATION_FPS — the fixed rate at which game logic (physics, animation,
-    //                  P-meter, timers) advances. Must remain 60 to match the
-    //                  NES frame cadence that all per-tick constants assume.
+    //                  P-meter, timers) advances. Must remain 60, the frame
+    //                  cadence that all per-tick constants assume.
     //
     // TARGET_FPS    — the rate at which frames are rendered and presented. Taken
     //                 from the display settings of the monitor rendering the game
@@ -143,7 +143,7 @@ public final class GameConstants {
      *
      * <p>Enemies sit in front of the reward items and behind the player ({@code PlayerVisibility}
      * FOREGROUND = 0.1), so a Goomba walking over a rolling mushroom reads correctly while the player
-     * still passes in front of both. The NES has no depth here at all - sprite order is OAM slot order.
+     * still passes in front of both.
      *
      * <p>This is not a depth every enemy shares. Each enemy spawned from a placement takes its own base
      * from {@code EnemyDepthAllocator}, {@link #Z_STEP_BETWEEN_ENEMIES} apart, and draws all of its
@@ -154,10 +154,9 @@ public final class GameConstants {
     /**
      * How far apart two enemies' base depths are.
      *
-     * <p>The ROM gives each object its own contiguous {@code Sprite_RAM} block ({@code SprRamOffsets},
-     * dasm prg000.asm:590, stored to {@code Object_SprRAM,X} at prg000.asm:1908), so one object's sprites
-     * always sort as a unit against another's. A step per enemy, with every part of the enemy kept within
-     * {@link #Z_OFFSET_ENEMY_DETAIL} of its base, is the same guarantee in depth terms.
+     * <p>One object's sprites always sort as a unit against another's. A step per enemy, with every part
+     * of the enemy kept within {@link #Z_OFFSET_ENEMY_DETAIL} of its base, gives that guarantee in depth
+     * terms.
      */
     public static final float Z_STEP_BETWEEN_ENEMIES = 0.0003f;
 
@@ -165,12 +164,11 @@ public final class GameConstants {
      * How far an enemy's secondary quads sit from its own base depth. Well under half of
      * {@link #Z_STEP_BETWEEN_ENEMIES}, so no other enemy's quad can fall between two parts of one enemy.
      *
-     * <p>Behind the base: a Para-Goomba's wings ({@code Sprite_RAM+$08}/{@code +$0C} against the body's
-     * {@code +$00}/{@code +$04}, {@code ParaGoomba_Draw}, dasm prg004.asm:3130) and a waking shell's feet
-     * (the same slots, prg000.asm:2398). A lower slot wins on the NES, so both pass behind their body.
+     * <p>Behind the base: a Para-Goomba's wings and a waking shell's feet, which both pass behind their
+     * body.
      *
-     * <p>In front of the base: a Troopa's head tip and a Paratroopa's wing, which {@code Troopa_Draw}
-     * writes to the slots <em>before</em> the body (prg004.asm:4323-4331, :4375, :4391-4433).
+     * <p>In front of the base: a Troopa's head tip and a Paratroopa's wing, which are drawn ahead of the
+     * body.
      */
     public static final float Z_OFFSET_ENEMY_DETAIL = 0.0001f;
 
@@ -178,10 +176,8 @@ public final class GameConstants {
      * How far <b>behind</b> its holder an object in the player's hands is drawn, so the hands stay
      * visible around it.
      *
-     * <p>This is the ROM's ordering, not a preference. Objects take their OAM slot from
-     * {@code SprRamOffsets} (dasm prg000.asm:590), every entry of which is {@code $40} or higher, while
-     * the player is rooted at {@code $28} ({@code prg008.asm:480}). A lower OAM index draws in front on
-     * the NES, so the player is in front of every object, carried or not.
+     * <p>This ordering is required behaviour, not a preference: the player is drawn in front of every
+     * object, carried or not.
      *
      * <p>Added to the holder's own {@code PlayerVisibility.getPlayerZ()} rather than being an absolute
      * depth, so the carry survives the player switching foreground layer — an absolute value would put
@@ -194,9 +190,8 @@ public final class GameConstants {
      * The exception: while the camera-facing turn-around pose is running, or while the player goes into a pipe,
      * the carried object is drawn <b>in front</b> of its holder.
      *
-     * <p>{@code ObjState_Held} forces {@code Object_SprRAM = $10} whenever {@code Player_PipeFace} is
-     * non-zero (dasm prg000 @ PRG000_CF1A), and on every pipe tick (prg000.asm:2997-3001), and {@code $10} is
-     * below the player's {@code $28} — so for those ticks, and only those, the object wins. The turn-around is the
+     * <p>A held object is moved ahead of the player in draw order whenever the player is facing the viewer,
+     * and on every pipe tick, so for those ticks, and only those, the object wins. The turn-around is the
      * player facing the viewer and holding the thing out towards them; in a pipe the object sits right over the
      * player, where drawing it behind would hide it completely.
      *
@@ -207,100 +202,90 @@ public final class GameConstants {
 
     /**
      * How far behind a carried object its own secondary quads sit — a waking shell's flickering feet,
-     * which the ROM puts in the slots after the shell's ({@code Sprite_RAM+$08} and {@code +$0C} against
-     * the shell's {@code +$00} and {@code +$04}, dasm prg000.asm:2398). Applied either side of the
-     * comparison above, so the feet stay behind the shell whichever side of the player it is on.
+     * which are drawn behind the shell. Applied either side of the comparison above, so the feet stay
+     * behind the shell whichever side of the player it is on.
      */
     public static final float Z_OFFSET_CARRIED_DETAIL_BEHIND_ITS_OBJECT = 0.002f;
 
     public static final float Z_DEPTH_BRICK_BLOCK_FRAGMENT = 0.11f;
 
     // -------------------------------------------------------------------------
-    // SMB3 velocity constants (4.4 fixed-point / 16 → px/frame from the JS port)
+    // Player velocity constants (4.4 fixed-point / 16 → px/frame)
     // All values are in game-units (tile-fraction) per tick.
     // -------------------------------------------------------------------------
 
-    public static final double PLAYER_TOPWALKSPEED = 1.5;
-    public static final double PLAYER_TOPRUNSPEED = 2.5;
+    public static final double PLAYER_TOP_WALK_SPEED = 1.5;
+    public static final double PLAYER_TOP_RUN_SPEED = 2.5;
 
     /**
-     * The end-level run-off's walk: {@code Player_XVel = $14} on every grounded frame while {@code Player_EndLevel}
-     * is set (dasm prg029.asm:1099-1118, {@code PRG029_D257}), 1.25 px per tick, a little under the top walking speed.
+     * The end-level run-off's walk: the horizontal velocity set on every grounded frame of the run-off, 1.25 px
+     * per tick, a little under the top walking speed.
      */
-    public static final double PLAYER_END_LEVEL_XVEL = 20 / 16.0;
-    public static final double PLAYER_TOPPOWERSPEED = 3.5;
+    public static final double PLAYER_END_LEVEL_X_VELOCITY = 20 / 16.0;
+    public static final double PLAYER_TOP_POWER_SPEED = 3.5;
 
     /**
      * Minimum velocity magnitude for the "spread-eagle" running sprites.
-     * From prg008.asm {@code Player_SetSpecialFrames}: {@code CMP #$37}.
-     * In 4.4 fixed-point: $37/16 = 3.4375 px/frame.
+     * In 4.4 fixed-point: 55/16 = 3.4375 px/frame.
      */
     public static final double PLAYER_SPREAD_EAGLE_THRESHOLD = 3.4375;
 
     /**
      * Minimum velocity magnitude to trigger the skid state when the player
-     * presses the opposite direction. From prg008.asm:
-     * {@code LDA Player_XVel; ADD #$01; CMP #$03; BLT} — i.e. |XVel| ≥ $02.
-     * In 4.4 fixed-point: $02/16 = 0.125 px/frame.
+     * presses the opposite direction: |x velocity| ≥ 2 in 4.4 fixed-point,
+     * i.e. 2/16 = 0.125 px/frame.
      */
-    public static final double PLAYER_SKID_VEL_THRESHOLD = 0.125;
-    public static final double PLAYER_FLY_YVEL = -1.5;
-    public static final double PLAYER_FLY_APEX_YVEL = -1.0;
-    public static final double PLAYER_TAILWAG_YVEL = 1.0;
+    public static final double PLAYER_SKID_VELOCITY_THRESHOLD = 0.125;
+    public static final double PLAYER_FLY_Y_VELOCITY = -1.5;
+    public static final double PLAYER_FLY_APEX_Y_VELOCITY = -1.0;
+    public static final double PLAYER_TAIL_WAG_Y_VELOCITY = 1.0;
 
     public static final double GRAVITY_SLOW = 1.0;
     public static final double GRAVITY_FAST = 5.0;
     public static final double[] JUMP_FORCE = {-3.5, -3.625, -3.75, -4.0};
 
     /**
-     * Upward velocity the player is given for stomping an enemy (dasm prg000 {@code Player_HitEnemy}
-     * @ PRG000_D2B4: {@code LDA #-$40 / STA Player_YVel}), i.e. {@code -$40/16} px/frame.
+     * Upward velocity the player is given for stomping an enemy, {@code -64/16} px/frame.
      *
-     * <p>The ROM sets this one value whatever the player is doing; there is no separate boosted variant
-     * for holding A, and a stomp grants no {@code Player_AllowAirJump} (only springboards and bolts do).
+     * <p>A stomp sets this one value whatever the player is doing; there is no separate boosted variant
+     * for holding A, and a stomp grants no air jump (only springboards and bolts do).
      * The extra height from holding A falls out of the ordinary variable-height gravity instead: while
-     * the player is rising faster than {@code -$20} with A held, gravity is {@link #GRAVITY_SLOW} rather
+     * the player is rising faster than {@code -2} px/frame with A held, gravity is {@link #GRAVITY_SLOW} rather
      * than {@link #GRAVITY_FAST}. Because this bounce starts beyond that threshold, holding A stretches
      * it well past a normal jump, which is what lets a chain of stomps climb.
      */
-    public static final double PLAYER_STOMP_BOUNCE_YVEL = -4.0;
+    public static final double PLAYER_STOMP_BOUNCE_Y_VELOCITY = -4.0;
 
     /**
-     * Upward velocity the death throe launches with (dasm {@code Player_Die} @ prg000 PRG000_DA8E:
-     * {@code LDA #-64 / STA Player_YVel}), i.e. {@code -$40/16} px/frame — the player pops up before
-     * falling off the bottom of the screen. Numerically the same as {@link #PLAYER_STOMP_BOUNCE_YVEL},
-     * but written by a different routine and free to be retuned.
+     * Upward velocity the death throe launches with, {@code -64/16} px/frame — the player pops up before
+     * falling off the bottom of the screen. Numerically the same as {@link #PLAYER_STOMP_BOUNCE_Y_VELOCITY},
+     * but a separate value and free to be retuned.
      */
-    public static final double PLAYER_DEATH_RISE_YVEL = -4.0;
+    public static final double PLAYER_DEATH_RISE_Y_VELOCITY = -4.0;
 
     /**
-     * Ticks the dead player holds still in place before the death throe launches (dasm {@code Player_Die}
-     * @ prg000: {@code LDA #$30 / STA Event_Countdown}). While this counts down, the dying routine draws
-     * the dead frame but applies no motion (prg029 {@code Player_Die_Dying} jumps to the draw-only
-     * {@code PRG029_D771} whenever {@code Event_Countdown != 0}); only when it reaches zero does the
-     * rise-and-fall ({@code PRG029_D768}) begin. {@code $30 = 48} ticks.
+     * Ticks the dead player holds still in place before the death throe launches. While this counts down,
+     * the dead frame is drawn but no motion is applied; only when it reaches zero does the rise-and-fall
+     * begin.
      */
-    public static final int PLAYER_DEATH_PAUSE_TICKS = 0x30;
+    public static final int PLAYER_DEATH_PAUSE_TICKS = 48;
 
     /**
-     * Per-tick gravity applied to the death throe (dasm prg029 PRG029_D768: {@code INC Player_YVel}
-     * twice = {@code +2} in 4.4 fixed-point, i.e. {@code 2/16} px/frame²). Decelerates the rise to an
-     * apex at ~32 ticks, then accelerates the fall.
+     * Per-tick gravity applied to the death throe: {@code +2} in 4.4 fixed-point, i.e. {@code 2/16}
+     * px/frame². Decelerates the rise to an apex at ~32 ticks, then accelerates the fall.
      */
     public static final double PLAYER_DEATH_GRAVITY = 2.0 / TILE_SPRITE_SIZE;
 
     /**
-     * Terminal fall speed of the death throe (dasm {@code Player_ApplyYVelocity} caps at
-     * {@code FALLRATE_MAX = $40}, i.e. {@code $40/16} px/frame). The dying body never falls faster
+     * Terminal fall speed of the death throe, {@code 64/16} px/frame. The dying body never falls faster
      * than this on its way off-screen.
      */
     public static final double PLAYER_DEATH_FALL_MAX = 4.0;
 
     /**
-     * Ticks a player who fell into a pit waits, unseen, before the level ends (dasm prg008 @ PRG008_A3FA,
-     * lines 860-861: {@code LDA #$c0 / STA Event_Countdown}, counted down by {@code Player_Die_FellOff} in
-     * prg029). {@code $C0 = 192} ticks is how long the death music plays, which is what the wait stands
-     * for: {@code DeathMusicStandIn} counts it until a sound engine reports the real track's end.
+     * Ticks a player who fell into a pit waits, unseen, before the level ends. 192 ticks is how long the
+     * death music plays, which is what the wait stands for: {@code DeathMusicStandIn} counts it until a
+     * sound engine reports the real track's end.
      */
     public static final int PLAYER_PIT_DEATH_COUNTDOWN_TICKS = 192;
 
@@ -308,6 +293,6 @@ public final class GameConstants {
     public static final int PMETER_CHARGE_FRAMES = 8;
     public static final int PMETER_DRAIN_FRAMES = 24;
     public static final int PMETER_FULL_HOLD_FRAMES = 16;
-    public static final int FLY_TIME = 0x80;
-    public static final int WAG_COUNT = 0x10;
+    public static final int FLY_TIME = 128;
+    public static final int WAG_COUNT = 16;
 }

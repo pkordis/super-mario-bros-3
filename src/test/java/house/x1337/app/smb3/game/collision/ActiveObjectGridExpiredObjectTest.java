@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * An object retired earlier in the collision pass, as the card touch retires everything on screen, is left alone by
- * the rest of the pass: the ROM runs the card in slot 6 before the other objects, which by then are poofing.
+ * the rest of the pass: the card is resolved before the other objects, which by then are poofing.
  */
 class ActiveObjectGridExpiredObjectTest {
     private static final AxisAlignedBoundingBox BOX = new AxisAlignedBoundingBox(32, 32, 48, 48);

@@ -39,7 +39,7 @@ public final class BrickBlockAnimator extends GameObjectAnimatorSingleTiled<Bloc
     @Override
     public void update() {
         // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
-        // frame flip; the ROM's substitution happens inside the tile lookup, so it is instantaneous.
+        // frame flip, so the brick-to-coin substitution is instantaneous.
         if (substituting != powerSwitchTimeWindow.isActive()) {
             substituting = powerSwitchTimeWindow.isActive();
             repaintCurrentFrame();

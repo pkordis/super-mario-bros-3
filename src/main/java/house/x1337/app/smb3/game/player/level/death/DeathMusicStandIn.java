@@ -11,11 +11,10 @@ import static house.x1337.app.smb3.GameConstants.PLAYER_PIT_DEATH_COUNTDOWN_TICK
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 
 /**
- * A placeholder for the death music, until the port has a sound engine.
+ * A placeholder for the death music, until the game has a sound engine.
  *
- * <p>After a pit death the ROM waits {@code Event_Countdown = $C0} ticks (dasm prg008 @ PRG008_A3FA) for
- * the {@code MUS1_PLAYERDEATH} track to play out, and only then leaves the level ({@code Player_Die_FellOff},
- * prg029). This class counts those {@link house.x1337.app.smb3.GameConstants#PLAYER_PIT_DEATH_COUNTDOWN_TICKS}
+ * <p>After a pit death the game waits for the death music to play out, and only then leaves the level.
+ * This class counts those {@link house.x1337.app.smb3.GameConstants#PLAYER_PIT_DEATH_COUNTDOWN_TICKS}
  * from {@link PlayerDeathStarted}{@code (FELL_OFF)} and publishes {@link PlayerDeathMusicFinished} on the
  * 192nd simulation tick after the one the death began on. {@link PlayerDeathSequence} turns that into the
  * end of the level.
@@ -72,8 +71,8 @@ public final class DeathMusicStandIn implements MotionManager {
     }
 
     /**
-     * Counts down, then publishes on the tick that finds the count at zero. That is the ROM's order:
-     * {@code Player_Die_FellOff} returns while {@code Event_Countdown != 0} and exits on the frame it reads 0.
+     * Counts down, then publishes on the tick that finds the count at zero: the level is left on the
+     * first tick that reads 0, not on the tick that makes it 0.
      */
     private void tick() {
         if (!armed) {

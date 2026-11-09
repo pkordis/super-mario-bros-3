@@ -8,10 +8,9 @@ import static house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMoti
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The block coin's flight, worked update by update as {@code CoinPUp_UpdateAndDraw} runs it (dasm
- * prg007.asm:2786-2855): {@code Counter++}, {@code Y += YVel}, and {@code YVel++} when {@code Counter & 3 == 0}, from
- * {@code YVel = -5} and {@code Counter = 1} (prg000.asm:779-803). The coin is removed by the update that takes
- * {@code YVel} to 5. Tick {@code n} is the position after {@code n} updates.
+ * The block coin's flight, worked update by update: {@code Counter++}, {@code Y += YVel}, and {@code YVel++} when
+ * {@code Counter & 3 == 0}, from {@code YVel = -5} and {@code Counter = 1}. The coin is removed by the update that
+ * takes {@code YVel} to 5. Tick {@code n} is the position after {@code n} updates.
  */
 class BlockCoinPopMotionTest {
     @Test
@@ -37,8 +36,8 @@ class BlockCoinPopMotionTest {
     }
 
     @Test
-    @DisplayName("The height follows the ROM's Y, update by update, from the launch to the removal")
-    void theHeightMatchesTheRom() {
+    @DisplayName("The height follows the worked Y, update by update, from the launch to the removal")
+    void theHeightFollowsTheWorkedYUpdateByUpdate() {
         // Prepare
         final PopMotion motion = blockCoin();
         int counter = 1;
@@ -96,7 +95,7 @@ class BlockCoinPopMotionTest {
     }
 
     @Test
-    @DisplayName("The spin pattern is CoinPUp_Patterns[Counter >> 2 & 3], with the counter at 1 at the launch")
+    @DisplayName("The spin pattern is picked by Counter >> 2 & 3, with the counter at 1 at the launch")
     void theSpinFollowsTheCounter() {
         // Prepare
         int counter = 1;

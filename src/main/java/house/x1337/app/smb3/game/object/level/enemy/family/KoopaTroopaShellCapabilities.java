@@ -192,9 +192,8 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         }
         final LevelScenePlayer carrier = getCarrier();
         if (carrier == null) {
-            // Defensive only: nothing clears the carrier without leaving this state, and the ROM has no
-            // equivalent branch because a held object's holder is whichever player is being drawn. Falling
-            // back to a resting shell keeps the object reachable rather than stranding it mid-carry.
+            // Defensive only: nothing clears the carrier without leaving this state. Falling back to a
+            // resting shell keeps the object reachable rather than stranding it mid-carry.
             endCarry();
             setState(SHELLED);
             setVelocity(STILL);
@@ -216,9 +215,9 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         if (holder == null || holder.getRuntimeState().getCarriedObject() != this) {
             return;
         }
-        // The turn-around pose is deliberately left running. PRG008_AF2F reaches the decrement-and-draw
-        // on Player_PipeFace alone, before it tests Player_IsHolding, so a player who lets go two ticks
-        // into the pose keeps facing the camera for the remaining five.
+        // The turn-around pose is deliberately left running. Its countdown and draw depend on the pose
+        // timer alone, not on whether the player is still holding something, so a player who lets go two
+        // ticks into the pose keeps facing the camera for the remaining five.
         holder.getRuntimeState().setCarriedObject(null);
     }
 
@@ -325,7 +324,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         final PixelPosition proposed = getPosition().steppedX(velocity);
         if (isWallAhead(proposed)) {
             bumpOffBlocks(proposed);
-            // Object_AboutFace (dasm prg000.asm:2567): the facing bit and the velocity both reverse.
+            // Turning about: the facing and the velocity both reverse.
             setFacingRight(!isFacingRight());
             setVelocity(velocity.negatedX());
             return;
@@ -393,8 +392,8 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         if (getState() != KICKED) {
             return;
         }
-        // ASL on a zero X velocity leaves the carry clear, so a shell that has just landed and not yet
-        // re-launched knocks rightward - which is what the ROM's BCC/BCS pair picks in that case too.
+        // A zero X velocity counts as not moving left, so a shell that has just landed and not yet
+        // re-launched knocks rightward.
         final int knockAway = getVelocity().movingLeft()
             ? -SHELL_CHAIN_KNOCK_X_VELOCITY_FIXED_POINT
             : SHELL_CHAIN_KNOCK_X_VELOCITY_FIXED_POINT;

@@ -18,14 +18,14 @@ public interface LevelScenePlayerActionCapable
             runtimeState.standUp();
         } else if (!runtimeState.isInAir()) {
             // Grounded: re-evaluate ducking from pad input each frame.
-            // dasm prg008 PRG008_A72B: duck when ONLY down is held.
+            // Duck when ONLY down is held.
             if (inputDown) {
                 runtimeState.duck();
             } else {
                 runtimeState.standUp();
             }
         }
-        // In air: ducking flag is frozen (dasm prg008 PRG008_A715: if already
+        // In air: ducking flag is frozen (if already
         // ducking when airborne, keep it; if not, keep it unset). No action
         // needed — the flag persists from whatever it was before takeoff.
     }

@@ -51,10 +51,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The two coins that pop up and land with a caption: the block coin ({@code CoinPUp_*}, dasm prg007.asm:2786-2887)
- * and the coin the card touch pops out of an object ({@code SOBJ_POPPEDOUTCOIN}). The popped-out coin lands as
- * {@code SObj_CoinOrDebris} lands it (prg007.asm:3506-3521): a coin, and the score {@code $89 + Kill_Tally} with
- * {@code Kill_Tally} going up (prg007.asm:4036-4040), so coins landing together climb the kill ladder from 1000.
+ * The two coins that pop up and land with a caption: the block coin and the coin the card touch pops out of an
+ * object. The popped-out coin lands as a coin and a score from the kill ladder, one step higher with each landing,
+ * so coins landing together climb the kill ladder from 1000.
  *
  * <p>The screen is 256 x 240 with its top-left at {@link #screen}, which a test moves to scroll it.
  */
@@ -131,7 +130,7 @@ class CoinRewardMotionManagerTest {
     }
 
     @Test
-    @DisplayName("A block coin's 39th update removes it and leaves a 100 at CoinPUp_Y, 4 px left")
+    @DisplayName("A block coin's 39th update removes it and leaves a 100 at the coin's Y, 4 px left")
     void aBlockCoinLands() {
         // Prepare
         final CompletableFuture<Integer> points = spawnBlockCoin();
@@ -141,7 +140,7 @@ class CoinRewardMotionManagerTest {
         assertThat(captions).as("Still in flight").isEmpty();
         tick(1);
 
-        // Verify - CoinPUp_Y is the line above where the coin is drawn
+        // Verify - the coin's Y is the line above where the coin is drawn
         final double coinTop = PROBE_Y - 24 + 1 - 15;
         assertThat(points).isCompletedWithValue(100);
         assertThat(captionRewards).containsExactly(SCORE_100.getData());
@@ -266,9 +265,9 @@ class CoinRewardMotionManagerTest {
     }
 
     @Test
-    @DisplayName("While gameplay is halted a block coin at CoinPUp_Y 197 or more is removed")
+    @DisplayName("While gameplay is halted a block coin at screen Y 197 or more is removed")
     void aHaltedBlockCoinAboveTheScreenIsRemoved() {
-        // Prepare - after 19 updates the coin is 55 px up, so CoinPUp_Y = PROBE_Y - 24 - 55 - the screen's top
+        // Prepare - after 19 updates the coin is 55 px up, so its screen Y = PROBE_Y - 24 - 55 - the screen's top
         spawnBlockCoin();
         tick(19);
 
@@ -290,7 +289,7 @@ class CoinRewardMotionManagerTest {
         spawnBlockCoin();
         tick(19);
 
-        // Execute - the coin's CoinPUp_Y is -1, so 255
+        // Execute - the coin's screen Y is -1, so 255
         scrollTo(SCREEN_LEFT, PROBE_Y - 24 - 55 + 1.0);
         manager.updateWhileHalted();
 
@@ -330,7 +329,7 @@ class CoinRewardMotionManagerTest {
     }
 
     @Test
-    @DisplayName("The popped-out coin's caption has Scores_Y 6 px above the landed coin, at the object's X")
+    @DisplayName("The popped-out coin's caption is placed 6 px above the landed coin, at the object's X")
     void thePoppedOutCaptionIsAboveTheCoin() {
         // Prepare
         manager.spawnPoppedOutCoin(player, new PixelPosition(160, 300));

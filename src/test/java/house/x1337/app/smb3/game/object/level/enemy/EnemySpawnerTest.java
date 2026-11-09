@@ -56,10 +56,9 @@ import static org.mockito.Mockito.when;
  * the enemy animators' scene-bound assets happens here — not in a motion manager, which owns behaviour
  * and physics rather than drawing.
  *
- * <p>And pins the placement lifecycle (SMB3-3), the ROM's {@code Level_ObjectsSpawnByScroll}: the first
- * tick spawns the opening screen, after that the one look-ahead column picked by the last scroll direction
- * spawns, a live enemy leaving the screen releases its placement to spawn again, and a dead one keeps it
- * spent.
+ * <p>And pins the placement lifecycle (SMB3-3), spawning by scroll: the first tick spawns the opening
+ * screen, after that the one look-ahead column picked by the last scroll direction spawns, a live enemy
+ * leaving the screen releases its placement to spawn again, and a dead one keeps it spent.
  */
 class EnemySpawnerTest {
     private static final int ROWS = 3;
@@ -135,7 +134,7 @@ class EnemySpawnerTest {
     @Test
     @DisplayName("The opening pass spawns every column from 32 px left of the screen to 16 px right of it")
     void theOpeningPassCoversTheOpeningScreen() {
-        // Prepare - the screen spans x = 64 to 320; PRG005_BF49 walks the look-ahead from 32 to 336
+        // Prepare - the screen spans x = 64 to 320; the opening pass walks the look-ahead from 32 to 336
         givenAPlacedGoombaAt(1);
         givenAPlacedGoombaAt(2);
         givenAPlacedGoombaAt(21);
@@ -211,7 +210,7 @@ class EnemySpawnerTest {
         enemySpawner.spawnPlacementsComingIntoView();
         enemySpawner.spawnPlacementsComingIntoView();
 
-        // Verify - Level_ObjectsSpawned bit 7 is set by the first spawn
+        // Verify - the first spawn marks the placement as spawned
         assertThat(goombaMotionManager.getActiveInstances()).hasSize(1);
     }
 
@@ -231,7 +230,7 @@ class EnemySpawnerTest {
         // Execute - the screen does not move
         enemySpawner.spawnPlacementsComingIntoView();
 
-        // Verify - Level_ObjectsSpawnByScroll runs every frame on Scroll_LastDir's look-ahead, so a fresh
+        // Verify - spawning by scroll runs every frame on the last scroll direction's look-ahead, so a fresh
         // instance, built from the placement again, comes straight back
         assertThat(goombaMotionManager.getActiveInstances())
             .as("Respawned")
@@ -280,7 +279,7 @@ class EnemySpawnerTest {
     @Test
     @DisplayName("A placement whose enemy died never spawns again, however the screen moves")
     void aRetiredPlacementNeverRespawns() {
-        // Prepare - spawned at the look-ahead, then killed (Object_SetDeadEmpty keeps the spawned bit set)
+        // Prepare - spawned at the look-ahead, then killed (which keeps the placement marked as spawned)
         givenAPlacedGoombaAt(18);
         enemySpawner.spawn();
         givenTheScreenAt(0);
@@ -303,7 +302,7 @@ class EnemySpawnerTest {
     @Test
     @DisplayName("A placement handed to the enemy taking over the slot is released by that enemy, not the first")
     void aHandedOverPlacementFollowsTheSlot() {
-        // Prepare - the Para-Goomba's Goomba takes its slot (Objects_SpawnIdx stays put)
+        // Prepare - the Para-Goomba's Goomba takes its slot (and with it the placement)
         givenAPlacedGoombaAt(18);
         enemySpawner.spawn();
         givenTheScreenAt(0);
@@ -494,7 +493,7 @@ class EnemySpawnerTest {
         return captor.getValue().asMap();
     }
 
-    /** The screen, 256 px wide like the NES's, with its left edge at the given sprite-pixel X. */
+    /** The screen, 256 px wide, with its left edge at the given sprite-pixel X. */
     private void givenTheScreenAt(final double left) {
         when(cameraState.getActiveObjectRegion(anyInt()))
             .thenReturn(new AxisAlignedBoundingBox(left, -1000, left + SCREEN_WIDTH_PIXELS, 1000));

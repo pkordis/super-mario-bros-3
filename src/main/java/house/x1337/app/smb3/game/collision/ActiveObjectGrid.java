@@ -49,10 +49,9 @@ import static java.lang.Math.min;
 public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     /**
      * How far above an object's top the player's reference Y must be for contact to count as a stomp
-     * rather than a body hit — the ROM's {@code Player_HitEnemy} @ PRG000_D218, which loads {@code #19}
-     * for an ordinary object and compares {@code Objects_Y - 19} against {@code Player_Y}.
+     * rather than a body hit: the player's Y is compared against the object's top minus 19.
      *
-     * <p>The ROM picks this per object: {@code 17} for a pile-driver microgoomba and a hopping Cheep
+     * <p>The range differs per object: {@code 17} for a pile-driver microgoomba and a hopping Cheep
      * Cheep, {@code 8} when the object is giant, {@code 19} for everything else. Only ordinary-sized
      * enemies exist here, so the ordinary value is the only one needed; it becomes a per-object property
      * the moment a giant or microgoomba does.
@@ -226,9 +225,8 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
 
     /**
      * Turns every pair of overlapping {@link ActiveLevelObject#bouncesOffOtherObjects() bouncing}
-     * objects away from each other, but only where they meet <b>side-on</b> — the ROM's
-     * {@code Object_BumpOffOthers} (dasm prg000 @ PRG000_CC2B), which is what stops a row of walking
-     * enemies from drifting through one another.
+     * objects away from each other, but only where they meet <b>side-on</b>. This is what stops a row of
+     * walking enemies from drifting through one another.
      *
      * <p>Run as its own phase, after every manager has moved and re-inserted its objects and before the
      * player pass. It cannot be folded into the walk itself: an enemy deciding mid-move whether a
@@ -238,8 +236,8 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      *
      * <p>Consequently the bump is detected just <em>after</em> the overlap rather than instead of it, so
      * the two objects interpenetrate briefly — at a walking pace of half a pixel per tick, by under a
-     * pixel — and separate on the following tick. The ROM behaves the same way: {@code Object_Move} has
-     * already run, and {@code Object_BumpOffOthers} only rewrites the facing bit, never the position.
+     * pixel — and separate on the following tick. That is the intended behaviour: the objects have
+     * already moved, and the bump only rewrites their facing, never their position.
      *
      * <p>Each object is resolved against every neighbour independently and told to face <em>away</em>
      * from it, so the outcome does not depend on iteration order and a pair that spawns already
@@ -263,23 +261,20 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     /**
      * Kills whatever this tick's kicked objects have run into — the lethal half of the object-to-object
      * story, and {@code ActiveObjectGrid}'s motivating use case (see the class Javadoc's shell bowling
-     * through a row of enemies). The ROM's {@code ObjectToObject_HitTest} from inside
-     * {@code ObjState_Kicked} (dasm prg000 @ PRG000_CD05).
+     * through a row of enemies).
      *
      * <p><b>Additive, not folded into {@link #resolveObjectToObjectBumps()}.</b> That pass has one
-     * semantic — overlapping walkers turn away from each other, nothing else — and the ROM keeps the two
-     * apart too: the bump lives in {@code Object_BumpOffOthers}, called from the shared object loop for
-     * everything, while the kill lives in the kicked state's own routine. Teaching the bump to
-     * occasionally kill would make a facing rewrite and a death share one call site for no gain; a kicked
-     * shell is also not required to {@code bouncesOffOtherObjects()}, so it would not even be in that
-     * pass's candidate set.
+     * semantic — overlapping walkers turn away from each other, nothing else — and the two stay apart in
+     * behaviour too: the bump applies to every object, while the kill belongs to the kicked state alone.
+     * Teaching the bump to occasionally kill would make a facing rewrite and a death share one call site
+     * for no gain; a kicked shell is also not required to {@code bouncesOffOtherObjects()}, so it would
+     * not even be in that pass's candidate set.
      *
      * <p>Runs in the same phase and for the same reason: every manager has moved and re-inserted its
      * objects, so no kill is decided against a stale position.
      *
-     * <p>One ROM detail deliberately dropped: {@code (X + Counter_1) >> 1}'s carry gates the hit test to
-     * roughly every other tick per object slot (@ PRG000_CCFA), a CPU-budget trick that only delays a
-     * kill by a frame. Porting it would make the chain non-deterministic against nothing it buys here.
+     * <p>The hit test runs on every tick for every kicked object. Running it only on every other tick
+     * would merely delay a kill by a frame and make the chain non-deterministic, for nothing in return.
      */
     public void resolveKickedObjectKills() {
         for (final T object : kickedObjects) {
@@ -304,12 +299,11 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
 
     /**
      * Kills whatever this tick's <b>carried</b> objects have been walked into, and the carried object with
-     * it — dasm {@code ObjState_Held}'s own {@code ObjectToObject_HitTest} and the block after it
-     * (prg000.asm:3094-3137).
+     * it.
      *
-     * <p>Sibling of {@link #resolveKickedObjectKills()} rather than a branch inside it, because the ROM
-     * keeps them in two separate state routines and the outcomes differ: a rolling shell survives
-     * everything it kills and carries on, a carried one dies with its first victim. Folding them together
+     * <p>Sibling of {@link #resolveKickedObjectKills()} rather than a branch inside it, because they
+     * belong to two separate object states and the outcomes differ: a rolling shell survives everything
+     * it kills and carries on, a carried one dies with its first victim. Folding them together
      * would put "I live" and "I die" behind one call.
      *
      * <p>The first contact ends the pass for that object — it is dead, so {@link
@@ -334,14 +328,13 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
-     * Whether a kicked or carried object meeting {@code candidate} is a collision at all — the
-     * {@code OAT_HITNOTKILL} test {@code ObjectToObject_HitTest} applies to every candidate before it
-     * reports one (dasm prg000.asm:6165-6173).
+     * Whether a kicked or carried object meeting {@code candidate} is a collision at all. A candidate
+     * that is not {@link ActiveLevelObject#isKilledByRammedObject() killed by a rammed object} (every
+     * powerup, for one) is excluded before any collision is reported.
      *
-     * <p>Shared by both lethal passes because it is one test in one ROM routine, which both state
-     * routines call. The ROM does not report the collision when the flag is set, rather than reporting it
-     * and declining to kill — so the striker is unaffected too, and a shell rolls straight through a
-     * powerup.
+     * <p>Shared by both lethal passes because it is one test that both object states apply. The
+     * collision is not reported at all for an excluded candidate, rather than reported and declined as
+     * a kill — so the striker is unaffected too, and a shell rolls straight through a powerup.
      *
      * @param candidate the object a hazard is overlapping
      * @return {@code true} if ramming it resolves to anything
@@ -378,19 +371,18 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     /**
      * The per-player pass over this tick's live objects: body collisions first, then the tail strike.
      *
-     * <p>The tail is resolved here, and not from the player's own update, because the ROM resolves it
-     * in the object loop — each object runs {@code Object_DoStateAction} and is handed straight to
-     * {@code Object_HitByTailOrBouncer} in the same iteration (dasm prg000 @ PRG000_C9B6, inside the
-     * {@code DEX / BPL PRG000_C975} loop). Running it at this point is the equivalent guarantee: every
-     * object has already moved and been re-inserted this tick, so no strike is ever decided against a
+     * <p>The tail is resolved here, and not from the player's own update, because the strike belongs to
+     * the object pass: each object finishes its own state update and is tested against the tail in the
+     * same iteration. Running it at this point gives that guarantee: every object has already moved and
+     * been re-inserted this tick, so no strike is ever decided against a
      * stale position or against an entry a manager has since retired. Driving it from the player's
      * update instead would read the grid as the managers left it on the previous tick — enough to miss
      * an enemy that has just stepped into the box, or strike one that has just stepped out.
      *
      * <p>The swing state read from the player is nonetheless this tick's: its counter advanced during
-     * {@code updateFrame}, which the engine runs before this pass, exactly as the ROM's player routine
-     * precedes its object loop. The player owns every tail semantic — which frames strike, and where
-     * the box sits; this class only picks the moment and dispatches.
+     * {@code updateFrame}, which the engine runs before this pass, so the player update always precedes
+     * the object pass. The player owns every tail semantic — which frames strike, and where the box sits;
+     * this class only picks the moment and dispatches.
      *
      * @param levelScenePlayers the players to test
      */
@@ -418,11 +410,10 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      * mirror of {@code StaticEnvironmentCollisionGrid}'s terrain dispatch, for the objects that opt in
      * via {@link ActiveLevelObject#resolvesDirectionalPlayerCollision()} (the enemies).
      *
-     * <p>The split is <b>purely vertical</b>, and deliberately so: the ROM's {@code Player_HitEnemy}
-     * (dasm prg000 @ PRG000_D218) decides a stomp from one comparison, {@code Objects_Y - 19} against
-     * {@code Player_Y}, and never consults the horizontal axis at all. Once the boxes overlap, the only
-     * question is whether the player's reference top sits at least {@value #STOMP_RANGE_PIXELS}px above
-     * the object's top:
+     * <p>The split is <b>purely vertical</b>, and deliberately so: a stomp is decided from the vertical
+     * positions alone, and the horizontal axis is never consulted at all. Once the boxes overlap, the
+     * only question is whether the player's reference top sits at least {@value #STOMP_RANGE_PIXELS}px
+     * above the object's top:
      *
      * <ul>
      *   <li><b>From above</b> ({@code onCollisionFromAbove}) — a stomp: within stomp range and the player
@@ -430,20 +421,19 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
      *   <li><b>From below</b> ({@code onCollisionFromBelow}) — too deep to be a stomp, and the player is
      *       rising into the object.</li>
      *   <li><b>Overlap</b> ({@code onPlayerOverlap}) — too deep to be a stomp and not rising: the body
-     *       hit the ROM answers by hurting the player.</li>
+     *       hit, answered by hurting the player.</li>
      * </ul>
      *
      * <p>Note the threshold measures from {@link house.x1337.app.smb3.model.game.player.PlayerPosition}'s
      * Y, <b>not</b> from the hitbox top. That reference is the same for either size — the feet are always
-     * at {@code Y + 32} — so one constant covers large and small Mario alike, which the ROM calls out
-     * explicitly ({@code Player_Y} is "near the hat" when Super and "roughly 16 pixels above" the head
-     * when small). Measuring from the hitbox top instead would silently make the two sizes stomp at
-     * different depths.
+     * at {@code Y + 32} — so one constant covers large and small Mario alike (the player's Y is near the
+     * hat when Super and roughly 16 pixels above the head when small). Measuring from the hitbox top
+     * instead would silently make the two sizes stomp at different depths.
      *
      * <p>This replaced a least-overlapping-axis test plus a 6px minimum sink depth, neither of which the
-     * ROM has. Together they made the stomp progressively harder the faster the player fell — a deeper
-     * vertical overlap demanded an equally deep horizontal one — so a stomp only registered near the
-     * enemy's centre, and a player landing across two adjacent enemies got roughly half the needed
+     * stomp needs. Together they made the stomp progressively harder the faster the player fell — a
+     * deeper vertical overlap demanded an equally deep horizontal one — so a stomp only registered near
+     * the enemy's centre, and a player landing across two adjacent enemies got roughly half the needed
      * overlap on each and stomped neither. The vertical threshold subsumes what the axis test was for:
      * running into an enemy's side puts the player's feet level with its feet, far too deep to qualify.
      *

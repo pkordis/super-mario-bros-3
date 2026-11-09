@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_FALL_MAX;
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
-import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -19,11 +19,10 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
 /**
- * Pins the death throe's Y motion and off-screen completion (dasm {@code Player_Die} launch of
- * {@code Player_YVel = -64} + the per-tick gravity in prg029 PRG029_D768: {@code INC Player_YVel}
- * twice, applied with the {@code FALLRATE_MAX} cap). The body rises from the launch velocity,
- * decelerates to an apex, then falls — capped at the terminal rate — until it clears the bottom of the
- * level, which is when the engine is told to restart.
+ * Pins the death throe's Y motion and off-screen completion: a launch at {@code PLAYER_DEATH_RISE_Y_VELOCITY}
+ * (-4 px/frame) plus a per-tick gravity of 2/16 px/frame, capped at {@code PLAYER_DEATH_FALL_MAX}. The body
+ * rises from the launch velocity, decelerates to an apex, then falls — capped at the terminal rate — until it
+ * clears the bottom of the level, which is when the engine is told to restart.
  */
 class PlayerDeathThroeTest {
     private static final int ROWS = 12;
@@ -39,8 +38,8 @@ class PlayerDeathThroeTest {
         runtimeState.startDying();
         runtimeState.setDeathPauseCounter(PLAYER_DEATH_PAUSE_TICKS);
 
-        // Verify - dasm Event_Countdown = $30 = 48, and the body is in the pause phase (drawn, not moving)
-        assertThat(PLAYER_DEATH_PAUSE_TICKS).as("Event_Countdown = $30").isEqualTo(48);
+        // Verify - the pause lasts 48 ticks, and the body is in the pause phase (drawn, not moving)
+        assertThat(PLAYER_DEATH_PAUSE_TICKS).as("Pause lasts 48 ticks").isEqualTo(48);
         assertThat(runtimeState.isDeathPausing()).as("in the still pause").isTrue();
 
         // Execute - run the pause out tick by tick; it must stay in the pause for all 48, then release
@@ -67,8 +66,8 @@ class PlayerDeathThroeTest {
     @Test
     @DisplayName("Each tick adds gravity to the velocity and moves on Y by it")
     void gravityStepIntegratesVelocityThenMovesY() {
-        // Prepare - freshly launched upward at the ROM's -64/16 = -4.0 px/frame
-        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        // Prepare - freshly launched upward at -4.0 px/frame
+        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_Y_VELOCITY);
         final double startX = position.getX();
         final double startY = position.getY();
         doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
@@ -79,7 +78,7 @@ class PlayerDeathThroeTest {
         // Verify - velocity eased by +gravity (2/16), Y moved by the new velocity, X untouched
         assertThat(position.getDY())
             .as("gravity eased the rise by 2/16")
-            .isCloseTo(PLAYER_DEATH_RISE_YVEL + 2.0 / TILE_SPRITE_SIZE, within(TOLERANCE));
+            .isCloseTo(PLAYER_DEATH_RISE_Y_VELOCITY + 2.0 / TILE_SPRITE_SIZE, within(TOLERANCE));
         assertThat(position.getY())
             .as("still rising, so Y decreased by the (still negative) velocity")
             .isCloseTo(startY + position.getDY(), within(TOLERANCE));
@@ -90,7 +89,7 @@ class PlayerDeathThroeTest {
     @Test
     @DisplayName("The throe rises to an apex above its start, then falls back past it")
     void risesToApexThenFalls() {
-        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_Y_VELOCITY);
         final double startY = position.getY();
         doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
 
@@ -113,7 +112,7 @@ class PlayerDeathThroeTest {
     @Test
     @DisplayName("The fall never exceeds the terminal rate")
     void fallIsCappedAtTerminalRate() {
-        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_Y_VELOCITY);
         doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
 
         double maxFallSpeed = 0;
@@ -123,7 +122,7 @@ class PlayerDeathThroeTest {
         }
 
         assertThat(maxFallSpeed)
-            .as("fall capped at FALLRATE_MAX = $40/16 = 4.0 px/frame")
+            .as("Fall capped at PLAYER_DEATH_FALL_MAX = 4.0 px/frame")
             .isLessThanOrEqualTo(PLAYER_DEATH_FALL_MAX + TOLERANCE);
         assertThat(maxFallSpeed)
             .as("and actually reaches the cap given enough fall")
@@ -157,7 +156,7 @@ class PlayerDeathThroeTest {
     @Test
     @DisplayName("Driven to completion, the throe eventually clears the bottom of the level")
     void throeEventuallyClearsTheLevel() {
-        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_YVEL);
+        final PlayerPosition position = positionWith(4.0 * TILE_SPRITE_SIZE, PLAYER_DEATH_RISE_Y_VELOCITY);
         doCallRealMethod().when(mockPlayer).applyDeathGravityStep(any());
         doCallRealMethod().when(mockPlayer).hasFallenOffLevel(any(), anyInt());
 

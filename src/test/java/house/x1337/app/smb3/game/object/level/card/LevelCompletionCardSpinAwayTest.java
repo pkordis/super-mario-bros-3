@@ -40,8 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The collected card's spin-away ({@code EndLevelCard_WaitFlyAway} and {@code EndLevelCard_AnimateSpinAway}, dasm
- * prg002.asm:5544-5563 and 5630-5649). Each tick here is one frame as {@code GameEngine} runs it: {@code Counter_1}
+ * The collected card's spin-away. Each tick here is one frame as {@code GameEngine} runs it: the level frame counter
  * goes up first, then the managers update.
  */
 class LevelCompletionCardSpinAwayTest {
@@ -130,9 +129,9 @@ class LevelCompletionCardSpinAwayTest {
     }
 
     @Test
-    @DisplayName("It turns face-on, narrow, edge-on, narrow, face-on, only on ticks where Counter_1 & 3 is 0")
+    @DisplayName("It turns face-on, narrow, edge-on, narrow, face-on, only on ticks where the frame counter & 3 is 0")
     void itSpinsEvery4Ticks() {
-        // Prepare - the touch on Counter_1 5, so the first turn is 3 ticks later, on 8
+        // Prepare - the touch on frame counter 5, so the first turn is 3 ticks later, on 8
         frameCounter.tick();
         frameCounter.tick();
         frameCounter.tick();

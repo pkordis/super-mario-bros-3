@@ -7,13 +7,13 @@ import static java.lang.Math.clamp;
 /**
  * The frame-selection policy shared by SMB3's three "poof" cloud effects.
  *
- * <p>All three draw the same four sprites. Two of them index the same four-entry pattern table, which
- * the ROM happens to store twice, and the third has a table of its own in a different order.
+ * <p>All three draw the same four sprites. Two of them index the same four-entry pattern table, and the
+ * third has a table of its own in a different order.
  *
  * @param ticksPerFrame     how many ticks each frame is held
  * @param cycling           {@code true} to cycle the four frames, {@code false} to clamp at the ends
  * @param flipPeriodTicks   the counter bit that sets the vertical flip
- * @param frameByStep       the shared frame shown for each step of the ROM's own pattern table
+ * @param frameByStep       the shared frame shown for each step of this policy's own pattern table
  * @param startTicks        the counter a cloud drawn with this policy starts from
  * @param lowestDrawnTicks  the lowest counter at which the cloud is drawn
  * @param highestDrawnTicks the highest counter at which the cloud is drawn
@@ -64,7 +64,7 @@ public record PoofSequence(
     }
 
     /**
-     * The enemy poof death: 4 frames of 8 ticks in {@code PoofDeath_Pats} order, played once.
+     * The enemy poof death: 4 frames of 8 ticks in the poof-death pattern order, played once.
      *
      * @return a poof-death sequence
      */

@@ -33,22 +33,19 @@ import static java.lang.Math.min;
 /**
  * Manages raccoon Mario's sprite-based rendering and walk/run animation.
  *
- * <p>Animation timing is derived from the SMB3 disassembly (prg008.asm):
- * {@code Player_WalkAnimTickMax} defines how many ticks elapse before advancing
- * to the next animation frame. The tick maximum is indexed by
- * {@code abs(Player_XVel) >> 3} in the original - here we map the project's
- * floating-point velocity back to that index.
+ * <p>Animation timing comes from a per-speed table that defines how many ticks
+ * elapse before advancing to the next animation frame. The table is indexed by
+ * the horizontal speed in 4.4 fixed point shifted right by 3 - here we map the
+ * project's floating-point velocity back to that index.
  *
  * <p>The raccoon walk cycle uses 3 distinct sprites arranged in a 4-frame
- * sequence: frame 0, frame 1, frame 2, frame 1 (matching
- * {@code PF_WALKSPECIAL_BASE+0, +1, +2, +1} from the disassembly).
+ * sequence: frame 0, frame 1, frame 2, frame 1.
  *
  * <p>The run ("spread-eagle") cycle uses 3 distinct sprites in an identical
- * 4-frame pattern: frame 0, frame 1, frame 2, frame 1 (matching
- * {@code PF_RUNBIG_BASE+0, +1, +2, +1} via {@code Player_SpreadEagleFrames}).
- * Both cycles share the same {@code Player_WalkFrame} counter and tick-based
- * timing; the original switches to the run sprites when
- * {@code abs(Player_XVel) >= $37} and the P-meter is full.
+ * 4-frame pattern: frame 0, frame 1, frame 2, frame 1.
+ * Both cycles share the same walk-frame counter and tick-based timing; the run
+ * sprites are used when the speed reaches
+ * {@code GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD} and the P-meter is full.
  *
  * <p>All sprites are 24×32 pixels and drawn facing left. When the player
  * faces right, the geometry is horizontally flipped via a negative X-scale
@@ -96,8 +93,7 @@ public final class RaccoonAnimator
             return;
         }
 
-        // Tail attack overrides all other animations (dasm prg008:
-        // Player_TailAttackAnim runs after all other logic).
+        // Tail attack overrides all other animations.
         if (tailAttackCountdown > 0) {
             renderTailAttack(
                 levelScenePlayer,
@@ -177,8 +173,8 @@ public final class RaccoonAnimator
         final Node node,
         final PlayerOrientationHorizontal orientationHorizontal
     ) {
-        // Falling without wag - static frame (dasm prg008: PF_JUMPRACCOON
-        // row in Player_TailWagFlyFrames when WagCount = 0).
+        // Falling without wag - static frame (frame 0 of the tail-fall set,
+        // shown while no wag is active).
         if (getLastRenderedState() != FALLING || getLastOrientation() != orientationHorizontal
             || getLastWalkFrame() != -1) {
             rebuildWithTexture(node, assets.tailFall(0), orientationHorizontal);
@@ -194,8 +190,8 @@ public final class RaccoonAnimator
         final Node node,
         final PlayerOrientationHorizontal orientationHorizontal
     ) {
-        // Flying without active wag cycle (dasm prg008: Player_AnimTailWag
-        // still runs the frame lookup with TailCount = 0, yielding offset 0
+        // Flying without active wag cycle (the frame lookup still runs with a
+        // tail count of 0, yielding offset 0
         // into the fly row). When rising (DY < 0) → fly_2 (wings up),
         // when free falling/at apex (DY >= 0) → fly_3 (wings spread).
         final int flyFrame = (position.getDY() < 0) ? 1 : 2;
@@ -221,16 +217,16 @@ public final class RaccoonAnimator
         final PlayerMovement movement,
         final PlayerOrientationHorizontal orientationHorizontal
     ) {
-        // Tail wag animation - two distinct visual sets (dasm prg008:
-        // Player_AnimTailWag selects row from Player_TailWagFlyFrames):
+        // Tail wag animation - two distinct visual sets, selected by the
+        // flight state:
         //
-        // 1. FLY control (flyTime > 0): PF_TAILWAGFLY_BASE - 3 frames,
+        // 1. FLY control (flyTime > 0): the tail-fly frames - 3 frames,
         //    player is rising or at apex during powered flight.
-        // 2. FALL control (flyTime == 0): PF_TAILWAGFALL - 2 frames,
+        // 2. FALL control (flyTime == 0): the tail-fall frames - 2 frames,
         //    player is fluttering to slow their descent.
         //
-        // Both use Player_TailCount (set to 10 on A press, auto-decrements)
-        // with frame = TailCount >> 2 indexing into the frame table.
+        // Both use the tail wag counter (set to 10 on A press, auto-decrements)
+        // with frame = count >> 2 indexing into the frame table.
         if (tailWagCount <= 0 || getLastRenderedState() != movement) {
             tailWagCount = TAIL_WAG_ANIM_DURATION;
         }
@@ -241,18 +237,18 @@ public final class RaccoonAnimator
         final Texture texture;
 
         if (flying) {
-            // Fly control: 3 distinct frames (PF_TAILWAGFLY_BASE +2/+1/+0)
+            // Fly control: 3 distinct frames (tail-fly +2/+1/+0)
             texture = assets.tailFly(tailFrame);
         } else {
-            // Fall control: 3 distinct frames (PF_TAILWAGFALL +2/+1/+0),
-            // frame-indexed by TailCount>>2 → up / middle / down.
+            // Fall control: 3 distinct frames (tail-fall +2/+1/+0),
+            // frame-indexed by tailWagCount >> 2 → up / middle / down.
             texture = assets.tailFall(tailFrame);
         }
 
         if (getLastRenderedState() != movement
             || getLastWalkFrame() != tailFrame
             || getLastOrientation() != orientationHorizontal) {
-            // dasm prg008: Player_AnimTailWag never modifies Player_FlipBits.
+            // The tail wag never changes the sprite's flip.
             // All frames render with the player's current facing direction
             // unchanged. The tail "swish" comes from distinct sprite tiles.
             rebuildWithTexture(node, texture, orientationHorizontal);
@@ -269,8 +265,8 @@ public final class RaccoonAnimator
         final Node node,
         final PlayerOrientationHorizontal orientationHorizontal
     ) {
-        // Skid frame - single static sprite while braking (prg008.asm:
-        // Player_SkidFrame). Orientation stays as movement direction.
+        // Skid frame - single static sprite while braking.
+        // Orientation stays as movement direction.
         setWalkAnimTicks(0);
         setWalkFrameIndex(0);
 
@@ -293,12 +289,11 @@ public final class RaccoonAnimator
         final Node node,
         final PlayerOrientationHorizontal orientationHorizontal
     ) {
-        // Ducking frame — single static sprite (prg008.asm: PF_DUCK_RACCOON).
+        // Ducking frame — single static sprite.
         // The ducking flag persists independently of the movement state, so
         // this renders the duck frame whether grounded or airborne (duck-jump).
-        // dasm prg008: Player_AnimTailWag (PRG008_B082) and
-        // Player_SoarJumpFallFrame (PRG008_B0C5) both early-return when
-        // Player_IsDucking is set, leaving the duck frame intact.
+        // Neither the tail wag nor the jump/fall frame selection runs while
+        // ducking, leaving the duck frame intact.
         // This check MUST precede the movement-state checks (STILL, WALKING,
         // etc.) because ducking visually overrides all grounded states.
         setWalkAnimTicks(0);
@@ -328,7 +323,7 @@ public final class RaccoonAnimator
     ) {
         final int frameIndex = tailAttackCountdown >> 2;
         final int clampedFrame = min(frameIndex, 4);
-        // The sprite is mirrored for the middle of the swing (dasm: EOR #SPR_HFLIP at $0B and $03).
+        // The sprite is mirrored for the middle of the swing.
         // Taken from the player rather than recomputed here, because the tail's hitbox is placed off
         // this same facing — the two must not drift (LevelScenePlayer#getTailAttackSwingFacing).
         final PlayerOrientationHorizontal effectiveOrientation = levelScenePlayer.getTailAttackSwingFacing();

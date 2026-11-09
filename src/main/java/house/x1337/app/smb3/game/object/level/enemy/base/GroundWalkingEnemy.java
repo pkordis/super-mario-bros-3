@@ -10,16 +10,16 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
  * The world-collision probes and shared constants every enemy that walks on the terrain needs.
  *
  * <p>Deliberately a mixin rather than something pushed up to {@code ActiveLevelObject}: world collision
- * is composed into the entities that need it, which {@code kb/dynamic-entities.md} records as a decision
- * already made and paid for (a {@code SuperLeaf} ignores tiles entirely, a {@code SuperMushroom} does
- * not). This is the same idea one level down - shared by the ground walkers, imposed on nothing else.
+ * is composed into the entities that need it, a decision already made and paid for (a {@code SuperLeaf} ignores
+ * tiles entirely, a {@code SuperMushroom} does not). This is the same idea one level down - shared by the ground
+ * walkers, imposed on nothing else.
  */
 public interface GroundWalkingEnemy extends EnemyLevelObject {
     int BODY_SIZE_PIXELS = TILE_SPRITE_SIZE;
-    int BOUND_BOX_HEIGHT = 8;
-    int BOUND_BOX_LEFT_OFFSET = 1;
-    int BOUND_BOX_TOP_OFFSET = 2;
-    int BOUND_BOX_WIDTH = 13;
+    int BOUNDING_BOX_HEIGHT = 8;
+    int BOUNDING_BOX_LEFT_OFFSET = 1;
+    int BOUNDING_BOX_TOP_OFFSET = 2;
+    int BOUNDING_BOX_WIDTH = 13;
     int FLOOR_DETECTION_DEPTH_LIMIT_PIXELS = 4;
     int GRAVITY_FIXED_POINT = 3;
     int MAX_FALL_FIXED_POINT = 64;
@@ -72,9 +72,8 @@ public interface GroundWalkingEnemy extends EnemyLevelObject {
     }
 
     /**
-     * {@code Object_WorldDetect4}'s depth limit - see
-     * {@link #FLOOR_DETECTION_DEPTH_LIMIT_PIXELS}. Without it, {@code Object_HitGround}'s align-to-tile
-     * becomes an upward teleport for anything that got inside a surface without descending onto it: a
+     * The floor detection's depth limit - see {@link #FLOOR_DETECTION_DEPTH_LIMIT_PIXELS}. Without it, landing's
+     * align-to-tile becomes an upward teleport for anything that got inside a surface without descending onto it: a
      * tail-whammed shell drifting sideways over a one-way platform at the top of its arc is sunk ten
      * pixels into it, and would be snapped up onto a ledge it never cleared.
      *

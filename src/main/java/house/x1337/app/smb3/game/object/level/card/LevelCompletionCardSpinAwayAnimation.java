@@ -79,7 +79,7 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
         if (expired) {
             return;
         }
-        // Objects_SprVVis is worked out before the card moves on this frame
+        // The card's vertical visibility is worked out before it moves on this frame
         final boolean offScreen = flight.isAboveTheTopOf(gameEngine.getCameraState().getActiveObjectRegion(0).top());
         flight.advance();
         if (offScreen) {

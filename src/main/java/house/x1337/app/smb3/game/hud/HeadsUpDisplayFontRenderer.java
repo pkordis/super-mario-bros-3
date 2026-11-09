@@ -18,24 +18,22 @@ import java.util.Map;
  * Image-backed HUD font ("hud-font") that loads glyph PNGs from the classpath.
  *
  * <p>Each glyph is an 8×8 pixel RGBA PNG stored under
- * {@code resources/hud/}. These are extracted directly from the SMB3
- * CHR pattern table banks ($5E/$5F) with the correct NES palette applied:
- * black outlines (color index 1) and white fill (color index 2) on a
- * transparent background.
+ * {@code resources/hud/}. Each one has black outlines (color index 1) and
+ * white fill (color index 2) on a transparent background.
  *
  * <p>Glyph images are loaded once at startup and cached as ARGB int arrays
  * for fast blitting into the HUD pixel buffer by {@link HeadsUpDisplayRenderer}.
  *
  * <p>The static HUD base image ({@code hud_base.png}) is also loaded here.
  * It provides the pixel-perfect frame, borders, and static text ("WORLD",
- * card slot frames, etc.) from the original example rendering.
+ * card slot frames, etc.).
  */
 public interface HeadsUpDisplayFontRenderer extends GameRenderer {
 
-    /** Cell width in pixels at 1:1 NES resolution. */
+    /** Cell width in pixels at 1:1 resolution. */
     int CELL_WIDTH = 8;
 
-    /** Cell height in pixels at 1:1 NES resolution. */
+    /** Cell height in pixels at 1:1 resolution. */
     int CELL_HEIGHT = 8;
 
     /** HUD base image width. */
@@ -122,6 +120,6 @@ public interface HeadsUpDisplayFontRenderer extends GameRenderer {
      * @return the corresponding Glyph enum constant
      */
     default HeadsUpDisplayGlyph digitGlyph(final int digit) {
-        return DIGIT_HEADS_UP_DISPLAY_GLYPHS[digit & 0x0F];
+        return DIGIT_HEADS_UP_DISPLAY_GLYPHS[digit & 15];
     }
 }

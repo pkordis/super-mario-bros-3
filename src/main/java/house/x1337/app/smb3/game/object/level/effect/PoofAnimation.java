@@ -47,7 +47,7 @@ public final class PoofAnimation implements Animation {
      *
      * @param gameEngine      the game engine
      * @param worldOffset     where the cloud's quad goes, at the depth it is drawn
-     * @param animationFrames the shared poof frames, in ROM table order
+     * @param animationFrames the shared poof frames, in frame-index order
      */
     public void configure(
         final GameEngine gameEngine,

@@ -75,7 +75,7 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         }
 
         if (runtimeState.isDucking()) {
-            // Big Mario ducks exactly like raccoon (dasm prg008 PRG008_A72B),
+            // Big Mario ducks exactly like raccoon,
             // minus the tail. Ducking overrides all grounded/air movement
             // states, so it is checked first (mirrors RaccoonAnimator).
             setWalkAnimTicks(0);
@@ -103,7 +103,7 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         }
 
         if (movement == JUMPING || movement == FALLING) {
-            // Air frames mirror small Mario (dasm GndMov_Small): a single
+            // Air frames mirror small Mario: a single
             // jump/fall frame, or the "fast" frame while the full-P launch
             // boost is active. flyTime is a visual cue only — big Mario has no
             // flight/wag Y-effects (those are gated behind hasTail() in the

@@ -35,9 +35,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The card spawns as the scroll reaches it and is deleted when it leaves the screen, as any object
- * ({@code Level_ObjectsSpawnByScroll}, {@code Object_DeleteOffScreen}, dasm prg002.asm:5389); placed again, it starts
- * on the Mushroom ({@code Level_PrepareNewObject}, prg000.asm:4375).
+ * The card spawns as the scroll reaches it and is deleted when it leaves the screen, as any object; placed again,
+ * it starts on the Mushroom.
  */
 class LevelCompletionCardSpawnTest {
     private static final int SCREEN_WIDTH = 256;

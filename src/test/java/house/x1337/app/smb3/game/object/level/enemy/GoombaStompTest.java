@@ -18,7 +18,7 @@ import org.mockito.MockedStatic;
 
 import java.util.Optional;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -32,13 +32,11 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The Goomba's stomp response, as the ROM defines it: flatten for 16 frames while intangible, hand the
- * player a {@code -$40} bounce, and leave 100 points behind.
+ * The Goomba's stomp response: flatten for 16 frames while intangible, hand the player a {@code -4} px per
+ * frame bounce, and leave 100 points behind.
  *
- * <p>Chain in the dasm: {@code Player_HitEnemy} @ PRG000_D2B4 sets the bounce and awards
- * {@code Score_Get100PlusPts}; {@code OA3_SQUASH} routes the Goomba through {@code ObjState_Shelled}
- * ({@code Objects_Timer3 = $10}) into {@code ObjState_Squashed}, which runs the timer down and then marks
- * it dead/empty.
+ * <p>The stomp sets the bounce and awards the base 100 points, then flattens the Goomba on a 16-frame
+ * timer, which runs down before the Goomba is marked dead.
  */
 class GoombaStompTest {
     private static final double TOLERANCE = 1e-9;
@@ -46,7 +44,7 @@ class GoombaStompTest {
     private static final int ROWS = 8;
     private static final int WALK_FRAME_COUNT = 2;
 
-    /** {@code Objects_Timer3 = $10}, decremented every tick because it is below the {@code $60} throttle. */
+    /** The squash timer, decremented every tick. */
     private static final int SQUISH_FRAMES = 16;
 
     private static final int FLOOR_ROW = 6;
@@ -137,7 +135,7 @@ class GoombaStompTest {
             goomba.motionUpdate();
         }
 
-        // Verify - ObjState_Squashed never calls Object_DeleteOffScreen and ends in Object_SetDeadEmpty, so
+        // Verify - a squashed Goomba is never deleted off screen and ends with its placement spent, so
         // the manager lets the squash play out wherever it is and keeps the placement spent afterwards
         assertThat(defeatedByTheStomp).as("Dead from the stomp on").isTrue();
         assertThat(goomba.isExpired()).isTrue();
@@ -159,7 +157,7 @@ class GoombaStompTest {
             goomba.motionUpdate();
         }
 
-        // Verify - ObjState_Squashed clears XVel but still calls Object_Move, so it drops straight down
+        // Verify - the squash clears the X velocity but still moves the Goomba, so it drops straight down
         assertThat(goomba.getPosition().x()).as("horizontal movement halted").isCloseTo(startX, within(TOLERANCE));
         assertThat(goomba.getPosition().y()).as("still falling under gravity").isGreaterThan(startY);
         assertThat(goomba.getPosition().y())
@@ -182,7 +180,7 @@ class GoombaStompTest {
             goomba.motionUpdate();
         }
 
-        // Verify - Object_HitGround keeps re-aligning the feet, and it never takes another step
+        // Verify - landing keeps re-aligning the feet, and it never takes another step
         assertThat(goomba.getPosition().x()).as("frozen where it was stomped").isCloseTo(walkedToX, within(TOLERANCE));
         assertThat(goomba.getPosition().y()).isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(goomba.isGrounded()).isTrue();
@@ -191,7 +189,7 @@ class GoombaStompTest {
     @Test
     @DisplayName("The walk cycle stops advancing while flattened")
     void squishedGoombaStopsAnimatingItsWalk() {
-        // Prepare - the flattened frame replaces the walk frames outright (ObjState_Squashed draws frame 3)
+        // Prepare - the flattened frame replaces the walk frames outright
         final Goomba goomba = goombaAt(5, WALK_ROW);
         goomba.faceClosestPlayer();
         goomba.onCollisionFromAbove(descendingPlayer());
@@ -221,7 +219,7 @@ class GoombaStompTest {
     }
 
     @Test
-    @DisplayName("A stomp bounces the player upward at the ROM's -$40")
+    @DisplayName("A stomp bounces the player upward at -4 px per frame")
     void stompBouncesThePlayer() {
         // Prepare - a player descending onto the Goomba
         final Goomba goomba = goombaAt(5, WALK_ROW);
@@ -230,12 +228,12 @@ class GoombaStompTest {
         // Execute
         goomba.onCollisionFromAbove(player);
 
-        // Verify - -$40/16 px/frame, whatever the player was doing. There is no A-specific value in the
-        // ROM: holding A only swaps the gravity that follows (GRAVITY_SLOW while DY < -2), which this
-        // bounce starts well beyond, so it carries much further than without.
+        // Verify - -4 px/frame, whatever the player was doing. There is no A-specific value: holding A
+        // only swaps the gravity that follows (GRAVITY_SLOW while DY < -2), which this bounce starts well
+        // beyond, so it carries much further than without.
         assertThat(player.getPosition().getDY())
-            .isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
-        assertThat(PLAYER_STOMP_BOUNCE_YVEL).as("-$40 in 4.4 fixed point").isCloseTo(-4.0, within(TOLERANCE));
+            .isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
+        assertThat(PLAYER_STOMP_BOUNCE_Y_VELOCITY).as("-4 px per frame").isCloseTo(-4.0, within(TOLERANCE));
     }
 
     @Test
@@ -248,7 +246,7 @@ class GoombaStompTest {
         // Execute
         goomba.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - Score_Get100PlusPts with a zero kill tally is the base 100
+        // Verify - with a zero kill tally the award is the base 100
         assertThat(goomba.getPendingScoreReward()).isEqualTo(SCORE_100);
 
         // Execute - the manager takes it in postCollision

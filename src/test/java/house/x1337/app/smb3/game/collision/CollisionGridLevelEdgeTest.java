@@ -26,11 +26,9 @@ import static org.mockito.Mockito.when;
 /**
  * What the level's horizontal edges are to the two kinds of things that probe the terrain.
  *
- * <p>To an object they are nothing: the ROM's object tile probe reads tile {@code $00} for any X outside
- * the level (dasm prg000 {@code Object_DetectTile} @ PRG000_C832), so a walking enemy carries on past the
- * edge rather than turning at it. To the player they are a wall, which the ROM enforces with the screen
- * clamp in {@code Player_DoScrolling} (prg008 @ PRG008_B1CE) and this port with
- * {@code collidesAtOffset}.
+ * <p>To an object they are nothing: the object tile probe reads an empty tile for any X outside
+ * the level, so a walking enemy carries on past the edge rather than turning at it. To the player they
+ * are a wall, which {@code collidesAtOffset} enforces.
  */
 class CollisionGridLevelEdgeTest {
     private static final double TOLERANCE = 1e-9;
@@ -115,19 +113,19 @@ class CollisionGridLevelEdgeTest {
         final LevelScenePlayer atTheLeftEdge = largePlayerMovingUp(positionAt(-2, 32, 0));
         final LevelScenePlayer atTheRightEdge = largePlayerMovingUp(positionAt(LEVEL_WIDTH_PIXELS - 14, 32, 0));
 
-        // Execute & Verify - the in-front probes at X + $01 and X + $0E, mid-body
-        assertThat(grid.collidesAtOffset(atTheLeftEdge, of(0x01, 0x0E)))
-            .as("X + $01 = -1 lies in column -1")
+        // Execute & Verify - the in-front probes at X + 1 and X + 14, mid-body
+        assertThat(grid.collidesAtOffset(atTheLeftEdge, of(1, 14)))
+            .as("X + 1 = -1 lies in column -1")
             .isTrue();
-        assertThat(grid.collidesAtOffset(atTheRightEdge, of(0x0E, 0x0E)))
-            .as("X + $0E = the level width lies in the column past the last")
+        assertThat(grid.collidesAtOffset(atTheRightEdge, of(14, 14)))
+            .as("X + 14 = the level width lies in the column past the last")
             .isTrue();
     }
 
     @Test
     @DisplayName("A player pushing past the left edge is nudged back in and has its velocity halted")
     void playerIsHeldAtTheLeftEdge() {
-        // Prepare - X = -3 is the right half of its tile, so the in-front probes look LEFT (X + $01 = -2,
+        // Prepare - X = -3 is the right half of its tile, so the in-front probes look LEFT (X + 1 = -2,
         // column -1); the left body edge X + 2 = -1 is a pixel short of alignment
         final PlayerPosition position = positionAt(-3, 32, -1.5);
         final LevelScenePlayer player = largePlayerMovingUp(position);
@@ -144,7 +142,7 @@ class CollisionGridLevelEdgeTest {
     @Test
     @DisplayName("A player pushing past the right edge is nudged back in and has its velocity halted")
     void playerIsHeldAtTheRightEdge() {
-        // Prepare - X mod 16 = 3 is the left half, so the in-front probes look RIGHT (X + $0E = width + 1,
+        // Prepare - X mod 16 = 3 is the left half, so the in-front probes look RIGHT (X + 14 = width + 1,
         // the column past the last); the right body edge X + 14 is a pixel past alignment
         final PlayerPosition position = positionAt(LEVEL_WIDTH_PIXELS - 13, 32, 1.5);
         final LevelScenePlayer player = largePlayerMovingUp(position);

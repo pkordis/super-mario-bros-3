@@ -26,11 +26,10 @@ import static org.mockito.Mockito.when;
  * The player's half of the kick: the 12-tick pose, the tail swing it cancels, the facing a contact kick
  * rewrites, and the one entry point that deliberately shows no pose at all.
  *
- * <p>{@code Player_Kick = $0C} is set in {@code Player_KickObject} (dasm prg000.asm:2835-2836) and spent
- * by the frame-selection block at {@code PRG008_AF52}, which opens by zeroing {@code Player_TailAttack}
- * and closes by decrementing the counter. Both of those live together here for the same reason a stomp
- * gets neither: it zeroes {@code Player_Kick} the instant the kick returns, so that whole block — pose
- * <em>and</em> tail cancel — never runs for it.
+ * <p>The kick counter is set to 12 when the player kicks an object and spent by the frame-selection step,
+ * which opens by cancelling the tail swing and closes by decrementing the counter. Both of those live
+ * together here for the same reason a stomp gets neither: it clears the kick counter the instant the kick
+ * returns, so that whole step — pose <em>and</em> tail cancel — never runs for it.
  *
  * <p>Counter arithmetic rather than rendering throughout, because the animator needs jME to assert
  * against. The pose is mode-independent by construction: it lives in
@@ -41,7 +40,7 @@ class PlayerKickPoseTest {
     @Test
     @DisplayName("The kick frame is held for exactly twelve ticks")
     void theKickFrameIsHeldForTwelveTicks() {
-        // Set to $0C and decremented once per drawn frame, so the counter values 12 down to 1 are all
+        // Set to 12 and decremented once per drawn frame, so the counter values 12 down to 1 are all
         // drawn as the kick - the same set-then-decrement shape as the camera-facing carry pose.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
@@ -64,8 +63,8 @@ class PlayerKickPoseTest {
     @Test
     @DisplayName("Arming the kick pose cancels a tail swing in progress, on the same tick")
     void theKickCancelsTheTailSwing() {
-        // dasm prg008.asm:3239-3240: the kick-frame block writes Player_TailAttack = 0 before it writes
-        // the frame. It has to land immediately rather than next tick, because the object pass resolves
+        // The kick-frame step cancels the tail swing before it picks the frame. It has to land
+        // immediately rather than next tick, because the object pass resolves
         // body contact and then the tail - so a contact kick decided in the first half would otherwise
         // still be swinging in the second, and a raccoon would kick and strike at once.
         // Prepare - mid-swing, on a frame that would strike
@@ -84,7 +83,7 @@ class PlayerKickPoseTest {
     @Test
     @DisplayName("A release kick sends the object in the player's facing and does not turn them")
     void aReleaseKickKeepsTheFacing() {
-        // PRG000_CE79's held branch takes the direction from Player_FlipBits and writes nothing back to
+        // A release kick takes the direction from the player's drawn facing and writes nothing back to
         // it: only a contact kick turns the player.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
@@ -102,7 +101,7 @@ class PlayerKickPoseTest {
     @Test
     @DisplayName("A contact kick turns the player towards the object, whichever side it is on")
     void aContactKickTurnsThePlayerTowardsTheObject() {
-        // PlayerKickFlipBits = {$00, $40} indexed by Level_ObjCalcXDiffs (dasm prg000.asm:2797, :2953).
+        // The new facing is picked by which side of the player the object is on.
         // A rare case of an object rewriting the player's orientation, so it goes through the player's
         // own orientation state rather than any field the renderer reads directly.
         // Prepare - a player facing left with the object to their right
@@ -129,8 +128,8 @@ class PlayerKickPoseTest {
     @Test
     @DisplayName("A stomp kick shows no pose and leaves a tail swing running")
     void aStompKickShowsNoPose() {
-        // PRG000_D2A2 zeroes Player_Kick the instant Player_KickObject returns, so PRG008_AF52 never
-        // runs for a stomp - which costs it the kick frame AND the tail cancel that shares that block.
+        // A stomp clears the kick counter the instant the kick returns, so the kick-frame step never
+        // runs for a stomp - which costs it the kick frame AND the tail cancel that shares that step.
         // Expressed as not arming the pose, rather than as arming it and undoing it.
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();

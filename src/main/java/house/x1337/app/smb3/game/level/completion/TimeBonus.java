@@ -4,10 +4,10 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 
 /**
- * One step of the level-end time bonus, as {@code DoTimeBonus} (dasm prg000.asm:603-651) does once per frame.
+ * One step of the level-end time bonus, made once per frame.
  *
- * <p>While the hundreds or tens digit is non-zero, a step takes 10 off the timer and scores 500
- * ({@code TimeBonus_Score: .byte 50, 5}, in tens). Once only the units are left it takes 1 off and scores 50.
+ * <p>While the hundreds or tens digit is non-zero, a step takes 10 off the timer and scores 500. Once only the units
+ * are left it takes 1 off and scores 50.
  * Either way the clock turns into 50 points a second.
  */
 final class TimeBonus {
@@ -21,7 +21,7 @@ final class TimeBonus {
 
     /**
      * @param playerData whose time is converted into score
-     * @return whether a step was made; {@code false} once the clock reads 000, the ROM's {@code BEQ} after the call
+     * @return whether a step was made; {@code false} once the clock reads 000
      */
     static boolean convertStep(final PlayerData playerData) {
         final PlayerTimer timer = playerData.getPlayerTimer();

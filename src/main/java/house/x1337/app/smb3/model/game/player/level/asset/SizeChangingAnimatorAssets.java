@@ -11,7 +11,7 @@ public record SizeChangingAnimatorAssets(
     Texture[] sizeChanging
 ) implements PlayerAnimatorAssets {
     /**
-     * The ROM's {@code Player_GrowFrames} table, indexed by {@code Player_Grow >> 2}. Entries point into
+     * The size-change frame table, indexed by {@code growShrinkCounter >> 2}. Entries point into
      * {@link #sizeChanging} — {@code 0} = still shrunk, {@code 1} = mid-transition, {@code 2} = still
      * normal — so read forwards (grow) the sequence settles on normal, and read backwards (shrink) it
      * settles on shrunk.
@@ -21,12 +21,12 @@ public record SizeChangingAnimatorAssets(
     private static final int TRANSITION_FRAME_SHIFT = 2;
 
     /**
-     * Resolves the sprite index for the current counter value and direction, mirroring the ROM's draw
-     * routine (prg029 @ PRG029_D224): {@code X = Player_Grow >> 2} for a grow, and
-     * {@code X = $0B - (Player_Grow >> 2)} for a shrink (@ PRG029_D22E, taken whenever the suit is
-     * small). The one counter and one table serve both directions; only this index is reversed.
+     * Resolves the sprite index for the current counter value and direction: table index
+     * {@code growShrinkCounter >> 2} for a grow, and {@code 11 - (growShrinkCounter >> 2)} for a shrink
+     * (taken whenever the suit is small). The one counter and one table serve both directions; only this
+     * index is reversed.
      *
-     * @param growShrinkCounter the shared {@code Player_Grow} countdown, {@code $2f} down to {@code 0}
+     * @param growShrinkCounter the shared size-change countdown, {@code 47} down to {@code 0}
      * @param shrinking         {@code true} for Normal→Shrunk, {@code false} for Shrunk→Normal
      * @return an index into {@link #sizeChanging}
      */

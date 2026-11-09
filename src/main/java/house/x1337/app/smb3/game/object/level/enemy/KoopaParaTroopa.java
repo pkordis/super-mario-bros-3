@@ -27,7 +27,7 @@ import lombok.experimental.Accessors;
 import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -61,7 +61,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private static final int[] FLIGHT_ACCELERATION = {1, -1};
     private static final int[] FLIGHT_SPEED_LIMIT = {16, -16};
     public static final int[] MIDDLE_ROW_CANVAS_TOP = {11, 9};
-    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUND_BOX_WIDTH, BOUND_BOX_HEIGHT);
+    private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = doubleTileHeight("KoopaParaTroopa");
 
     @Accessors(fluent = true)
@@ -111,7 +111,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
-            position.plus(BOUND_BOX_LEFT_OFFSET, BOUND_BOX_TOP_OFFSET),
+            position.plus(BOUNDING_BOX_LEFT_OFFSET, BOUNDING_BOX_TOP_OFFSET),
             BOUNDS_PIXELS
         );
     }
@@ -146,7 +146,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         }
         handedOver = true;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
-        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_YVEL);
+        levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
         handOverToKoopaTroopa(STOMP_HIT_COOLDOWN_TICKS);
         expired = true;
     }

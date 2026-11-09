@@ -30,8 +30,7 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Which pipe portals can be entered, in which direction, and the ROM's alignment window ({@code PRG008_BD1F}-
- * {@code BD4B}) and side pipe direction ({@code Pipe_PadDirForEnter}).
+ * Which pipe portals can be entered, in which direction, and the alignment window and side pipe direction.
  */
 class PipeEntryRulesAwareTest {
     private final PipeEntryRulesAware rules = new PipeEntryRulesAware() {};
@@ -144,7 +143,7 @@ class PipeEntryRulesAwareTest {
     }
 
     @Test
-    @DisplayName("A vertical portal's direction is picked from the player's X, as Pipe_PadDirForEnter does")
+    @DisplayName("A vertical portal's direction is picked from the player's X")
     void verticalPortalDirectionFollowsThePlayer() {
         // Prepare
         paint(7, 5, PIPE_TERMINATION_PART);

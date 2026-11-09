@@ -10,28 +10,26 @@ import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INV
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the post-hit flicker's timing against the ROM, which is the only place it is written down.
+ * Pins the post-hit flicker's timing.
  *
- * <p>{@code Player_Draw} (dasm prg029 @ PRG029_CEC8) is five instructions:
+ * <p>Each frame the player is drawn as follows:
  *
- * <pre>
- * LDA Player_FlashInv
- * BEQ draw            ; zero: not flashing, draw normally
- * DEC Player_FlashInv
- * AND #$02            ; masks the value LOADED, i.e. before the DEC
- * BEQ draw            ; bit clear: draw
- * JMP skip            ; bit set: write no player sprite at all this frame
- * </pre>
+ * <ol>
+ *   <li>read the invincibility counter; if it is zero, the player is not flashing and is drawn normally;</li>
+ *   <li>otherwise decrement the counter;</li>
+ *   <li>mask the value read <em>before</em> the decrement with {@code 2};</li>
+ *   <li>bit clear: draw the player; bit set: draw no player sprite at all this frame.</li>
+ * </ol>
  *
  * <p>Two consequences are easy to get wrong and are what these tests exist to hold: the mask is
- * {@code $02} and not {@code $01}, so the period is four ticks (two drawn, two skipped) rather than
+ * {@code 2} and not {@code 1}, so the period is four ticks (two drawn, two skipped) rather than
  * alternating every tick; and it is applied to the pre-decrement value, which sets the phase the
  * sequence opens on.
  */
 class HurtInvincibilityFlickerTest {
     @Test
-    @DisplayName("A hit grants $71 ticks of invincibility")
-    void invincibilityLastsSeventyOneHexTicks() {
+    @DisplayName("A hit grants 113 ticks of invincibility")
+    void invincibilityLastsOneHundredThirteenTicks() {
         // Prepare
         final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
         runtimeState.setHurtInvincibilityCounter(HURT_INVINCIBILITY_TICKS);
@@ -44,7 +42,7 @@ class HurtInvincibilityFlickerTest {
         }
 
         // Verify
-        assertThat(HURT_INVINCIBILITY_TICKS).isEqualTo(0x71);
+        assertThat(HURT_INVINCIBILITY_TICKS).isEqualTo(113);
         assertThat(ticks).isEqualTo(113);
         assertThat(runtimeState.isSpriteDrawnThisTick())
             .as("once it has run out the player is solid again")
@@ -65,7 +63,7 @@ class HurtInvincibilityFlickerTest {
             runtimeState.decrementHurtInvincibility();
         }
 
-        // Verify - $71 has bit 1 clear, so the very first frame after the poof shows the player
+        // Verify - 113 has bit 1 clear, so the very first frame after the poof shows the player
         assertThat(drawn).containsExactly(
             true, true, false, false,
             true, true, false, false,
@@ -82,14 +80,14 @@ class HurtInvincibilityFlickerTest {
             runtimeState.setHurtInvincibilityCounter(counter);
             assertThat(runtimeState.isSpriteDrawnThisTick())
                 .as("counter %d (0x%02x)", counter, counter)
-                .isEqualTo((counter & 0x02) == 0);
+                .isEqualTo((counter & 2) == 0);
         }
     }
 
     @Test
     @DisplayName("A player who was never hit is always drawn")
     void notFlashingIsAlwaysDrawn() {
-        // The zero case is the ROM's first branch (BEQ before the mask), and it matters: 0 & $02 is also
+        // The zero case is the first check, made before the mask, and it matters: 0 & 2 is also
         // clear, so an implementation that skipped the guard would happen to work — until the counter's
         // resting value ever changed.
         // Prepare

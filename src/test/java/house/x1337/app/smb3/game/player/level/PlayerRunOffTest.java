@@ -24,7 +24,7 @@ import org.mockito.MockedStatic;
 import java.util.Arrays;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
-import static house.x1337.app.smb3.GameConstants.PLAYER_END_LEVEL_XVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_END_LEVEL_X_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
@@ -50,14 +50,13 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The end-level run-off, {@code Player_EndLevel}: the pad reads as released ({@code Player_Control}, dasm
- * prg008.asm:1329-1349), the player faces right and walks at {@code Player_XVel = $14} on the ground and 0 in the
- * air ({@code PRG029_D257}, prg029.asm:1099-1118), and gravity, collision and the pit check go on. A real player is
- * ticked over a real collision grid, with a real input handler whose keys are pressed.
+ * The end-level run-off: the pad reads as released, the player faces right and walks at
+ * {@code PLAYER_END_LEVEL_X_VELOCITY} on the ground and 0 in the air, and gravity, collision and the pit check go on. A
+ * real player is ticked over a real collision grid, with a real input handler whose keys are pressed.
  */
 class PlayerRunOffTest {
     private static final double TOLERANCE = 1e-9;
-    private static final double WALK = PLAYER_END_LEVEL_XVEL;
+    private static final double WALK = PLAYER_END_LEVEL_X_VELOCITY;
     private static final int COLUMNS = 16;
     private static final int ROWS = 8;
     private static final int FLOOR_ROW = ROWS - 1;
@@ -210,7 +209,7 @@ class PlayerRunOffTest {
     }
 
     @Test
-    @DisplayName("A pit on the way still kills, as in the ROM")
+    @DisplayName("A pit on the way still kills")
     void aPitStillKills() {
         // Prepare - floor only under the first four columns
         grid.setObjects(floorUpTo(4));

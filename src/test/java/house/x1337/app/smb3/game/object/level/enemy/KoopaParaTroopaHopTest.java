@@ -22,9 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The hopping green paratroopa's motion: {@code ObjNorm_GroundTroop} (dasm prg004.asm:4001-4150) for
- * {@code $6E}. It walks exactly as the green troopa does, plus two things: {@code YVel = -$30} on every
- * landing (prg004.asm:4131) and {@code DEC YVel} on every airborne frame (prg004.asm:4111).
+ * The hopping green paratroopa's motion. It walks exactly as the green troopa does, plus two things: a Y velocity
+ * of -48 on every landing and a wing lift that takes 1 off the Y velocity on every airborne frame.
  */
 class KoopaParaTroopaHopTest {
     private static final double TOLERANCE = 1e-9;
@@ -32,7 +31,7 @@ class KoopaParaTroopaHopTest {
     private static final int NET_AIRBORNE_GRAVITY = 2;
     private static final int TERMINAL_FALL = 63;
 
-    /** 24 frames rising from {@code -$30} by 2, one still frame at the apex, 24 frames falling. */
+    /** 24 frames rising from {@code -48} by 2, one still frame at the apex, 24 frames falling. */
     private static final int HOP_PERIOD_TICKS = 49;
 
     /** {@code (48 + 46 + ... + 2) / 16} = 37.5 px. */
@@ -60,14 +59,14 @@ class KoopaParaTroopaHopTest {
         // Prepare - the player on the right
         world.playerAtPixelX((START_COLUMN + 6) * (double) TILE_SPRITE_SIZE);
         final KoopaParaTroopa paratroopa = world.spawnedParatroopa();
-        assertThat(paratroopa.isFacingRight()).as("ObjInit_GroundTroop faces the player").isTrue();
+        assertThat(paratroopa.isFacingRight()).as("It faces the player as it spawns").isTrue();
 
         // Execute - the player moves to the far left, and the paratroopa keeps hopping for 300 frames
         world.playerAtPixelX(0);
         world.tick(paratroopa, 300);
 
         // Verify
-        assertThat(paratroopa.isFacingRight()).as("ObjNorm_GroundTroop never re-faces").isTrue();
+        assertThat(paratroopa.isFacingRight()).as("It never re-faces").isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -75,7 +74,7 @@ class KoopaParaTroopaHopTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("It walks at $08 in the direction it faces, half a pixel a frame")
+    @DisplayName("It walks at 8 in the direction it faces, half a pixel a frame")
     void walksAtTheTroopasSpeed() {
         // Prepare
         final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
@@ -102,8 +101,9 @@ class KoopaParaTroopaHopTest {
         world.tick(paratroopa, 60);
 
         // Verify
-        assertThat(paratroopa.isFacingRight()).as("Object_FlipFace").isFalse();
-        assertThat(paratroopa.getVelocity().x()).as("And the next frame reloads XVel from it").isEqualTo(-WALK_SPEED);
+        assertThat(paratroopa.isFacingRight()).as("Its facing flips").isFalse();
+        assertThat(paratroopa.getVelocity().x()).as("And the next frame reloads the X velocity from it")
+            .isEqualTo(-WALK_SPEED);
     }
 
     @Test
@@ -120,9 +120,9 @@ class KoopaParaTroopaHopTest {
         // Execute
         paratroopa.onSideCollisionWith(other);
 
-        // Verify - OAT_BOUNCEOFFOTHERS puts it in the bump pass at all
+        // Verify - bouncing off other objects is what puts it in the bump pass at all
         assertThat(paratroopa.bouncesOffOtherObjects()).isTrue();
-        assertThat(paratroopa.isFacingRight()).as("GroundTroop_BumpOffOthers").isFalse();
+        assertThat(paratroopa.isFacingRight()).as("Turned away from the other enemy").isFalse();
     }
 
     @Test
@@ -148,7 +148,7 @@ class KoopaParaTroopaHopTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Every landing launches a hop of -$30, with no counter and no cooldown")
+    @DisplayName("Every landing launches a hop of -48, with no counter and no cooldown")
     void hopsOnEveryLanding() {
         // Prepare
         final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
@@ -193,7 +193,7 @@ class KoopaParaTroopaHopTest {
     }
 
     @Test
-    @DisplayName("In the air it gains a net +$02 a frame: +$03 gravity less the wing's DEC")
+    @DisplayName("In the air it gains a net +2 a frame: +3 gravity less the wing's lift of 1")
     void floatsAtANetTwoAFrame() {
         // Prepare - launched off the floor
         final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
@@ -211,8 +211,8 @@ class KoopaParaTroopaHopTest {
     }
 
     @Test
-    @DisplayName("Falling from a height it tops out at $3F, because the DEC comes after the $40 cap")
-    void fallsAtATerminalOfThreeF() {
+    @DisplayName("Falling from a height it tops out at 63, because the wing's lift comes after the cap of 64")
+    void fallsAtATerminalVelocityOfSixtyThree() {
         // Prepare - dropped from the top of the level
         final KoopaParaTroopa paratroopa = world.paratroopaAt(START_COLUMN, 0);
         int fastest = 0;
@@ -231,7 +231,7 @@ class KoopaParaTroopaHopTest {
     }
 
     @Test
-    @DisplayName("A ceiling stops the rise: YVel is set to $01 and the float takes it to $00 that frame")
+    @DisplayName("A ceiling stops the rise: the Y velocity is set to 1 and the wing's lift takes it to 0 that frame")
     void aCeilingStopsTheRise() {
         // Prepare - a ceiling two rows above, well inside the 37.5 px hop
         world.solidRow(REST_ROW - 2);
@@ -243,7 +243,7 @@ class KoopaParaTroopaHopTest {
             paratroopa.motionUpdate();
         }
 
-        // Verify - prg004.asm:4093 stores $01, then PRG004_B3E7's DEC runs on the same frame
+        // Verify - the ceiling sets the Y velocity to 1, then the wing's lift runs on the same frame
         assertThat(paratroopa.getPosition().y())
             .as("Held just under the ceiling")
             .isEqualTo((REST_ROW - 1) * (double) TILE_SPRITE_SIZE);
@@ -279,8 +279,8 @@ class KoopaParaTroopaHopTest {
             }
         }
 
-        // Verify - Var5 advances every 2 frames and the frame is (Var5 >> 2) & 1
-        assertThat(changedInTheAir).as("The store at prg004.asm:4106 is skipped for $6E").isTrue();
+        // Verify - the animation clock advances every 2 frames and the frame is (clock >> 2) & 1
+        assertThat(changedInTheAir).as("The paratroopa's walk frame keeps changing in the air").isTrue();
         for (int change = 1; change < frameChanges.size(); change++) {
             assertThat(frameChanges.get(change) - frameChanges.get(change - 1)).isEqualTo(8);
         }

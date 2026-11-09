@@ -21,8 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Draws {@link FadingEngine}'s darkness as a black quad over the whole window, game and HUD alike, as the ROM's fade
- * takes all 32 palette entries down, the status bar's included.
+ * Draws {@link FadingEngine}'s darkness as a black quad over the whole window, game and HUD alike, as a fade takes
+ * all 32 palette entries down, the status bar's included.
  *
  * <p>It is a post view, which jME renders after every main view (the game and the HUD), with its own camera covering
  * the full window. Post views render in the order they were created, so the engine creates this one after the

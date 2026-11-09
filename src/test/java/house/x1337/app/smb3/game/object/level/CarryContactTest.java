@@ -25,11 +25,10 @@ import static org.mockito.Mockito.when;
  * <b>not</b> an enemy — an ice block or a P-switch, neither of which exists yet.
  *
  * <p>Worth its own file because the interesting half of the contract is what happens to something with no
- * death of its own to die. The ROM writes {@code OBJSTATE_KILLED} into both slots and is done
- * (prg000.asm:3106-3120), which only reads as "killed" for an object whose handler understands that
- * state; for anything else it simply means "gone". {@link ActiveLevelObject#expire()} is that meaning,
- * and the default routes to it. {@code KoopaTroopaCarryTest} covers the enemy half, where the state and
- * the upward throw are real.
+ * death of its own to die. Both objects are marked killed and that is all, which only reads as "killed" for an
+ * object whose handler understands that state; for anything else it simply means "gone".
+ * {@link ActiveLevelObject#expire()} is that meaning, and the default routes to it. {@code KoopaTroopaCarryTest}
+ * covers the enemy half, where the state and the upward throw are real.
  */
 class CarryContactTest {
 
@@ -51,7 +50,7 @@ class CarryContactTest {
     @Test
     @DisplayName("The victim is still knocked away from the player, whatever is doing the carrying")
     void theVictimIsKnockedAwayFromThePlayer() {
-        // Level_ObjCalcXDiffs is asked about the VICTIM against the player (prg000.asm:3130-3132), so the
+        // The horizontal direction is taken from the VICTIM against the player, so the
         // answer does not depend on which side of the player the carried object happens to be tucked.
         // Prepare - held at the player's left this time, with the victim left of the player
         final StubCarriable carriable = heldAt(69);

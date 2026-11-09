@@ -14,12 +14,12 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.model.game.effect.PoofSequence.POOF_FRAMES_CONTEXT;
 
 /**
- * Draws the {@code Player_SuitLost} poof cloud in place of the player sprite, whichever direction the
- * suit change is going (dasm prg029 {@code Player_SuitLost_DoPoof}).
+ * Draws the suit-change poof cloud in place of the player sprite, whichever direction the suit change
+ * is going.
  *
  * <p>Deliberately not named for a destination mode. One counter and one cloud serve both the Super
- * Leaf's promotion to Raccoon ({@code ObjHit_SuperLeaf}) and the suit loss back down to Normal that a
- * hit causes ({@code Player_GetHurt}); where the player lands is decided by the queued mode, not here.
+ * Leaf's promotion to Raccoon and the suit loss back down to Normal that a hit causes; where the player
+ * lands is decided by the queued mode, not here.
  */
 @Data
 @Prototype

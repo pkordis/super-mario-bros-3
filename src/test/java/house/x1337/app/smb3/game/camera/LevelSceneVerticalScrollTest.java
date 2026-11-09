@@ -11,9 +11,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins {@link LevelSceneVerticalScroll} against the SMB3 {@code Level_FreeVertScroll}
- * mode-0 behaviour used by World 1-1 (dasm prg008 Player_DoScrolling @
- * PRG008_B208 / PRG008_B246 / PRG008_B258): the camera rests locked at the
+ * Pins {@link LevelSceneVerticalScroll} against the bottom-locked vertical
+ * scroll used by World 1-1: the camera rests locked at the
  * bottom of the level and only scrolls vertically while the player is flying or
  * climbing, capped at 3&nbsp;px/frame upward and returning to the bottom
  * afterwards.
@@ -109,7 +108,7 @@ class LevelSceneVerticalScrollTest {
 
         // Execute — flight ends and the player falls back to the ground. Even
         // with the override off, free-scroll persists until the bottom is
-        // reached (dasm PRG008_B246).
+        // reached.
         float cameraY = scroll.getCameraY();
         for (int tick = 0; tick < 200 && cameraY > BOTTOM + TOLERANCE; tick++) {
             cameraY = scroll.update(BOTTOM, false); // player back near the bottom

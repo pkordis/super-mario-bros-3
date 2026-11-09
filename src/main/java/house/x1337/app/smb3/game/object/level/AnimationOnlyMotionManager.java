@@ -36,7 +36,7 @@ public interface AnimationOnlyMotionManager<A extends Animation> extends MotionM
     }
 
     /**
-     * Drops any in-flight animations when the level restarts (dasm: a death re-enters the level fresh).
+     * Drops any in-flight animations when the level restarts (a death re-enters the level fresh).
      * These are spawned during play and normally expire on their own, but a restart can fire while one
      * is still playing — a poof cloud, a tail-attack flash — so their nodes must be detached here or
      * they would hang in the rebuilt scene.

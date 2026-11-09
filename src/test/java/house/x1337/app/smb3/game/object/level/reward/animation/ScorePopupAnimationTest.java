@@ -27,8 +27,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
- * Where a score caption goes and how far it may rise: {@code Score_PopUp} (dasm prg000.asm:714-745), the
- * {@code Scores_Y} fallback to 5 at 192 or more, and the stop at {@code Scores_Y < 4} (prg007.asm:2262-2266).
+ * Where a score caption goes and how far it may rise: placed 16 px above the object, the fallback to screen
+ * line 5 at 192 or more, and the stop once the line is below 4.
  */
 class ScorePopupAnimationTest {
     private static final int ROWS = 30;
@@ -63,13 +63,13 @@ class ScorePopupAnimationTest {
         // Verify
         assertThat(spriteLeftOf(caption)).isCloseTo(80f, within(TOLERANCE));
         assertThat(spriteTopOf(caption)).isCloseTo((float) SCREEN_TOP + 84, within(TOLERANCE));
-        assertThat(caption.getMaxRises()).as("From Scores_Y 84 down to 3").isEqualTo(81);
+        assertThat(caption.getMaxRises()).as("From screen line 84 down to 3").isEqualTo(81);
     }
 
     @Test
-    @DisplayName("An object less than 16 px below the screen's top puts its score at Scores_Y 5")
+    @DisplayName("An object less than 16 px below the screen's top puts its score at screen line 5")
     void aScoreNearTheTopFallsBack() {
-        // Prepare - Scores_Y = 10 - 16 wraps to 250
+        // Prepare - screen line 10 - 16 wraps to 250
         final ScorePopupAnimation caption = caption();
 
         // Execute
@@ -81,7 +81,7 @@ class ScorePopupAnimationTest {
     }
 
     @Test
-    @DisplayName("A score at Scores_Y 191 stays there, and one at 192 goes to 5")
+    @DisplayName("A score at screen line 191 stays there, and one at 192 goes to 5")
     void theFallbackStartsAt192() {
         // Prepare
         final ScorePopupAnimation low = caption();
@@ -97,7 +97,7 @@ class ScorePopupAnimationTest {
     }
 
     @Test
-    @DisplayName("A score at Scores_Y 3 or less does not rise at all")
+    @DisplayName("A score at screen line 3 or less does not rise at all")
     void aScoreAtTheTopDoesNotRise() {
         // Prepare
         final ScorePopupAnimation caption = caption();
@@ -121,7 +121,7 @@ class ScorePopupAnimationTest {
     }
 
     @Test
-    @DisplayName("Starting a score gives it its first update, on this frame's Counter_1")
+    @DisplayName("Starting a score gives it its first update, on this frame's count")
     void startingGivesTheFirstUpdate() {
         // Prepare
         final ScorePopupAnimation caption = startable(caption());
@@ -135,7 +135,7 @@ class ScorePopupAnimationTest {
 
         // Verify
         assertThat(caption.getFrameIndex()).isEqualTo(1);
-        assertThat(caption.getMotion().verticalOffsetAt(1)).as("Counter_1 3 rises in the first stage").isEqualTo(-7);
+        assertThat(caption.getMotion().verticalOffsetAt(1)).as("Frame count 3 rises in the first stage").isEqualTo(-7);
         assertThat(caption.getMotion().verticalOffsetAt(17)).as("3 + 16 is odd: no rise every other frame")
             .isEqualTo(caption.getMotion().verticalOffsetAt(16));
     }

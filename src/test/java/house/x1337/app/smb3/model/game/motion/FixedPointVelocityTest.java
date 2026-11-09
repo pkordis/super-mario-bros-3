@@ -10,16 +10,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The ROM's 4.4 fixed-point object velocity (dasm smb3.asm:3558 — divide by 16 for pixels/frame),
- * and the one place that conversion is written.
+ * The 4.4 fixed-point object velocity (divide by 16 for pixels/frame), and the one place that conversion
+ * is written.
  */
 class FixedPointVelocityTest {
     private static final double TOLERANCE = 1e-9;
 
-    /** {@code OBJECT_FALLRATE}, dasm prg000.asm:3362. */
+    /** The fall rate gravity adds each frame. */
     private static final int FALL_RATE = 3;
 
-    /** {@code OBJECT_MAXFALL}. */
+    /** The fastest an object can fall. */
     private static final int TERMINAL_VELOCITY = 64;
 
     @Test
@@ -46,7 +46,7 @@ class FixedPointVelocityTest {
                 .as("Frame %d", frame)
                 .isEqualTo(min(frame * FALL_RATE, TERMINAL_VELOCITY));
         }
-        assertThat(velocity.y()).as("Settled at OBJECT_MAXFALL").isEqualTo(TERMINAL_VELOCITY);
+        assertThat(velocity.y()).as("Settled at terminal velocity").isEqualTo(TERMINAL_VELOCITY);
     }
 
     @Test

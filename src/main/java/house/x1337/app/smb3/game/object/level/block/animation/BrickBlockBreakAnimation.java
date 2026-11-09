@@ -17,8 +17,8 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_FRAGMENT;
 // TODO: abstract
 @Getter
 public final class BrickBlockBreakAnimation implements GameRenderer {
-    private static final double UPPER_INIT_Y_VEL = 5.0 / TILE_SPRITE_SIZE;
-    private static final double LOWER_INIT_Y_VEL = 2.0 / TILE_SPRITE_SIZE;
+    private static final double UPPER_INITIAL_Y_VELOCITY = 5.0 / TILE_SPRITE_SIZE;
+    private static final double LOWER_INITIAL_Y_VELOCITY = 2.0 / TILE_SPRITE_SIZE;
     private static final double GRAVITY_STEP = -1.0 / TILE_SPRITE_SIZE;
     private static final int GRAVITY_INTERVAL = 4;
     private static final double ONE_PIXEL = 1.0 / TILE_SPRITE_SIZE;
@@ -38,8 +38,8 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
 
     private final Node rootNode;
 
-    private double upperYVel;
-    private double lowerYVel;
+    private double upperYVelocity;
+    private double lowerYVelocity;
 
     /**
      * X separation in game-units, grows by ONE_PIXEL each frame.
@@ -88,8 +88,8 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         upperPairY = worldOffset.y() + 1.0;
         lowerPairY = worldOffset.y() + 1.0;
 
-        upperYVel = UPPER_INIT_Y_VEL;
-        lowerYVel = LOWER_INIT_Y_VEL;
+        upperYVelocity = UPPER_INITIAL_Y_VELOCITY;
+        lowerYVelocity = LOWER_INITIAL_Y_VELOCITY;
         xDist = 0.0;
         tick = 0;
         hiddenMask = 0;
@@ -120,19 +120,19 @@ public final class BrickBlockBreakAnimation implements GameRenderer {
         // GRAVITY_STEP is negative, so Y velocity decreases (deceleration upward,
         // then acceleration downward) — correct for jme3's upward-Y axis.
         if (tick % GRAVITY_INTERVAL == 0) {
-            upperYVel += GRAVITY_STEP;
-            lowerYVel += GRAVITY_STEP;
+            upperYVelocity += GRAVITY_STEP;
+            lowerYVelocity += GRAVITY_STEP;
         }
 
-        upperPairY += upperYVel;
-        lowerPairY += lowerYVel;
+        upperPairY += upperYVelocity;
+        lowerPairY += lowerYVelocity;
         xDist += ONE_PIXEL;
 
         positionAllFragments();
     }
 
     public boolean isExpired() {
-        return hiddenMask == 0x0F;
+        return hiddenMask == 15;
     }
 
     public void detach() {

@@ -21,10 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The fire plant's cycle: the Piranha Plant's, with both waits {@code $60} ticks, since
- * {@code PRG005_A824} doubles {@code $30} for every ID from {@code OBJ_GREENPIRANHA_FIRE} on
- * (prg005.asm:1618-1630). While out, {@code Piranha_Attack} clears {@code Var3} every tick, so the mouth
- * holds frame 0 (prg005.asm:1567).
+ * The fire plant's cycle: the Piranha Plant's, with both waits 96 ticks, since every fire plant doubles
+ * the Piranha Plant's 48-tick wait. While out, the plant clears its animation counter every tick, so the
+ * mouth holds frame 0.
  */
 class VenusFireTrapCycleTest {
     private static final double TOLERANCE = 1e-9;
@@ -57,7 +56,7 @@ class VenusFireTrapCycleTest {
         // Verify
         assertThat(ticksToTop).as("Out on its first tick, then 25 px at 1 px a tick").isEqualTo(27);
         assertThat(top).isCloseTo(ORIGIN_Y - 25, within(TOLERANCE));
-        assertThat(timerAtTop).isEqualTo(0x60);
+        assertThat(timerAtTop).isEqualTo(96);
         assertThat(ticksOut).isEqualTo(96);
     }
 
@@ -91,7 +90,7 @@ class VenusFireTrapCycleTest {
     }
 
     @Test
-    @DisplayName("While out the head holds frame 0, once the first out tick has shown the frame read before Var3 = 0")
+    @DisplayName("While out the head holds frame 0, once the first out tick has shown the frame read before the reset")
     void whileOutTheHeadHoldsFrameZero() {
         // Prepare - the rise ends on tick 27, where (26 >> 3) & 1 is frame 1
         final VenusFireTrap plant = world.plant(GREEN);
@@ -106,7 +105,7 @@ class VenusFireTrapCycleTest {
             frames.add(plant.getHeadFrameIndex());
         }
 
-        // Verify - ObjNorm_Piranha reads the frame before Piranha_Attack clears Var3
+        // Verify - the frame is read before the out state clears the animation counter
         assertThat(firstOutTickFrame).isEqualTo(1);
         assertThat(frames).hasSize(95).containsOnly(0);
     }
@@ -130,7 +129,7 @@ class VenusFireTrapCycleTest {
             sinking.add(plant.getHeadFrameIndex());
         }
 
-        // Verify - (Var3 >> 3) & 1, and Var3 starts the sink at 0
+        // Verify - (animation counter >> 3) & 1, and the counter starts the sink at 0
         assertThat(rising).containsExactlyElementsOf(eightTickRuns(0, 1, 0));
         assertThat(sinking).containsExactlyElementsOf(eightTickRuns(0, 1, 0));
     }

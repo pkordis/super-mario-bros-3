@@ -20,10 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The head turns toward the player: {@code Piranha_FacePlayerFlip = SPR_HFLIP, $00} from
- * {@code Level_ObjCalcXDiffs}, and {@code Piranha_VFlip = $00, SPR_VFLIP} from {@code Level_ObjCalcYDiffs},
- * written to the two head sprites only (prg005.asm:1282-1283, 1307-1314, 1393-1425). The art faces left and
- * looks down; the stem is never flipped.
+ * The head turns toward the player: it is flipped horizontally unless the player is to its left, and
+ * vertically when the player is above its top. Only the head is flipped. The art faces left and looks
+ * down; the stem is never flipped.
  */
 class VenusFireTrapFacingTest {
     private static final float TOLERANCE = 1e-5f;
@@ -62,7 +61,7 @@ class VenusFireTrapFacingTest {
 
     @ParameterizedTest(name = "Player Y top {0}: V-flipped = {1}")
     @CsvSource({"-40, true", "-1, true", "0, false", "1, false", "40, false"})
-    @DisplayName("The head looks up, V-flipped, exactly when Player_Y is above the plant's top")
+    @DisplayName("The head looks up, V-flipped, exactly when the player's Y is above the plant's top")
     void theHeadLooksUpExactlyWhenThePlayerIsAbove(final int playerDy, final boolean flipped) {
         // Prepare
         player.getPosition().setY(GREEN_TOP + playerDy);

@@ -10,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * The player's three end-level card slots, filled as {@code Player_GetCard} fills {@code Inventory_Cards}
- * (dasm prg031.asm:2883-2924), and their part in the HUD's dirty snapshot.
+ * The player's three end-level card slots, filled left to right with the oldest card dropped once all three are
+ * taken, and their part in the HUD's dirty snapshot.
  */
 class PlayerDataCardsTest {
     @Test

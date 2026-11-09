@@ -68,10 +68,9 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 /**
- * Touching the card starts the level's completion, as {@code ObjHit_EndLevelCard} does (dasm prg002.asm:6146-6292):
- * {@code Player_GetCard}, {@code Level_TimerEn = $81}, and {@code Level_PSwitchCnt}, {@code Kill_Tally} and
- * {@code Player_YVel} cleared. Then the card flies off, the clock turns into score and the level ends on the ROM's
- * timers ({@code EndLevelCard_WaitFlyAway}, {@code EndLevelCard_MsgAndCard}, {@code EndLevelCard_Exit}).
+ * Touching the card starts the level's completion: the card goes into the player's next slot, the clock stops, and
+ * the P-switch window, the kill chain and the player's vertical velocity are cleared. Then the card flies off, the
+ * clock turns into score and the level ends on the state timers.
  */
 class LevelCompletionTest {
     /** The card at row 9 (y 144) reaches y -19 after 65 ticks, so the screen top at 0 sees it gone on tick 66. */
@@ -245,7 +244,7 @@ class LevelCompletionTest {
     }
 
     @Test
-    @DisplayName("Once the card is off screen the clock turns into score, one ROM step a tick, while the HUD shows it")
+    @DisplayName("Once the card is off screen the clock turns into score, one step a tick, while the HUD shows it")
     void theClockTurnsIntoScoreAfterTheFlight() {
         // Prepare
         startTheTimerAt(287);
@@ -286,7 +285,7 @@ class LevelCompletionTest {
     @Test
     @DisplayName("The exit waits for the course-clear timer, then the clock, then the player, in turn")
     void theExitWaitsForEachCondition() {
-        // Execute & Verify - the timer: the clock is done long before its $60 ticks
+        // Execute & Verify - the timer: the clock is done long before its 96 ticks
         startTheTimerAt(287);
         position.setX(EXIT_X);
         levelCompletion.collect(FLOWER, player);
@@ -313,7 +312,7 @@ class LevelCompletionTest {
     }
 
     @Test
-    @DisplayName("LevelCompleted is published once, $80 ticks after the exit begins")
+    @DisplayName("LevelCompleted is published once, 128 ticks after the exit begins")
     void theLevelEndsAfterTheExitTimer() {
         // Prepare
         final List<GameEvent> published = recordPublishedEvents();

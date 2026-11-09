@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
@@ -53,8 +53,8 @@ import static org.mockito.Mockito.when;
  * The Koopa Troopa as a collision participant: every defeat path lands it in the shell, the shell is
  * simulated rather than parked, it shakes itself awake and stands back up.
  *
- * <p>The through-line worth keeping in mind while reading: {@code OA3_DIESHELLED} without
- * {@code OA3_SQUASH} (dasm prg004.asm:238) means <b>nothing here kills the troopa</b>. A stomp shells
+ * <p>The through-line worth keeping in mind while reading: a troopa goes into its shell when defeated and is
+ * never squashed, which means <b>nothing here kills the troopa</b>. A stomp shells
  * it, a tail wham shells it, a block bumped underneath shells it, and a tail wham on the shell shells it
  * again. Only a kick into a wall could remove it, and that is not in this slice.
  */
@@ -68,7 +68,7 @@ class KoopaTroopaShellTest {
     private static final int WALK_ROW = FLOOR_ROW - 1;
     private static final double WALK_ROW_PIXEL_Y = WALK_ROW * (double) TILE_SPRITE_SIZE;
 
-    /** {@code PRG000_CAF1} rows are 16 timer units wide, which is what {@code Timer3 >> 4} indexes. */
+    /** The feet mask table's rows are 16 timer units wide, which is what {@code wakeUpTicks >> 4} indexes. */
     private static final int FEET_FLICKER_BAND_TICKS = 16;
 
     /**
@@ -82,14 +82,14 @@ class KoopaTroopaShellTest {
     /** {@code 27} frames of rise carries the shell 13 px right of column 5, so its centre reads 6. */
     private static final int APEX_COLUMN = 6;
 
-    /** {@code -$50} from a tail strike, {@code -$30} from a block bump, {@code ±$08} either way. */
+    /** {@code -80} from a tail strike, {@code -48} from a block bump, {@code ±8} either way. */
     private static final int TAIL_LAUNCH_Y_VELOCITY = -80;
     private static final int BUMP_LAUNCH_Y_VELOCITY = -48;
     private static final int KNOCK_X_VELOCITY = 8;
 
     /**
-     * 415 frames to run {@code Objects_Timer3} from {@code $FF} to zero: 160 units at the central loop's
-     * half rate while the timer is at or above {@code $60}, then 95 at full rate.
+     * 415 frames to run the wake-up timer from {@code 255} to zero: 160 units at the central loop's
+     * half rate while the timer is at or above {@code 96}, then 95 at full rate.
      */
     private static final int FRAMES_TO_EMPTY_THE_WAKE_UP_CLOCK = 415;
 
@@ -183,7 +183,7 @@ class KoopaTroopaShellTest {
         // Verify
         verify(player, never()).getHurtBy(any());
         assertThat(troopa.getPendingScoreReward())
-            .as("Object_HoldKickOrHurtPlayer routes a shelled object away from the hurt branch")
+            .as("A shelled troopa is routed away from the hurt branch")
             .isNull();
     }
 
@@ -196,7 +196,7 @@ class KoopaTroopaShellTest {
         // Execute
         troopa.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - Obj2Obj_EnByState enables tail hits in the shelled state (dasm prg000.asm:6094)
+        // Verify - tail hits stay enabled in the shelled state
         assertThat(troopa.getState()).isEqualTo(SHELLED);
         assertThat(troopa.isHittable()).isTrue();
     }
@@ -218,13 +218,13 @@ class KoopaTroopaShellTest {
         // Verify
         assertThat(troopa.getState()).isEqualTo(SHELLED);
         assertThat(troopa.getWakeUpTicks())
-            .as("Object_SetShellState starts Objects_Timer3 at $FF")
+            .as("Going into the shell starts the wake-up timer at 255")
             .isEqualTo(WAKE_UP_TICKS);
         assertThat(troopa.getPendingScoreReward()).isEqualTo(SCORE_100);
         assertThat(troopa.getHitCooldownTicks()).isEqualTo(STOMP_HIT_COOLDOWN_TICKS);
         assertThat(troopa.isExpired()).as("It is shelled, not dead").isFalse();
         assertThat(troopa.isUpsideDown()).as("A stomp does not flip it").isFalse();
-        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
+        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
     }
 
     @Test
@@ -259,16 +259,16 @@ class KoopaTroopaShellTest {
         // Verify
         assertThat(troopa.getState()).isEqualTo(SHELLED);
         assertThat(troopa.getWakeUpTicks()).isEqualTo(WAKE_UP_TICKS);
-        assertThat(troopa.isUpsideDown()).as("FlipBits |= SPR_VFLIP").isTrue();
+        assertThat(troopa.isUpsideDown()).as("Flipped vertically on top of its facing").isTrue();
         assertThat(troopa.getVelocity().y())
-            .as("Enemy_Kill's launch is -$50 on the tail path")
+            .as("The tail strike's launch is -80")
             .isEqualTo(TAIL_LAUNCH_Y_VELOCITY);
         assertThat(troopa.getVelocity().x())
-            .as("EnemyKill_XVels throws it away from the player")
+            .as("The knock throws it away from the player")
             .isEqualTo(KNOCK_X_VELOCITY);
         assertThat(troopa.getHitCooldownTicks()).isEqualTo(TAIL_STRIKE_HIT_COOLDOWN_TICKS);
         assertThat(troopa.getPendingScoreReward())
-            .as("PRG000_DBB6 skips Score_Get100PlusPts entirely for an OA3_DIESHELLED object")
+            .as("No score at all for an enemy that goes into its shell when defeated")
             .isNull();
         assertThat(troopa.isExpired()).isFalse();
         verify(tailAttackFlashMotionManager).spawn(any(), any());
@@ -338,8 +338,8 @@ class KoopaTroopaShellTest {
     @Test
     @DisplayName("Every landing halves the shell's slide, so a thrown shell runs itself out")
     void eachLandingHalvesTheSlide() {
-        // PRG000_CB30: the X velocity is halved on every descending floor contact, sign preserved. A
-        // shell thrown at $08 therefore slides to a stop over four landings rather than skating forever.
+        // The X velocity is halved on every descending floor contact, sign preserved. A
+        // shell thrown at 8 therefore slides to a stop over four landings rather than skating forever.
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
         troopa.onTailAttack(playerAtPixelX(2 * TILE_SPRITE_SIZE));
@@ -361,7 +361,7 @@ class KoopaTroopaShellTest {
         // Execute - tick to the first landing, which is the frame the slide first halves
         tickUntilTheSlideChanges(troopa);
 
-        // Verify - Object_HitGround put it on the floor and the damped rebound took it straight back off
+        // Verify - landing put it on the floor and the damped rebound took it straight back off
         assertThat(troopa.getPosition().y()).isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(troopa.isGrounded()).as("A quarter of the fall is given back as lift").isFalse();
         assertThat(troopa.getVelocity().y()).as("And that lift is upward").isNegative();
@@ -369,7 +369,7 @@ class KoopaTroopaShellTest {
         // Execute
         tick(troopa, 120);
 
-        // Verify - Object_Move adds gravity after the move, so a resting object always carries one
+        // Verify - gravity is added after the move, so a resting object always carries one
         // frame of fall speed; grounded is the honest test, not a zero velocity
         assertThat(troopa.isGrounded()).as("The hops die out").isTrue();
         assertThat(troopa.getPosition().y()).isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
@@ -398,11 +398,11 @@ class KoopaTroopaShellTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("A surface is only detected from the top 4 px of its tile, as Object_WorldDetect4 says")
+    @DisplayName("A surface is only detected from the top 4 px of its tile")
     void theFloorIsOnlyDetectedNearTheTopOfItsTile() {
-        // "The object will not detect a floor if it is more than 4 pixels vertically down in to it"
-        // (dasm prg000.asm:905); the test is Objects_Y & $0F against the limit (prg000.asm:1149). Four
-        // pixels is one frame of OBJECT_MAXFALL, so this never rejects a genuine landing - only a
+        // An object does not detect a floor it is 4 pixels or more down into: the test is the tracked Y's
+        // offset within its tile (Y & 15) against the limit. Four pixels is one frame of the maximum fall
+        // speed, so this never rejects a genuine landing - only a
         // surface the enemy is already sunk into.
         // Prepare - the fixture's floor is row 6, so a body resting on it tracks y = 80
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
@@ -427,8 +427,8 @@ class KoopaTroopaShellTest {
     void theApexDoesNotCaptureTheShellOnAPanelItNeverCleared() {
         // The bug this guards: a panel top is solid underfoot but NOT as a ceiling, so a whammed shell
         // rises straight through one. Near the apex its vertical speed is almost nothing while it still
-        // travels sideways at $08, so it can slide into a panel's column while sunk ten pixels into it -
-        // and without Object_WorldDetect4's limit, the first descending frame would align it to that
+        // travels sideways at 8, so it can slide into a panel's column while sunk ten pixels into it -
+        // and without the floor detection's depth limit, the first descending frame would align it to that
         // tile's top line and declare it landed, teleporting it up onto a ledge it never crossed.
         // Prepare - a deep floor so the arc has room, and a panel on the row the apex sinks into
         solids[FLOOR_ROW] = new boolean[COLUMNS];
@@ -497,14 +497,14 @@ class KoopaTroopaShellTest {
         assertThat(troopa.getState()).isEqualTo(SHELLED);
         assertThat(troopa.getWakeUpTicks()).isEqualTo(WAKE_UP_TICKS);
         assertThat(troopa.getVelocity().y())
-            .as("Object_HandleBumpUnderneath throws it -$30, weaker than the tail's -$50")
+            .as("The bump throws it -48, weaker than the tail's -80")
             .isEqualTo(BUMP_LAUNCH_Y_VELOCITY);
-        assertThat(troopa.isUpsideDown()).as("FlipBits = SPR_VFLIP").isTrue();
+        assertThat(troopa.isUpsideDown()).as("Flipped vertically").isTrue();
         assertThat(troopa.isFacingRight())
-            .as("The assignment wipes SPR_HFLIP along with setting SPR_VFLIP")
+            .as("The flip resets the horizontal facing along with flipping it vertically")
             .isFalse();
-        assertThat(troopa.getPendingScoreReward()).as("OA3_DIESHELLED means no score").isNull();
-        assertThat(troopa.getHitCooldownTicks()).as("This path sets no Objects_Timer2").isZero();
+        assertThat(troopa.getPendingScoreReward()).as("Going into the shell when defeated means no score").isNull();
+        assertThat(troopa.getHitCooldownTicks()).as("This path sets no hit cooldown").isZero();
         verify(tailAttackFlashMotionManager, never()).spawn(any(), any());
     }
 
@@ -532,7 +532,7 @@ class KoopaTroopaShellTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("The shell is still until the wake-up timer falls below $60, then it jitters a pixel")
+    @DisplayName("The shell is still until the wake-up timer falls below 96, then it jitters a pixel")
     void theShakeStartsAtTheShakeThreshold() {
         // Prepare
         final KoopaTroopa troopa = shelledOnTheFloor();
@@ -543,7 +543,7 @@ class KoopaTroopaShellTest {
             troopa.motionUpdate();
             everJitteredWhileStill |= troopa.getShellJitterPixels() != 0;
         }
-        assertThat(everJitteredWhileStill).as("Nothing moves above the $60 threshold").isFalse();
+        assertThat(everJitteredWhileStill).as("Nothing moves above the 96 threshold").isFalse();
         assertThat(troopa.isShellShaking()).isTrue();
 
         int jitteredFrames = 0;
@@ -557,7 +557,7 @@ class KoopaTroopaShellTest {
     }
 
     @Test
-    @DisplayName("The waking feet stay hidden until the timer falls below $50")
+    @DisplayName("The waking feet stay hidden until the timer falls below 80")
     void theFeetAppearAtTheFeetThreshold() {
         // Prepare
         final KoopaTroopa troopa = shelledOnTheFloor();
@@ -581,8 +581,8 @@ class KoopaTroopaShellTest {
     @Test
     @DisplayName("The feet flicker accelerates toward the wake-up: the same duty, toggled faster")
     void theFeetFlickerAccelerates() {
-        // PRG000_CAF1 = {$02,$02,$04,$08,$10,$10} indexed by Timer3 >> 4, and Timer3 counts DOWN, so the
-        // mask shrinks $10 -> $08 -> $04 -> $02 and the feet toggle in runs of 8 ticks, then 4, then 2.
+        // The feet mask table is {2, 2, 4, 8, 16, 16} indexed by the wake-up timer >> 4, and the timer counts
+        // DOWN, so the mask shrinks 16 -> 8 -> 4 -> 2 and the feet toggle in runs of 8 ticks, then 4, then 2.
         // What accelerates is the RATE - the proportion of ticks showing feet stays at half throughout -
         // and that ramp is the player's only tell that the shell is about to stand up.
         // Prepare
@@ -621,8 +621,8 @@ class KoopaTroopaShellTest {
     @Test
     @DisplayName("The topmost flicker band shows no feet at all, which is the mask table's own quirk")
     void theTopFlickerBandNeverShowsFeet() {
-        // The feet are gated on Timer3 < $50, but the mask for Timer3 >> 4 == 4 is $10 - a bit that is
-        // never set anywhere in 64..79. So the feet actually begin at $40, a whole band later than the
+        // The feet are gated on the timer < 80, but the mask for timer >> 4 == 4 is 16 - a bit that is
+        // never set anywhere in 64..79. So the feet actually begin at 64, a whole band later than the
         // threshold suggests. Surprising enough to pin rather than leave to be rediscovered.
         // Prepare
         final KoopaTroopa troopa = shelledOnTheFloor();
@@ -630,7 +630,7 @@ class KoopaTroopaShellTest {
         // Execute & Verify - asserted at each timer value before the clock advances off it
         while (troopa.getWakeUpTicks() >= 4 * FEET_FLICKER_BAND_TICKS) {
             assertThat(troopa.isWakingFeetShowing())
-                .as("No feet at timer %d, below the $50 threshold though it is", troopa.getWakeUpTicks())
+                .as("No feet at timer %d, below the 80 threshold though it is", troopa.getWakeUpTicks())
                 .isFalse();
             troopa.motionUpdate();
         }
@@ -662,11 +662,11 @@ class KoopaTroopaShellTest {
     }
 
     @Test
-    @DisplayName("The wake-up clock is throttled above $60, so 255 units take 415 frames and not 255")
+    @DisplayName("The wake-up clock is throttled above 96, so 255 units take 415 frames and not 255")
     void theWakeUpClockIsThrottledWhileTheShellIsStill() {
-        // The central object loop gates the Timer3 decrement on Counter_1 while the timer is at or above
-        // $60 and the object is not in its normal state (dasm prg000.asm:1879-1897) - so 160 units run at
-        // half rate and the last 95 at full. The mask is $01 here; a held shell gets $03 instead.
+        // The central object loop only takes a unit off the wake-up timer on alternate frames while the timer
+        // is at or above 96 and the object is not in its normal state - so 160 units run at
+        // half rate and the last 95 at full. The frame mask is 1 here; a held shell gets 3 instead.
         // Prepare
         final KoopaTroopa troopa = shelledOnTheFloor();
 
@@ -677,7 +677,7 @@ class KoopaTroopaShellTest {
         assertThat(troopa.getWakeUpTicks()).as("One unit left with a frame to go").isEqualTo(1);
         assertThat(troopa.getState()).isEqualTo(SHELLED);
 
-        // Execute - the loop empties the timer and Object_ShellDoWakeUp acts on it the same frame
+        // Execute - the loop empties the timer and the wake-up acts on it the same frame
         tick(troopa, 1);
 
         // Verify
@@ -701,7 +701,7 @@ class KoopaTroopaShellTest {
         // Verify
         assertThat(troopa.getState()).isEqualTo(NORMAL);
         assertThat(troopa.isUpsideDown())
-            .as("ObjectHeld_WakeUpDir is assigned to FlipBits wholesale, clearing SPR_VFLIP")
+            .as("The wake-up facing replaces the flip state wholesale, clearing the vertical flip")
             .isFalse();
 
         // Execute - long enough to walk the platform and reach its edge

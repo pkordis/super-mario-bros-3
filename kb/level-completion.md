@@ -134,7 +134,7 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
   - `PlayerInputHandler` still tracks the keys, so a restart's handler takes over the real pad; R and L still publish
     their events, so R still restarts the level during the run-off.
   - `updateFrame` re-applies the walk after the movement handlers each tick (`applyRunOffWalk`: face right,
-    `PLAYER_END_LEVEL_XVEL` on the ground, 0 in the air), overriding the friction a released pad would apply.
+    `PLAYER_END_LEVEL_X_VELOCITY` on the ground, 0 in the air), overriding the friction a released pad would apply.
   - `StaticEnvironmentCollisionGrid.collidesAtOffset` opens the level's right edge to a running-off player; the left
     edge stays solid.
   - Once the step would put the left foot (X + 4, both suits) past the last column there is nothing to stand on:

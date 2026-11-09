@@ -18,9 +18,8 @@ import static house.x1337.app.smb3.game.object.level.projectile.PiranhaFireballA
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the piranha fireball's two 8x16 frames, patterns {@code $65} and {@code $67}. The ROM draws them in
- * {@code SPR_PAL1}, which World 1-1's sprite palette set 8 makes white with a red border, so the art uses
- * two opaque colours and no more.
+ * Pins the piranha fireball's two 8x16 frames. They are drawn in a sprite palette that World 1-1 makes
+ * white with a red border, so the art uses two opaque colours and no more.
  */
 class PiranhaFireballAnimatorAssetsTest {
     private static final List<String> FILES = List.of("piranha_fireball_1.png", "piranha_fireball_2.png");
@@ -28,11 +27,11 @@ class PiranhaFireballAnimatorAssetsTest {
     private static final String BOTTOM_ROWS = "........\n........\n........\n........\n";
 
     /**
-     * {@code $65} and {@code $67} as {@code CHR/chr004.pcx} stores them (tiles {@code $24-$27}): {@code R} the
-     * red border, {@code W} the white fill. The code adds every mirror itself, so a file drawn mirrored
-     * reverses the direction the fireball spins in.
+     * The two fireball patterns as the source sprite sheet stores them: {@code R} the red border, {@code W}
+     * the white fill. The code adds every mirror itself, so a file drawn mirrored reverses the direction the
+     * fireball spins in.
      */
-    private static final List<String> ROM_PATTERNS = List.of(
+    private static final List<String> STORED_PATTERNS = List.of(
         TOP_ROWS
             + "........\n"
             + "..RRRR..\n"
@@ -58,7 +57,7 @@ class PiranhaFireballAnimatorAssetsTest {
     );
 
     @Test
-    @DisplayName("assets.json names $65 then $67")
+    @DisplayName("assets.json names the first frame then the second")
     void theDescriptorNamesBothFrames() {
         // Prepare
         final List<String> requested = new ArrayList<>();
@@ -107,8 +106,8 @@ class PiranhaFireballAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("Both frames are the ROM's patterns as stored, not mirrored, so the fireball spins the ROM's way")
-    void bothFramesAreTheRomPatternsAsStored() throws IOException {
+    @DisplayName("Both frames are the patterns as stored, not mirrored, so the fireball spins the right way")
+    void bothFramesAreThePatternsAsStored() throws IOException {
         for (int frame = 0; frame < FILES.size(); frame++) {
             // Prepare
             final BufferedImage image = read(FRAMES_CONTEXT + FILES.get(frame));
@@ -117,7 +116,7 @@ class PiranhaFireballAnimatorAssetsTest {
             final String pattern = asPattern(image);
 
             // Verify
-            assertThat(pattern).as(FILES.get(frame)).isEqualTo(ROM_PATTERNS.get(frame));
+            assertThat(pattern).as(FILES.get(frame)).isEqualTo(STORED_PATTERNS.get(frame));
         }
     }
 

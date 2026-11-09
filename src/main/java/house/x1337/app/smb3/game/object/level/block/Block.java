@@ -44,7 +44,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_O
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
- * A single-tile block, parameterized by its {@link LevelObjectType} into the flavours the ROM
+ * A single-tile block, parameterized by its {@link LevelObjectType} into the flavours of block the game
  * distinguishes. They share the vast majority of their behaviour, so they live in one class:
  *
  * <ul>
@@ -52,12 +52,10 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
  *       ({@link QuestionBlockAnimator}).</li>
  *   <li><b>{@code BRICK_BLOCK_WITH_REWARD}</b> — <em>identical</em> reward behaviour to the question
  *       block (dispense → become an {@link EmptyBlock} → bounce), but wearing the plain brick look
- *       and shimmer of the breakable brick ({@link BrickBlockAnimator}). In the ROM a brick that
- *       contains an item never breaks — it spends its contents and turns solid, exactly like a "?"
- *       block.</li>
+ *       and shimmer of the breakable brick ({@link BrickBlockAnimator}). A brick that contains an item
+ *       never breaks — it spends its contents and turns solid, exactly like a "?" block.</li>
  *   <li><b>{@code BRICK_BLOCK_NO_REWARD}</b> — breakable brick: large Mario shatters it into four
- *       fragments; small Mario bounces it in place (dasm {@code prg008.asm LATP_Brick} /
- *       {@code prg001.asm ObjNorm_BounceDU}).</li>
+ *       fragments; small Mario bounces it in place.</li>
  *   <li><b>{@code BRICK_SWITCH_BLOCK_SPAWNER} / {@code QUESTION_SWITCH_BLOCK_SPAWNER}</b> — reward
  *       blocks whose contents are a {@link SwitchBlock} (P-Switch). They behave exactly like a
  *       question block, except the "reward" is placed into the cell directly above instead of being
@@ -131,15 +129,12 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     }
 
     /**
-     * While a P-Switch is active a breakable brick reads as {@code TILEA_COIN}, so touching it collects
-     * it — the ROM's own consequence of the substitution, not a special case: the coin branch of
-     * {@code Player_DoSpecialTiles} (dasm {@code prg008.asm PRG008_B604}) compares the tile it just
-     * fetched, and that fetch has already been through {@code PSwitch_SubstTileAndAttr}
-     * ({@code prg008.asm:4331}, {@code :4368}).
+     * While a P-Switch is active a breakable brick reads as a coin, so touching it collects it — a
+     * consequence of the substitution, not a special case: the player's tile contact checks the tile it
+     * just looked up, and that lookup already answers with the substituted coin.
      *
-     * <p>The ROM queues {@code CHNGTILE_DELETECOIN} — leaving {@code TILEA_COINREMOVED} ($41), a
-     * background tile — and calls {@code Level_RecordBlockHit} "so it does not come back", so the brick
-     * is gone permanently, not just for the window. No score is awarded, only the coin counter; the
+     * <p>Collecting it leaves a background tile and records the hit so the brick does not come back:
+     * it is gone permanently, not just for the window. No score is awarded, only the coin counter; the
      * handler adds nothing to the score, unlike a coin dispensed from a block.
      */
     @Override
@@ -168,11 +163,10 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
      * While a P-Switch is active a breakable brick is a coin, and a coin is not solid: the player walks
      * and falls straight through it until the window closes.
      *
-     * <p>This is the read-time half of the ROM's {@code PSwitch_SubstTileAndAttr} substitution
-     * (dasm {@code prg000.asm:1599}): the level grid is never rewritten, the tile lookup simply answers
-     * {@code TILEA_COIN} — with the coin's attribute — for as long as {@code Level_PSwitchCnt} is
-     * non-zero, so nothing needs restoring when it expires. {@code BrickBlockAnimator} is the other
-     * half, painting the coin.
+     * <p>This is the read-time half of the P-Switch substitution: the level grid is never rewritten,
+     * the tile lookup simply answers with a coin — with the coin's properties — for as long as the
+     * P-Switch window is open, so nothing needs restoring when it expires. {@code BrickBlockAnimator}
+     * is the other half, painting the coin.
      *
      * @return {@code false} only for a breakable brick inside an active P-Switch window
      */
@@ -214,9 +208,8 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
 
     /**
      * Breakable-brick hit by large Mario: remove from the collision grid, stop the shimmer, erase the
-     * tile, spawn the four flying fragments, and award 10 points. Ported from dasm
-     * {@code prg008.asm LATP_Brick} / {@code prg007.asm BrickBusts_DrawAndUpdate}, and shared with the
-     * P-Switch-substituted coin via {@link BreakableBrickCapabilities}.
+     * tile, spawn the four flying fragments, and award 10 points. Shared with the P-Switch-substituted
+     * coin via {@link BreakableBrickCapabilities}.
      */
     @Override
     public void onCoinDispensed(final LevelScenePlayer levelScenePlayer) {
@@ -239,19 +232,15 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     /**
      * Places the P-Switch in the cell directly above this spawner.
      *
-     * <p>Ported from dasm {@code prg008.asm LATP_PSwitch}: the handler takes the hit tile's Y,
-     * aligns it to the tile grid ({@code AND #$F0}) and subtracts 16 — exactly one row up — then
-     * queues {@code CHNGTILE_PSWITCHAPPEAR} ($12 → {@code TILEA_PSWITCH}) at that spot. It returns
-     * {@code Y = 1} into {@code Bouncer_PUp}, i.e. "spawn nothing": unlike a mushroom or a leaf, the
-     * switch is <em>placed</em> as a tile rather than launched as a moving object. The handler never
-     * reads {@code Player_Suit}, so the spawn is independent of the player's size.
+     * <p>The spawner takes the hit tile's Y, aligns it to the tile grid and subtracts 16 — exactly one
+     * row up — then places the P-Switch tile at that spot. Unlike a mushroom or a leaf, the switch is
+     * <em>placed</em> as a tile rather than launched as a moving object, and the player's suit is never
+     * consulted, so the spawn is independent of the player's size.
      *
-     * <p>The write is unconditional in the ROM, so whatever occupied the cell above is replaced. Valid
-     * level data always leaves that cell empty, since otherwise the switch would appear embedded in
-     * terrain.
+     * <p>The write is unconditional, so whatever occupied the cell above is replaced. Valid level data
+     * always leaves that cell empty, since otherwise the switch would appear embedded in terrain.
      *
-     * <p>Not yet ported: {@code LATP_PSwitch} also grabs a free special-object slot and puts an
-     * {@code SOBJ_POOF} there with a counter of $20, so the switch appears in a puff of smoke.
+     * <p>The switch appears in a puff of smoke, spawned in the same cell.
      */
     @Override
     public void onSwitchBlockDispensed(final LevelScenePlayer levelScenePlayer) {
@@ -283,9 +272,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
                 .getFrameRgbData(0)
         );
 
-        // The ROM claims a SOBJ_POOF slot at the very same cell in the same routine, so the puff starts
-        // on the tick the switch appears (dasm prg008 LATP_PSwitch @ PRG008_B8C9: SpecialObj_Data = $20,
-        // and SpecialObj_YLo/XLo take the same coordinates as the tile change).
+        // The puff of smoke is spawned at the very same cell, so it starts on the tick the switch appears.
         getBean(PoofMotionManager.class).spawn(gameEngine, switchOffset);
 
         log.debug("Switch block spawned at {}x{}", switchOffset.x(), switchOffset.y());

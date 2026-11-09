@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
@@ -35,12 +35,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * The red Koopa Paratroopa, {@code OBJ_FLYINGREDPARATROOPA = $6F}, run by {@code ObjNorm_FlyingRedTroopa}
- * (dasm prg004.asm:3939-3985). It never moves in X and ignores terrain: {@code Object_ApplyYVel_NoLimit}
- * adds {@code YVel}, then, only while {@code Objects_Timer} is 0, every 4th {@code Var4} tick nudges
- * {@code YVel} by {@code ParaTroopaFly_Accel[Var3 & 1]} and, at {@code ParaTroopaFly_Limit}, reverses
- * ({@code Var3++}) and holds for {@code Timer = $30}. The object loop decrements the timer before the
- * handler runs (prg000.asm:1855). Defeated, it hands its slot to a red troopa (prg004.asm:115).
+ * The red Koopa Paratroopa. It never moves in X and ignores terrain: each tick it adds its Y velocity, then, only
+ * while the flight timer is 0, every 4th flight tick nudges the Y velocity by the acceleration for its direction
+ * and, at the speed limit, reverses the direction and holds for a flight timer of 48. The timer counts down before
+ * the flight runs. Defeated, it hands its slot to a red troopa.
  */
 class KoopaParaTroopaFlightTest {
     private static final double TOLERANCE = 1e-9;
@@ -56,8 +54,8 @@ class KoopaParaTroopaFlightTest {
     private static final double WALK_STEP_PIXELS = WALK_SPEED / (double) TILE_SPRITE_SIZE;
 
     /**
-     * {tick, YVel after the tick, pixels below the spawn height after the tick}, worked out from the ROM's
-     * counters by hand. The hold lasts 47 timer ticks plus the 4 that bring {@code Var4} back to a multiple
+     * {tick, Y velocity after the tick, pixels below the spawn height after the tick}, worked out by hand from
+     * its counters. The hold lasts 47 timer ticks plus the 4 that bring the flight tick count back to a multiple
      * of 4, so a half period is 47 + 32 * 4 = 175 ticks and the low point is 30 + 51 + 30 = 111 px.
      */
     private static final int[][] TRACK = {
@@ -90,7 +88,7 @@ class KoopaParaTroopaFlightTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("It flies down first and follows the ROM's counter-driven track, tick for tick")
+    @DisplayName("It flies down first and follows its counter-driven track, tick for tick")
     void followsTheTrack() {
         // Prepare
         final KoopaParaTroopa paratroopa = world.redParatroopaAt(START_COLUMN, FLIGHT_ROW);
@@ -103,7 +101,7 @@ class KoopaParaTroopaFlightTest {
             tick = checkpoint[0];
 
             // Verify
-            assertThat(paratroopa.getVelocity().y()).as("YVel after tick %d", tick).isEqualTo(checkpoint[1]);
+            assertThat(paratroopa.getVelocity().y()).as("Y velocity after tick %d", tick).isEqualTo(checkpoint[1]);
             assertThat(paratroopa.getPosition().y() - spawnY)
                 .as("Drop after tick %d", tick)
                 .isCloseTo(checkpoint[2], within(TOLERANCE));
@@ -111,7 +109,7 @@ class KoopaParaTroopaFlightTest {
     }
 
     @Test
-    @DisplayName("Reaching the limit reverses the direction and holds the speed for Timer = $30")
+    @DisplayName("Reaching the limit reverses the direction and holds the speed for 48 ticks")
     void reachingTheLimitStartsTheHold() {
         // Prepare
         final KoopaParaTroopa paratroopa = world.redParatroopaAt(START_COLUMN, FLIGHT_ROW);
@@ -120,8 +118,8 @@ class KoopaParaTroopaFlightTest {
         world.tick(paratroopa, 64);
 
         // Verify
-        assertThat(paratroopa.getVelocity().y()).as("ParaTroopaFly_Limit[0]").isEqualTo(16);
-        assertThat(paratroopa.getFlightDirection() & 1).as("Var3++").isEqualTo(1);
+        assertThat(paratroopa.getVelocity().y()).as("The downward speed limit").isEqualTo(16);
+        assertThat(paratroopa.getFlightDirection() & 1).as("The direction has advanced").isEqualTo(1);
         assertThat(paratroopa.getFlightTimer()).isEqualTo(FLIGHT_HOLD_TICKS);
     }
 
@@ -184,7 +182,7 @@ class KoopaParaTroopaFlightTest {
         world.playerAtPixelX((START_COLUMN + 6) * (double) TILE_SPRITE_SIZE);
         final KoopaParaTroopa paratroopa = world.redParatroopaAt(START_COLUMN, FLIGHT_ROW);
         paratroopa.spawnIntoScene();
-        assertThat(paratroopa.isFacingRight()).as("ObjInit_GroundTroop faces the player").isTrue();
+        assertThat(paratroopa.isFacingRight()).as("It faces the player as it appears").isTrue();
 
         // Execute - the player moves to its left
         world.playerAtPixelX(0);
@@ -221,7 +219,7 @@ class KoopaParaTroopaFlightTest {
             }
         }
 
-        // Verify - (Var5 >> 3) & 1 and (Var5 + 3) & 4, with Var5 advancing every frame
+        // Verify - (clock >> 3) & 1 and (clock + 3) & 4, with the animation clock advancing every frame
         assertThat(frameChanges).hasSizeGreaterThan(4);
         for (int change = 1; change < frameChanges.size(); change++) {
             assertThat(frameChanges.get(change) - frameChanges.get(change - 1)).as("Change %d", change)
@@ -269,7 +267,7 @@ class KoopaParaTroopaFlightTest {
         walker.onSideCollisionWith(paratroopa);
         paratroopa.onSideCollisionWith(walker);
 
-        // Verify - OAT_BOUNCEOFFOTHERS, but ObjNorm_FlyingRedTroopa never calls GroundTroop_BumpOffOthers
+        // Verify - other objects bounce off it, but its flight never turns it away from them
         assertThat(paratroopa.bouncesOffOtherObjects()).isTrue();
         assertThat(walker.isFacingRight()).as("Turned away from the flyer").isTrue();
         assertThat(paratroopa.isFacingRight()).isTrue();
@@ -310,7 +308,7 @@ class KoopaParaTroopaFlightTest {
         paratroopa.onCollisionFromAbove(player);
         paratroopa.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - PRG000_D2B4 rewrites the ID to OBJ_REDTROOPA and zeroes YVel; Var4 is left as it was
+        // Verify - the stomp swaps in a red troopa and zeroes its Y velocity; the flight tick count is kept
         final KoopaTroopa troopa = world.capturedReplacement();
         assertThat(troopa.getMode()).isEqualTo(RED);
         assertThat(troopa.getState()).isEqualTo(NORMAL);
@@ -319,11 +317,11 @@ class KoopaParaTroopaFlightTest {
         assertThat(troopa.isFacingRight()).isTrue();
         assertThat(troopa.getVelocity().x()).isEqualTo(WALK_SPEED);
         assertThat(troopa.getVelocity().y()).isZero();
-        assertThat(troopa.isLedgeTurned()).as("Var4 <> 0 latches the guard").isTrue();
+        assertThat(troopa.isLedgeTurned()).as("A nonzero flight tick count latches the guard").isTrue();
         assertThat(troopa.getHitCooldownTicks()).isEqualTo(STOMP_HIT_COOLDOWN_TICKS);
         assertThat(paratroopa.getPendingScoreReward()).isEqualTo(SCORE_100);
         assertThat(troopa.getPendingScoreReward()).isNull();
-        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
+        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
         verify(world.getActiveObjectGrid(), times(1).description("One hand-over only"))
             .spawnEnemy(any(EnemyLevelObject.class));
         assertThat(paratroopa.isExpired()).isTrue();
@@ -383,7 +381,7 @@ class KoopaParaTroopaFlightTest {
 
         // Verify
         assertThat(troopa.isGrounded()).isTrue();
-        assertThat(troopa.isLedgeTurned()).as("Object_HitGround's branch clears Var4").isFalse();
+        assertThat(troopa.isLedgeTurned()).as("Landing clears the latch").isFalse();
         assertThat(troopa.isFacingRight()).isTrue();
 
         // Execute - on to the right-hand edge of the floor
@@ -400,7 +398,7 @@ class KoopaParaTroopaFlightTest {
     }
 
     @Test
-    @DisplayName("Stomped before its first tick, Var4 is still 0, so the ledge guard is not latched")
+    @DisplayName("Stomped before its first tick, its flight tick count is still 0, so the ledge guard is not latched")
     void aFreshFlyerHandsOverNoLatch() {
         // Prepare
         final KoopaParaTroopa paratroopa = world.redParatroopaAt(START_COLUMN, FLIGHT_ROW);
@@ -469,7 +467,7 @@ class KoopaParaTroopaFlightTest {
         // Execute
         world.tick(paratroopa, PERIOD_TICKS);
 
-        // Verify - ObjNorm_FlyingRedTroopa has no Object_HandleBumpUnderneath
+        // Verify - its flight has no response to a block bumped underneath
         verify(world.getActiveObjectGrid(), never()).spawnEnemy(any());
         assertThat(paratroopa.isExpired()).isFalse();
     }

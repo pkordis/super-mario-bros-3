@@ -11,37 +11,33 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 /**
- * Vertical camera scroll for horizontal levels, porting the SMB3
- * {@code Level_FreeVertScroll == 0} behaviour used by World 1-1
- * (dasm prg008 Player_DoScrolling @ PRG008_B208 / PRG008_B246 / PRG008_B258).
+ * Vertical camera scroll for horizontal levels, with the bottom-locked
+ * behaviour used by World 1-1.
  *
- * <p>Mode-0 semantics, straight from the disassembly comment: "Screen locked at
- * $EF (lowest point) unless flying or climbing a vine". The camera rests locked
- * at the bottom of the level and does <em>not</em> track the player vertically
- * during normal walking and jumping — this is what the original does and what a
- * naive "camera follows the player node" implementation gets wrong (the view
- * scrolls on every jump).
+ * <p>The screen stays locked at its lowest point unless the player is flying
+ * or climbing a vine. The camera rests locked at the bottom of the level and
+ * does <em>not</em> track the player vertically during normal walking and
+ * jumping — this is what a naive "camera follows the player node"
+ * implementation gets wrong (the view scrolls on every jump).
  *
  * <p>Free vertical scrolling is enabled only while an override is active
- * (raccoon P-meter flight, {@code Player_FlyTime > 0}, or climbing a vine) and
+ * (raccoon P-meter flight with flight time remaining, or climbing a vine) and
  * it persists afterwards until the scroll has eased all the way back down to the
- * bottom (dasm PRG008_B246: once {@code Vert_Scroll == $EF} it stays there
- * unless an override occurs).
+ * bottom. Once there it stays locked unless an override occurs.
  *
  * <p>While free-scrolling the player is kept within a vertical dead-zone band
- * (dasm screen-Y {@code $30..$58} on the 240-line screen, PRG008_B258): upward
- * scrolling is capped at 3&nbsp;px/frame ("Minimum vertical scroll delta is -3",
- * PRG008_B274) while the downward return is unclamped, matching the original.
+ * (screen-Y {@code 48..88} on the 240-line screen): upward scrolling is capped
+ * at 3&nbsp;px/frame while the downward return is unclamped.
  *
  * <p>All values are in game-units (tiles, Y-up) — the same space the camera and
- * tiles live in. The disassembly's pixel constants are converted at
- * {@code 16 px == 1 tile} and expressed as fractions of the visible height so
- * they stay correct regardless of the frustum size.
+ * tiles live in. Pixel constants are converted at {@code 16 px == 1 tile} and
+ * expressed as fractions of the visible height so they stay correct regardless
+ * of the frustum size.
  */
 @Getter
 @Prototype
 public final class LevelSceneVerticalScroll {
-    /** dasm PRG008_B274 "Minimum vertical scroll delta is -3": 3 NES px/frame. */
+    /** Upward scrolling is capped at 3 px/frame. */
     private static final float MAX_UP_PER_TICK = 3.0f / TILE_SPRITE_SIZE;
     private static final float BAND_TOP_FRACTION = 3.0f / 15;
     private static final float BAND_BOTTOM_FRACTION = 5.5f / 15; // 0.367
@@ -88,7 +84,7 @@ public final class LevelSceneVerticalScroll {
      * camera centre Y (game-units, Y-up).
      *
      * @param playerCenter      the player's world Y position
-     * @param freeScrollOverride {@code true} while flying or climbing — the dasm
+     * @param freeScrollOverride {@code true} while flying or climbing — the
      *                           override that unlocks vertical scrolling
      * @return the new camera centre Y
      */
@@ -101,7 +97,7 @@ public final class LevelSceneVerticalScroll {
         // camera actually scrolls (raccoon flight / falling).
         previousCameraY = cameraY;
 
-        // dasm PRG008_B246: scrolling stays locked at the bottom unless an
+        // Scrolling stays locked at the bottom unless an
         // override is active OR the scroll has not yet eased back down to it.
         final boolean freeScrolling = freeScrollOverride || cameraY > minCameraY + EPSILON;
         if (!freeScrolling) {
@@ -109,7 +105,7 @@ public final class LevelSceneVerticalScroll {
             return cameraY;
         }
 
-        // dasm PRG008_B258: keep the player inside the vertical dead-zone band.
+        // Keep the player inside the vertical dead-zone band.
         float desiredY = getDesiredY(playerCenter);
         cameraY = clamp(desiredY, minCameraY, maxCameraY);
         return cameraY;
@@ -131,7 +127,7 @@ public final class LevelSceneVerticalScroll {
 
     /**
      * Puts the camera straight at {@code centreY}, with no easing in from where it was, as a level junction sets
-     * {@code Vert_Scroll} outright (dasm prg026 {@code LevelJct_General}, PRG026_AA8A).
+     * the vertical scroll outright.
      *
      * <p>The centre is first moved, as little as needed, so that {@code playerY} sits inside the dead-zone band:
      * once the camera is above the bottom lock the band applies on the next {@link #update}, and a player outside it

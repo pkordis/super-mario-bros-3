@@ -9,9 +9,9 @@ import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.GRAVITY_FAST;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOPPOWERSPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOPRUNSPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOPWALKSPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_POWER_SPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_RUN_SPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_WALK_SPEED;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
@@ -38,33 +38,30 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         final PlayerOrientation orientation = getOrientation();
         final PlayerPosition position = getPosition();
 
-        // Cancel simultaneous L+R — impossible on a real NES D-pad; on
-        // keyboard/gamepad we treat it as no directional input (dasm prg008:
-        // original hardware cannot physically produce this combination).
+        // Cancel simultaneous L+R — a D-pad cannot physically produce this combination; on
+        // keyboard/gamepad we treat it as no directional input.
         boolean inputLeft = rawLeft && !rawRight;
         boolean inputRight = rawRight && !rawLeft;
 
         // Suppress directional acceleration while ducking on the ground —
         // the player should decelerate to a stop via friction only. When
         // duck-jumping (ducking flag set + in air), air control is NOT
-        // suppressed (dasm: horizontal control runs normally in air
-        // regardless of Player_IsDucking).
+        // suppressed (horizontal control runs normally in air
+        // regardless of the ducking flag).
         if (runtimeState.isDucking() && !runtimeState.isInAir()) {
             inputLeft = false;
             inputRight = false;
         }
 
-        // Update facing orientation from pad input — in the original game the
-        // sprite always faces the pressed direction, including during a skid
-        // (dasm prg008 PRG008_AE11–AE24: Player_FlipBits is set directly from
-        // Pad_Holding regardless of velocity direction).
+        // Update facing orientation from pad input — the sprite always faces the pressed direction,
+        // including during a skid (the facing is set directly from the held direction regardless of
+        // velocity direction).
         //
-        // Except during a tail attack, which the ROM skips outright for the whole countdown
-        // (PRG008_AE11: LDA Player_TailAttack / BNE PRG008_AE26, before the pad is even read). The swing
-        // owns the facing while it runs: Player_TailAttackAnim mirrors the sprite partway through and
-        // mirrors it back at the end, and a held direction overwriting Player_FlipBits in between would
-        // both cancel that spin and drag the tail's hitbox onto the wrong side mid-swing. Acceleration is
-        // deliberately left running — the ROM's skip covers the facing store only.
+        // Except during a tail attack, which skips the facing update outright for the whole countdown,
+        // before the pad is even read. The swing owns the facing while it runs: the tail animation mirrors
+        // the sprite partway through and mirrors it back at the end, and a held direction overwriting the
+        // facing in between would both cancel that spin and drag the tail's hitbox onto the wrong side
+        // mid-swing. Acceleration is deliberately left running — the skip covers the facing store only.
         final boolean tailAttacking = runtimeState.getPlayerTailAttackCountdown() > 0;
         if (!tailAttacking) {
             final PlayerOrientationHorizontal facingBefore = orientation.getHorizontal();
@@ -73,9 +70,8 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
             } else if (inputRight) {
                 orientation.setHorizontal(RIGHT);
             }
-            // Turning around with something in your hands briefly faces the camera (dasm prg008 @
-            // PRG008_AF2F: Player_FlipBits is compared against Player_FlipBits_OLD while
-            // Player_IsHolding is set, and a difference arms Player_PipeFace = 7). Armed here because
+            // Turning around with something in your hands briefly faces the camera (while carrying, a
+            // facing that differs from last tick's arms the turn-around face timer). Armed here because
             // this is the only place the facing is written, so "changed since last tick" and "changed
             // by this store" are the same question.
             if (runtimeState.isCarrying() && orientation.getHorizontal() != facingBefore) {
@@ -84,11 +80,11 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         }
 
         // Determine top speed
-        double topSpeed = PLAYER_TOPWALKSPEED;
+        double topSpeed = PLAYER_TOP_WALK_SPEED;
         if (inputRun) {
-            topSpeed = PLAYER_TOPRUNSPEED;
+            topSpeed = PLAYER_TOP_RUN_SPEED;
             if (getPlayerData().getPlayerPower() >= PMETER_LEVELS) {
-                topSpeed = PLAYER_TOPPOWERSPEED;
+                topSpeed = PLAYER_TOP_POWER_SPEED;
             }
         }
 
@@ -145,11 +141,10 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                 position.setDY(GameConstants.JUMP_FORCE[dx]);
                 runtimeState.setTo(JUMPING);
                 runtimeState.setPlayerWagCount(0);
-                // Full P-meter launch grants flyTime to ALL suits (dasm
-                // prg008 Player_JumpFlyFlutter: LDA #$80 / STA Player_FlyTime
-                // runs before the PowerUp_Ability check). For large suits this
+                // Full P-meter launch grants flyTime to ALL suits (the flight
+                // time is set before the suit's abilities are checked). For large suits this
                 // enables actual flight/wag Y-effects; for small Mario flyTime
-                // > 0 is used only as a visual cue to show PF_FASTJUMPFALLSMALL.
+                // > 0 is used only as a visual cue to show the fast jump/fall pose.
                 if (getPlayerData().getPlayerPower() >= PMETER_LEVELS
                     && runtimeState.getPlayerFlyTime() <= 0) {
                     runtimeState.setPlayerFlyTime(GameConstants.FLY_TIME);
@@ -171,29 +166,29 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
             // Raccoon tail wag / flight effects on Y velocity
             if (runtimeState.getPlayerWagCount() > 0) {
                 runtimeState.setPlayerWagCount(runtimeState.getPlayerWagCount() - 1);
-                if (hasTail() && position.getDY() > GameConstants.PLAYER_FLY_YVEL) {
+                if (hasTail() && position.getDY() > GameConstants.PLAYER_FLY_Y_VELOCITY) {
                     final int flyTime = runtimeState.getPlayerFlyTime();
                     if (flyTime > 0) {
-                        if (flyTime >= 0x0f) {
-                            position.setDY(GameConstants.PLAYER_FLY_YVEL);
-                        } else if ((flyTime & 0x08) != 0) {
-                            position.setDY(GameConstants.PLAYER_FLY_APEX_YVEL);
+                        if (flyTime >= 15) {
+                            position.setDY(GameConstants.PLAYER_FLY_Y_VELOCITY);
+                        } else if ((flyTime & 8) != 0) {
+                            position.setDY(GameConstants.PLAYER_FLY_APEX_Y_VELOCITY);
                         } else {
                             position.setDY(0);
                         }
-                    } else if (position.getDY() >= GameConstants.PLAYER_TAILWAG_YVEL) {
-                        position.setDY(GameConstants.PLAYER_TAILWAG_YVEL);
+                    } else if (position.getDY() >= GameConstants.PLAYER_TAIL_WAG_Y_VELOCITY) {
+                        position.setDY(GameConstants.PLAYER_TAIL_WAG_Y_VELOCITY);
                     }
                 }
             }
 
-            // Raccoon air drag (dasm prg008 PRG008_B082): when flying or
+            // Raccoon air drag: when flying or
             // wagging, apply 1 raw unit/frame deceleration toward walk speed.
             // This prevents maintaining launch speed indefinitely during flight.
             if (hasTail() && (runtimeState.getPlayerFlyTime() > 0 || runtimeState.getPlayerWagCount() > 0)) {
                 final double dx = position.getDX();
                 final double absDx = abs(dx);
-                if (absDx > PLAYER_TOPWALKSPEED) {
+                if (absDx > PLAYER_TOP_WALK_SPEED) {
                     if (dx > 0) {
                         position.addToDX(-1.0 / TILE_SPRITE_SIZE);
                     } else {

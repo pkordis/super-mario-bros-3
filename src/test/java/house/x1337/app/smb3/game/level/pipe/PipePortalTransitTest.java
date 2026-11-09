@@ -41,9 +41,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * A pipe trip, as the ROM's level junction runs it (dasm prg026 {@code HandleLevelJunction}): fade out, switch to the
- * linked portal's scene on the engine frame after the screen is black, start the exit with the camera on it, fade in.
- * Without a destination the level restarts as R restarts it.
+ * A pipe trip: fade out, switch to the linked portal's scene on the engine frame after the screen is black, start the
+ * exit with the camera on it, fade in. Without a destination the level restarts as R restarts it.
  */
 class PipePortalTransitTest {
     private static final String SCENE_A = "scene-a";

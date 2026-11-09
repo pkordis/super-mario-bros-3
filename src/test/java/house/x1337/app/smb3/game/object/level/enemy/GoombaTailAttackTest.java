@@ -53,9 +53,8 @@ import static org.mockito.Mockito.when;
  * The raccoon tail attack against a Goomba: flashed, flipped and thrown off the level rather than
  * flattened, and worth the same 100 points.
  *
- * <p>ROM chain: {@code Object_RespondToTailAttack} (dasm prg000 @ PRG000_DB7A) seeds the flash off the
- * player's own position and falls into {@code Enemy_Kill}, which scores it and puts it in
- * {@code ObjState_Killed}.
+ * <p>The strike seeds the flash off the player's own position, then scores the Goomba and puts it in the
+ * killed state.
  */
 class GoombaTailAttackTest {
     private static final double TOLERANCE = 1e-9;
@@ -63,11 +62,11 @@ class GoombaTailAttackTest {
     private static final int ROWS = 8;
     private static final int WALK_FRAME_COUNT = 2;
 
-    /** {@code Player_X ± $10} / {@code Player_Y + $10}. */
-    private static final double TAIL_OFFSET = 0x10;
+    /** The flash sits 16 px to the struck side of the player and 16 px below its top. */
+    private static final double TAIL_OFFSET = 16;
 
-    /** {@code ObjectToObject_HitXVel}'s rightward entry, as a carried shell resolves it. */
-    private static final int SHELL_KNOCK_RIGHT = 0x08;
+    /** The rightward knock a carried shell resolves to. */
+    private static final int SHELL_KNOCK_RIGHT = 8;
 
     /** Aliased rather than statically imported, which would run past the 120-column limit. */
     private static final int SHELL_KILL_LAUNCH_Y = EnemyKnockMotion.SHELL_KILL_LAUNCH_Y_VELOCITY_FIXED_POINT;
@@ -150,7 +149,7 @@ class GoombaTailAttackTest {
         // Execute
         goomba.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
 
-        // Verify - Enemy_Kill calls Score_Get100PlusPts, the same award as the press branch
+        // Verify - the same award as the stomp
         assertThat(goomba.getPendingScoreReward()).isEqualTo(SCORE_100);
     }
 
@@ -167,10 +166,10 @@ class GoombaTailAttackTest {
         // Verify
         final Coordinates spawnedAt = captureFlashOffset();
         assertThat(spawnedAt.x())
-            .as("Player_X + $10, on the struck side")
+            .as("Player X + 16, on the struck side")
             .isEqualTo((int) (playerX + TAIL_OFFSET));
         assertThat(spawnedAt.y())
-            .as("Player_Y + $10")
+            .as("Player Y + 16")
             .isEqualTo((int) (WALK_ROW_PIXEL_Y + TAIL_OFFSET));
         assertThat(spawnedAt.x())
             .as("between the player and the Goomba")
@@ -239,7 +238,7 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("A tail-struck Goomba falls straight through the floor instead of landing on it")
     void killedGoombaIgnoresTerrain() {
-        // Prepare - the distinguishing behaviour against a squish: ObjState_Killed runs Object_Move with
+        // Prepare - the distinguishing behaviour against a squish: a killed Goomba moves with
         // no ground alignment, so the corpse sinks through the platform it was walking on. Walk first, so
         // it is genuinely resting on that floor when the blow lands.
         final Goomba goomba = goombaAt(5, WALK_ROW);
@@ -269,7 +268,7 @@ class GoombaTailAttackTest {
         goomba.faceClosestPlayer();
         goomba.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
 
-        // Execute - Object_FallAndDelete drops it once it is far below the level
+        // Execute - it keeps falling until it is far below the level
         for (int tick = 0; tick < 400 && !goomba.hasFallenBelowTheLevel(); tick++) {
             goomba.motionUpdate();
         }
@@ -321,9 +320,9 @@ class GoombaTailAttackTest {
     // The same death, dealt by a shell instead of a tail
     // -------------------------------------------------------------------------
     // Here rather than in a file of their own because they are assertions about this mechanism: a shell
-    // kill IS the tail strike's death with two numbers changed. ObjectKill_SetShellKillVars
-    // (prg000.asm:2689-2706) sets the same OBJSTATE_KILLED, and the vertical flip comes from the shared
-    // dead-object move (@ PRG000_D045) rather than from either kill site.
+    // kill IS the tail strike's death with two numbers changed. It puts the Goomba in the same killed
+    // state, and the vertical flip comes from the shared dead-enemy motion rather than from either kill
+    // site.
 
     @Test
     @DisplayName("A shell rolled or carried into the Goomba kills it the same way a tail does")
@@ -340,15 +339,14 @@ class GoombaTailAttackTest {
         assertThat(goomba.getWhamMotion()).as("thrown off the level instead").isNotNull();
         assertThat(goomba.isHittable()).as("intangible from the blow onwards").isFalse();
         assertThat(goomba.getPendingScoreReward())
-            .as("the striker banks the 100: Score_Get100PlusPts runs at the shell's slot, not here")
+            .as("the striker banks the 100: the award is made at the shell, not here")
             .isNull();
     }
 
     @Test
     @DisplayName("The shell kill throws it lower than a tail strike, and in the knock's own direction")
     void theShellKillThrowsItLowerThanATailStrike() {
-        // -$30 against the tail's -$50 (prg000.asm:2694 against @ PRG000_DBD9), which is the one visible
-        // difference between the two deaths.
+        // -48 against the tail's -80, which is the one visible difference between the two deaths.
         // Prepare
         final Goomba shellKilled = goombaAt(5, WALK_ROW);
         final Goomba tailKilled = goombaAt(5, WALK_ROW);
@@ -363,10 +361,10 @@ class GoombaTailAttackTest {
 
         // Verify
         assertThat(shellKilled.getWhamMotion().getKnockLaunchVelocity().y())
-            .as("-$30")
+            .as("-48")
             .isEqualTo(SHELL_KILL_LAUNCH_Y);
         assertThat(tailKilled.getWhamMotion().getKnockLaunchVelocity().y())
-            .as("-$50, the deeper throw")
+            .as("-80, the deeper throw")
             .isLessThan(SHELL_KILL_LAUNCH_Y);
         assertThat(shellKilled.getPosition().x())
             .as("knocked leftward, as the negative knock asked")
@@ -376,8 +374,8 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("A Goomba already dying cannot be killed again by a shell")
     void aDyingGoombaIsNotKilledTwice() {
-        // Obj2Obj_EnByState (prg000.asm:6095-6103) disables object-to-object detection for the killed and
-        // squashed states, so neither death can be restarted.
+        // Object-to-object detection is off for the killed and squashed states, so neither death can be
+        // restarted.
         // Prepare
         final Goomba tailKilled = goombaAt(5, WALK_ROW);
         tailKilled.onTailAttack(playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT));
@@ -402,9 +400,9 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("Two Goombas stomped on one jump pay 100 then 200")
     void consecutiveStompsEscalate() {
-        // Kill_Tally is read before it is incremented (dasm prg000 @ PRG000_D2E4), so the first kill of a
-        // chain pays index 0 - a flat 100 - and the second pays 200. This is the player's own chain, the
-        // counterpart of the per-shell Objects_KillTally a rolling shell carries.
+        // The kill tally is read before it is incremented, so the first kill of a chain pays index 0 - a
+        // flat 100 - and the second pays 200. This is the player's own chain, the counterpart of the
+        // per-shell kill tally a rolling shell carries.
         // Prepare - one player, two Goombas, no ground contact in between
         final LevelScenePlayer player = descendingPlayer();
         final Goomba first = goombaAt(5, WALK_ROW);
@@ -422,9 +420,8 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("Touching the ground between two stomps restarts the chain at 100")
     void landingBetweenStompsRestartsTheChain() {
-        // Kill_Tally is "a counter that increases with each successful hit of an object WITHOUT touching
-        // the ground" (smb3.asm:1782), and both of the ROM's ground-contact sites zero it alongside
-        // Player_InAir (prg008.asm:4651 and :5940) - which is PlayerRuntimeState.stop() here. So chain
+        // The kill tally counts the successful hits made WITHOUT touching the ground, and every ground
+        // contact zeroes it along with the airborne flag - which is PlayerRuntimeState.stop() here. So chain
         // scoring is a per-jump mechanic, not a running total.
         // Prepare
         final LevelScenePlayer player = descendingPlayer();
@@ -444,8 +441,8 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("A long enough chain tops out at an extra life and stays there")
     void aLongChainTopsOutAtAnExtraLife() {
-        // Two caps, both the ROM's: it holds Kill_Tally itself at 8 (prg007.asm:2155-2161) and then clamps
-        // the resulting score index at $0D, the 1-up (prg007.asm:2174-2178).
+        // Two caps: the kill tally itself is held at 8, and the resulting score index is then clamped at
+        // 13, the 1-up.
         // Prepare
         final LevelScenePlayer player = descendingPlayer();
 
@@ -465,7 +462,7 @@ class GoombaTailAttackTest {
     @Test
     @DisplayName("A tail strike is paid at the chain's current height but does not advance it")
     void aTailStrikeReadsTheChainWithoutAdvancingIt() {
-        // Enemy_Kill reads Kill_Tally and never increments it (prg000.asm:6018-6019), unlike every stomp.
+        // A tail strike reads the kill tally and never increments it, unlike every stomp.
         // Prepare - one stomp to lift the chain off the bottom rung
         final LevelScenePlayer player = playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT);
         goombaAt(5, WALK_ROW).onCollisionFromAbove(player);

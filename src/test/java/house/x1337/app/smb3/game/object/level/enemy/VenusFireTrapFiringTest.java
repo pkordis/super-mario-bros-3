@@ -25,10 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * When and how the fire plant spits. {@code Piranha_Attack} spits on timer {@code $28} in World 1 and on
- * {@code $40} and {@code $10} elsewhere (prg005.asm:1560-1597); {@code Piranha_SpitFire} aims from
- * {@code (X + 3, Y)} with the near / far speed tables, signed toward the player, and gives up when every
- * slot is taken or a sprite is off screen (prg005.asm:1692-1773, prg000.asm:670-687).
+ * When and how the fire plant spits. While out, it spits when its state timer reads 40 in World 1, and 64
+ * and 16 elsewhere. The fireball starts at {@code (X + 3, Y)} with the near / far speed tables, signed
+ * toward the player, and the spit gives up when every slot is taken or a sprite is off screen.
  */
 class VenusFireTrapFiringTest {
     private static final double TOLERANCE = 1e-9;
@@ -81,19 +80,19 @@ class VenusFireTrapFiringTest {
     }
 
     @Test
-    @DisplayName("The spit ticks are the timer values $28 in World 1, and $40 and $10 elsewhere")
-    void theSpitTicksAreTheRomTimerValues() {
+    @DisplayName("The spit ticks are the timer values 40 in World 1, and 64 and 16 elsewhere")
+    void theSpitTicksDependOnTheWorld() {
         // Prepare
         final VenusFireTrap plant = world.plant(GREEN);
 
         // Execute & Verify
-        assertThat(plant.isSpitTick(0x28)).isTrue();
-        assertThat(plant.isSpitTick(0x40)).isFalse();
-        assertThat(plant.isSpitTick(0x10)).isFalse();
+        assertThat(plant.isSpitTick(40)).isTrue();
+        assertThat(plant.isSpitTick(64)).isFalse();
+        assertThat(plant.isSpitTick(16)).isFalse();
         world.getPlayerData().setWorld(2);
-        assertThat(plant.isSpitTick(0x28)).isFalse();
-        assertThat(plant.isSpitTick(0x40)).isTrue();
-        assertThat(plant.isSpitTick(0x10)).isTrue();
+        assertThat(plant.isSpitTick(40)).isFalse();
+        assertThat(plant.isSpitTick(64)).isTrue();
+        assertThat(plant.isSpitTick(16)).isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -118,12 +117,12 @@ class VenusFireTrapFiringTest {
 
     @ParameterizedTest(name = "Player dx {0}, {1}: velocity ({2}, {3})")
     @CsvSource({
-        // Near: PiranhaFireball_XVel / YVel index 0, $0B / $0B
+        // Near: speed table index 0, 11 / 11
         "40, below, 11, 11",
         "40, above, 11, -11",
         "-40, below, -11, 11",
         "-40, above, -11, -11",
-        // Far: index 1, $0E / $05
+        // Far: index 1, 14 / 5
         "120, below, 14, 5",
         "120, above, 14, -5",
         "-120, below, -14, 5",
@@ -150,7 +149,7 @@ class VenusFireTrapFiringTest {
     @Test
     @DisplayName("Level with the plant's top counts as below, and directly above counts as to the right")
     void tiesAimRightAndDown() {
-        // Prepare - Level_ObjCalc*Diffs return 1 only for a negative difference
+        // Prepare - the side checks count only a negative difference as left / above
         final VenusFireTrap plant = outPlant(GREEN);
         world.playerAt(PLANT_X, GREEN_TOP);
 
@@ -163,10 +162,10 @@ class VenusFireTrapFiringTest {
 
     @ParameterizedTest(name = "dx {0}: {1}")
     @CsvSource({"-81, far", "-80, near", "0, near", "79, near", "80, far"})
-    @DisplayName("Near is -80 to 79 px, the ROM's (dx + $50) & $FF < $A0")
+    @DisplayName("Near is -80 to 79 px: (dx + 80) & 255 < 160")
     void nearIsMinusEightyToSeventyNine(final int playerDx, final String range) {
         // Prepare
-        final int expectedSpeed = "near".equals(range) ? 0x0B : 0x0E;
+        final int expectedSpeed = "near".equals(range) ? 11 : 14;
 
         // Execute
         final FixedPointVelocity velocity = VenusFireTrap.aimAt(playerDx, false);
@@ -231,8 +230,12 @@ class VenusFireTrapFiringTest {
         "0, -207, false",
         "0, -208, true"
     })
-    @DisplayName("A sprite is off screen exactly as Object_DetermineHorzVis / VertVis decide for a 16x32 object")
-    void theOffScreenTestMatchesTheRom(final int viewLeftFromPlant, final int viewTopFromPlant, final boolean off) {
+    @DisplayName("A sprite is off screen exactly as the visibility checks decide for a 16x32 object")
+    void theOffScreenTestFollowsTheVisibilityChecks(
+        final int viewLeftFromPlant,
+        final int viewTopFromPlant,
+        final boolean off
+    ) {
         // Prepare
         final VenusFireTrap plant = outPlant(GREEN);
         world.viewAt(PLANT_X + viewLeftFromPlant, GREEN_TOP + viewTopFromPlant);

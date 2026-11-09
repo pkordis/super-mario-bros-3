@@ -62,9 +62,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Coming out of a pipe (dasm {@code Pipe_Move_Up/Down/Right/Left}, prg029.asm:1626-1740, timed by
- * {@code Event_Countdown_Init}, prg008.asm:735): gameplay stays halted while the player emerges from behind the pipe
- * tiles, moving on every countdown value from the start down to 0, then gets control back.
+ * Coming out of a pipe, timed by an event countdown: gameplay stays halted while the player emerges from behind the
+ * pipe tiles, moving on every countdown value from the start down to 0, then gets control back.
  *
  * <p>The scene is 16 columns by 12 rows. An upright pipe's lip is at row 8, columns 6-7; an upside-down pipe's lip is
  * at row 3, columns 10-11; a side pipe opens left at column 2 and another opens right at column 13, both on rows 9-10.
@@ -171,7 +170,7 @@ class PlayerPipeExitingTest {
         final double startY = player.getPosition().getY();
 
         // Execute & Verify
-        assertThat(player.getPosition().getX()).as("Centred: (X & $F0) | 8").isCloseTo(104, within(TOLERANCE));
+        assertThat(player.getPosition().getX()).as("Centred: (X & 240) | 8").isCloseTo(104, within(TOLERANCE));
         assertThat(startY + 32).as("Feet start 32 px below the lip").isCloseTo(160, within(TOLERANCE));
         for (int tick = 1; tick <= PIPE_EXIT_TICKS_UP + 1; tick++) {
             assertThat(player.getRuntimeState().isExitingPipe()).as("Before tick %d", tick).isTrue();
@@ -265,9 +264,9 @@ class PlayerPipeExitingTest {
             beats.add(player.getRuntimeState().getPipeWalkBeat());
         }
 
-        // Verify - ticks since the start stand in for Counter_1: beat = (ticks & $0C) >> 2
+        // Verify - ticks since the start stand in for the global frame counter: beat = (ticks & 12) >> 2
         for (int tick = 1; tick <= PIPE_EXIT_TICKS_SIDE; tick++) {
-            assertThat(beats.get(tick - 1)).as("Tick %d", tick).isEqualTo((tick & 0x0C) >> 2);
+            assertThat(beats.get(tick - 1)).as("Tick %d", tick).isEqualTo((tick & 12) >> 2);
         }
     }
 

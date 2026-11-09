@@ -10,14 +10,14 @@ import static house.x1337.app.smb3.model.game.effect.PoofSequence.ONE_SHOT_TICKS
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PoofSequenceTest {
-    /** The shared frame set's index of each ROM pattern: frame_0 = $47 ... frame_3 = $41. */
-    private static final int FRAME_OF_47 = 0;
-    private static final int FRAME_OF_45 = 1;
-    private static final int FRAME_OF_43 = 2;
-    private static final int FRAME_OF_41 = 3;
+    /** Indices into the shared poof frame set, {@code frame_0} to {@code frame_3}. */
+    private static final int FRAME_0 = 0;
+    private static final int FRAME_1 = 1;
+    private static final int FRAME_2 = 2;
+    private static final int FRAME_3 = 3;
 
     @Test
-    @DisplayName("The poof death draws $43, $41, $45, $47 as PoofDeath_Pats[Timer >> 3] counts down")
+    @DisplayName("The poof death draws frames 2, 3, 1, 0 as its timer counts down")
     void poofDeathPlaysItsOwnOrder() {
         // Prepare
         final PoofSequence sequence = PoofSequence.poofDeath();
@@ -30,27 +30,27 @@ class PoofSequenceTest {
             }
         }
 
-        // Verify - $1E..$18, $17..$10, $0F..$08, $07..$01
+        // Verify - 30..24, 23..16, 15..8, 7..1
         assertThat(drawn).hasSize(30);
-        assertThat(drawn.subList(0, 7)).containsOnly(FRAME_OF_43);
-        assertThat(drawn.subList(7, 15)).containsOnly(FRAME_OF_41);
-        assertThat(drawn.subList(15, 23)).containsOnly(FRAME_OF_45);
-        assertThat(drawn.subList(23, 30)).containsOnly(FRAME_OF_47);
+        assertThat(drawn.subList(0, 7)).containsOnly(FRAME_2);
+        assertThat(drawn.subList(7, 15)).containsOnly(FRAME_3);
+        assertThat(drawn.subList(15, 23)).containsOnly(FRAME_1);
+        assertThat(drawn.subList(23, 30)).containsOnly(FRAME_0);
     }
 
     @Test
-    @DisplayName("The poof death draws nothing on the kill tick, the Object_PoofDie tick or at timer 0")
-    void poofDeathSkipsTheTicksTheRomDoesNotDraw() {
+    @DisplayName("The poof death draws nothing on the kill tick, the tick after it or at timer 0")
+    void poofDeathSkipsItsUndrawnTicks() {
         // Prepare
         final PoofSequence sequence = PoofSequence.poofDeath();
 
         // Execute & Verify
-        assertThat(sequence.startTicks()).isEqualTo(0x20);
-        assertThat(sequence.isDrawnAt(0x20)).as("The kill tick: the plant is still drawn").isFalse();
-        assertThat(sequence.isDrawnAt(0x1F)).as("ObjState_Killed sets the timer").isFalse();
-        assertThat(sequence.isDrawnAt(0x1E)).isTrue();
+        assertThat(sequence.startTicks()).isEqualTo(32);
+        assertThat(sequence.isDrawnAt(32)).as("The kill tick: the plant is still drawn").isFalse();
+        assertThat(sequence.isDrawnAt(31)).as("The tick the timer is set").isFalse();
+        assertThat(sequence.isDrawnAt(30)).isTrue();
         assertThat(sequence.isDrawnAt(1)).isTrue();
-        assertThat(sequence.isDrawnAt(0)).as("Object_SetDeadEmpty").isFalse();
+        assertThat(sequence.isDrawnAt(0)).as("The enemy is removed").isFalse();
     }
 
     @Test
@@ -59,11 +59,11 @@ class PoofSequenceTest {
         // Prepare
         final PoofSequence sequence = PoofSequence.poofDeath();
 
-        // Execute & Verify - LSR / LSR / ROR / AND #$80 keeps bit 1
-        for (int counter = 0; counter < 0x20; counter++) {
+        // Execute & Verify - bit 1 of the counter sets the flip
+        for (int counter = 0; counter < 32; counter++) {
             assertThat(sequence.isFlippedVerticallyAt(counter))
                 .as("Counter %d", counter)
-                .isEqualTo((counter & 0x02) != 0);
+                .isEqualTo((counter & 2) != 0);
         }
     }
 
@@ -77,7 +77,7 @@ class PoofSequenceTest {
         for (int counter = ONE_SHOT_TICKS; counter >= 0; counter--) {
             assertThat(sequence.isDrawnAt(counter)).as("Counter %d", counter).isTrue();
         }
-        assertThat(sequence.frameIndexFor(ONE_SHOT_TICKS - 1)).isEqualTo(FRAME_OF_41);
+        assertThat(sequence.frameIndexFor(ONE_SHOT_TICKS - 1)).isEqualTo(FRAME_3);
     }
 
     @Test
@@ -86,7 +86,7 @@ class PoofSequenceTest {
         // Prepare
         final PoofSequence sequence = PoofSequence.oneShot();
 
-        // Execute - walk the counter down exactly as SObj_Poof's DEC does
+        // Execute - walk the counter down one tick at a time
         final List<Integer> frames = new ArrayList<>();
         for (int counter = ONE_SHOT_TICKS - 1; counter >= 0; counter--) {
             frames.add(sequence.frameIndexFor(counter));
@@ -101,17 +101,17 @@ class PoofSequenceTest {
     }
 
     @Test
-    @DisplayName("Suit-change puff matches (counter & $0C) >> 2 across the whole $17-tick countdown")
-    void wrappingMatchesRomMaskedIndex() {
+    @DisplayName("Suit-change puff matches (counter & 12) >> 2 across the whole 23-tick countdown")
+    void suitChangePuffMatchesTheMaskedCounterIndex() {
         // Prepare
         final PoofSequence sequence = PoofSequence.wrapping();
 
-        // Execute & Verify - the ROM's masked index is equivalent to (counter >> 2) & 3
-        for (int counter = 0x17; counter >= 0; counter--) {
-            final int romIndex = (counter & 0x0C) >> 2;
+        // Execute & Verify - the masked index is equivalent to (counter >> 2) & 3
+        for (int counter = 23; counter >= 0; counter--) {
+            final int maskedIndex = (counter & 12) >> 2;
             assertThat(sequence.frameIndexFor(counter))
                 .as("counter %d", counter)
-                .isEqualTo(romIndex);
+                .isEqualTo(maskedIndex);
         }
     }
 
@@ -135,11 +135,11 @@ class PoofSequenceTest {
         // Prepare
         final PoofSequence sequence = PoofSequence.oneShot();
 
-        // Execute & Verify - the ROM keeps bit 2 of Level_NoStopCnt (LSR x3 / ROR / AND #$80)
+        // Execute & Verify - bit 2 of the counter sets the flip
         for (int counter = 0; counter < ONE_SHOT_TICKS; counter++) {
             assertThat(sequence.isFlippedVerticallyAt(counter))
                 .as("counter %d", counter)
-                .isEqualTo((counter & 0x04) != 0);
+                .isEqualTo((counter & 4) != 0);
         }
         // Both flip states occur within a single 8-tick frame.
         assertThat(sequence.frameIndexFor(24)).isEqualTo(sequence.frameIndexFor(28));

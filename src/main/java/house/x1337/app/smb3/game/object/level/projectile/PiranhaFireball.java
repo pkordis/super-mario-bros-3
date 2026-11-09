@@ -27,18 +27,18 @@ import static java.lang.Math.floor;
 @Prototype
 @RequiredArgsConstructor
 public final class PiranhaFireball implements ActiveLevelObject {
-    public static final int ANIMATION_COUNTER_MASK = 0xFF;
+    public static final int ANIMATION_COUNTER_MASK = 255;
     public static final int FRAME_MASK = 3;
     public static final int FRAME_SHIFT = 2;
     public static final int FIRST_ROTATED_FRAME = 2;
     public static final int HIT_WIDTH_PIXELS = 16;
     public static final int HIT_X_OFFSET_PIXELS = 6;
     public static final int HIT_Y_OFFSET_PIXELS = 8;
-    public static final int LARGE_PLAYER_HIT_HEIGHT_PIXELS = 0x16;
+    public static final int LARGE_PLAYER_HIT_HEIGHT_PIXELS = 22;
     public static final int LARGE_PLAYER_Y_OFFSET_PIXELS = 10;
     public static final int OFF_SCREEN_RIGHT_PIXELS = 248;
     public static final int SAME_SCREEN_HEIGHT_PIXELS = 256;
-    public static final int SMALL_PLAYER_HIT_HEIGHT_PIXELS = 0x10;
+    public static final int SMALL_PLAYER_HIT_HEIGHT_PIXELS = 16;
     public static final int SMALL_PLAYER_Y_OFFSET_PIXELS = 18;
     private static final int SPRITE_HEIGHT_PIXELS = 16;
     private static final int SPRITE_WIDTH_PIXELS = 8;
@@ -86,12 +86,12 @@ public final class PiranhaFireball implements ActiveLevelObject {
         return frameIndex() & 1;
     }
 
-    /** @return {@code true} on frames 2 and 3, which {@code Fireball_Attributes} draws rotated 180° */
+    /** @return {@code true} on frames 2 and 3, which are drawn rotated 180° */
     public boolean isRotated() {
         return frameIndex() >= FIRST_ROTATED_FRAME;
     }
 
-    /** @return the H-flip: the frame's own, XORed with {@code (XVel >> 1) & SPR_HFLIP} */
+    /** @return the H-flip: the frame's own, XORed with whether the fireball moves left */
     public boolean isFlippedHorizontally() {
         return isRotated() ^ velocity.movingLeft();
     }

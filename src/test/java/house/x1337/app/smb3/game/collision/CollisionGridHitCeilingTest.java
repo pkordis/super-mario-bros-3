@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The collision pass flags a head strike for the pipe entry check (dasm {@code Player_HitCeiling}).
+ * The collision pass flags a head strike for the pipe entry check.
  */
 class CollisionGridHitCeilingTest {
     private static final int SIZE = 8;

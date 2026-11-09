@@ -24,9 +24,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * The fire plant hurts and dies as the Piranha Plant does: the same {@code OA3_NOTSTOMPABLE},
- * {@code OAT_BOUNDBOX02} / {@code OAT_BOUNDBOX10} and {@code KILLACT_POOFDEATH} entries for {@code $A4} and
- * {@code $A6} (prg005.asm:174-342), all inherited from {@code PiranhaPlantFamilyEnemy}.
+ * The fire plant hurts and dies as the Piranha Plant does: it cannot be stomped, has the same bounding
+ * boxes and leaves the same poof cloud, all inherited from {@code PiranhaPlantFamilyEnemy}.
  */
 class VenusFireTrapDefeatTest {
     private static final double TOLERANCE = 1e-9;
@@ -46,7 +45,7 @@ class VenusFireTrapDefeatTest {
 
     @Test
     @DisplayName("The boxes are the Piranha Plant's: 12x24 green, 12x20 red, inset 2 px")
-    void theBoundBoxesAreThePiranhaPlants() {
+    void theBoundingBoxesAreThePiranhaPlants() {
         // Prepare
         final VenusFireTrap green = world.plant(GREEN);
         final VenusFireTrap red = world.plant(RED);

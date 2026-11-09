@@ -15,11 +15,11 @@ import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.PIPE_ENT
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The pipe pose: face forward going up or down ({@code PipeMove_Frame}), the suit's walk cycle going left or right
- * ({@code Player_WalkFramesByPUp} at {@code (Counter_1 & $0C) >> 2}).
+ * The pipe pose: face forward going up or down, the suit's walk cycle going left or right, indexed by
+ * {@code (frame counter & 12) >> 2}.
  */
 class PipePoseFrameSelectionTest {
-    // Player_WalkFramesByPUp rows: small walks 0, 1, 0, 1 and every big suit 0, 1, 2, 1 (dasm prg008.asm:37-44)
+    // Walk cycles: small walks 0, 1, 0, 1 and every big suit 0, 1, 2, 1
     private static final int[] SMALL_WALK = {0, 1, 0, 1};
     private static final int[] BIG_WALK = {0, 1, 2, 1};
 

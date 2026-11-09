@@ -59,7 +59,7 @@ class PlayerModeTransitionTest {
             .as("The rising velocity is what exempts a one-way platform from being solid")
             .isCloseTo(-3.0, within(TOLERANCE));
         assertThat(position.getDX())
-            .as("Horizontal momentum survives: no transition in the ROM writes Player_XVel")
+            .as("Horizontal momentum survives: no transition writes the horizontal velocity")
             .isCloseTo(2.5, within(TOLERANCE));
     }
 
@@ -97,7 +97,7 @@ class PlayerModeTransitionTest {
         assertThat(runtimeState.getMovement()).isEqualTo(STILL);
         assertThat(runtimeState.isDucking()).as("The grow pose always stands up").isFalse();
         assertThat(position.getDX())
-            .as("Player_XVel is never written by a transition, so the speed carries through")
+            .as("The horizontal velocity is never written by a transition, so the speed carries through")
             .isCloseTo(3.0, within(TOLERANCE));
         assertThat(position.getDY()).isCloseTo(0.0, within(TOLERANCE));
     }
@@ -147,8 +147,8 @@ class PlayerModeTransitionTest {
     @Test
     @DisplayName("Finishing a transition discards the B press held across it, so no swing is armed")
     void finishingATransitionDiscardsTheHeldPress() {
-        // The ROM arms a swing off Pad_Input - the buttons NEWLY pressed this frame (BIT Pad_Input / BVC,
-        // dasm prg008 @ PRG008_B0D1). consumePress is a latch instead, and nothing reads B while the
+        // A swing is armed off the buttons NEWLY pressed this frame. consumePress is a latch instead,
+        // and nothing reads B while the
         // player is tailless, so a B held since before a leaf was collected was still sitting unconsumed
         // when hasTail() turned true - and became an 18-tick swing that tail-struck the shell out of the
         // player's own hands nine ticks later.
@@ -189,8 +189,8 @@ class PlayerModeTransitionTest {
     @Test
     @DisplayName("Neither transition touches what the player is holding")
     void neitherTransitionTouchesTheCarry() {
-        // The ROM's transitions write Player_QueueSuit, Player_Grow / Player_SuitLost, Player_FlashInv
-        // and Player_Flip - never Player_IsHolding. A shell in your hands at the start of a grow is in
+        // The transitions change the queued suit, the grow / shrink counters, the invincibility flash
+        // and the facing - never what the player is holding. A shell in your hands at the start of a grow is in
         // your hands at the end of it.
         // Prepare
         final CarriableLevelObject carried = mock(CarriableLevelObject.class);

@@ -26,7 +26,7 @@ import org.mockito.MockedStatic;
 
 import java.util.Optional;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_YVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
@@ -47,11 +47,9 @@ import static org.mockito.Mockito.when;
 /**
  * The de-winging stomp: two stomps to kill a Para-Goomba, because the first one does not kill it at all.
  *
- * <p>{@code $73}'s collide-table entry is {@code OCSPECIAL_KILLCHANGETO | OBJ_GOOMBA}
- * (dasm prg004.asm:119), and the normal stomp path {@code PRG000_D2B4} (prg000.asm:3940) tests the
- * entry's upper byte with no attribute gate at all: it awards the 100 points, bounces the player,
- * overwrites {@code Level_ObjectID,X} with {@code OBJ_GOOMBA} and then <em>gives the hit back</em>, so
- * the slot lives on as a Goomba. The port expires the Para-Goomba and spawns that Goomba in its place.
+ * <p>A stomped Para-Goomba turns into a Goomba with no further check at all: the stomp awards the 100 points,
+ * bounces the player, changes the enemy into a Goomba and then <em>gives the hit back</em>, so the slot lives on
+ * as a Goomba. Here the Para-Goomba expires and that Goomba is spawned in its place.
  */
 class ParaGoombaStompTest {
     private static final double TOLERANCE = 1e-9;
@@ -59,7 +57,7 @@ class ParaGoombaStompTest {
     private static final int ROWS = 12;
     private static final int WALK_FRAME_COUNT = 2;
 
-    /** {@code Objects_Timer2 = 8} - how long the fresh Goomba is out of reach of the player. */
+    /** The hit cooldown of 8 - how long the fresh Goomba is out of reach of the player. */
     private static final int STOMP_HIT_COOLDOWN_TICKS = 8;
 
     private static final int FLOOR_ROW = 10;
@@ -148,7 +146,7 @@ class ParaGoombaStompTest {
         // Execute
         paraGoomba.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - the ROM keeps the same slot, so the replacement inherits the live sub-tile position
+        // Verify - the same slot is kept, so the replacement inherits the live sub-tile position
         final Goomba replacement = captureSpawnedGoomba();
         assertThat(replacement.getPosition().x()).isCloseTo(stompedAtX, within(TOLERANCE));
         assertThat(replacement.getPosition().y()).isCloseTo(stompedAtY, within(TOLERANCE));
@@ -160,7 +158,7 @@ class ParaGoombaStompTest {
     @Test
     @DisplayName("The replacement keeps walking the way the Para-Goomba was travelling")
     void replacementInheritsTheFacing() {
-        // Prepare - send it walking right, which is the direction a re-run of ObjInit_GroundTroop would
+        // Prepare - send it walking right, which is the direction a fresh Goomba's spawn-time facing would
         // not necessarily reproduce
         givenPlayerAtPixelX((COLUMNS - 2) * (double) TILE_SPRITE_SIZE);
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
@@ -188,14 +186,14 @@ class ParaGoombaStompTest {
         // Execute
         paraGoomba.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - PRG000_D31E zeroes YVel before returning
+        // Verify - the handover zeroes the Y velocity
         assertThat(captureSpawnedGoomba().getVelocity().y()).isZero();
     }
 
     @Test
     @DisplayName("One stomp cannot kill the replacement: it is briefly out of reach")
     void replacementIsBrieflyUntouchable() {
-        // Prepare - the ROM's Objects_Timer2 = 8. Without it, the replacement sits inside the player who
+        // Prepare - the stomp's hit cooldown of 8. Without it, the replacement sits inside the player who
         // just stomped it and the same contact would squash it on the next tick.
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.onCollisionFromAbove(descendingPlayer());
@@ -238,7 +236,7 @@ class ParaGoombaStompTest {
     @Test
     @DisplayName("Two stomps kill: the second one flattens the replacement as any Goomba")
     void secondStompFlattensTheReplacement() {
-        // Prepare - the first stomp, then wait out Objects_Timer2
+        // Prepare - the first stomp, then wait out the hit cooldown
         final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
         paraGoomba.onCollisionFromAbove(descendingPlayer());
         final Goomba replacement = captureSpawnedGoomba();
@@ -248,10 +246,10 @@ class ParaGoombaStompTest {
         final LevelScenePlayer secondStomp = descendingPlayer();
         replacement.onCollisionFromAbove(secondStomp);
 
-        // Verify - OA3_SQUASH routes $72 into the flattened 16-frame death
+        // Verify - a Goomba is squashable, so the stomp routes it into the flattened 16-frame death
         assertThat(replacement.isSquished()).isTrue();
         assertThat(replacement.getPendingScoreReward()).isEqualTo(SCORE_100);
-        assertThat(secondStomp.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
+        assertThat(secondStomp.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
     }
 
     @Test
@@ -265,9 +263,9 @@ class ParaGoombaStompTest {
         // Execute
         paraGoomba.onCollisionFromAbove(player);
 
-        // Verify - the hit is given back, but Score_Get100PlusPts has already run
+        // Verify - the hit is given back, but the score has already been awarded
         assertThat(paraGoomba.getPendingScoreReward()).isEqualTo(SCORE_100);
-        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_YVEL, within(TOLERANCE));
+        assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
     }
 
     @Test
@@ -279,7 +277,7 @@ class ParaGoombaStompTest {
         // Execute
         paraGoomba.onCollisionFromAbove(descendingPlayer());
 
-        // Verify - Objects_SpawnIdx survives the Level_ObjectID rewrite, so if this Goomba leaves the screen
+        // Verify - the link to the placement survives the change of enemy, so if this Goomba leaves the screen
         // alive it is a Para-Goomba that comes back at the placement
         final Goomba replacement = captureSpawnedGoomba();
         verify(activeObjectGrid).handOverPlacement(paraGoomba, replacement);

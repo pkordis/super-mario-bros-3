@@ -31,7 +31,7 @@ public final class PoofMotionManager implements AnimationOnlyMotionManager<PoofA
     private AnimationImageResource animationFrames;
 
     /**
-     * Starts the switch-block puff ({@code SObj_Poof}) over the level cell at {@code offset}.
+     * Starts the switch-block puff over the level cell at {@code offset}.
      *
      * @param gameEngine the game engine
      * @param offset     the level cell the puff covers
@@ -63,8 +63,8 @@ public final class PoofMotionManager implements AnimationOnlyMotionManager<PoofA
     }
 
     /**
-     * Removes the switch-block puffs, which are special objects ({@code SOBJ_POOF}) and so are cleared by the card
-     * touch (dasm prg002.asm:6158-6163). Poof deaths are object states, not special objects, and are left to play.
+     * Removes the switch-block puffs, which are special objects and so are cleared by the card touch. Poof deaths
+     * are object states, not special objects, and are left to play.
      */
     public void removeSwitchPuffs() {
         final PoofSequence switchPuff = oneShot();

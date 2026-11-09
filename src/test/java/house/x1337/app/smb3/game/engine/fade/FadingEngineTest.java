@@ -14,8 +14,7 @@ import static house.x1337.app.smb3.game.engine.fade.FadeProfile.TOAD_AND_KING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The fade's darkness and completion tick by tick, against the ROM's {@code Palette_DoFadeOut} /
- * {@code Palette_DoFadeIn} timing (dasm prg026.asm:2048-2160): {@code Fade_Tick} is decremented before it is tested,
+ * The fade's darkness and completion tick by tick: the fade's step timer is decremented before it is tested,
  * so the steps land on ticks 4, 8, 12 and 16.
  */
 class FadingEngineTest {
@@ -63,7 +62,7 @@ class FadingEngineTest {
         final List<Float> darkness = run(tick, 17);
 
         // Verify
-        assertThat(onStart).as("Pal_Data - $30 is queued at once").isEqualTo(0.75f);
+        assertThat(onStart).as("The palette three brightness rows down is queued at once").isEqualTo(0.75f);
         assertThat(darkness).containsExactly(
             0.75f, 0.75f, 0.75f,
             0.5f, 0.5f, 0.5f, 0.5f,

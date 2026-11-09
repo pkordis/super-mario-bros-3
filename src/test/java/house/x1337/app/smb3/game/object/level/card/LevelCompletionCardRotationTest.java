@@ -30,8 +30,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * {@code EndLevelCard_Untouched} (dasm prg002.asm:5378-5390): the card turns Mushroom, Flower, Star on every tick
- * where {@code Counter_1 & 7 == 0}, and not while gameplay is halted (halt action 11, prg000.asm:4446-4462).
+ * The untouched card turns Mushroom, Flower, Star on every tick where the level frame counter {@code & 7 == 0}, and
+ * not while gameplay is halted.
  */
 class LevelCompletionCardRotationTest {
     private static final Coordinates CELL = of(4, 3);

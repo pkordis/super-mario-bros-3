@@ -24,11 +24,10 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_F
  * fed thereafter.
  *
  * <p>While a P-Switch window is open this paints a static brick instead, the mirror image of
- * {@code BrickBlockAnimator} painting a coin: {@code PSwitch_SubstTileAndAttr} (dasm
- * {@code prg000.asm:1599}) is bidirectional, its {@code PrePSwitchTile}/{@code PostPSwitchTile} pair
- * mapping {@code TILEA_COIN → TILEA_BRICK} alongside {@code TILEA_BRICK → TILEA_COIN}. The brick is a
- * single frame because {@code TILEA_BRICK} does not shimmer in the ROM's animation tables — only the
- * coin does — so the coin's four-frame cycle flattens to one image for the duration.
+ * {@code BrickBlockAnimator} painting a coin: the P-Switch substitution is bidirectional, turning
+ * coins into bricks just as it turns bricks into coins. The brick is a single frame because a brick
+ * does not shimmer — only the coin does — so the coin's four-frame cycle flattens to one image for
+ * the duration.
  */
 @Getter
 @Singleton
@@ -48,7 +47,7 @@ public final class CoinAnimator extends GameObjectAnimatorSingleTiled<Coin> {
     @Override
     public void update() {
         // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
-        // frame flip; the ROM's substitution happens inside the tile lookup, so it is instantaneous.
+        // frame flip; the substitution is meant to be instantaneous.
         if (substituting != powerSwitchTimeWindow.isActive()) {
             substituting = powerSwitchTimeWindow.isActive();
             repaintCurrentFrame();

@@ -32,8 +32,8 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * The one behaviour that separates {@code ObjNorm_RedTroopa} from the {@code ObjNorm_GroundTroop} its
- * green twin and the Goomba share: a red troopa turns back at a ledge instead of walking off it.
+ * The one behaviour that separates the red troopa from the walk its green twin and the Goomba share: a red troopa
+ * turns back at a ledge instead of walking off it.
  *
  * <p>Both colours are the same class, so the mode handed to {@code configure} is the switch - which
  * makes the green cases below as much a test of that plumbing as of the motion.
@@ -48,7 +48,7 @@ class KoopaTroopaLedgeTurnTest {
     private static final int WALK_ROW = FLOOR_ROW - 1;
     private static final double WALK_ROW_PIXEL_Y = WALK_ROW * (double) TILE_SPRITE_SIZE;
 
-    /** $08/16 px per frame. */
+    /** 8/16 px per frame. */
     private static final double WALK_STEP_PIXELS = 0.5;
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -109,9 +109,9 @@ class KoopaTroopaLedgeTurnTest {
         tick(troopa, 1);
 
         // Verify
-        assertThat(troopa.isFacingRight()).as("Object_AboutFace flipped it").isTrue();
+        assertThat(troopa.isFacingRight()).as("The about-face flipped it").isTrue();
         assertThat(troopa.getPosition().y())
-            .as("Object_HitGround put it straight back on the row it was patrolling")
+            .as("Landing put it straight back on the row it was patrolling")
             .isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(troopa.isGrounded()).isTrue();
     }
@@ -131,7 +131,7 @@ class KoopaTroopaLedgeTurnTest {
 
         // Verify - one step out, then two back: a net single step in the new direction
         assertThat(troopa.getPosition().x())
-            .as("Object_ApplyXVel is called twice (dasm prg004.asm:3845-3846)")
+            .as("The X velocity is applied twice")
             .isCloseTo(beforeTurnX + WALK_STEP_PIXELS, within(TOLERANCE));
     }
 
@@ -158,7 +158,7 @@ class KoopaTroopaLedgeTurnTest {
     }
 
     @Test
-    @DisplayName("A troopa that is genuinely airborne about-faces once and then falls (the Var4 latch)")
+    @DisplayName("A troopa that is genuinely airborne about-faces once and then falls (the ledge-turn latch)")
     void airborneTroopaDoesNotTurnEveryFrame() {
         // Prepare - no floor anywhere under it, so every frame's feet probe comes back empty
         final KoopaTroopa troopa = troopaAt(2, 2);
@@ -177,7 +177,7 @@ class KoopaTroopaLedgeTurnTest {
         for (int frame = 0; frame < 20; frame++) {
             troopa.motionUpdate();
             assertThat(troopa.isFacingRight())
-                .as("Frame %d: Objects_Var4 stops it about-facing again", frame)
+                .as("Frame %d: the ledge-turn latch stops it about-facing again", frame)
                 .isEqualTo(facingAfterTurn);
             assertThat(troopa.getPosition().y())
                 .as("Frame %d: still falling", frame)
@@ -211,7 +211,7 @@ class KoopaTroopaLedgeTurnTest {
     @Test
     @DisplayName("Configured green, the same troopa walks straight off the ledge and keeps its facing")
     void aGreenTroopaWalksOffTheLedge() {
-        // ObjNorm_GroundTroop has no equivalent of PRG004_B283, so the green troopa reaches the edge
+        // The green troopa's walk has no ledge check, so it reaches the edge
         // and simply stops being supported - exactly as a Goomba does.
         // Prepare - the floor runs from column 5 rightwards; the troopa starts at column 6 heading left
         floorFrom(5, COLUMNS - 1);
@@ -232,14 +232,14 @@ class KoopaTroopaLedgeTurnTest {
     }
 
     @Test
-    @DisplayName("A green troopa falls without the single about-face the red one's Var4 latch allows")
+    @DisplayName("A green troopa falls without the single about-face the red one's ledge-turn latch allows")
     void aGreenTroopaNeverAboutFacesInTheAir() {
         // Prepare - no floor anywhere under it, which is the case that makes the red troopa turn once
         final KoopaTroopa troopa = troopaAt(2, 2, GREEN);
         troopa.faceClosestPlayer();
         final boolean facingBefore = troopa.isFacingRight();
 
-        // Execute & Verify - the first frame moves nothing vertically, because Object_Move adds gravity
+        // Execute & Verify - the first frame moves nothing vertically, because the move adds gravity
         // at the END of a frame; from the second on it is falling
         tick(troopa, 1);
         double previousY = troopa.getPosition().y();

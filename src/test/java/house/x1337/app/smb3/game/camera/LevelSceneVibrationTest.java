@@ -7,11 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * Pins {@link LevelSceneVibration} against SMB3's {@code Player_DoVibration}
- * (dasm prg008.asm ~:950, table {@code VibrationOffset} ~:945).
+ * Pins {@link LevelSceneVibration}'s shake pattern.
  *
- * <p>The expected pattern is the ROM's, not the table's declaration order: {@code DEC} operates on
- * memory, so the index is the <em>pre</em>-decrement count {@code & 3}. With {@code $10} frames the
+ * <p>The expected pattern is not the table's declaration order: the index is the <em>pre</em>-decrement
+ * count {@code & 3}. With 16 frames the
  * indices descend {@code 0, 3, 2, 1} through the table {@code 0, 2, 3, 1}, giving offsets
  * {@code 0, 1, 3, 2} played four times over 16 frames.
  */
@@ -73,7 +72,7 @@ class LevelSceneVibrationTest {
     }
 
     @Test
-    @DisplayName("The press frame itself shows no displacement — $10 & 3 == 0")
+    @DisplayName("The press frame itself shows no displacement — 16 & 3 == 0")
     void firstFrameHasNoDisplacement() {
         // Prepare
         final LevelSceneVibration vibration = new LevelSceneVibration();
@@ -99,7 +98,7 @@ class LevelSceneVibrationTest {
         // Execute
         vibration.tick();
 
-        // Verify — the ROM adds to Level_VertScroll (view moves down the level); the camera is Y-up
+        // Verify — the shake moves the view down the level; the camera is Y-up
         assertThat(vibration.getVerticalOffsetPixels()).isEqualTo(3);
         assertThat(vibration.getCameraOffsetUnits()).isCloseTo(-3.0 / 16.0, within(TOLERANCE));
     }

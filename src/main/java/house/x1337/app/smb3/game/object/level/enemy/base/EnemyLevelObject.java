@@ -175,16 +175,15 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     }
 
     /**
-     * An enemy's stomp-depth reference is the Y it tracks ({@code Objects_Y}), not its collision box top
-     * and not its sprite top - the ROM measures the stomp from {@code Objects_Y} regardless of how
-     * either is offset from it (dasm prg000 {@code Player_HitEnemy} @ PRG000_D218). An enemy that insets
+     * An enemy's stomp-depth reference is the Y it tracks, not its collision box top and not its sprite top:
+     * the stomp is measured from the tracked Y regardless of how either is offset from it. An enemy that insets
      * its box (a Goomba's box top sits {@code +2} below) must keep this at the tracked Y or it would
      * silently stomp from the wrong depth.
      *
      * <p>Do not read "tracked Y" as "sprite top". For a Goomba the two coincide; for a <b>Koopa
-     * Troopa</b> they do not - {@code Objects_Y} is the top of its shell and its head is drawn above
-     * that at negative offsets, which prg000.asm:3782 calls out by name. The return value below is still
-     * right for it, because the ROM's reference is {@code Objects_Y} either way.
+     * Troopa</b> they do not - the tracked Y is the top of its shell and its head is drawn above
+     * that at negative offsets. The return value below is still right for it, because the reference is the
+     * tracked Y either way.
      *
      * @return the enemy's tracked Y
      */

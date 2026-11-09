@@ -24,15 +24,14 @@ import static org.mockito.Mockito.when;
 
 /**
  * The poof death as it plays on screen, one entry per tick from the kill tick on: nothing while the plant
- * is still drawn and while {@code Object_PoofDie} sets the timer, then {@code $43}, {@code $41},
- * {@code $45}, {@code $47} (dasm prg000.asm:2090-2140), then nothing, then gone.
+ * is still drawn and while the poof timer is being set, then frames 2, 3, 1 and 0, then nothing, then gone.
  */
 class PoofAnimationTest {
     private static final int NOT_DRAWN = -1;
-    private static final int FRAME_OF_47 = 0;
-    private static final int FRAME_OF_45 = 1;
-    private static final int FRAME_OF_43 = 2;
-    private static final int FRAME_OF_41 = 3;
+    private static final int FRAME_0 = 0;
+    private static final int FRAME_1 = 1;
+    private static final int FRAME_2 = 2;
+    private static final int FRAME_3 = 3;
 
     private final GameEngine gameEngine = mock(GameEngine.class);
     private final AnimationImageResource frames = mock(AnimationImageResource.class);
@@ -45,8 +44,8 @@ class PoofAnimationTest {
     }
 
     @Test
-    @DisplayName("The poof death shows nothing for 2 ticks, then $43, $41, $45, $47, then nothing until it expires")
-    void thePoofDeathPlaysInTheRomsOrder() {
+    @DisplayName("The poof death shows nothing for 2 ticks, then frames 2, 3, 1 and 0, then nothing until it expires")
+    void thePoofDeathPlaysItsFramesInOrder() {
         // Prepare
         final PoofAnimation poof = newPoofDeath();
         final List<Integer> shown = new ArrayList<>();
@@ -64,10 +63,10 @@ class PoofAnimationTest {
         final List<Integer> expected = new ArrayList<>();
         expected.add(NOT_DRAWN);
         expected.add(NOT_DRAWN);
-        repeat(expected, FRAME_OF_43, 7);
-        repeat(expected, FRAME_OF_41, 8);
-        repeat(expected, FRAME_OF_45, 8);
-        repeat(expected, FRAME_OF_47, 7);
+        repeat(expected, FRAME_2, 7);
+        repeat(expected, FRAME_3, 8);
+        repeat(expected, FRAME_1, 8);
+        repeat(expected, FRAME_0, 7);
         expected.add(NOT_DRAWN);
         assertThat(shown).isEqualTo(expected);
     }

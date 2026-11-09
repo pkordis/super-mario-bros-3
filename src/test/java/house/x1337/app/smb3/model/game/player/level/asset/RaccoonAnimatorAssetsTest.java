@@ -26,9 +26,8 @@ class RaccoonAnimatorAssetsTest {
     private static final String FRAMES_CONTEXT = "sprites/player/mario/level/raccoon/";
 
     /**
-     * {@code Player_HoldingFrames} for the not-small sizes (dasm prg008.asm:109):
-     * {@code $29, $2A, $2B, $2A} — the same four-beat, three-pose cycle big Mario uses, under a
-     * different CHR page.
+     * The hold cycle for the not-small sizes — the same four-beat, three-pose cycle big Mario uses, drawn
+     * with the raccoon art.
      */
     private static final List<String> HOLD_FILENAMES = List.of(
         "holding_1.png",
@@ -109,7 +108,7 @@ class RaccoonAnimatorAssetsTest {
     @DisplayName("The hold cycle is four beats over three poses, with the second pose repeated")
     void theHoldCycleRepeatsItsSecondPose() {
         // Shipped as a real asset reference rather than left to the animator, so a plain linear walk of
-        // the array reproduces the ROM's asymmetric $29 -> $2A -> $2B -> $2A.
+        // the array reproduces the asymmetric pose 1 -> 2 -> 3 -> 2 cycle.
         assertThat(HOLD_FILENAMES).as("a four-beat cycle").hasSize(4);
         assertThat(HOLD_FILENAMES.get(3))
             .as("the fourth beat replays the second")

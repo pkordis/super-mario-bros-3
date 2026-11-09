@@ -7,12 +7,11 @@ import static house.x1337.app.smb3.game.motion.pop.PopMotions.scoreRise;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A score caption's rise, worked update by update as {@code Score_GiveAndDraw} runs it (dasm prg007.asm:2191-2267):
- * {@code Scores_Counter} goes down from $30, and the score rises when
- * {@code Counter_1 & Score_RiseCounterMask[counter >> 4]} is 0, the masks being 3, 1, 0 and 0.
+ * A score caption's rise, worked update by update: the score's counter goes down from 48, and the score rises when
+ * the frame counter masked by the rise mask for {@code counter >> 4} is 0, the masks being 3, 1, 0 and 0.
  */
 class ScoreRisePopMotionTest {
-    private static final int[] RISE_COUNTER_MASKS = {0x03, 0x01, 0x00, 0x00};
+    private static final int[] RISE_COUNTER_MASKS = {3, 1, 0, 0};
     private static final int UNLIMITED_RISES = 255;
 
     @Test
@@ -22,25 +21,25 @@ class ScoreRisePopMotionTest {
         final int durationTicks = scoreRise(0, UNLIMITED_RISES).durationTicks();
 
         // Verify
-        assertThat(durationTicks).isEqualTo(0x30 + 1);
+        assertThat(durationTicks).isEqualTo(48 + 1);
     }
 
     @Test
-    @DisplayName("The digits start 8 lines below the sprite's top and rise as the ROM lifts them, for any Counter_1")
-    void theRiseMatchesTheRom() {
+    @DisplayName("The digits start 8 lines below the sprite's top and rise as worked here, for any frame counter")
+    void theDigitsRiseAsWorkedForAnyFrameCounter() {
         // Execute & Verify
         for (int firstUpdateFrame = 0; firstUpdateFrame < 4; firstUpdateFrame++) {
             final PopMotion motion = scoreRise(firstUpdateFrame, UNLIMITED_RISES);
-            int counter = 0x30;
+            int counter = 48;
             int risen = 0;
             assertThat(motion.verticalOffsetAt(0)).isEqualTo(-8);
-            for (int update = 1; update <= 0x30; update++) {
+            for (int update = 1; update <= 48; update++) {
                 counter--;
                 final int frame = firstUpdateFrame + update - 1;
                 if ((frame & RISE_COUNTER_MASKS[counter >> 4]) == 0) {
                     risen++;
                 }
-                assertThat(motion.verticalOffsetAt(update)).as("Counter_1 %d, update %d", firstUpdateFrame, update)
+                assertThat(motion.verticalOffsetAt(update)).as("Frame counter %d, update %d", firstUpdateFrame, update)
                     .isEqualTo(risen - 8);
             }
         }

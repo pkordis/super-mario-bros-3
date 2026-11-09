@@ -87,7 +87,7 @@ class KoopaTroopaWalkTest {
     }
 
     @Test
-    @DisplayName("Walks left at half a pixel per frame with no player around (GroundTroop_XVel -$08)")
+    @DisplayName("Walks left at half a pixel per frame with no player around (walk velocity -8)")
     void walksLeftAtHalfAPixelPerFrame() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
@@ -100,16 +100,16 @@ class KoopaTroopaWalkTest {
         // Verify
         assertThat(troopa.isFacingRight()).as("An unflipped ground troop walks left").isFalse();
         assertThat(troopa.getPosition().x())
-            .as("16 frames x $08/16 px = 8 px to the left")
+            .as("16 frames x 8/16 px = 8 px to the left")
             .isCloseTo(startX - 8.0, within(TOLERANCE));
         assertThat(troopa.getPosition().y())
-            .as("Resting on the floor: Object_HitGround re-aligns the feet every frame")
+            .as("Resting on the floor: landing re-aligns the feet every frame")
             .isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(troopa.isGrounded()).isTrue();
     }
 
     @Test
-    @DisplayName("Appears facing the player and walks towards them (ObjInit_GroundTroop)")
+    @DisplayName("Appears facing the player and walks towards them")
     void facesThePlayerOnSpawn() {
         // Prepare - player five tiles to the right of a troopa at column 5
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
@@ -121,14 +121,14 @@ class KoopaTroopaWalkTest {
         tick(troopa, 16);
 
         // Verify
-        assertThat(troopa.isFacingRight()).as("GroundTroop_FlipTowardsPlayer sets SPR_HFLIP").isTrue();
+        assertThat(troopa.isFacingRight()).as("Turned to face the player on the right").isTrue();
         assertThat(troopa.getPosition().x())
             .as("Facing is direction: the flipped troop walks right")
             .isCloseTo(startX + 8.0, within(TOLERANCE));
     }
 
     @Test
-    @DisplayName("About-faces at a wall without ever entering it (Object_FlipFace)")
+    @DisplayName("About-faces at a wall without ever entering it")
     void turnsAroundAtAWall() {
         // Prepare - a wall at column 3, troopa starting at column 5 and walking left into it
         solidColumn(3);
@@ -146,7 +146,7 @@ class KoopaTroopaWalkTest {
     }
 
     @Test
-    @DisplayName("Falling accelerates by $03 a frame and caps at $40 (OBJECT_FALLRATE / OBJECT_MAXFALL)")
+    @DisplayName("Falling accelerates by 3 a frame and caps at 64")
     void fallSpeedAcceleratesAndCaps() {
         // Prepare - dropped from the top row, so there is room to reach terminal velocity. The ledge
         // guard fires once on the way down and zeroes the fall, which is why this is measured from the
@@ -154,23 +154,23 @@ class KoopaTroopaWalkTest {
         final KoopaTroopa troopa = troopaAt(5, 0);
         troopa.faceClosestPlayer();
 
-        // Execute & Verify - Object_Move adds gravity at the end of the frame, after the move
+        // Execute & Verify - gravity is added at the end of the frame, after the move
         tick(troopa, 1);
         assertThat(troopa.getVelocity().y()).isEqualTo(3);
 
         tick(troopa, 20);
         assertThat(troopa.getVelocity().y())
-            .as("21 frames x $03 = $3f, still one step under the cap")
+            .as("21 frames x 3 = 63, still one step under the cap")
             .isEqualTo(63);
 
         tick(troopa, 1);
         assertThat(troopa.getVelocity().y())
-            .as("Terminal velocity is OBJECT_MAXFALL = $40, i.e. 4 px/frame")
+            .as("Terminal velocity is 64, i.e. 4 px/frame")
             .isEqualTo(64);
     }
 
     @Test
-    @DisplayName("A fall ends aligned on top of the floor tile it lands on (Object_HitGround)")
+    @DisplayName("A fall ends aligned on top of the floor tile it lands on")
     void landsAlignedOnTheFloor() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, 0);
@@ -188,7 +188,7 @@ class KoopaTroopaWalkTest {
     }
 
     @Test
-    @DisplayName("The two walking frames alternate every 8 frames (Var5 accumulator cadence)")
+    @DisplayName("The two walking frames alternate every 8 frames")
     void walkFrameFlipsEveryEightFrames() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
@@ -219,12 +219,12 @@ class KoopaTroopaWalkTest {
             .as("An enemy is never terrain, so it is not collidable in the tile sense")
             .isFalse();
         assertThat(troopa.bouncesOffOtherObjects())
-            .as("GroundTroop_BumpOffOthers runs in the walking state and Object_BumpOffOthers in the shell")
+            .as("It bumps off other objects both while walking and in the shell")
             .isTrue();
     }
 
     @Test
-    @DisplayName("The collision box is Object_BoundBox row 01, sitting on the shell rather than the sprite")
+    @DisplayName("The collision box sits on the shell rather than the sprite")
     void collisionBoxIsTheShellOnly() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
@@ -248,7 +248,7 @@ class KoopaTroopaWalkTest {
         // Verify
         assertThat(troopa.getSpriteDimensions().width()).isEqualTo(1.0f);
         assertThat(troopa.getSpriteDimensions().height())
-            .as("Objects_Y is the top of the shell; the head is drawn a tile above it")
+            .as("The tracked Y is the top of the shell; the head is drawn a tile above it")
             .isEqualTo(2.0f);
     }
 
@@ -293,7 +293,7 @@ class KoopaTroopaWalkTest {
     }
 
     @Test
-    @DisplayName("The odd walk frame is drawn one pixel lower (Troopa_YOffByFrame $06 then $05)")
+    @DisplayName("The odd walk frame is drawn one pixel lower (Y offset 6, then 5)")
     void theOddWalkFrameBobsDownOnePixel() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(5, WALK_ROW);

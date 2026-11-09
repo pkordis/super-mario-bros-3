@@ -86,7 +86,7 @@ class GoombaWalkTest {
     }
 
     @Test
-    @DisplayName("Walks left at half a pixel per frame with no player around (GroundTroop_XVel -$08)")
+    @DisplayName("Walks left at half a pixel per frame with no player around (X velocity -8)")
     void walksLeftAtHalfAPixelPerFrame() {
         // Prepare
         final Goomba goomba = goombaAt(5, WALK_ROW);
@@ -99,16 +99,16 @@ class GoombaWalkTest {
         // Verify
         assertThat(goomba.isFacingRight()).as("An unflipped ground troop walks left").isFalse();
         assertThat(goomba.getPosition().x())
-            .as("16 frames x $08/16 px = 8 px to the left")
+            .as("16 frames x 8/16 px = 8 px to the left")
             .isCloseTo(startX - 8.0, within(TOLERANCE));
         assertThat(goomba.getPosition().y())
-            .as("Resting on the floor: Object_HitGround re-aligns the feet every frame")
+            .as("Resting on the floor: the landing re-aligns the feet every frame")
             .isCloseTo(WALK_ROW_PIXEL_Y, within(TOLERANCE));
         assertThat(goomba.isGrounded()).isTrue();
     }
 
     @Test
-    @DisplayName("Appears facing the player and walks towards them (ObjInit_GroundTroop)")
+    @DisplayName("Appears facing the player and walks towards them")
     void facesThePlayerOnSpawn() {
         // Prepare - player five tiles to the right of a Goomba at column 5
         final Goomba goomba = goombaAt(5, WALK_ROW);
@@ -120,14 +120,14 @@ class GoombaWalkTest {
         tick(goomba, 16);
 
         // Verify
-        assertThat(goomba.isFacingRight()).as("GroundTroop_FlipTowardsPlayer sets SPR_HFLIP").isTrue();
+        assertThat(goomba.isFacingRight()).as("Turning towards the player flips it to face right").isTrue();
         assertThat(goomba.getPosition().x())
             .as("Facing is direction: the flipped troop walks right")
             .isCloseTo(startX + 8.0, within(TOLERANCE));
     }
 
     @Test
-    @DisplayName("About-faces at a wall without ever entering it (Object_FlipFace)")
+    @DisplayName("About-faces at a wall without ever entering it")
     void turnsAroundAtAWall() {
         // Prepare - a wall at column 3, Goomba starting at column 5 and walking left into it
         solidColumn(3);
@@ -170,29 +170,29 @@ class GoombaWalkTest {
     }
 
     @Test
-    @DisplayName("Falling accelerates by $03 a frame and caps at $40 (OBJECT_FALLRATE / OBJECT_MAXFALL)")
+    @DisplayName("Falling accelerates by 3 a frame and caps at 64")
     void fallSpeedAcceleratesAndCaps() {
         // Prepare - dropped from the top row, so there is room to reach terminal velocity
         final Goomba goomba = goombaAt(5, 0);
         goomba.faceClosestPlayer();
 
-        // Execute & Verify - Object_Move adds gravity at the end of the frame, after the move
+        // Execute & Verify - gravity is added at the end of the frame, after the move
         tick(goomba, 1);
         assertThat(goomba.getVelocity().y()).isEqualTo(3);
 
         tick(goomba, 20);
         assertThat(goomba.getVelocity().y())
-            .as("21 frames x $03 = $3f, still one step under the cap")
+            .as("21 frames x 3 = 63, still one step under the cap")
             .isEqualTo(63);
 
         tick(goomba, 1);
         assertThat(goomba.getVelocity().y())
-            .as("Terminal velocity is OBJECT_MAXFALL = $40, i.e. 4 px/frame")
+            .as("Terminal velocity is 64, i.e. 4 px/frame")
             .isEqualTo(64);
     }
 
     @Test
-    @DisplayName("A fall ends aligned on top of the floor tile it lands on (Object_HitGround)")
+    @DisplayName("A fall ends aligned on top of the floor tile it lands on")
     void landsAlignedOnTheFloor() {
         // Prepare
         final Goomba goomba = goombaAt(5, 0);
@@ -210,7 +210,7 @@ class GoombaWalkTest {
     }
 
     @Test
-    @DisplayName("The two walking frames alternate every 8 frames (Var7/Var5 accumulator cadence)")
+    @DisplayName("The two walking frames alternate every 8 frames")
     void walkFrameFlipsEveryEightFrames() {
         // Prepare
         final Goomba goomba = goombaAt(5, WALK_ROW);
@@ -239,7 +239,7 @@ class GoombaWalkTest {
         for (int frame = 0; frame < 63; frame++) {
             tick(goomba, 1);
             assertThat(goomba.getPosition().x())
-                .as("Frame %d: still heading left, the edge is no wall (Object_DetectTile reads tile $00)", frame)
+                .as("Frame %d: still heading left, the edge is no wall (the tile beyond it reads as empty)", frame)
                 .isLessThan(previousX);
             previousX = goomba.getPosition().x();
         }
@@ -248,7 +248,7 @@ class GoombaWalkTest {
         tick(goomba, 1);
         assertThat(goomba.isFacingRight()).as("No about-face at the boundary").isFalse();
         assertThat(goomba.getPosition().x())
-            .as("Uninterrupted half-pixel steps: 64 frames x $08/16 px = 32 px")
+            .as("Uninterrupted half-pixel steps: 64 frames x 8/16 px = 32 px")
             .isCloseTo(-16.0, within(TOLERANCE));
         assertThat(goomba.hasLeftTheLevelSideways())
             .as("Its 16 px sprite now lies wholly left of column 0")
@@ -298,7 +298,7 @@ class GoombaWalkTest {
 
         // Verify - removing it is EnemyMotionManager's job, through the ordinary off-screen deletion (the
         // camera is clamped at the level's edge); what the Goomba owes it is to still count as alive, which
-        // is what makes the manager release the placement (Object_Delete) rather than spend it
+        // is what makes the manager release the placement rather than spend it
         assertThat(goomba.hasLeftTheLevelSideways()).as("Out of the level").isTrue();
         assertThat(goomba.isDefeated()).as("But alive").isFalse();
         assertThat(goomba.isExpired()).as("And it does not retire itself").isFalse();

@@ -24,8 +24,7 @@ public interface RewardDispensingLevelObject extends LevelObject {
 
     /**
      * Dispenses a P-Switch. Implemented by the block that holds it, because the switch is placed
-     * into a neighbouring grid cell rather than spawned as a moving object
-     * (dasm {@code prg008.asm LATP_PSwitch}).
+     * into a neighbouring grid cell rather than spawned as a moving object.
      */
     void onSwitchBlockDispensed(LevelScenePlayer levelScenePlayer);
 

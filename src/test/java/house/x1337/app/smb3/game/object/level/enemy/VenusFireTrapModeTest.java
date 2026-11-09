@@ -17,8 +17,8 @@ import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantMode.RED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The fire plant's registration: "Venus Fire Trap - Green" ({@code OBJ_GREENPIRANHA_FIRE = $A4}) and
- * "Venus Fire Trap - Red" ({@code OBJ_VENUSFIRETRAP = $A6}) both build a {@link VenusFireTrap}, which reuses
+ * The fire plant's registration: "Venus Fire Trap - Green" and "Venus Fire Trap - Red" both build a
+ * {@link VenusFireTrap}, which reuses
  * {@code PiranhaPlantMode}: the colours differ only in rise, box and art, as the plain plants do.
  */
 class VenusFireTrapModeTest {
@@ -65,8 +65,8 @@ class VenusFireTrapModeTest {
         // Verify
         assertThat(green.getRiseDistancePixels()).isEqualTo(25);
         assertThat(red.getRiseDistancePixels()).isEqualTo(33);
-        assertThat(green.getStateWaitTicks()).isEqualTo(0x60);
-        assertThat(red.getStateWaitTicks()).isEqualTo(0x60);
+        assertThat(green.getStateWaitTicks()).isEqualTo(96);
+        assertThat(red.getStateWaitTicks()).isEqualTo(96);
     }
 
     @Test

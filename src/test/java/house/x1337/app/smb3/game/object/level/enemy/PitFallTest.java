@@ -63,9 +63,9 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * Walkers fall into pits now that the level's bottom edge is open (SMB3-14): the ROM's object tile probe
- * finds no tile at or below the level's bottom (dasm prg000 @ PRG000_C7F1), so nothing but a real tile
- * holds an object up. Everything here runs over a real {@link StaticEnvironmentCollisionGrid}.
+ * Walkers fall into pits now that the level's bottom edge is open (SMB3-14): an object's tile probe finds
+ * no tile at or below the level's bottom, so nothing but a real tile holds an object up. Everything here
+ * runs over a real {@link StaticEnvironmentCollisionGrid}.
  *
  * <p>The floor is the level's bottom row, with two pits in it. Before the fix every one of these walked
  * across a pit on the invisible floor one row below the level.
@@ -176,7 +176,7 @@ class PitFallTest {
     }
 
     @Test
-    @DisplayName("A red Koopa Troopa still turns back at the pit's edge (ObjNorm_RedTroopa)")
+    @DisplayName("A red Koopa Troopa still turns back at the pit's edge")
     void aRedTroopaTurnsBackAtThePit() {
         // Prepare
         final KoopaTroopa troopa = troopaAt(START_COLUMN, RED);

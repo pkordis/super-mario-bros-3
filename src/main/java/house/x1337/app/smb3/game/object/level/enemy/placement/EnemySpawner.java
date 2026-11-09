@@ -121,7 +121,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
 
     /**
      * Gives the enemy's placement back, so it spawns again the next time the look-ahead reaches its
-     * column. This is {@code Object_Delete}: a live enemy that left the screen or the level.
+     * column. This happens when a live enemy leaves the screen or the level.
      *
      * @param enemy the instance being thrown away; one without a placement is ignored
      */

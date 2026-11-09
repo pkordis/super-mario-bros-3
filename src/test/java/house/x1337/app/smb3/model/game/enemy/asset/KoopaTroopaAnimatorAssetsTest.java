@@ -34,10 +34,9 @@ class KoopaTroopaAnimatorAssetsTest {
     );
 
     /**
-     * The roll cycle: four beats, played in order and wrapped. The ROM's
-     * {@code ObjShell_AnimFrame = {$04, $06, $05, $06}} (dasm prg000.asm:2710) names only three patterns
-     * because it mirrors the fourth beat through {@code ObjShell_AnimFlipBits} (:2709); the fourth file
-     * here is that mirror pre-applied, so the four beats are four files.
+     * The roll cycle: four beats, played in order and wrapped. Only three distinct patterns make it up,
+     * because the fourth beat is the second one mirrored; the fourth file here is that mirror
+     * pre-applied, so the four beats are four files.
      */
     private static final List<String> SHELL_SPIN_FILENAMES = List.of(
         SHELL_FILENAME,
@@ -53,16 +52,16 @@ class KoopaTroopaAnimatorAssetsTest {
         "koopa_troopa_shell_spin_3.png"
     );
 
-    /** Tile wide, two tiles tall - the 16x32 block of hardware sprites Troopa_Draw fills. */
+    /** Tile wide, two tiles tall - the 16x32 block of sprites the walking troopa fills. */
     private static final int FRAME_WIDTH = TILE_SPRITE_SIZE;
     private static final int FRAME_HEIGHT = TILE_SPRITE_SIZE * 2;
 
-    /** 5 px of head tip + 16 px of body + 6 px of feet, measured out of chr079. */
+    /** 5 px of head tip + 16 px of body + 6 px of feet, measured out of the source art. */
     private static final int ART_HEIGHT = 27;
 
     /**
-     * The one pixel {@code KoopaTroopaBody#walkFrameBob} drops the odd walk frame by -
-     * {@code Troopa_YOffByFrame = {$06, $05}} (dasm prg004.asm:4266) as a draw-time offset.
+     * The one pixel {@code KoopaTroopaBody#walkFrameBob} drops the odd walk frame by, as a draw-time
+     * offset.
      *
      * <p>The art meets it halfway, which is the thing to understand before touching either: the odd
      * frame's silhouette is authored one row <b>higher</b> in its canvas, so the drop cancels at the
@@ -73,9 +72,8 @@ class KoopaTroopaAnimatorAssetsTest {
     private static final int WALK_FRAME_BOB_PIXELS = 1;
 
     /**
-     * Colour index 3 of the sprite palette the object attribute table picks: {@code $16} for the red
-     * troopa's {@code OA1_PAL1}, {@code $2A} for the green one's {@code OA1_PAL2} (dasm
-     * prg004.asm:154-155, {@code PalSet_Plains}). RGB read off the project's own emulator capture.
+     * Colour index 3 of the sprite palette each troopa is drawn in: the red troopa's shell colour and the
+     * green one's. RGB measured from a gameplay capture.
      */
     private static final int SHELL_RED = 0xFFB72913;
     private static final int SHELL_GREEN = 0xFF5CE430;
@@ -108,7 +106,7 @@ class KoopaTroopaAnimatorAssetsTest {
                 .as("%s waking frames", mode)
                 .hasSize(SHELL_FEET_FILENAMES.size());
             assertThat(assets.shellSpin())
-                .as("%s roll cycle is the ROM's four beats, not three", mode)
+                .as("%s roll cycle is four beats, not three", mode)
                 .hasSize(SHELL_SPIN_FILENAMES.size());
         }
     }
@@ -128,10 +126,10 @@ class KoopaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("All three spin frames are 16x16 in every colour, as one hardware sprite each")
-    void theSpinFramesAreOneHardwareSpriteEach() throws IOException {
-        // Patterns $D1, $D3 and $D5 all measure fully opaque 8x16 in chr079, so each composed beat is a
-        // solid 16x16 - the same footprint Object_DrawShelled gives the resting shell.
+    @DisplayName("All three spin frames are 16x16 in every colour, as one sprite each")
+    void theSpinFramesAreOneSpriteEach() throws IOException {
+        // The three spin patterns all measure fully opaque 8x16, so each composed beat is a solid
+        // 16x16 - the same footprint the resting shell is drawn with.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
             for (final String filename : SHELL_SPIN_NEW_FILENAMES) {
                 final BufferedImage frame = readFrame(mode, filename);
@@ -149,8 +147,7 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The fourth beat ships as the mirror of the second, so no quad is flipped per beat")
     void theFourthBeatIsThePreMirroredSecond() throws IOException {
-        // ObjShell_AnimFrame = {$04, $06, $05, $06} (prg000.asm:2710) names $06 twice and
-        // ObjShell_AnimFlipBits = {$00, $00, $00, $40} (:2709) mirrors the second of them. Carrying that
+        // The roll draws beat 2 and beat 4 from the same pattern and mirrors it on beat 4. Carrying that
         // mirror as art is the same decision the waking feet make (see theFeetAreAMirrorPair): the
         // renderer stays free of a per-beat scale sign, and the animation is the asset array in order.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
@@ -170,7 +167,7 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The spin beats are distinct art, so the roll is not the resting shell jittering")
     void theSpinBeatsAreDistinct() throws IOException {
-        // Beat 1 is $D3 + $D5 - two different halves - while beat 2 is $D1 mirrored and beat 3 is beat 1
+        // Beat 1 is two different halves, while beat 2 is one half mirrored and beat 3 is beat 1
         // mirrored, so no two of them can be the same image, and none can be the resting shell.
         final List<List<Integer>> spinPixels = new ArrayList<>();
         for (final String filename : SHELL_SPIN_NEW_FILENAMES) {
@@ -185,8 +182,8 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("Only the left-facing frames are shipped, because the mirror is a draw-time transform")
     void shipsLeftFacingArtOnly() {
-        // The ROM keeps one set of walk patterns and flips them through SPR_HFLIP (Troopa_Draw, dasm
-        // prg004.asm:4349). Mirrored art files would be a second copy of something the renderer can
+        // One set of walk patterns is kept and flipped horizontally at draw time. Mirrored art files
+        // would be a second copy of something the renderer can
         // produce with a scale sign, so their absence is the point rather than an omission. The shell
         // frames carry "left"/"right" in their names for the rock they draw, not for a facing.
         //
@@ -218,11 +215,11 @@ class KoopaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("Every shelled frame is one hardware sprite: a 16x16 shell and two 8x16 feet")
-    void shellFramesMatchTheirHardwareSprites() throws IOException {
-        // Object_DrawShelled draws one mirrored 16x16 sprite with its top on Objects_Y - none of
-        // Troopa_Draw's head tip above it or feet below it, and no Troopa_YOffByFrame. The feet are two
-        // further 8x16 sprites in Sprite_RAM+$08 and +$0C.
+    @DisplayName("Every shelled frame is one sprite: a 16x16 shell and two 8x16 feet")
+    void everyShelledFrameIsOneSprite() throws IOException {
+        // The resting shell is one mirrored 16x16 sprite with its top on the object's Y - none of the
+        // walking troopa's head tip above it or feet below it, and no walk bob. The feet are two
+        // further 8x16 sprites.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
             final BufferedImage shell = readFrame(mode, SHELL_FILENAME);
 
@@ -246,7 +243,7 @@ class KoopaTroopaAnimatorAssetsTest {
     @DisplayName("The feet art sits low in its canvas, which is what lets it share the shell's anchor")
     void theFeetArtSitsLowInItsCanvas() throws IOException {
         // There is no vertical offset applied to a foot quad; it is placed on the shell's own anchor, so
-        // ObjWakeUp_FeetYOff's +10 has to be where the pixels sit inside the 8x16 canvas. Art drifting
+        // the waking feet's +10 offset has to be where the pixels sit inside the 8x16 canvas. Art drifting
         // into the upper half would appear partway up the shell instead of under it.
         for (final String filename : SHELL_FEET_FILENAMES) {
             final BufferedImage foot = readFrame(RED, filename);
@@ -259,10 +256,10 @@ class KoopaTroopaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("The two feet are mirrors of each other, as one pattern plus SPR_HFLIP makes them")
+    @DisplayName("The two feet are mirrors of each other, as one pattern plus a horizontal flip makes them")
     void theFeetAreAMirrorPair() throws IOException {
-        // The ROM writes pattern $F9 to both slots and sets the flip bit on the second (dasm
-        // prg000.asm:2406-2411); shipping the mirror as art keeps the animator flip-free.
+        // Both feet are drawn from one pattern, the second one flipped; shipping the mirror as art keeps
+        // the animator flip-free.
         final BufferedImage left = readFrame(RED, SHELL_FEET_FILENAMES.getFirst());
         final BufferedImage right = readFrame(RED, SHELL_FEET_FILENAMES.getLast());
 
@@ -278,8 +275,8 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The resting shell is horizontally symmetric, as drawing it from one mirrored half forces")
     void theRestingShellIsSymmetric() throws IOException {
-        // Object_ShakeAndDrawMirrored writes two 8x16 sprites from one pattern pair with SPR_HFLIP on
-        // the right one, so an asymmetric resting shell could not be what the ROM draws.
+        // The resting shell is drawn as two 8x16 halves from one pattern pair, the right one flipped
+        // horizontally, so an asymmetric resting shell could not be what is drawn.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
             final BufferedImage shell = readFrame(mode, SHELL_FILENAME);
 
@@ -296,8 +293,8 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The feet are palette-independent, so both colours ship byte-identical foot art")
     void theFeetAreTheSameInBothColours() throws IOException {
-        // Object_ShakeAndDrawMirrored forces SPR_PAL3 on the feet with ORA #$03 (dasm prg000.asm:2403),
-        // overriding whichever palette the object itself draws in - so there is no green foot.
+        // The feet are always drawn in sprite palette 3, overriding whichever palette the object itself
+        // draws in - so there is no green foot.
         for (final String filename : SHELL_FEET_FILENAMES) {
             final BufferedImage red = readFrame(RED, filename);
             final BufferedImage green = readFrame(GREEN, filename);
@@ -316,8 +313,8 @@ class KoopaTroopaAnimatorAssetsTest {
     @DisplayName("Both walk frames land their feet on the same line once the bob is applied")
     void bothWalkFramesAgreeOnTheFeetLine() throws IOException {
         // This is the invariant the walk bob depends on, so it gets its own test - and it is an
-        // invariant about the DRAWN result, not the raw canvas. Troopa_YOffByFrame ({$06, $05}, dasm
-        // prg004.asm:4266) draws the odd frame one pixel lower, and the art pre-compensates by sitting
+        // invariant about the DRAWN result, not the raw canvas. The walk bob draws the odd frame one
+        // pixel lower, and the art pre-compensates by sitting
         // one row higher in its own canvas. The two cancel at the feet, which stay planted, and what is
         // left over is the bob: the odd frame's silhouette reaches a pixel further up.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
@@ -335,10 +332,10 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The art is bottom-anchored within 27 px, so the feet land on the quad's bottom edge")
     void artIsBottomAnchored() throws IOException {
-        // The quad's bottom edge is the feet line at Objects_Y + 16, and nothing repositions it per
+        // The quad's bottom edge is the feet line at the object's Y + 16, and nothing repositions it per
         // frame beyond the one-pixel walk bob. The silhouette therefore has to sit against the bottom
         // of the canvas; art floating in the middle would leave the troopa hovering. 27 px is the
-        // ceiling on it - 5 px of head tip + 16 px of body + 6 px of feet, as Troopa_Draw stacks them.
+        // ceiling on it - 5 px of head tip + 16 px of body + 6 px of feet, as the walking troopa stacks them.
         for (final KoopaTroopaMode mode : KoopaTroopaMode.values()) {
             for (int frameIndex = 0; frameIndex < WALK_FILENAMES.size(); frameIndex++) {
                 final String filename = WALK_FILENAMES.get(frameIndex);
@@ -357,8 +354,8 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("The art faces left: the head tip is on the leading half and nothing is on the trailing one")
     void artFacesLeft() throws IOException {
-        // Objects_Y tracks the shell, and the head is drawn from the leading body half (Troopa_Draw
-        // places the head tip over the sprite the facing bit selects). Left-facing therefore puts the
+        // The object's Y tracks the shell, and the head is drawn from the leading body half (the head
+        // tip is placed over the sprite the facing selects). Left-facing therefore puts the
         // taller silhouette - head and neck - in the left half of the canvas. Measured at each frame's
         // own topmost row rather than a shared one, because the two frames draw different body patterns
         // and their head tips need not reach equally high.
@@ -380,9 +377,9 @@ class KoopaTroopaAnimatorAssetsTest {
     @Test
     @DisplayName("Green and red are the same patterns under a different palette, so only the shell differs")
     void theTwoColoursDifferOnlyInTheShell() throws IOException {
-        // The ROM ships ONE set of troopa patterns; the colour comes from the object attribute table
-        // choosing OA1_PAL1 or OA1_PAL2, and those two rows of PalSet_Plains agree on everything but
-        // colour index 3. The head and feet are forced to SPR_PAL3 by Troopa_Draw either way, so a
+        // One set of troopa patterns serves both colours; the colour comes from the sprite palette the
+        // object is drawn in, and the two palettes agree on everything but colour index 3. The head and
+        // feet are forced to sprite palette 3 either way, so a
         // pixel that is not shell must be byte-identical between the folders.
         final List<String> shellColouredFiles = new ArrayList<>(WALK_FILENAMES);
         shellColouredFiles.add(SHELL_FILENAME);
@@ -400,7 +397,7 @@ class KoopaTroopaAnimatorAssetsTest {
                     if (redPixel == SHELL_RED) {
                         shellPixels++;
                         assertThat(greenPixel)
-                            .as("%s shell pixel (%d, %d) is recoloured to $2A", filename, column, row)
+                            .as("%s shell pixel (%d, %d) is recoloured to green", filename, column, row)
                             .isEqualTo(SHELL_GREEN);
                         continue;
                     }

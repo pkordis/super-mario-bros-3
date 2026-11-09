@@ -37,7 +37,7 @@ public interface PipeEntryRulesAware {
         }
         int relative = playerX & 15;
         if (((relative + ALIGNMENT_OFFSETS[offsetIndex]) & 16) == 0) {
-            relative |= 0xF0;
+            relative |= 240;
         }
         final int lipHalf = leftCell ? 16 : 0;
         return ((relative + lipHalf - 3) & 255) < 10;

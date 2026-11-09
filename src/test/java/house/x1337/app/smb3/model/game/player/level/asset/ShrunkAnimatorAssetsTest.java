@@ -19,16 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Pins small Mario's asset bundle. The small frames are the simple case on geometry — one tile square
  * throughout, canvas and body the same thing, so no per-frame quad width is needed — and the awkward
- * case on the hold cycle, which the ROM reads from a different row of the same table.
+ * case on the hold cycle, which differs from the bigger sizes' cycle.
  */
 class ShrunkAnimatorAssetsTest {
     private static final String FRAMES_CONTEXT = "sprites/player/mario/level/shrunk/";
 
     /**
-     * {@code Player_HoldingFrames} for the small size (dasm prg008.asm:110):
-     * {@code $2E, $2F, $2E, $2F}. Two poses padded out to four beats so it indexes off the walk-frame
-     * counter exactly as the bigger bundles do. The ROM pins the airborne hold pose to {@code $2F} here
-     * — entry 1, not entry 0 as it is when not small.
+     * The hold cycle for the small size: two poses padded out to four beats so it indexes off the
+     * walk-frame counter exactly as the bigger bundles do. The airborne hold pose is pinned to the second
+     * pose here — entry 1, not entry 0 as it is when not small.
      */
     private static final List<String> HOLD_FILENAMES = List.of(
         "holding_1.png",

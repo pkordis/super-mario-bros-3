@@ -27,7 +27,7 @@ class CollisionGridWallNudgeTest {
     void cornerSlideHappensWithZeroHorizontalVelocity() {
         // Prepare
         // Left half of tile (X mod 16 = 4 < 8): in-front probes look RIGHT
-        // (X + 0x0E = 50 -> column 3). A solid column at 3 is the block edge.
+        // (X + 14 = 50 -> column 3). A solid column at 3 is the block edge.
         // The right edge (X + 14 = 50, localX = 2) is not tile-aligned, so the
         // player must be nudged left by 1px even though DX == 0.
         final PlayerPosition position = positionAt(36, 32, 0, -2);

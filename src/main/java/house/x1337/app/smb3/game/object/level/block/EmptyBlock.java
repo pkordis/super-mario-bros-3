@@ -17,8 +17,7 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_
  * A spent (used) solid block that replaced a question block once the latter was hit.
  *
  * <p>On its very first collision from below it plays the same 10-frame bounce animation
- * as a {@link Block} brick hit by small Mario (dasm {@code prg001.asm
- * ObjNorm_BounceDU / Bouncer_PUpVel}). That one-shot bounce is self-contained inside
+ * as a {@link Block} brick hit by small Mario. That one-shot bounce is self-contained inside
  * {@link EmptyBlockBounceMotionManager} and uses the correct empty-block sprite.
  * After it fires, any subsequent hit from below is silently ignored.
  */

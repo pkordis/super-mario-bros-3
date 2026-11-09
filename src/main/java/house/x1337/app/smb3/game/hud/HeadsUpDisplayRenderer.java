@@ -40,11 +40,11 @@ import static java.lang.Math.pow;
  * outlines, and all other static elements without any approximation.
  *
  * <p>Dynamic content (digits, P-meter arrows, icons) is rendered by blitting
- * CHR-extracted glyph images over the positions identified by the colored
+ * glyph images over the positions identified by the colored
  * zones in the {@code hud_basic.png} template.
  *
  * <p>The final 240×48 image is scaled by {@code TILE_SCALE} (4×) using
- * nearest-neighbor interpolation for pixel-perfect NES rendering.
+ * nearest-neighbor interpolation for pixel-perfect rendering.
  *
  * <p>Zone positions (from hud_base.png template analysis):
  * <pre>

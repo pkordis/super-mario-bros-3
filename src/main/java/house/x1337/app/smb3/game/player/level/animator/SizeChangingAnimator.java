@@ -41,8 +41,8 @@ public final class SizeChangingAnimator implements LevelScenePlayerAnimator<Size
     public void update(final LevelScenePlayer levelScenePlayer) {
         final int growShrinkCounter = levelScenePlayer.getRuntimeState().getGrowShrinkCounter();
         // One counter, one table, both directions — the shrink reads the table backwards so it lands on
-        // the shrunk frame rather than playing the grow sequence and snapping small at the end (dasm
-        // prg029 @ PRG029_D22E). The destination comes from the queued suit, as the ROM's reversal does.
+        // the shrunk frame rather than playing the grow sequence and snapping small at the end. The
+        // direction comes from the queued suit.
         final boolean shrinking = levelScenePlayer.getRuntimeState().getQueuedMode() == SHRUNK;
         final int frameIndex = SizeChangingAnimatorAssets.frameIndexFor(growShrinkCounter, shrinking);
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();

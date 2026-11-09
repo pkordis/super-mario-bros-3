@@ -13,8 +13,8 @@ import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_PAUSE_TICKS;
-import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_YVEL;
-import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VEL_THRESHOLD;
+import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_RISE_Y_VELOCITY;
+import static house.x1337.app.smb3.GameConstants.PLAYER_SKID_VELOCITY_THRESHOLD;
 import static house.x1337.app.smb3.GameConstants.PLAYER_SPREAD_EAGLE_THRESHOLD;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
@@ -49,8 +49,7 @@ public interface LevelScenePlayerRuntimeStateAware
     PlayerRuntimeState getRuntimeState();
 
     /**
-     * Awards the current kill-chain rung, then advances the chain (dasm prg000 @ PRG000_D2E1:
-     * {@code LDA Kill_Tally / INC Kill_Tally / JSR Score_Get100PlusPts}) - the score is read
+     * Awards the current kill-chain rung, then advances the chain. The score is read
      * <em>before</em> the increment, so the first stomp of a chain pays {@code SCORE_100}.
      */
     default Reward nextKillChainReward() {
@@ -70,8 +69,7 @@ public interface LevelScenePlayerRuntimeStateAware
         final int heightOffset
     ) {
         final PlayerRuntimeState runtimeState = getRuntimeState();
-        // Probe at horizontal center (X+8) only — matching dasm PRG008_A77E which
-        // checks a single fixed point above the player's head. Adding a right-edge
+        // Probe at horizontal center (X+8) only: a single fixed point above the player's head. Adding a right-edge
         // probe (X+14) at the same heightOffset falsely detects a normal rightward
         // wall collision as low-clearance, causing the player to slide through walls.
         final Coordinates probe = of(8, heightOffset);
@@ -91,8 +89,7 @@ public interface LevelScenePlayerRuntimeStateAware
      *
      * @param inputHandler the input handler to read the current pad state from
      * @param hitSomething true if the player collided with a horizontal wall this
-     *                     frame (dasm prg008 PRG008_B4F3: INC Player_WalkAnimTicks
-     *                     on wall hit keeps the walk animation running)
+     *                     frame (a wall hit keeps the walk animation running)
      * @param lowClearance true if the player is in low-clearance slide mode
      */
     default void refinePlayerState(
@@ -105,16 +102,16 @@ public interface LevelScenePlayerRuntimeStateAware
 
         if (runtimeState.isInAir()) {
             if (runtimeState.getPlayerFlyTime() > 0 && hasTail()) {
-                // dasm prg008: Player_FlyTime > 0 means the player is in
-                // powered flight mode (raccoon/tanooki). The animation system
-                // (Player_AnimTailWag) selects flying frames whenever FlyTime
-                // is nonzero, independent of WagCount. WagCount only controls
-                // the velocity cap physics, not the logical flight state.
+                // Remaining flight time > 0 means the player is in powered
+                // flight mode (raccoon/tanooki). The animation selects flying
+                // frames whenever the flight time is nonzero, independent of
+                // WagCount. WagCount only controls the velocity cap physics,
+                // not the logical flight state.
                 //
-                // Small Mario also receives FlyTime on full-P launch (the dasm
-                // grants it to all suits before the ability check), but it has
+                // Small Mario also receives flight time on full-P launch (it is
+                // granted to all suits before the ability check), but it has
                 // no flight Y-effects and uses JUMPING/FALLING states with the
-                // PF_FASTJUMPFALLSMALL visual frame instead of FLYING.
+                // fast jump/fall visual frame instead of FLYING.
                 runtimeState.setTo(FLYING);
             } else if (position.getDY() < 0) {
                 runtimeState.setTo(JUMPING);
@@ -130,23 +127,21 @@ public interface LevelScenePlayerRuntimeStateAware
                 runtimeState.setTo(SKIDDING);
             } else if (lowClearance && (inputLeft || inputRight)) {
                 // During low clearance slide, show walk animation only when
-                // a direction is held (dasm: WalkAnimTicks advances via
-                // Player_GroundHControl which reads Pad_Holding).
+                // a direction is held.
                 runtimeState.setTo(WALKING);
             } else if (hitSomething && (inputLeft || inputRight)) {
-                // dasm prg008 PRG008_B4F3: when the player hits a wall while
-                // pressing a direction, Player_WalkAnimTicks is incremented
-                // which keeps the walk animation cycling. The player appears to
+                // When the player hits a wall while pressing a direction, the
+                // walk animation keeps cycling. The player appears to
                 // "walk in place" against the wall rather than going still.
                 runtimeState.setTo(WALKING);
             } else if (abs(position.getDX()) < 0.01) {
                 runtimeState.setTo(STILL);
             } else if (runtimeState.isRunning() && abs(position.getDX()) >= PLAYER_SPREAD_EAGLE_THRESHOLD) {
-                // Spread-eagle: abs(XVel) >= $37 in the original (prg008.asm
-                // Player_SetSpecialFrames). Full P-meter speed reached.
+                // Spread-eagle: abs(DX) >= PLAYER_SPREAD_EAGLE_THRESHOLD.
+                // Full P-meter speed reached.
                 runtimeState.setTo(POWER_RUNNING);
             } else if (runtimeState.isRunning()) {
-                // B held, speed >= TOPRUNSPEED but below spread-eagle threshold.
+                // B held, speed >= top run speed but below spread-eagle threshold.
                 // Still uses walk animation frames (accelerating toward max).
                 runtimeState.setTo(RUNNING);
             } else {
@@ -163,21 +158,21 @@ public interface LevelScenePlayerRuntimeStateAware
             return false;
         }
         final double dx = getPosition().getDX();
-        if (abs(dx) < PLAYER_SKID_VEL_THRESHOLD) {
+        if (abs(dx) < PLAYER_SKID_VELOCITY_THRESHOLD) {
             return false;
         }
         // Pressing opposite direction from current movement
         return (dx > 0 && inputLeft) || (dx < 0 && inputRight);
     }
 
-    /** Begins the small→Super grow transition (dasm {@code Player_Grow = $2f}). */
+    /** Begins the small→Super grow transition ({@link PlayerRuntimeState#NORMAL_TRANSITION_TICKS} ticks). */
     default void turnToNormal() {
         getRuntimeState().setQueuedMode(NORMAL);
         getRuntimeState().setGrowShrinkCounter(NORMAL_TRANSITION_TICKS);
         neutraliseMotionForTransition();
     }
 
-    /** Begins the large→Raccoon poof transition (dasm {@code Player_SuitLost = $17}). */
+    /** Begins the large→Raccoon poof transition ({@link PlayerRuntimeState#RACCOON_TRANSITION_TICKS} ticks). */
     default void turnToRaccoon() {
         getRuntimeState().setQueuedMode(RACCOON);
         getRuntimeState().setPoofCounter(RACCOON_TRANSITION_TICKS);
@@ -185,24 +180,23 @@ public interface LevelScenePlayerRuntimeStateAware
     }
 
     /**
-     * Begins the Normal→Shrunk shrink a damaging hit causes (dasm {@code Player_GetHurt} @ PRG000_DA4E
-     * and PRG000_DA6D: {@code Player_QueueSuit = $02} then {@code DEC} to small, {@code Player_Grow =
-     * $2f}, {@code Player_FlashInv = $71}).
+     * Begins the Normal→Shrunk shrink a damaging hit causes: the suit is queued as small, the grow counter is
+     * set to {@link PlayerRuntimeState#NORMAL_TRANSITION_TICKS} and the flashing invincibility to
+     * {@link PlayerRuntimeState#HURT_INVINCIBILITY_TICKS}.
      *
-     * <p>It rides the same {@code Player_Grow} counter and the same frame table as the small→Super grow,
-     * only played in reverse: {@code Player_Update} applies the queued suit at frame start, so the suit
-     * is already small for the whole transition, and the draw routine reverses the frame index when the
-     * suit is small (prg029 @ PRG029_D22E: {@code X = $0B - (Player_Grow >> 2)}). The shrink is therefore
-     * literally the grow animation backwards — rendered by its own {@code normalToShrunkAnimator}, which
-     * shares {@link PlayerRuntimeState#NORMAL_TRANSITION_TICKS} and the grow art with {@link #turnToNormal}
-     * but is keyed apart from it by the queued mode.
+     * <p>It rides the same grow counter and the same frame table as the small→Super grow, only played in
+     * reverse: the queued suit is applied at the start of the frame, so the suit is already small for the
+     * whole transition, and the frame index is reversed when the suit is small ({@code 11 - (counter >> 2)}).
+     * The shrink is therefore literally the grow animation backwards — rendered by its own
+     * {@code normalToShrunkAnimator}, which shares {@link PlayerRuntimeState#NORMAL_TRANSITION_TICKS} and the
+     * grow art with {@link #turnToNormal} but is keyed apart from it by the queued mode.
      *
      * <p>Unlike the poof paths ({@link #loseAdvancedSuit}), the flashing invincibility armed here
      * <em>runs during the shrink itself</em>, so the player visibly flickers while shrinking. The grow
-     * counter does not blank the sprite the way the poof cloud does: the ROM falls through to
-     * {@code JSR Player_Draw} every grow tick (prg029 @ PRG029_D224), and {@code Player_Draw} is where
-     * {@code DEC Player_FlashInv} and the blank-phase test live. See {@code tickModeTransition}, which
-     * decrements the flash on the grow path and holds it on the poof path for exactly this reason.
+     * counter does not blank the sprite the way the poof cloud does: the player is still drawn on every grow
+     * tick, and drawing the player is where the flash counts down and its blank phase is tested. See
+     * {@code tickModeTransition}, which decrements the flash on the grow path and holds it on the poof path
+     * for exactly this reason.
      */
     default void turnToShrunk() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
@@ -238,23 +232,20 @@ public interface LevelScenePlayerRuntimeStateAware
         runtimeState.setPlayerWagCount(0);
         runtimeState.setPlayerTailAttackCountdown(0);
         position.setDX(0);
-        position.setDY(PLAYER_DEATH_RISE_YVEL);
+        position.setDY(PLAYER_DEATH_RISE_Y_VELOCITY);
         announceDeath(THROE);
     }
 
     /**
-     * Kills the player for falling into a pit (dasm prg008 @ PRG008_A3FA, lines 847-863): {@code Player_Die},
-     * then {@code Event_Countdown = $C0} and {@code Player_IsDying = 2}, which "jumps the initial part of the
-     * death sequence". So there is no pause, no pop-up and no fall: {@code Player_Die_FellOff} (prg029) moves
-     * nothing, draws nothing, and only waits for the countdown, which here is the death music's end
-     * ({@code PlayerDeathSequence}).
+     * Kills the player for falling into a pit. The opening part of the death sequence is skipped, so there is
+     * no pause, no pop-up and no fall: the fell-off death moves nothing, draws nothing, and only waits for the
+     * countdown, which here is the death music's end ({@code PlayerDeathSequence}).
      *
-     * <p>It deliberately skips {@link #isHurtable()}. The ROM's pit check reads neither
-     * {@code Player_FlashInv} nor the suit, and sets the suit to small first, so a flashing, large or
-     * Raccoon player dies here as well. Like {@code Player_Die} it clears the flashing invincibility and
-     * stops the player; {@code Player_YVel = -64} is written too, but the fell-off routine never applies it,
-     * so the port leaves the player still. The suit is not reset here because the restart respawns the
-     * player small anyway.
+     * <p>It deliberately skips {@link #isHurtable()}. The pit check reads neither the flashing invincibility
+     * nor the suit, so a flashing, large or Raccoon player dies here as well. It clears the flashing
+     * invincibility and stops the player; unlike {@link #die()} it gives the player no rise velocity, so the
+     * player stays still. The suit is not set to small here because the restart respawns the player small
+     * anyway.
      *
      * <p>A player who is already dying is left alone, so one death is announced once.
      */
@@ -284,23 +275,21 @@ public interface LevelScenePlayerRuntimeStateAware
     }
 
     /**
-     * @return whether the player has something in their hands (dasm {@code Player_IsHolding})
+     * @return whether the player has something in their hands
      */
     default boolean isCarrying() {
         return getRuntimeState().isCarrying();
     }
 
     /**
-     * Whether a carriable object touching the player right now may be taken — the ROM's
-     * {@code Object_HoldKickOrHurtPlayer} guard (dasm prg000 @ PRG000_D343:
-     * {@code LDA Player_ISHolding_OLD / BNE} straight to {@code RTS}).
+     * Whether a carriable object touching the player right now may be taken. A player who held something on
+     * the previous tick cannot pick anything up.
      *
-     * <p>Two conjuncts, and they are not the same test. {@code wasCarrying} is the ROM's one-tick lag:
+     * <p>Two conjuncts, and they are not the same test. {@code wasCarrying} is a one-tick lag:
      * the drop runs in the object loop, this runs afterwards in the player collision pass, so without
      * the lag the very frame that let go of one shell could take the next. {@code isCarrying()} covers
-     * what the ROM gets from having eight object slots and one flag — two carriables overlapping the
-     * player on the <em>same</em> collision pass. The ROM would put both in {@code OBJSTATE_HELD} and
-     * carry only the one it happened to draw; a single reference here would strand the other in a state
+     * two carriables overlapping the player on the <em>same</em> collision pass: the lag flag alone would let
+     * both be taken, and since a single reference holds only one, the other would be stranded in a state
      * nothing ever leaves.
      *
      * @return {@code true} if a pickup is allowed on this tick
@@ -310,8 +299,7 @@ public interface LevelScenePlayerRuntimeStateAware
     }
 
     /**
-     * Takes an object into the player's hands (dasm prg000 @ PRG000_D34F:
-     * {@code LDA #OBJSTATE_HELD / STA Objects_State}).
+     * Takes an object into the player's hands and puts the object into its held state.
      *
      * @param carriable the object being picked up
      */
@@ -331,7 +319,7 @@ public interface LevelScenePlayerRuntimeStateAware
     }
 
     /**
-     * Snapshots the carry state for the ROM's {@code Player_ISHolding_OLD}.
+     * Snapshots the carry state for the one-tick pickup lag ({@code wasCarrying}).
      *
      * <p>Advanced at the very top of the player's tick, above every early return, for the same reason
      * {@code tickTailAttackCountdown} is: a lag flag that stops being updated is a lag flag that lies.
@@ -344,11 +332,11 @@ public interface LevelScenePlayerRuntimeStateAware
 
     /**
      * Discards an advanced suit, poofing back to {@link PlayerMode#NORMAL} and arming the flashing
-     * invincibility (dasm {@code Player_GetHurt} @ PRG000_DA15 and PRG000_DA6D:
-     * {@code Player_SuitLost = $17}, {@code Player_QueueSuit = $02}, {@code Player_FlashInv = $71}).
+     * invincibility: the poof runs for {@link PlayerRuntimeState#SUIT_LOSS_TRANSITION_TICKS} ticks and the
+     * invincibility for {@link PlayerRuntimeState#HURT_INVINCIBILITY_TICKS}.
      *
      * <p>The invincibility counter is armed here, at the same moment as the poof, rather than when the
-     * poof ends — the ROM writes both in the same breath. It still does not start <em>running</em> until
+     * poof ends — both are set together. It still does not start <em>running</em> until
      * gameplay resumes, because nothing decrements it while the poof owns the draw routine; see
      * {@link PlayerRuntimeState#getHurtInvincibilityCounter()}.
      */
@@ -364,17 +352,16 @@ public interface LevelScenePlayerRuntimeStateAware
      * Spends the abilities a transition ends and settles a grounded player, without touching what the
      * player had built up on the way in.
      *
-     * <p><b>Horizontal momentum and the P-meter are preserved.</b> No transition in the ROM writes
-     * {@code Player_XVel} or {@code Player_Power}: {@code ObjHit_PUpMush} (dasm prg001 @ PRG001_A8AB)
-     * writes only {@code Player_QueueSuit} and {@code Player_Grow}, {@code ObjHit_SuperLeaf} only the
-     * queued suit and {@code Player_SuitLost}, and {@code Player_GetHurt} (prg000 @ PRG000_DA15) only
-     * those plus {@code Player_FlashInv} and {@code Player_Flip}. The one routine that does stop the
-     * player dead is {@code Player_Die}, which zeroes {@code Player_XVel} explicitly — the contrast is
-     * the point, and it is why a hit taken at a run leaves the run intact.
+     * <p><b>Horizontal momentum and the P-meter are preserved.</b> No transition touches the horizontal
+     * velocity or the P-meter: collecting a mushroom only queues the suit and starts the grow counter,
+     * collecting a leaf only queues the suit and starts the poof, and getting hurt only does those plus
+     * arming the flashing invincibility and setting the facing. The one event that does stop the player
+     * dead is dying, which zeroes the horizontal velocity explicitly — the contrast is the point, and it is
+     * why a hit taken at a run leaves the run intact.
      *
      * <p>Zeroing it here cost the player their speed <em>and</em> their P-meter: with {@code DX} back at
      * zero, the first resumed frame fails the run test in {@code handlePowerMeterAndRunFlag}
-     * ({@code abs(DX) >= PLAYER_TOPRUNSPEED}), so the meter starts draining instead of charging and the
+     * ({@code abs(DX) >= PLAYER_TOP_RUN_SPEED}), so the meter starts draining instead of charging and the
      * player has to accelerate from a standstill. Preserving {@code DX} keeps the run flag set on that
      * very frame, because the flag is recomputed from velocity before anything else reads it.
      *
@@ -387,32 +374,28 @@ public interface LevelScenePlayerRuntimeStateAware
      * player standing inside it: {@code isSolidVert} only exempts a one-way platform while the player is
      * rising ({@code DY < 0}), so a zeroed {@code DY} plus a grounded state turned the platform into a
      * floor the player could walk along from underneath. Preserving the airborne mode and {@code DY}
-     * keeps the pass-through exemption intact and lets the jump resume where it left off — which is also
-     * what the ROM does, {@code Player_Grow} being consumed purely as a draw-time frame override
-     * (prg029 PRG029_D224).
+     * keeps the pass-through exemption intact and lets the jump resume where it left off, the grow counter
+     * being consumed purely as a draw-time frame override.
      *
      * <p>What is still spent are the flight abilities the transition itself ends — flight time and tail
      * wag — since a player mid-transition is either gaining a suit that has not earned them yet or losing
      * the one that did.
      *
-     * <p><b>A tail swing in progress is deliberately left alone</b>, and this is load-bearing.
-     * {@code Player_GetHurt} (dasm prg000 @ PRG000_D9D3 through PRG000_DA6D) writes
-     * {@code Player_SuitLost}, {@code Player_QueueSuit}, {@code Player_Kuribo}, {@code Player_Grow},
-     * {@code Player_FlashInv} and {@code Player_Flip} — and never {@code Player_TailAttack}. In the whole
-     * ROM that counter is only cleared by kicking a shell (prg008 @ PRG008_AF52) and by grabbing an ice
-     * block (@ PRG008_B5F4).
+     * <p><b>A tail swing in progress is deliberately left alone</b>, and this is load-bearing. Getting hurt
+     * changes the suit, the grow and poof counters, the flashing invincibility and the facing, but never the
+     * tail-attack countdown. That countdown is only cleared by kicking a shell and by grabbing an ice block.
      *
-     * <p>It matters because of <em>when</em> the hurt lands relative to the strike: the ROM resolves both
-     * inside the object loop, hurt first ({@code Player_HitEnemy}, reached from the end of the enemy's own
-     * handler) and the tail immediately after ({@code Object_HitByTailOrBouncer}) — see
-     * {@code ActiveObjectGrid.resolveActiveObjectCollisions}, which keeps that order. Zeroing the counter
-     * here therefore did not merely tidy up a spent ability: it disarmed, retroactively, a strike the same
-     * tick was about to resolve, which is exactly how the original lets a player kill the enemy that just
-     * hurt him. With the counter untouched, the hit costs the suit and the swing still connects.
+     * <p>It matters because of <em>when</em> the hurt lands relative to the strike: both are resolved
+     * inside the object loop, hurt first (reached from the end of the enemy's own handler) and the tail
+     * immediately after — see {@code ActiveObjectGrid.resolveActiveObjectCollisions}, which keeps that
+     * order. Zeroing the counter here therefore did not merely tidy up a spent ability: it disarmed,
+     * retroactively, a strike the same tick was about to resolve, which is exactly how a player gets to kill
+     * the enemy that just hurt him. With the counter untouched, the hit costs the suit and the swing still
+     * connects.
      *
      * <p>Leaving it running past the poof is safe because the counter is ticked <b>unconditionally</b>,
-     * every frame, halt or no halt and tail or no tail ({@code tickTailAttackCountdown}, the ROM's shared
-     * counter block) — so it always reaches zero on its own a few frames later. It is not safe to leave
+     * every frame, halt or no halt and tail or no tail ({@code tickTailAttackCountdown}, alongside the other
+     * shared countdowns) — so it always reaches zero on its own a few frames later. It is not safe to leave
      * running <em>and</em> gate the tick: the swing would never end, and the facing freeze that belongs to
      * it would never lift.
      */

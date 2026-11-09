@@ -60,13 +60,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Kicking a shell, and what the shell then is: {@code Player_KickObject} (dasm prg000 @ PRG000_CE2F)
- * and {@code ObjState_Kicked} (@ PRG000_CC6E).
+ * Kicking a shell, and what the shell then is.
  *
  * <p>The three ways in all land in one routine, which is why there is no separate kickable type: B
  * released out of the hands, a body contact with B <em>not</em> held, and a stomp. The last of them is
- * the odd one out and deliberately so — it scores and kicks, and shows no kick frame, because the ROM
- * zeroes {@code Player_Kick} the instant it returns.
+ * the odd one out and deliberately so — it scores and kicks, and shows no kick frame, because the kick
+ * pose is cleared the instant the kick returns.
  *
  * <p>Whether the release and the contact reach this at all is {@code KoopaTroopaCarryTest}'s subject;
  * what happens once they do is this one's.
@@ -149,7 +148,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A standing kick sends the shell at exactly 3 px/frame, in the player's facing")
     void aStandingKickUsesTheBaseSpeed() {
-        // ObjectKickXVelMoving = {-$30, $30} (dasm prg000.asm:2794).
+        // The kick X velocity is -48 or 48.
         // Prepare
         final KoopaTroopa troopa = restingShell();
         final LevelScenePlayer player = playerAt(SHELL_X - 40, RIGHT, 0);
@@ -161,15 +160,15 @@ class KoopaTroopaKickTest {
         assertThat(troopa.getState()).isEqualTo(KICKED);
         assertThat(troopa.getVelocity().x()).isEqualTo(KICK_X_VELOCITY_FIXED_POINT);
         assertThat(troopa.getVelocity().pixelStepX()).as("3.0 px/frame").isCloseTo(3.0, within(TOLERANCE));
-        assertThat(troopa.getVelocity().y()).as("YVel is zeroed by the kick").isZero();
+        assertThat(troopa.getVelocity().y()).as("The Y velocity is zeroed by the kick").isZero();
     }
 
     @Test
     @DisplayName("A running kick adds half the player's own speed, so it is measurably faster")
     void aRunningKickAddsHalfThePlayersSpeed() {
-        // dasm prg000.asm:2961-2969: EOR against Player_XVel to test the sign, then an arithmetic shift
-        // right before the add.
-        // Prepare - a player running right at 2.5 px/frame, which is $28 in 4.4 fixed point
+        // The player's X velocity is compared with the kick's to test the sign, then halved by an arithmetic
+        // shift right before the add.
+        // Prepare - a player running right at 2.5 px/frame, which is 40 in 4.4 fixed point
         final KoopaTroopa standing = restingShell();
         final KoopaTroopa running = restingShell();
 
@@ -179,8 +178,8 @@ class KoopaTroopaKickTest {
 
         // Verify
         assertThat(running.getVelocity().x())
-            .as("$30 + $28/2")
-            .isEqualTo(KICK_X_VELOCITY_FIXED_POINT + 0x28 / 2);
+            .as("48 + 40/2")
+            .isEqualTo(KICK_X_VELOCITY_FIXED_POINT + 40 / 2);
         assertThat(running.getVelocity().x())
             .as("a running kick genuinely outruns a standing one")
             .isGreaterThan(standing.getVelocity().x());
@@ -200,24 +199,24 @@ class KoopaTroopaKickTest {
     }
 
     @Test
-    @DisplayName("The halving preserves the sign, as the ROM's arithmetic shift does")
+    @DisplayName("The halving preserves the sign, as an arithmetic shift does")
     void theMomentumBonusIsSignPreserving() {
-        // ASL/ROR floors toward negative infinity rather than toward zero; >> on an int does the same.
-        // Prepare - running left at an odd fixed-point speed ($29 = 2.5625 px/frame)
+        // The halving floors toward negative infinity rather than toward zero; >> on an int does the same.
+        // Prepare - running left at an odd fixed-point speed (41 = 2.5625 px/frame)
         final KoopaTroopa troopa = restingShell();
 
         // Execute
-        troopa.onKicked(playerAt(SHELL_X + 40, LEFT, -0x29 / 16.0), false);
+        troopa.onKicked(playerAt(SHELL_X + 40, LEFT, -41 / 16.0), false);
 
         // Verify
-        assertThat(troopa.getVelocity().x()).isEqualTo(-KICK_X_VELOCITY_FIXED_POINT + (-0x29 >> 1));
+        assertThat(troopa.getVelocity().x()).isEqualTo(-KICK_X_VELOCITY_FIXED_POINT + (-41 >> 1));
     }
 
     @Test
     @DisplayName("Every kick arms the 16-tick window in which the shell cannot hurt the player")
     void theKickArmsTheHitCooldown() {
-        // Objects_Timer2 = $10 (dasm prg000.asm:2838-2840). Without it the shell you just kicked is
-        // still inside your hitbox and would kill you on the spot.
+        // The kick sets a hit cooldown of 16. Without it the shell you just kicked is still inside your
+        // hitbox and would kill you on the spot.
         // Prepare
         final KoopaTroopa troopa = restingShell();
         final LevelScenePlayer player = playerAt(SHELL_X - 40, RIGHT, 0);
@@ -240,7 +239,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Every fresh kick restarts the kill chain from 100 points")
     void everyFreshKickResetsTheTally() {
-        // Objects_KillTally = 0 (dasm prg000.asm:2884-2886).
+        // The kick resets the shell's kill tally to 0.
         // Prepare - a shell that has already bowled through two enemies
         final KoopaTroopa troopa = kickedShell(true);
         troopa.onKickedInto(killableObject());
@@ -264,9 +263,9 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Stomping a resting shell kicks it and scores, and shows no kick frame")
     void stompingAShellKicksItWithoutThePose() {
-        // PRG000_D2A2: Kill_Tally++, Score_Get100PlusPts, Player_KickObject, then Player_Kick = 0. The
-        // zeroing is the whole point - funnel this through the pose-arming helper and a stomp would draw
-        // the kick frame it never draws in the original.
+        // The stomp raises the kill tally, scores, kicks, then clears the kick pose. The
+        // clearing is the whole point - funnel this through the pose-arming helper and a stomp would draw
+        // a kick frame that a stomp never shows.
         // Prepare
         final KoopaTroopa troopa = restingShell();
         final LevelScenePlayer player = playerAt(SHELL_X - 8, RIGHT, 0);
@@ -285,7 +284,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Stomping a shell does not bounce the player, unlike every other stomp")
     void stompingAShellDoesNotBounceThePlayer() {
-        // PRG000_D2A2 returns before reaching PRG000_D2B4's Player_YVel = -$40, so the player lands on
+        // The shell stomp returns before the ordinary stomp's bounce of -64, so the player lands on
         // the shell and stays there while it shoots away.
         // Prepare
         final KoopaTroopa troopa = restingShell();
@@ -302,8 +301,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Stomping a rolling shell stops it dead rather than killing it")
     void stompingARollingShellStopsIt() {
-        // A kicked shell takes PRG000_D2B4's ordinary stomp, which for a troopa ends in OA3_DIESHELLED
-        // and so back in OBJSTATE_SHELLED.
+        // A kicked shell takes the ordinary stomp, which for a troopa ends in being shelled again.
         // Prepare
         final KoopaTroopa troopa = kickedShell(true);
         tick(troopa, KICK_HIT_COOLDOWN_TICKS);
@@ -326,9 +324,8 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A rolling shell is re-dropped onto the floor every landing rather than gliding along it")
     void theRollingShellIsRedroppedEveryLanding() {
-        // dasm prg000.asm:2504-2507: Object_HitGround aligns it, then YVel = $0C pushes it straight back
-        // off. The write lands AFTER Object_Move's gravity, so the velocity is exactly $0C and not
-        // $0C plus a tick of gravity.
+        // The landing aligns it, then a Y velocity of 12 pushes it straight back off. The write lands
+        // AFTER the move's gravity, so the velocity is exactly 12 and not 12 plus a tick of gravity.
         // Prepare
         final KoopaTroopa troopa = kickedShell(true);
 
@@ -364,11 +361,11 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A landing with no horizontal speed re-launches the shell at 1.5 px/frame, towards the player")
     void aStalledRollRelaunchesTowardsThePlayer() {
-        // ObjKickXvel = {$18, -$18} indexed by Level_ObjCalcXDiffs (dasm prg000.asm:2478, :2495-2499),
-        // whose index is 0 when the player is to the RIGHT - so it pairs with +$18 and the shell comes
-        // BACK at you. Exercised directly: no path in this port yet produces a kicked object with zero
-        // horizontal speed (the ROM's guard covers the Ice Block and the Bob-omb, both out of scope), so
-        // there is nothing to drive it through a tick with.
+        // The re-launch X velocity is 24 or -24, picked by which side the player is on, with index 0 when
+        // the player is to the RIGHT - so it pairs with +24 and the shell comes BACK at you. Exercised
+        // directly: no path in this code yet produces a kicked object with zero horizontal speed (the
+        // guard exists for the Ice Block and the Bob-omb, both out of scope), so there is nothing to drive
+        // it through a tick with.
         // Prepare
         final KoopaTroopa troopa = restingShell();
         final LevelScenePlayer onTheRight = playerAt(SHELL_X + 40, LEFT, 0);
@@ -389,9 +386,9 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A rolling shell reverses at a wall and bumps whatever block was there")
     void theRollingShellReversesAtAWallAndBumpsTheBlock() {
-        // Object_BumpOffBlocks on wall contact (dasm prg000.asm:2558-2560), then Object_AboutFace. The
-        // bump is routed through the terrain tail-strike probe because that is literally what
-        // Object_BumpOffBlocks' own header says it does.
+        // On wall contact the shell bumps the block, then about-faces. The bump is routed through the
+        // terrain tail-strike probe because a shell bumping a block from the side is the same hit as a
+        // tail strike on it.
         // Prepare - a wall two columns along, and a player for the block to award to
         solidColumn(SHELL_COLUMN + 2);
         final LevelScenePlayer blockOwner = playerAt(SHELL_X - 40, RIGHT, 0);
@@ -410,11 +407,10 @@ class KoopaTroopaKickTest {
     }
 
     @Test
-    @DisplayName("A shell-triggered block does not bounce the player, which is Player_BounceObj's whole job")
+    @DisplayName("A shell-triggered block does not bounce the player")
     void aShellTriggeredBlockLeavesThePlayerAlone() {
-        // Player_BounceObj exists because a bumped block spawns a bounce OBJECT whose init pushes
-        // Player_YVel down, and the flag suppresses that when an object caused the bump (dasm
-        // prg001.asm:978-986). Nothing on this project's block-bump path writes player velocity at all,
+        // A bumped block can push the player down, and that push must be suppressed when an object
+        // caused the bump. Nothing on this project's block-bump path writes player velocity at all,
         // so the equivalent holds by construction - pinned here so it stays that way.
         // Prepare
         solidColumn(SHELL_COLUMN + 2);
@@ -438,8 +434,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A rolling shell kills what it hits, knocking it along in its own direction of travel")
     void theRollingShellKnocksAndKillsWhatItHits() {
-        // dasm prg000.asm:2600-2607: the struck object takes ±$10 in the SHELL's direction, then
-        // ObjectKill_SetShellKillVars.
+        // The struck object takes ±16 in the SHELL's direction, then the shell-kill response.
         // Prepare
         final KoopaTroopa rightward = kickedShell(true);
         final KoopaTroopa leftward = kickedShell(false);
@@ -456,10 +451,10 @@ class KoopaTroopaKickTest {
     }
 
     @Test
-    @DisplayName("Each link of the chain pays more than the last, up the ROM's ladder")
+    @DisplayName("Each link of the chain pays more than the last, up the kill ladder")
     void theChainScoreEscalatesPerLink() {
-        // Score_Get100PlusPts adds 5 to the tally and indexes ScoreAdd (dasm prg000.asm:699,
-        // prg007.asm:2122), which is 100/200/400/800/1000/... - doubling except at the 1000 step.
+        // Each link adds 5 to the tally and indexes the score ladder, which is 100/200/400/800/1000/... -
+        // doubling except at the 1000 step.
         // Prepare
         final KoopaTroopa troopa = kickedShell(true);
 
@@ -481,8 +476,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A long enough chain tops out at an extra life and stays there")
     void theChainCapsAtAnExtraLife() {
-        // Kill_Tally is held at 8 (prg007.asm:2155-2161) and the score index is clamped at $0D, the 1-up
-        // (prg007.asm:2174-2178).
+        // The kill tally is held at 8 and the score index is clamped at 13, the 1-up.
         // Prepare
         final KoopaTroopa troopa = kickedShell(true);
 
@@ -504,8 +498,8 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Two rolling shells meeting kill each other, each paying out its own tally")
     void twoRollingShellsKillEachOther() {
-        // dasm prg000.asm:2610-2627. Both end in OBJSTATE_KILLED with the upward death throw, and the
-        // one being struck pays the chain IT had built up rather than the striker's.
+        // Both end killed with the upward death throw, and the one being struck pays the chain IT had
+        // built up rather than the striker's.
         // Prepare - one shell with two kills behind it, meeting a fresh one head-on
         final KoopaTroopa veteran = kickedShell(true);
         veteran.onKickedInto(killableObject());
@@ -566,8 +560,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("Chasing your own shell is safe: no hurt while it is ahead of you and moving your way")
     void chasingYourOwnShellIsSafe() {
-        // dasm prg000.asm:4080-4103. Same X-velocity sign AND the shell ahead of the player in that
-        // direction, and the hurt is skipped.
+        // Same X-velocity sign AND the shell ahead of the player in that direction, and the hurt is skipped.
         // Prepare - a shell rolling right, with the player behind it also running right
         final KoopaTroopa troopa = kickedShell(true);
         tick(troopa, KICK_HIT_COOLDOWN_TICKS);
@@ -631,7 +624,7 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("The roll cycle advances one beat every two ticks and wraps after four")
     void theSpinCycleAdvancesEveryTwoTicks() {
-        // (Level_NoStopCnt >> 1) & 3 (dasm prg000.asm:2653-2656): four beats, two ticks each.
+        // (unhalted level tick >> 1) & 3: four beats, two ticks each.
         // Prepare
         final KoopaTroopa troopa = kickedShell(true);
         final int[] beatsByTick = new int[9];
@@ -648,10 +641,9 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("No beat of the roll is mirrored, and the roll ignores the facing entirely")
     void noBeatOfTheRollIsMirrored() {
-        // AND #~SPR_HFLIP / ORA ObjShell_AnimFlipBits,Y (dasm prg000.asm:2657-2660): the roll CLEARS the
-        // facing's flip and rewrites it from the beat table, so a shell going left and one going right
-        // are drawn identically. What the table then asks for - beat 4 mirroring beat 2 - is shipped as
-        // art (koopa_troopa_shell_spin_3.png), so the beat picks a texture and nothing picks a flip.
+        // The roll CLEARS the facing's flip and rewrites it from the beat table, so a shell going left and
+        // one going right are drawn identically. What the table then asks for - beat 4 mirroring beat 2 - is
+        // shipped as art (koopa_troopa_shell_spin_3.png), so the beat picks a texture and nothing picks a flip.
         // Prepare
         final KoopaTroopa rightward = kickedShell(true);
         final KoopaTroopa leftward = kickedShell(false);

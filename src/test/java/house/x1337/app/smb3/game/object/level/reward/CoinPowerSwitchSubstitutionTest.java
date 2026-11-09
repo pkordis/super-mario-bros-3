@@ -99,7 +99,7 @@ class CoinPowerSwitchSubstitutionTest {
         assertFalse(coin.isCollidable(), "a coin is walked through");
 
         powerSwitchTimeWindow.activate();
-        assertTrue(coin.isCollidable(), "a substituted coin reads as a solid brick (PostPSwitchAttr $03)");
+        assertTrue(coin.isCollidable(), "a substituted coin reads as a solid brick");
 
         powerSwitchTimeWindow.reset();
         assertFalse(coin.isCollidable(), "the level grid is never rewritten, so the coin returns as-is");
@@ -117,7 +117,7 @@ class CoinPowerSwitchSubstitutionTest {
         coin.onCollisionWith(player);
 
         // Verify
-        assertFalse(coin.isCollected(), "the coin branch of Player_DoSpecialTiles no longer matches");
+        assertFalse(coin.isCollected(), "the coin pickup no longer applies to it");
         verifyNoInteractions(coinAnimator);
     }
 
@@ -154,10 +154,10 @@ class CoinPowerSwitchSubstitutionTest {
         verify(brickBlockMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
         verify(coinAnimator).unregisterAt(COIN_OFFSET);
         verify(collisionGrid).removeLevelObjectAt(COIN_OFFSET);
-        // LATP_Brick: STA Score_Earned with $01, i.e. 10 points.
+        // Smashing a brick scores 10 points.
         assertEquals(10, playerData.getScore());
 
-        // CHNGTILE_DELETETOBG writes the background tile into the level's own tile map, so the coin does
+        // The smash writes the background tile into the level's own tile map, so the coin does
         // not return when the window closes.
         powerSwitchTimeWindow.reset();
         assertTrue(coin.isCollected());
@@ -192,7 +192,7 @@ class CoinPowerSwitchSubstitutionTest {
         // Execute
         coin.onTailAttack(player);
 
-        // Verify - dasm prg008.asm:5233, CPX #$04 / BEQ PRG008_B84E busts before the suit test.
+        // Verify - the tail breaks the brick before any suit check.
         verify(brickBlockMotionManager).spawnBreak(gameEngine, COIN_OFFSET);
         assertTrue(coin.isCollected());
     }

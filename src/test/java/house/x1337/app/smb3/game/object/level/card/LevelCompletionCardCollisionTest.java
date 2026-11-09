@@ -27,9 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The card is hit-tested with bound box 1 ({@code OAT_BOUNDBOX01}: left 1, width 13, top 2, height 8; dasm
- * prg000.asm:277-290, 363), the top half of its sprite, against the player's object box, and it is tail-attack
- * immune ({@code OA3_TAILATKIMMUNE}, prg002.asm:273).
+ * The card is hit-tested with a bound box of left 1, width 13, top 2, height 8, the top half of its sprite, against
+ * the player's object box, and it is immune to the tail attack.
  */
 class LevelCompletionCardCollisionTest {
     private static final Coordinates CELL = of(4, 3);

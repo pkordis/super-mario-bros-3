@@ -87,7 +87,7 @@ class CollisionGridStompDispatchTest {
     }
 
     @Test
-    @DisplayName("Head-butting a tile from below never notifies it from above (ROM rejects head probes)")
+    @DisplayName("Head-butting a tile from below never notifies it from above (head probes are rejected)")
     void risingIntoTileDoesNotDispatchFromAbove() {
         // Prepare
         // Rising: the vertical probe is the head at y + 6. y = 74 -> 80, i.e. row 5.

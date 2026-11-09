@@ -36,35 +36,30 @@ import static java.lang.Math.floor;
 /**
  * A Super Mushroom power-up.
  *
- * <h2>Motion — ported from dasm {@code prg001.asm}</h2>
+ * <h2>Motion</h2>
  * <p>Unlike the {@link SuperLeaf} (which pops up ballistically then flutters and ignores the
- * world), the mushroom follows the {@code ObjInit_PUpMush} / {@code ObjNorm_PUpMush} contract and
- * is a genuine <em>ground-walking</em> item. It has two phases:
+ * world), the mushroom is a genuine <em>ground-walking</em> item. It has two phases:
  *
  * <ol>
- *   <li><b>Rise ({@code PowerUp_DoRaise} @ PRG001_A8C6).</b> The block spawns the mushroom one pixel
- *       above its own cell (prg001.asm:2282-2289, {@code SUB #$01}). The object's timer starts at
- *       {@code $3d} (61 frames). While it is still {@code >= $2d} (the first 16 frames) the routine
- *       branches straight out: no move, no draw, no hit test. Below {@code $2d} the mushroom creeps
- *       up exactly 1 px every 3 frames (dasm decrements {@code Objects_Var1} from 2 and nudges
- *       {@code Objects_Y} by −1 on underflow): 15 px, which with the spawn pixel is exactly one tile.
- *       The collect protection ({@code Objects_Timer2 = $10}) runs out on the last hold frame, so the
- *       first rise frame is already collectable; what limits the pickup is the {@code OAT_BOUNDBOX01}
- *       box ({@link RewardLevelObject#getBounds()}), which must reach the player's.</li>
- *   <li><b>Move ({@code ObjNorm_PUpMush} @ PRG001_A735).</b> Gravity ({@code OBJECT_FALLRATE = $03}
- *       per frame, capped at {@code OBJECT_MAXFALL = $40}) pulls it onto the block it emerged from;
- *       once grounded with no horizontal velocity, {@code PowerUp_BounceXVel} kicks it rolling at a
- *       constant {@code $10} (1 px/frame) <em>away</em> from the player (fall direction chosen by
- *       {@code Mushroom_SetFall} @ PRG001_A94A). {@code Object_InteractWithWorld} then walks it
- *       across the static tile grid: it rests on solid floors and reverses direction
- *       ({@code Object_AboutFace}) when it runs into a wall.</li>
+ *   <li><b>Rise.</b> The block spawns the mushroom one pixel above its own cell. The rise timer
+ *       starts at 61 frames. While it is still {@code >= 45} (the first 16 frames) the mushroom
+ *       holds: no move, no draw, no hit test. Below 45 the mushroom creeps up exactly 1 px every
+ *       3 frames: 15 px, which with the spawn pixel is exactly one tile. The collect protection
+ *       (16 frames) runs out on the last hold frame, so the first rise frame is already collectable;
+ *       what limits the pickup is the hitbox ({@link RewardLevelObject#getBounds()}), which must
+ *       reach the player's.</li>
+ *   <li><b>Move.</b> Gravity (3 per frame, capped at 64) pulls it onto the block it emerged from;
+ *       once grounded with no horizontal velocity, it is kicked rolling at a constant 16 (1 px/frame)
+ *       <em>away</em> from the player (the direction is chosen when it spawns). It then walks across
+ *       the static tile grid: it rests on solid floors and reverses direction when it runs into a
+ *       wall.</li>
  * </ol>
  *
  * <p>All velocities are 4.4 fixed-point ({@code value/16 == px/frame}), carried in a
  * {@link house.x1337.app.smb3.model.game.motion.FixedPointVelocity}. World collision is resolved
  * directly against the scene's {@link StaticEnvironmentCollisionGrid} — the same tile-aligned solids
  * the player uses — which is why the mushroom, alone among the reward items so far, needs a
- * reference to it. ({@code ObjHit_PUpMush} also grows the player / grants the Super suit; that suit
+ * reference to it. (Collecting it also grows the player / grants the Super suit; that suit
  * change is still deferred, exactly as the leaf's Raccoon grant is.)
  */
 @Data
@@ -78,7 +73,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private static final int X_MOVE_SPEED_FIXED_POINT = 16;
     private static final int GRAVITY_FIXED_POINT = 3;
     private static final int MAX_FALL_FIXED_POINT = 64;
-    private static final int BLOCK_BUMP_YVEL = -48;
+    private static final int BLOCK_BUMP_Y_VELOCITY = -48;
     private static final int SPRITE_SIZE_PIXELS = TILE_SPRITE_SIZE;
 
     @Value("house.x1337.app.smb3.enumeration.resource.SuperMushroomImageResource")
@@ -109,11 +104,11 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     public void configure(final SuperMushroomVariantData variantData) {
         variantData.applyTo(this);
 
-        // One pixel above the block cell's origin (prg001.asm:2282-2289): the 15 px creep then ends
+        // One pixel above the block cell's origin: the 15 px creep then ends
         // exactly on the block's top edge.
         position = PixelPosition.ofTile(offset).plusY(SPAWN_Y_OFFSET_PIXELS);
         riseTimer = RISE_TIMER_INITIAL;
-        // dasm Mushroom_SetFall: the mushroom rolls AWAY from the player once it lands.
+        // The mushroom rolls AWAY from the player once it lands.
         fallDirectionRight = position.x() >= closestPlayerCenterX() - SPRITE_SIZE_PIXELS / 2.0;
 
         final ImageResource imageResource = getImageResource();
@@ -146,16 +141,15 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * Slow emerge out of the box (dasm {@code PowerUp_DoRaise}): after the initial hold, creep up
-     * one pixel every {@link #RISE_PIXEL_INTERVAL_FRAMES} frames until the timer expires.
+     * Slow emerge out of the box: after the initial hold, creep up one pixel every
+     * {@link #RISE_PIXEL_INTERVAL_FRAMES} frames until the timer expires.
      */
     private void tickRise() {
         riseTimer--;
         if (riseTimer <= 0) {
             // Rise complete: hand over to the walking phase. The creep has already put the feet flush
-            // on the block's top edge, so the first walking frame lands it without moving it (dasm
-            // returns from PowerUp_DoRaise into ObjNorm_PUpMush's ground/wall handling). Reveal the
-            // whole sprite again.
+            // on the block's top edge, so the first walking frame lands it without moving it, and the
+            // walking phase's ground/wall handling takes over from there. Reveal the whole sprite again.
             rising = false;
             restoreFullSprite();
             positionSprite();
@@ -172,9 +166,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         }
 
         // Show only the part that has emerged above the block's top edge, so the block appears to
-        // contain the rest — the NES uses a masking sprite for the same effect (PowerUp_DoRaise draws
-        // tile $77 behind the background over the lower part). We clip the quad instead, which is
-        // independent of render-bucket/Z ordering.
+        // contain the rest. The quad is clipped, which is independent of render-bucket/Z ordering.
         clipToEmergedPortion();
         positionSprite();
     }
@@ -189,24 +181,23 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * Walking phase (dasm {@code ObjNorm_PUpMush} + {@code Object_InteractWithWorld}): apply the
-     * constant ground speed once resting, then gravity, then move and collide against the static
-     * tile grid — resting on floors, reversing at walls.
+     * Walking phase: apply the constant ground speed once resting, then gravity, then move and
+     * collide against the static tile grid — resting on floors, reversing at walls.
      */
     private void tickMoving() {
-        // dasm: DetStat & $04 (on ground) && XVel == 0 -> PowerUp_BounceXVel kicks it rolling.
+        // On the ground with no horizontal velocity: kick it rolling.
         if (grounded && velocity.stationaryX()) {
             velocity = velocity.directedX(fallDirectionRight, X_MOVE_SPEED_FIXED_POINT);
         }
 
-        // Gravity (dasm Object_ApplyGravity): YVel += fall rate, capped at terminal velocity.
+        // Gravity: Y velocity += fall rate, capped at terminal velocity.
         velocity = velocity.falling(GRAVITY_FIXED_POINT, MAX_FALL_FIXED_POINT);
 
         moveHorizontally();
         moveVertically();
 
-        // dasm Object_InteractWithWorld @ PRG001_A97C: after moving/landing, if the block at our
-        // feet is mid-bump, launch upward and about-face to stay over it.
+        // After moving/landing, if the block at our feet is mid-bump, launch upward and about-face
+        // to stay over it.
         reactToBlockBumpBelow();
 
         positionSprite();
@@ -214,7 +205,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
 
     /**
      * Advances the mushroom horizontally, reversing its velocity if the leading edge would enter a
-     * solid tile (dasm {@code Object_AboutFace}).
+     * solid tile.
      */
     private void moveHorizontally() {
         final PixelPosition proposed = position.steppedX(velocity);
@@ -227,7 +218,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
 
     /**
      * Advances the mushroom vertically; if it would land on a solid tile, aligns its feet to that
-     * tile's top edge and zeroes the fall (dasm {@code Object_HitGround}).
+     * tile's top edge and zeroes the fall.
      */
     private void moveVertically() {
         final PixelPosition proposed = position.steppedY(velocity);
@@ -243,12 +234,11 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * Reacts to the block the mushroom is resting on being bumped from below this tick (dasm
-     * {@code Object_InteractWithWorld} @ PRG001_A97C, the {@code Object_TileFeet2 ==
-     * TILEA_BLOCKBUMP_CLEAR} branch). Only fires while grounded — a launched mushroom is airborne
-     * and off the tile, so it will not re-trigger until it lands again, by which point the 10-frame
-     * bounce is long over. The launch is a fixed upward velocity; the horizontal direction is
-     * <em>not</em> player-dependent (that is the enemy path, {@code Object_HandleBumpUnderneath}).
+     * Reacts to the block the mushroom is resting on being bumped from below this tick. Only fires
+     * while grounded — a launched mushroom is airborne and off the tile, so it will not re-trigger
+     * until it lands again, by which point the 10-frame bounce is long over. The launch is a fixed
+     * upward velocity; the horizontal direction is <em>not</em> player-dependent (that is the enemy
+     * path).
      */
     private void reactToBlockBumpBelow() {
         if (!grounded) {
@@ -259,21 +249,20 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
         if (!getCollisionGrid().isBlockBumpActiveAt(of(centerColumn, feetRow))) {
             return;
         }
-        velocity = velocity.withY(BLOCK_BUMP_YVEL);
+        velocity = velocity.withY(BLOCK_BUMP_Y_VELOCITY);
         grounded = false;
         applyBumpAboutFace();
     }
 
     /**
-     * The sub-tile about-face from dasm {@code Object_InteractWithWorld} @ PRG001_A97C:
-     * {@code (Objects_X << 4) EOR Objects_XVel}, testing bit 7. Reversing exactly when bit 3 of the
-     * X position (the right half of the 16 px tile) differs from the X-velocity sign means the
+     * The sub-tile about-face after a block bump. Reversing exactly when bit 3 of the X position
+     * (the right half of the 16 px tile) differs from the X-velocity sign means the
      * mushroom turns around only when it is heading toward the near tile edge — nudging it back
      * over the block it was bumped off, rather than walking straight off.
      */
     private void applyBumpAboutFace() {
-        final int subTileX = ((int) floor(position.x())) & 0x0f;
-        final boolean inRightHalf = subTileX >= 0x08;
+        final int subTileX = ((int) floor(position.x())) & 15;
+        final boolean inRightHalf = subTileX >= 8;
         if (inRightHalf ^ velocity.movingLeft()) {
             velocity = velocity.negatedX();
         }
@@ -287,7 +276,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     /**
      * Collects the mushroom: awards {@link #rewardType} once and flags it collected. Like the
      * leaf, it lingers one more rendered frame (its manager removes it next tick) so it shares a
-     * single frame with the freshly spawned "1000" caption. ({@code ObjHit_PUpMush} also grows the
+     * single frame with the freshly spawned "1000" caption. (Collecting it also grows the
      * player; that suit change is still deferred.)
      *
      * @param levelScenePlayer the player that collected the mushroom
@@ -301,18 +290,17 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
             .getPlayerData()
             .add(rewardType.getData());
         collected = true;
-        // dasm ObjHit_PUpMush: a small player grows into Super (mode SHRUNK →
+        // A small player grows into Super (mode SHRUNK →
         // NORMAL) via the grow transition; a player who is already big just
-        // banks the points, so this no-ops for them.
+        // keeps the points, so this no-ops for them.
         levelScenePlayer.onRewardConsumption(this);
     }
 
     /**
-     * Whether the hit test runs this frame, which is all {@code PowerUp_DoHitTest} gates: not during the
-     * hold, where {@code PowerUp_DoRaise} never reaches it, and not while {@code Objects_Timer2} runs. The
-     * two end together, so in practice this opens on the first rise frame, with one pixel of the
-     * mushroom out of the block. There is deliberately no "far enough out" threshold: the ROM has none,
-     * and the {@link #getBounds() box} is what keeps a hidden mushroom out of reach. Its manager keeps it
+     * Whether the hit test runs this frame: not during the hold, and not while the collect protection
+     * runs. The two end together, so in practice this opens on the first rise frame, with one pixel of
+     * the mushroom out of the block. There is deliberately no "far enough out" threshold, and the
+     * {@link #getBounds() box} is what keeps a hidden mushroom out of reach. Its manager keeps it
      * out of the collision broadphase until then.
      *
      * @return {@code true} once the mushroom can be collected
@@ -328,10 +316,8 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * The mushroom disappears on contact (dasm {@code ObjHit_PUpMush} sets it
-     * {@code OBJSTATE_DEADEMPTY} immediately): it is detached the same tick it is
-     * collected, before the grow freeze begins, leaving only its rising "1000"
-     * caption on screen during the transition.
+     * The mushroom disappears on contact: it is detached the same tick it is collected, before the
+     * grow freeze begins, leaving only its rising "1000" caption on screen during the transition.
      */
     @Override
     public boolean detachesOnCollect() {
@@ -364,7 +350,7 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
      * up exactly with the block's top edge (see {@link #positionSprite()} for the world placement).
      *
      * <p>The spawn pixel puts the sprite's top one pixel above the block before the creep begins, so
-     * the hold is hidden explicitly: {@code PowerUp_DoRaise} does not draw the mushroom at all then.
+     * the hold is hidden explicitly: the mushroom is not drawn at all then.
      */
     private void clipToEmergedPortion() {
         final float spriteWidth = spriteDimensions.width();

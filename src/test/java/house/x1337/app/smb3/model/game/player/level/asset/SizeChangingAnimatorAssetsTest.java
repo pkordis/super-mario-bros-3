@@ -8,9 +8,9 @@ import static house.x1337.app.smb3.model.game.player.level.asset.SizeChangingAni
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins the direction of the shared size-change animation. One {@code Player_Grow} counter and one frame
- * table drive both the Shrunk→Normal grow and the Normal→Shrunk shrink; the ROM tells them apart by
- * reversing the table index when the suit is small (prg029 @ PRG029_D22E). The regression this guards:
+ * Pins the direction of the shared size-change animation. One size-change counter and one frame
+ * table drive both the Shrunk→Normal grow and the Normal→Shrunk shrink; they are told apart by
+ * reversing the table index when the suit is small. The regression this guards:
  * a shrink that played the grow sequence and only snapped small once the counter hit zero, so the
  * player appeared to grow big and then pop back to small.
  */
@@ -21,7 +21,7 @@ class SizeChangingAnimatorAssetsTest {
     @Test
     @DisplayName("The grow settles on the normal frame as its counter drains to zero")
     void growEndsOnNormal() {
-        // The forward read: X = Player_Grow >> 2. Prepare / Execute at the end of the countdown
+        // The forward read: table index = counter >> 2. Prepare / Execute at the end of the countdown
         final int lastGrowFrame = frameIndexFor(0, false);
 
         // Verify
@@ -31,7 +31,7 @@ class SizeChangingAnimatorAssetsTest {
     @Test
     @DisplayName("The shrink does not settle on the normal frame — it trends the other way")
     void shrinkDoesNotEndOnNormal() {
-        // The reversed read: X = $0B - (Player_Grow >> 2). The last transition frame must not be the
+        // The reversed read: table index = 11 - (counter >> 2). The last transition frame must not be the
         // normal frame, which was the bug — the shrink previously replayed the grow and ended big.
         // Prepare / Execute at the end of the countdown
         final int lastShrinkFrame = frameIndexFor(0, true);
@@ -50,7 +50,7 @@ class SizeChangingAnimatorAssetsTest {
         boolean shrunkSeenLate = false;
         final int half = NORMAL_TRANSITION_TICKS / 2;
 
-        // Execute - walk the counter from full ($2f) down to zero, as the game does
+        // Execute - walk the counter from full (47) down to zero, as a real transition does
         for (int counter = NORMAL_TRANSITION_TICKS; counter >= 0; counter--) {
             final int frame = frameIndexFor(counter, true);
             if (counter > half && frame == NORMAL) {

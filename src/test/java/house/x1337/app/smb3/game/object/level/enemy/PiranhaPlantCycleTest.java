@@ -24,9 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The pipe plant's cycle, {@code ObjNorm_Piranha} (dasm prg005.asm:1285-1690): {@code Var4 & 3} picks
- * hide, emerge, attack or retract, every change sets {@code Objects_Timer = $30}, and the object loop runs
- * that timer down before the handler (prg000.asm:1855).
+ * The pipe plant's cycle: the low two bits of its state counter pick hide, emerge, attack or retract,
+ * every change sets the state timer to 48, and the object loop runs that timer down before the plant's
+ * own update.
  */
 class PiranhaPlantCycleTest {
     private static final double TOLERANCE = 1e-9;
@@ -77,7 +77,7 @@ class PiranhaPlantCycleTest {
         // Prepare & Execute - the starter is the cell above the pipe's top-left tile
         final PiranhaPlant plant = world.spawnedPlant(GREEN);
 
-        // Verify - the pipe's top-left tile is the ROM object's cell; ObjInit_GreenPiranha: Var5 = Y, X += 8
+        // Verify - the pipe's top-left tile is the placed object's cell; the origin is its Y, and X moves 8 px right
         assertThat(plant.getOffset().y()).isEqualTo(PIPE_ROW - 1);
         assertThat(plant.getState()).isEqualTo(HIDDEN);
         assertThat(plant.getPosition().x()).isCloseTo(PLANT_X, within(TOLERANCE));
@@ -106,8 +106,8 @@ class PiranhaPlantCycleTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("The green plant follows the ROM's cycle tick for tick: 25 px up, then 48 out, 24 down, 48 in")
-    void theGreenCycleMatchesTheRom() {
+    @DisplayName("The green plant follows its cycle tick for tick: 25 px up, then 48 out, 24 down, 48 in")
+    void theGreenPlantFollowsItsCycleTickForTick() {
         // Prepare
         final PiranhaPlant plant = world.plant(GREEN);
         int tick = 0;
@@ -143,7 +143,7 @@ class PiranhaPlantCycleTest {
             previousY = y;
         }
 
-        // Verify - YVel = -$10 / +$10, 1.0 px with no fraction left over
+        // Verify - a vertical velocity of -16 / +16 sub-pixel units, 1.0 px with no fraction left over
         assertThat(steps).containsOnly(-1.0, 1.0);
         assertThat(steps.stream().filter(step -> step < 0).count()).as("25 up, then 24 up").isEqualTo(49);
     }
@@ -166,7 +166,7 @@ class PiranhaPlantCycleTest {
 
         // Verify
         assertThat(plant.getState()).isEqualTo(OUT);
-        assertThat(plant.getStateTimer()).isEqualTo(0x30);
+        assertThat(plant.getStateTimer()).isEqualTo(48);
     }
 
     // -------------------------------------------------------------------------
@@ -271,7 +271,7 @@ class PiranhaPlantCycleTest {
             }
         }
 
-        // Verify - (Var3 >> 3) & 1, read before Var3++
+        // Verify - (animation counter >> 3) & 1, read before the counter advances
         assertThat(changes).hasSizeGreaterThan(20);
         for (int change = 1; change < changes.size(); change++) {
             assertThat(changes.get(change) - changes.get(change - 1)).as("Change %d", change).isEqualTo(8);

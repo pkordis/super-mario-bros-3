@@ -4,7 +4,7 @@ import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_END_LEVEL_XVEL;
+import static house.x1337.app.smb3.GameConstants.PLAYER_END_LEVEL_X_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
@@ -39,7 +39,7 @@ public interface LevelScenePlayerRunningOffCapabilities
 
     default void applyRunOffWalk() {
         getOrientation().setHorizontal(RIGHT);
-        getPosition().setDX(getRuntimeState().isInAir() ? 0 : PLAYER_END_LEVEL_XVEL);
+        getPosition().setDX(getRuntimeState().isInAir() ? 0 : PLAYER_END_LEVEL_X_VELOCITY);
     }
 
     default boolean isPastTheLevelsRightEdge() {
@@ -54,8 +54,8 @@ public interface LevelScenePlayerRunningOffCapabilities
         position.snapshotPrevious();
         runtimeState.setTo(WALKING);
         position.setDY(0);
-        position.setDX(PLAYER_END_LEVEL_XVEL);
-        position.addToX(PLAYER_END_LEVEL_XVEL);
+        position.setDX(PLAYER_END_LEVEL_X_VELOCITY);
+        position.addToX(PLAYER_END_LEVEL_X_VELOCITY);
         handlePowerMeterAndRunFlag(getInputHandler());
         advanceAnimation();
         updateVerticalScroll();

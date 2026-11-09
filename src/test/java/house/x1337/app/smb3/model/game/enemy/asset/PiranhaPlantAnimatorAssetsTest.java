@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pins the Piranha Plant's bundles: two 16x16 heads and one 16x16 stem per colour. The stem is green in
- * both, because {@code ObjNorm_Piranha} forces {@code SPR_PAL2} on it (dasm prg005.asm:1407-1430).
+ * both, because the stem is always drawn in the green sprite palette.
  */
 class PiranhaPlantAnimatorAssetsTest {
     private static final List<String> CONTEXTS = List.of(

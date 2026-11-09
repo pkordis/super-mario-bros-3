@@ -49,10 +49,8 @@ import static org.mockito.Mockito.when;
  * SMB3-19: an enemy's body and its extra quads (a Para-Goomba's wings, a waking shell's feet) are drawn
  * as one unit against every other enemy, because each enemy owns its own base depth.
  *
- * <p>The ROM's version of the guarantee is the per-object {@code Sprite_RAM} block ({@code SprRamOffsets},
- * dasm prg000.asm:590): one object's sprites never interleave with another's. Inside the block, the wings
- * ({@code ParaGoomba_Draw}, prg004.asm:3130) and the feet (prg000.asm:2398) take the slots after the body,
- * so they pass behind it.
+ * <p>One enemy's sprites must never interleave with another's. Within one enemy, the wings and the feet
+ * come after the body in draw order, so they pass behind it.
  *
  * <p>Before the fix every wing and foot shared one global depth below every body, so overlapping enemies
  * interleaved: one Para-Goomba's body in front of another enemy while its wings stayed behind it.
@@ -128,8 +126,8 @@ class EnemyDepthOrderTest {
     @Test
     @DisplayName("A Koopa Paratroopa's wing is in front of its own body, and the pair sorts as one unit")
     void aParatroopaAndAParaGoombaNeverInterleave() {
-        // Prepare - the paratroopa's wing is the one part drawn in front of its body (Troopa_Draw writes it
-        // to Sprite_RAM-$08), so it is the one most able to cover another enemy's parts
+        // Prepare - the paratroopa's wing is the one part drawn in front of its body, so it is the one most
+        // able to cover another enemy's parts
         final EnemyDepthAllocator allocator = new EnemyDepthAllocator();
         final KoopaParaTroopa paratroopa = new KoopaParaTroopa(gameEngine, of(ENEMY_COLUMN, ENEMY_ROW));
         paratroopa.init();
@@ -221,7 +219,7 @@ class EnemyDepthOrderTest {
         // Execute
         final ParaGoomba paraGoomba = paraGoombaWithDepth(baseDepth);
 
-        // Verify - OAM slots +$08/+$0C after the body's +$00/+$04
+        // Verify - the wings come after the body in draw order
         assertThat(depthOf(paraGoomba.getSpriteGeometry())).isCloseTo(baseDepth, within(TOLERANCE));
         assertThat(depthOf(paraGoomba.getLeftWingGeometry()))
             .isCloseTo(baseDepth - Z_OFFSET_ENEMY_DETAIL, within(TOLERANCE));
@@ -239,7 +237,7 @@ class EnemyDepthOrderTest {
         final KoopaTroopa upright = wakingShellWithDepth(baseDepth, false);
         final KoopaTroopa upsideDown = wakingShellWithDepth(baseDepth, true);
 
-        // Verify - Sprite_RAM+$08/+$0C against the shell's +$00/+$04 (prg000.asm:2398)
+        // Verify - the feet come after the shell in draw order
         for (final KoopaTroopa shell : List.of(upright, upsideDown)) {
             assertThat(depthOf(shell.getShellGeometry()))
                 .as("Upside down: %s", shell.isUpsideDown())

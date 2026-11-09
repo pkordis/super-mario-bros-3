@@ -113,7 +113,7 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("no strike is dispatched on a non-strike frame, even while the tail overlaps")
     void noStrikeOutsideTheStrikeFrames() {
-        // Prepare — same overlap, but the player reports it is not on a kick frame ($0C / $09).
+        // Prepare — same overlap, but the player reports it is not on a kick frame (12 / 9).
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
@@ -132,8 +132,8 @@ class ActiveObjectGridTest {
     @DisplayName("only objects inserted this tick can be struck — a cleared grid strikes nothing")
     void aClearedGridStrikesNothing() {
         // Pins the timing guarantee the pass exists to provide: the tail resolves against the grid as
-        // the motion managers left it this tick (dasm prg000 @ PRG000_C9B6 — each object is tested
-        // right after it moves), so an object the managers retired is unreachable.
+        // the motion managers left it this tick (each object is tested right after it moves), so an
+        // object the managers retired is unreachable.
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject retired = new StubObject(AxisAlignedBoundingBox.ofSize(20, 0, dimensions));
@@ -152,12 +152,10 @@ class ActiveObjectGridTest {
     @DisplayName("An enemy close enough to touch is hurt-then-struck on the same tick, body hit first")
     void bodyHitLandsBeforeTheTailStrikeOnTheSameTick() {
         // Prepare — a 16x16 enemy wedged into the seam: its box clips the player's body box by 1px and
-        // sits inside the tail box as well. The ROM resolves both, in this order, on one frame — per
-        // object slot it runs Object_DoStateAction first, and a ground troop's handler ends in
-        // Object_HandleBumpUnderneath which tail-calls Player_HitEnemy, before
-        // Object_HitByTailOrBouncer is reached at all (dasm prg000 @ PRG000_C9B6). So the player can be
-        // hurt by the very enemy this frame's swing kills; that is the original's behaviour, not a bug
-        // to be ordered away.
+        // sits inside the tail box as well. Both resolve, in this order, on one frame: each object's
+        // body contact with the player is handled before the tail strike is checked at all. So the
+        // player can be hurt by the very enemy this frame's swing kills; that is intended behaviour,
+        // not a bug to be ordered away.
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(12, 80);
         grid.insert(enemy);
@@ -199,10 +197,10 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a stomp needs no horizontal centring — clipping the enemy's edge counts")
     void stompDoesNotRequireHorizontalCentring() {
-        // Prepare — the player's hitbox is [10,22], overlapping the enemy's [20,36] by just 2px. The ROM
-        // never looks at the horizontal axis to decide a stomp (Player_HitEnemy @ PRG000_D218); an
-        // earlier least-overlapping-axis rule here demanded roughly half the player's width on the
-        // enemy, which is what made stomps feel like they needed dead-centre aim.
+        // Prepare — the player's hitbox is [10,22], overlapping the enemy's [20,36] by just 2px. The
+        // horizontal axis is never consulted to decide a stomp; an earlier least-overlapping-axis rule
+        // here demanded roughly half the player's width on the enemy, which is what made stomps feel
+        // like they needed dead-centre aim.
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
         grid.insert(enemy);
@@ -220,8 +218,8 @@ class ActiveObjectGridTest {
     @DisplayName("landing across two adjacent objects stomps both in the same tick")
     void landingBetweenTwoObjectsStompsBoth() {
         // Prepare — two enemies flush side by side, [20,36] and [36,52]; the player straddles the seam
-        // with 6px on each. Each object is hit-tested independently, exactly as the ROM's object loop
-        // reaches Player_HitEnemy once per object, so both are pressed on the same frame.
+        // with 6px on each. Each object is hit-tested against the player independently, once per
+        // object, so both are pressed on the same frame.
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject leftEnemy = enemyAt(20, 80);
         final StubObject rightEnemy = enemyAt(36, 80);
@@ -241,7 +239,7 @@ class ActiveObjectGridTest {
     @DisplayName("a stomp registers on the very first tick of contact, at any fall speed")
     void stompRegistersOnFirstContactTick() {
         // Prepare — a fast fall breaks the enemy's top edge by 4px on the tick it is first detected.
-        // There is no minimum sink depth in the ROM, and a depth requirement scaled badly with speed:
+        // A stomp needs no minimum sink depth, and a depth requirement scaled badly with speed:
         // the faster the fall, the more horizontal overlap the old axis rule demanded alongside it.
         final ActiveObjectGrid<StubObject> grid = newGrid();
         final StubObject enemy = enemyAt(20, 80);
@@ -270,7 +268,7 @@ class ActiveObjectGridTest {
         grid.resolveActiveObjectCollisions(List.of(player));
 
         // Verify
-        assertThat(enemy.overlapCount).as("onPlayerOverlap — the ROM hurts the player here").isEqualTo(1);
+        assertThat(enemy.overlapCount).as("onPlayerOverlap — the player is hurt here").isEqualTo(1);
         assertThat(enemy.fromAboveCount).isZero();
         assertThat(enemy.fromBelowCount).isZero();
     }
@@ -325,7 +323,7 @@ class ActiveObjectGridTest {
         // Execute
         grid.resolveActiveObjectCollisions(List.of(player));
 
-        // Verify - OA3_NOTSTOMPABLE jumps straight to the hurt path (PRG000_D267)
+        // Verify - a not-stompable object goes straight to the hurt path
         assertThat(plant.overlapCount).isEqualTo(1);
         assertThat(plant.fromAboveCount).isZero();
     }
@@ -412,7 +410,7 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a bouncing object is unaffected by one that does not bounce")
     void nonBouncingNeighbourIsIgnored() {
-        // Prepare — a walker overlapping a reward-like object side-on. The ROM checks the attribute flag
+        // Prepare — a walker overlapping a reward-like object side-on. The bounce flag is checked
         // before turning anything, so a coin must not steer an enemy.
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -493,8 +491,8 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a kicked object is handed every object it overlaps, and nothing else is")
     void theKickedPassDispatchesOnlyForKickedObjects() {
-        // ObjectToObject_HitTest from inside ObjState_Kicked (dasm prg000 @ PRG000_CD05). A second,
-        // lethal interaction beside resolveObjectToObjectBumps rather than folded into it.
+        // The kicked state's own hit test: a second, lethal interaction beside
+        // resolveObjectToObjectBumps rather than folded into it.
         // Prepare — a rolling shell overlapping one walker, with a second walker out of reach
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -540,8 +538,8 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a kicked object that dies on its first contact kills nothing further that tick")
     void aShellThatDiesMidPassStopsKilling() {
-        // Two kicked shells meeting kill each other (dasm prg000.asm:2610-2627), so the striker can stop
-        // being a hazard partway through its own candidate list - and must not keep mowing down the rest.
+        // Two kicked shells meeting kill each other, so the striker can stop being a hazard partway
+        // through its own candidate list - and must not keep mowing down the rest.
         // Prepare — a shell overlapping two neighbours, which stops being kicked on its first strike
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -565,8 +563,8 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a carried object is handed every object it overlaps, and nothing else is")
     void theCarriedPassDispatchesOnlyForCarriedObjects() {
-        // ObjState_Held's own ObjectToObject_HitTest (dasm prg000.asm:3094). A third pass beside the
-        // facing bump and the kicked kill, because the ROM keeps all three in separate routines.
+        // The carried state's own hit test: a third pass beside the facing bump and the kicked kill,
+        // because all three belong to different object states.
         // Prepare — a held shell overlapping one walker, with a second walker out of reach
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -590,8 +588,8 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a carried object takes exactly one victim, because the contact kills it too")
     void aCarriedObjectTakesOnlyOneVictim() {
-        // Both slots get OBJSTATE_KILLED (prg000.asm:3106-3120), so unlike a rolling shell the carried one
-        // cannot go on. Standing between two enemies therefore costs you the shell for one of them.
+        // Both objects are killed, so unlike a rolling shell the carried one cannot go on. Standing
+        // between two enemies therefore costs you the shell for one of them.
         // Prepare — a held shell overlapping two neighbours at once
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -614,7 +612,7 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("the kicked and carried passes select from their own candidate lists only")
     void theTwoLethalPassesDoNotOverlap() {
-        // The two hazards are different states in the ROM's table and different routines around it, so a
+        // The two hazards are different object states with different handling around them, so a
         // rolling shell must not be swept up by the carried pass nor a held one by the kicked pass.
         // Prepare
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
@@ -636,10 +634,10 @@ class ActiveObjectGridTest {
     @Test
     @DisplayName("a powerup is invisible to both lethal passes, so ramming one costs nothing")
     void aPowerupIsNotAValidVictim() {
-        // OAT_HITNOTKILL (smb3.asm:3252) names this case outright: "object not killed by being rammed
-        // with held object". ObjectToObject_HitTest tests it on the candidate and does not even report
-        // the collision (prg000.asm:6165-6173), so the striker survives too - which is what lets you
-        // collect a mushroom with a shell in your hands instead of losing the shell to the pickup.
+        // A powerup is an object not killed by being rammed with a held object. The hit test checks
+        // that on the candidate and does not even report the collision, so the striker survives too -
+        // which is what lets you collect a mushroom with a shell in your hands instead of losing the
+        // shell to the pickup.
         // Prepare - a rolling shell and a held one, each overlapping a powerup
         final DimensionsPixels dimensions = new DimensionsPixels(16, 16);
         final ActiveObjectGrid<StubObject> grid = newGrid();
@@ -720,10 +718,9 @@ class ActiveObjectGridTest {
     /**
      * A player double placed as the real one is: {@code positionY} is the reference Y the stomp test
      * measures from, and the hitbox is derived from it exactly as {@code getObjectCollisionBounds()} does
-     * for a large standing player — X spans {@code +3..+13}, Y spans {@code +5..+30} (the ROM's
-     * {@code Player_BoundBox} entry 1). Keeping the two in step is what makes these tests mean anything; a
-     * box detached from the reference Y could satisfy the threshold at a geometry the player can never
-     * actually reach.
+     * for a large standing player — X spans {@code +3..+13}, Y spans {@code +5..+30}. Keeping the two in
+     * step is what makes these tests mean anything; a box detached from the reference Y could satisfy
+     * the threshold at a geometry the player can never actually reach.
      *
      * @param positionX the player's position X in sprite-pixel space
      * @param positionY the player's position Y — its reference top, with the box bottom at {@code +30}
@@ -818,7 +815,7 @@ class ActiveObjectGridTest {
             return this;
         }
 
-        /** Marks this stub {@code OA3_NOTSTOMPABLE}, as a pipe plant is. */
+        /** Marks this stub not stompable, as a pipe plant is. */
         private StubObject notStompable() {
             stompable = false;
             return this;
@@ -835,7 +832,7 @@ class ActiveObjectGridTest {
             return this;
         }
 
-        /** Makes this stub an {@code OAT_HITNOTKILL} object, as every powerup is. */
+        /** Makes this stub an object a rammed object cannot kill, as every powerup is. */
         private StubObject immuneToRamming() {
             rammable = false;
             return this;
@@ -854,7 +851,7 @@ class ActiveObjectGridTest {
         @Override
         public void onCarriedInto(final ActiveLevelObject other) {
             carriedInto.add(other);
-            other.onStruckByKickedObject(0x08);
+            other.onStruckByKickedObject(8);
             // A carry contact always kills the carried object; there is no surviving branch.
             carried = false;
         }
@@ -867,7 +864,7 @@ class ActiveObjectGridTest {
         @Override
         public void onKickedInto(final ActiveLevelObject other) {
             kickedInto.add(other);
-            other.onStruckByKickedObject(0x10);
+            other.onStruckByKickedObject(16);
             if (diesOnFirstStrike) {
                 kicked = false;
             }

@@ -7,8 +7,7 @@ import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A paused timer holds its value and stays on the status bar, as the ROM's clock does when {@code Level_TimerEn}
- * stops it; one that never started is not shown.
+ * A paused timer holds its value and stays on the status bar; one that never started is not shown.
  */
 class PlayerTimerPauseTest {
     @Test

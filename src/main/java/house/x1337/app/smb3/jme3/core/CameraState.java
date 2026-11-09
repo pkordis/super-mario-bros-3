@@ -90,8 +90,8 @@ public class CameraState extends BaseAppState {
         // X always follows the target node. Y may be driven independently by a
         // vertical-scroll provider (see setVerticalScrollProvider) so that
         // horizontal levels can lock the camera to the bottom instead of
-        // tracking the player node on every jump (SMB3 Level_FreeVertScroll
-        // mode 0). When no provider is set the camera follows the target on
+        // tracking the player node on every jump (the free vertical scroll
+        // mode is off). When no provider is set the camera follows the target on
         // both axes, as the world map does.
         final float targetY = verticalScrollProvider != null
             ? (float) verticalScrollProvider.getAsDouble()
@@ -108,11 +108,11 @@ public class CameraState extends BaseAppState {
         );
 
         // The screen shake is applied here, OUTSIDE the level-bounds clamp above and after the
-        // pixel snap, because the ROM writes it to Vert_Scroll_Off - the raw per-frame scroll
-        // offset, downstream of Player_DoScrolling and its limits (dasm prg008 Player_DoVibration).
+        // pixel snap, because it is a raw per-frame scroll offset, applied downstream of the
+        // camera's scrolling and its limits.
         // Folding it into the vertical-scroll provider instead would let clipping.clamp swallow it
         // in a horizontal level, whose view is pinned to the bottom of the clamp range. The offset
-        // is a whole number of NES pixels, so it keeps the snapped position pixel-exact. It is
+        // is a whole number of pixels, so it keeps the snapped position pixel-exact. It is
         // deliberately kept out of `position`, so the active-object region and anything else reading
         // the camera's logical location do not jitter with it.
         final float vibrationOffset = (float) vibrationProvider.getAsDouble();
@@ -198,7 +198,7 @@ public class CameraState extends BaseAppState {
      * The region of the level currently worth simulating for dynamic objects — the visible camera
      * frustum expanded by {@code marginPixels} on every side — expressed in sprite-pixel space.
      * Objects whose bounds fall outside this window can skip their per-tick update and collision
-     * work, mirroring the ROM's bounded object-slot activation where off-screen objects lie dormant.
+     * work, so off-screen objects lie dormant.
      * The margin keeps objects live slightly beyond the edge so they are already moving when they
      * scroll into view.
      *
