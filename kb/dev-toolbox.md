@@ -13,6 +13,7 @@ dev-toolbox/
 ├── video/          # AVI / video file utilities
 ├── image/          # PNG / strip / frame-sequence utilities
 ├── animation/      # Sprite trajectory & offset extraction
+├── audio/          # Waveform analysis (lead-in, tail, clicks)
 └── misc/           # Everything else
 ```
 
@@ -202,6 +203,40 @@ target sprite.
 ```
 python misc/dump_colors.py --input PATH [--x X --y Y --w W --h H] [--top N]
 ```
+
+---
+
+### audio/analyze_waveform.py
+
+Analyses a 16-bit PCM WAV. Needs `numpy`. For an `.ogg`, first decode it to WAV
+with jME's own decoder (load it with an `AudioKey` that is not a stream, then
+write `AudioBuffer.getData()` behind a 44-byte WAV header). That way the
+analysis sees exactly what the game plays.
+
+```
+python audio/analyze_waveform.py --wav PATH [--ogg PATH] [--envelope-ms N] [--range START_MS END_MS]
+python audio/analyze_waveform.py --wav PATH --segments [--gap-ms N] [--silence-db DB]
+```
+
+| Option | Default | Notes |
+|--------|---------|-------|
+| `--wav` | required | 16-bit PCM WAV |
+| `--ogg` | none | The source Ogg. Compares the decoded length with the Ogg's own sample count |
+| `--envelope-ms` | 2 | Window of the printed peak envelopes |
+| `--range` | none | Also print the envelope and every left-channel sample between two times |
+| `--segments` | off | One line per file: each sounding stretch with its start, end, peak and attack |
+| `--gap-ms` | 20 | Silence that separates two segments |
+| `--silence-db` | -70 | Level below which a sample counts as silent |
+
+The default report covers:
+- where the signal first and last crosses -70 to -30 dBFS (the lead-in and the tail)
+- the DC offset
+- the first and last frames
+- the largest sample-to-sample jump near the end, which is where a click would show
+- peak envelopes of the start and of the end
+
+`--segments` is how the recorded pop after the jump was found: it shows up as a
+second, 13 ms segment.
 
 ---
 
