@@ -20,6 +20,7 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.DOWN;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
@@ -141,6 +142,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                 position.setDY(GameConstants.JUMP_FORCE[dx]);
                 runtimeState.setTo(JUMPING);
                 runtimeState.setPlayerWagCount(0);
+                getSoundPlayer().play(JUMP);
                 // Full P-meter launch grants flyTime to ALL suits (the flight
                 // time is set before the suit's abilities are checked). For large suits this
                 // enables actual flight/wag Y-effects; for small Mario flyTime

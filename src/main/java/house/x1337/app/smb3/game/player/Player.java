@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player;
 
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 
@@ -13,6 +14,7 @@ public interface Player
     void interpolateVisualPosition(double alpha);
     void updateInCameraState(CameraState cameraState);
     PlayerPosition getPosition();
+    SoundPlayer getSoundPlayer();
 
     /**
      * Whether this player is currently halting gameplay (set while dying, moving

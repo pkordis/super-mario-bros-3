@@ -15,6 +15,7 @@ import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
@@ -84,9 +85,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private static final double TAIL_ATTACK_BLOCK_PROBE_X_FACING_RIGHT = -6;
     private static final double TAIL_ATTACK_BLOCK_PROBE_Y = 28;
 
+    private final PlayerRuntimeState runtimeState = getBean(PlayerRuntimeState.class);
+    private final SoundPlayer soundPlayer = getBean(SoundPlayer.class);
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
-    private final PlayerRuntimeState runtimeState;
     private final PlayerPosition position;
     private final PlayerOrientation orientation;
     private final PlayerData playerData;
@@ -121,7 +123,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             gameEngine
         );
         this.position = initializePosition();
-        this.runtimeState = getBean(PlayerRuntimeState.class);
         this.verticalScroll = getBean(LevelSceneVerticalScroll.class, getLevelScene());
         this.animationContext = contextForLevel(this);
         this.orientation = new PlayerOrientation(RIGHT, SUSTAINED);

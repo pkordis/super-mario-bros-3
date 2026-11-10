@@ -23,6 +23,8 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.player.level.death.DeathMusicStandIn;
 import house.x1337.app.smb3.game.player.level.death.PlayerDeathSequence;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.sound.OpenAlSoftConfiguration;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
@@ -116,6 +118,8 @@ public final class GameEngine extends GameEngineCapabilities {
         setSettings(settings);
         setShowSettings(false);
 
+        // Before super.start(), which opens the audio device: OpenAL reads its settings only as it loads.
+        getBean(OpenAlSoftConfiguration.class).apply();
         super.start();
     }
 
@@ -152,6 +156,9 @@ public final class GameEngine extends GameEngineCapabilities {
         // so each engine subscribes them once here rather than in @PostConstruct.
         getBean(DeathMusicStandIn.class).subscribe();
         getBean(PlayerDeathSequence.class).subscribe();
+
+        // The sound player is a singleton too: it plays through whichever engine attached itself last.
+        getBean(SoundPlayer.class).attach(this);
 
         // The fading engine is a singleton too, so a fade left running (or the screen held black) by a previous engine
         // must not carry into this one.

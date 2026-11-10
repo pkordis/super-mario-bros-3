@@ -1,0 +1,240 @@
+package house.x1337.app.smb3.game.sound;
+
+import com.jme3.app.Application;
+import com.jme3.asset.AssetManager;
+import com.jme3.audio.AudioBuffer;
+import com.jme3.audio.AudioContext;
+import com.jme3.audio.AudioData;
+import com.jme3.audio.AudioKey;
+import com.jme3.audio.AudioNode;
+import com.jme3.audio.AudioRenderer;
+import com.jme3.util.BufferUtils;
+import house.x1337.app.smb3.enumeration.SoundEffect;
+import house.x1337.app.smb3.event.GameEventBus;
+import house.x1337.app.smb3.model.event.GameEngineStopped;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
+
+import static house.x1337.app.smb3.enumeration.MusicTrack.GRASS_LAND;
+import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link SoundPlayer} against a mocked jME audio renderer, installed as the test thread's audio context the way the
+ * engine installs its own on the update thread.
+ */
+class SoundPlayerTest {
+    private static final int RATE = 1000;
+    private static final int LEAD_IN_FRAMES = 15;
+    private static final int SOUND_FRAMES = 100;
+    private static final int TAIL_FRAMES = 400;
+
+    private final GameEventBus gameEventBus = new GameEventBus();
+    private final AudioRenderer audioRenderer = mock(AudioRenderer.class);
+    private final AssetManager assetManager = mock(AssetManager.class);
+    private final Application application = mock(Application.class);
+    private final SoundPlayer soundPlayer = new SoundPlayer(gameEventBus, new SoundEffectTrimmer());
+
+    @BeforeEach
+    void prepare() {
+        when(assetManager.loadAsset(any(AudioKey.class))).thenAnswer(invocation -> {
+            final AudioKey key = invocation.getArgument(0);
+            return key.isStream() ? mock(AudioData.class) : decodedEffect();
+        });
+        when(application.getAssetManager()).thenReturn(assetManager);
+        when(application.getAudioRenderer()).thenReturn(audioRenderer);
+        AudioContext.setAudioRenderer(audioRenderer);
+    }
+
+    @AfterEach
+    void tearDown() {
+        AudioContext.setAudioRenderer(null);
+    }
+
+    @Test
+    @DisplayName("Before any engine attaches, playing does nothing and does not throw")
+    void beforeAttachingPlayingDoesNothing() {
+        // Execute & Verify
+        assertThatCode(() -> {
+            soundPlayer.play(JUMP);
+            soundPlayer.play(OVERWORLD);
+            soundPlayer.stopMusic();
+        }).doesNotThrowAnyException();
+        verifyNoInteractions(assetManager, audioRenderer);
+    }
+
+    @Test
+    @DisplayName("An engine without an audio renderer turns sound off without throwing")
+    void anEngineWithoutAnAudioRendererTurnsSoundOff() {
+        // Prepare
+        when(application.getAudioRenderer()).thenReturn(null);
+        soundPlayer.attach(application);
+
+        // Execute & Verify
+        assertThatCode(() -> {
+            soundPlayer.play(JUMP);
+            soundPlayer.play(OVERWORLD);
+            soundPlayer.stopMusic();
+        }).doesNotThrowAnyException();
+        verifyNoInteractions(assetManager, audioRenderer);
+    }
+
+    @Test
+    @DisplayName("Attaching decodes every effect once, buffered rather than streamed")
+    void attachingDecodesEveryEffect() {
+        // Execute
+        soundPlayer.attach(application);
+
+        // Verify
+        final ArgumentCaptor<AudioKey> keys = ArgumentCaptor.forClass(AudioKey.class);
+        verify(assetManager, times(SoundEffect.values().length)).loadAsset(keys.capture());
+        assertThat(keys.getAllValues())
+            .extracting(AudioKey::getName)
+            .containsExactlyElementsOf(Arrays.stream(SoundEffect.values()).map(SoundEffect::getPath).toList());
+        assertThat(keys.getAllValues()).extracting(AudioKey::isStream).as("Buffered").containsOnly(false);
+        verifyNoInteractions(audioRenderer);
+    }
+
+    @Test
+    @DisplayName("Playing an effect loads nothing more and starts a new instance of its trimmed, headspace node")
+    void playingAnEffectStartsAnInstance() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(JUMP);
+        soundPlayer.play(JUMP);
+
+        // Verify
+        verify(assetManager, times(SoundEffect.values().length)).loadAsset(any(AudioKey.class));
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(2)).playSourceInstance(node.capture());
+        assertThat(node.getAllValues().get(0)).as("The same node both times").isSameAs(node.getValue());
+        assertThat(node.getValue().isPositional()).as("Headspace audio").isFalse();
+        final AudioBuffer data = (AudioBuffer) node.getValue().getAudioData();
+        assertThat(data.getData().limit())
+            .as("Only the sounding frames, 2 channels of 2 bytes each")
+            .isEqualTo(SOUND_FRAMES * 4);
+    }
+
+    @Test
+    @DisplayName("Different effects play their own nodes")
+    void differentEffectsPlayTheirOwnNodes() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(JUMP);
+        soundPlayer.play(COIN);
+
+        // Verify
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(2)).playSourceInstance(node.capture());
+        assertThat(node.getAllValues().get(0)).isNotSameAs(node.getAllValues().get(1));
+    }
+
+    @Test
+    @DisplayName("A track streams with a cache, loops and plays as the only track")
+    void aTrackStreamsLoopsAndPlays() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(OVERWORLD);
+
+        // Verify
+        final AudioKey key = streamedKeys().getFirst();
+        assertThat(key.getName()).isEqualTo("sound/music/overworld.ogg");
+        assertThat(key.useStreamCache()).as("Cached, so the loop can rewind").isTrue();
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer).playSource(node.capture());
+        assertThat(node.getValue().isLooping()).as("Loops").isTrue();
+        assertThat(node.getValue().isPositional()).as("Headspace audio").isFalse();
+    }
+
+    @Test
+    @DisplayName("Starting a track stops the one playing, and stopping the music stops the new one")
+    void startingATrackStopsTheCurrentOne() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(OVERWORLD);
+
+        // Execute
+        soundPlayer.play(GRASS_LAND);
+        soundPlayer.stopMusic();
+        soundPlayer.stopMusic();
+
+        // Verify
+        final ArgumentCaptor<AudioNode> played = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(2)).playSource(played.capture());
+        final ArgumentCaptor<AudioNode> stopped = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(2)).stopSource(stopped.capture());
+        final List<AudioNode> tracks = played.getAllValues();
+        assertThat(stopped.getAllValues())
+            .as("The first track when the second starts, then the second; a second stop does nothing")
+            .containsExactly(tracks.get(0), tracks.get(1));
+    }
+
+    @Test
+    @DisplayName("Once the engine stops nothing plays, and the next engine loads its effects afresh")
+    void theStoppedEngineIsForgotten() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(JUMP);
+        gameEventBus.publish(new GameEngineStopped());
+
+        // Execute
+        soundPlayer.play(JUMP);
+        soundPlayer.play(OVERWORLD);
+        soundPlayer.attach(application);
+        soundPlayer.play(JUMP);
+
+        // Verify
+        verify(audioRenderer, never()).playSource(any(AudioNode.class));
+        verify(assetManager, times(2 * SoundEffect.values().length).description("Every effect, once per engine"))
+            .loadAsset(any(AudioKey.class));
+        verify(audioRenderer, times(2).description("Once before the stop, once on the next engine"))
+            .playSourceInstance(any(AudioNode.class));
+    }
+
+    private List<AudioKey> streamedKeys() {
+        final ArgumentCaptor<AudioKey> keys = ArgumentCaptor.forClass(AudioKey.class);
+        verify(assetManager, atLeastOnce()).loadAsset(keys.capture());
+        return keys.getAllValues().stream().filter(AudioKey::isStream).toList();
+    }
+
+    /** A stereo effect as the decoder hands it over: silence, a square tone, then a long silent tail. */
+    private AudioBuffer decodedEffect() {
+        final int frames = LEAD_IN_FRAMES + SOUND_FRAMES + TAIL_FRAMES;
+        final ByteBuffer pcm = BufferUtils.createByteBuffer(frames * 4).order(LITTLE_ENDIAN);
+        for (int frame = 0; frame < frames; frame++) {
+            final boolean sounding = frame >= LEAD_IN_FRAMES && frame < LEAD_IN_FRAMES + SOUND_FRAMES;
+            final short sample = sounding ? (short) (frame % 2 == 0 ? 8000 : -8000) : 0;
+            pcm.putShort(sample).putShort(sample);
+        }
+        pcm.flip();
+        final AudioBuffer buffer = new AudioBuffer();
+        buffer.setupFormat(2, 16, RATE);
+        buffer.updateData(pcm);
+        return buffer;
+    }
+}
