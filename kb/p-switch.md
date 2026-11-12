@@ -18,7 +18,8 @@ disassembly. All dasm references are `~/Projects/smb3dasm`.
 | 7 | Spawn poof cloud | **done** |
 
 The stomp's "Wham!" plays `SoundEffect.CANNONBALL` from `SwitchBlock.onCollisionFromAbove` (SMB3-68). The music
-swap is not triggered by the switch itself: `LevelMusic` watches `PowerSwitchTimeWindow.isActive()` every tick.
+swap is not triggered by the switch itself: `LevelMusic` follows `PowerSwitchActivated` / `PowerSwitchExpired`, and
+reads `PowerSwitchTimeWindow.isActive()` when a level is built.
 
 ---
 
@@ -97,6 +98,31 @@ While `Level_PSwitchCnt > 1` it decrements **only** when `Counter_1 AND #$03 == 
 ⇒ once every 4 frames ⇒ `$80 × 4 = 512` frames ≈ **8.5 s** at 60 Hz. At count `== 1` it
 restores music via `Level_MusicQueueRestore`, or the invincibility song (`$0A`) if
 `Player_StarInv >= $20`, then decrements to 0.
+
+### 2.4.1 Lifetime: scene changes, halts, death (SMB3-69)
+
+- **Survives a level junction.** Nothing in the junction path clears `Level_PSwitchCnt`; the level load even checks it
+  and pins the switched block bank straight away (`prg030.asm:1422-1426`). The only clears are `Player_Die`
+  (`prg000.asm:5781`, which every death kind goes through: hit, pit `prg008.asm:857`, time up `:882`, crushed `:918`),
+  `ObjHit_EndLevelCard` (`prg002.asm:6152`) and the Boom Boom arena lock (`prg003.asm:2184`).
+- **Counts through player halts.** The countdown is in `Player_DoGameplay` after `Player_HaltGame` is computed
+  (`prg008.asm:347-355`) and does not read it, so it keeps running through pipe movement, grow/shrink, suit loss and
+  the star wearing off.
+- **Paused by the junction itself.** While `Level_JctCtl` is set the main loop jumps to `HandleLevelJunction`
+  (`prg030.asm:2409-2424`) instead of `Player_DoGameplay`; that handler fades out, loads and fades back in
+  (`prg026.asm:1496-1574`).
+- **Music is independent of the countdown.** The sound engine runs from `IntNMI` (`prg031.asm:1629`), so the
+  P-switch song plays on through the fade. The song loops forever (`Music_Set2B_Loops` entry for `$A0` is non-zero,
+  `prg028.asm:1659-1660`; the driver only stops on a zero loop index, `prg031.asm:292-297`), so expiry must stay
+  tick-driven: the countdown ends the music, never the other way round.
+- **Not ported yet:** expiry restoring the star music instead of the level music while the player is invincible.
+
+Port: `GameEngine.buildLevel` resets the window only for a non-carry-over start; `GameEngine.simpleUpdate` calls
+`StaticEnvironmentCollisionGrid.countDownPowerSwitchTimeWindow()` on halted ticks unless
+`FadingEngine.isHaltingGameplay()`; `LevelScenePlayer.announceDeath` resets it silently (no `PowerSwitchExpired`);
+`BrickBlockAnimator` / `CoinAnimator.updateWhileHalted` repaint on the open/close edge so an expiry inside a halt is
+visible at once (the ROM's bank pin at `PRG030_8E24` is not gated by the halt either). `LevelMusic.start` already keeps
+the P-switch track playing across a carry-over build.
 
 ### 2.5 Brick↔coin substitution — `prg000.asm:1599` (feature 5)
 
@@ -197,7 +223,7 @@ The switch and its poof are both driven by the global animated-bank cycle — se
 | Pressed tile | `game/object/level/block/PressedSwitchBlock` (non-collidable, static art) |
 | Press dispatch | `LevelObject.onCollisionFromAbove`, fired by `StaticEnvironmentCollisionGrid` |
 | Screen shake | `game/camera/LevelSceneVibration` (`@Singleton`) |
-| Active window | `game/time/PowerSwitchTimeWindow`, owned + ticked by `StaticEnvironmentCollisionGrid` |
+| Active window | `game/time/PowerSwitchTimeWindow` (singleton), ticked by `StaticEnvironmentCollisionGrid`; lives for the level run, see §2.4.1 |
 | Brick→coin look | `BrickBlockAnimator.getFramePixels` override + `sprites/object/coin/flipping/frame_0.png` |
 | Brick→coin collision | `Block.isCollidable()` / `Block.onTailAttack` guard |
 | Brick→coin collection | `LevelObject.onPlayerOverlap` ← the grid's `tick()` → `resolvePlayerOverlaps()` |
@@ -219,10 +245,11 @@ Koopaling slam, etc. — just needs its own named preset beside `powerShake()`.
 ### Brick↔coin flow (feature 5)
 `PowerSwitchTimeWindow` (`game/time/`) belongs to **`StaticEnvironmentCollisionGrid`**, not the engine:
 the press is a tile event the grid dispatches, and everything the window changes is a tile lookup the
-grid answers. The grid takes it as a constructor argument from `toCollisionGrid`, which resets it, so its
-lifetime is the grid's = the level's — no cross-level leak to guard against. `SwitchBlock` opens it with
-`collisionGrid.pressPowerSwitch()`, and `GameEngine` only drives the clock: one `collisionGrid.tick()`
-per sim step (once per step, *not* per player, or a 2P scene would count down twice as fast). Nothing is
+grid answers. The grid takes it as a constructor argument from `toCollisionGrid`, but the window outlives the grid:
+since SMB3-69 only a fresh `buildLevel` resets it, so a pipe into another scene carries it over (§2.4.1). `SwitchBlock`
+opens it with `collisionGrid.pressPowerSwitch()`, and `GameEngine` only drives the clock: one `collisionGrid.tick()`
+per sim step (once per step, *not* per player, or a 2P scene would count down twice as fast), or
+`countDownPowerSwitchTimeWindow()` on a step a player halts. Nothing is
 written to the level grid — both halves are read-time, exactly as `PSwitch_SubstTileAndAttr` is:
 
 - **Look**: `BrickBlockAnimator.getFramePixels(frame)` returns the coin sprite instead of the brick

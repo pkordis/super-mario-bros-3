@@ -46,12 +46,7 @@ public final class CoinAnimator extends GameObjectAnimatorSingleTiled<Coin> {
 
     @Override
     public void update() {
-        // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
-        // frame flip; the substitution is meant to be instantaneous.
-        if (substituting != powerSwitchTimeWindow.isActive()) {
-            substituting = powerSwitchTimeWindow.isActive();
-            repaintCurrentFrame();
-        }
+        repaintOnWindowChange();
         super.update();
 
         // A substituted coin is a solid brick, hit through the terrain grid like any other; it is not a
@@ -64,10 +59,25 @@ public final class CoinAnimator extends GameObjectAnimatorSingleTiled<Coin> {
         }
     }
 
+    /** The frames stand still while gameplay is halted, but the window can still open or close. */
+    @Override
+    public void updateWhileHalted() {
+        repaintOnWindowChange();
+    }
+
     @Override
     protected int[] getFramePixels(final int frameIndex) {
         return powerSwitchTimeWindow.isActive()
             ? powerSwitchedBrickImageResource.getRgbData()
             : super.getFramePixels(frameIndex);
+    }
+
+    private void repaintOnWindowChange() {
+        // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
+        // frame flip; the substitution is meant to be instantaneous.
+        if (substituting != powerSwitchTimeWindow.isActive()) {
+            substituting = powerSwitchTimeWindow.isActive();
+            repaintCurrentFrame();
+        }
     }
 }

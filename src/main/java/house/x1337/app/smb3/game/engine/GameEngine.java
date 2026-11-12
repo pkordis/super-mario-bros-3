@@ -26,6 +26,7 @@ import house.x1337.app.smb3.game.sound.LevelMusic;
 import house.x1337.app.smb3.game.sound.OpenAlSoftConfiguration;
 import house.x1337.app.smb3.game.sound.PowerMeterSound;
 import house.x1337.app.smb3.game.sound.SoundPlayer;
+import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
@@ -63,6 +64,7 @@ public final class GameEngine extends GameEngineCapabilities {
     private final FadingEngine fadingEngine = getBean(FadingEngine.class);
     private final LevelFrameCounter levelFrameCounter = new LevelFrameCounter();
     private final LevelCompletion levelCompletion = getBean(LevelCompletion.class, this);
+    private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
 
     private final CameraState cameraState;
     private final PlayerData playerData;
@@ -95,7 +97,8 @@ public final class GameEngine extends GameEngineCapabilities {
      *         running while the screen fades in or out. While halted the countdown timer and the whole
      *         active-object pipeline are frozen, and non-halting players freeze themselves in
      *         {@code updateFrame}; only the halting player's own transition (e.g. the grow flicker) advances.
-     *         Objects, the camera and the timer all stop while gameplay is halted.
+     *         Objects, the camera and the timer all stop while gameplay is halted. The P-Switch window stops only
+     *         for a blocking fade: a player's halt leaves it counting.
      */
     public boolean isGameplayHalted() {
         if (fadingEngine.isHaltingGameplay()) {
@@ -249,6 +252,12 @@ public final class GameEngine extends GameEngineCapabilities {
         // them itself first); resetting after it would wipe the enemies just spawned.
         motionManagers.forEach(MotionManager::reset);
 
+        // A run that starts over closes any P-Switch window. A run carried through a pipe keeps it open with the
+        // time it has left, so the new scene shows the substitution and plays its music from the first frame.
+        if (!start.isCarryOver()) {
+            powerSwitchTimeWindow.reset();
+        }
+
         // (Re)build the collision/active-object grids and (re)spawn the authored enemies. On a restart
         // this rebuilds the grids fresh and spawnPlacedEnemies first resets the enemy managers, so no
         // enemy is duplicated.
@@ -303,7 +312,7 @@ public final class GameEngine extends GameEngineCapabilities {
             playerData.getPlayerTimer().start();
         }
 
-        // After the grid rebuild, which closes any P-switch window the previous run left open
+        // After the window has been closed or carried over, as the music follows it
         getBean(LevelMusic.class).start(levelScene, start);
     }
 
@@ -355,6 +364,11 @@ public final class GameEngine extends GameEngineCapabilities {
                 announceHaltChange(halted);
                 if (halted) {
                     motionManagers.forEach(MotionManager::updateWhileHalted);
+                    // The P-Switch window keeps counting while a player halts gameplay (a pipe, a grow, a death),
+                    // and stops only while a blocking fade does, as between two scenes.
+                    if (!fadingEngine.isHaltingGameplay()) {
+                        collisionGrid.countDownPowerSwitchTimeWindow();
+                    }
                     continue;
                 }
 

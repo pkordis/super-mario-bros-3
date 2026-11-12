@@ -38,13 +38,14 @@ public final class BrickBlockAnimator extends GameObjectAnimatorSingleTiled<Bloc
 
     @Override
     public void update() {
-        // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
-        // frame flip, so the brick-to-coin substitution is instantaneous.
-        if (substituting != powerSwitchTimeWindow.isActive()) {
-            substituting = powerSwitchTimeWindow.isActive();
-            repaintCurrentFrame();
-        }
+        repaintOnWindowChange();
         super.update();
+    }
+
+    /** The frames stand still while gameplay is halted, but the window can still open or close. */
+    @Override
+    public void updateWhileHalted() {
+        repaintOnWindowChange();
     }
 
     @Override
@@ -52,5 +53,14 @@ public final class BrickBlockAnimator extends GameObjectAnimatorSingleTiled<Bloc
         return powerSwitchTimeWindow.isActive()
             ? powerSwitchedCoinImageResource.getRgbData()
             : super.getFramePixels(frameIndex);
+    }
+
+    private void repaintOnWindowChange() {
+        // Repaint the moment the window opens or closes rather than waiting up to 8 ticks for the next
+        // frame flip, so the brick-to-coin substitution is instantaneous.
+        if (substituting != powerSwitchTimeWindow.isActive()) {
+            substituting = powerSwitchTimeWindow.isActive();
+            repaintCurrentFrame();
+        }
     }
 }

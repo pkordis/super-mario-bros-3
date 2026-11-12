@@ -581,6 +581,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
     @Override
     public void announceDeath(final PlayerDeathKind kind) {
+        // A death closes the P-Switch window at once, quietly: the death music is about to silence the level anyway
+        gameEngine.getCollisionGrid().getPowerSwitchTimeWindow().reset();
         gameEngine.publish(new PlayerDeathStarted(kind));
     }
 
