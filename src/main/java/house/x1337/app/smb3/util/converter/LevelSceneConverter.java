@@ -27,6 +27,7 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .renderingStarter(levelSceneRecord.getRenderingStarter())
             .spawnPoint(levelSceneRecord.getSpawnPoint())
             .levelCompletionCard(levelSceneRecord.getLevelCompletionCard())
+            .backgroundMusic(levelSceneRecord.getBackgroundMusic())
             .airLayer(toLevelSceneLayer(AIR, levelSceneRecord))
             .airDecorationsLayer(toLevelSceneLayer(DECORATIONS_AIR, levelSceneRecord))
             .landDecorationsLayer(toLevelSceneLayer(DECORATIONS_LAND, levelSceneRecord))
@@ -46,7 +47,8 @@ public interface LevelSceneConverter extends LevelSceneLayerConverter, LevelScen
             .updatedAt(System.currentTimeMillis())
             .renderingStarter(levelScene.getRenderingStarter())
             .spawnPoint(levelScene.getSpawnPoint())
-            .levelCompletionCard(levelScene.getLevelCompletionCard());
+            .levelCompletionCard(levelScene.getLevelCompletionCard())
+            .backgroundMusic(levelScene.getBackgroundMusic());
         for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
             builder.layer(type.name(), toLayerData(type, levelScene.getLayer(type)));
         }

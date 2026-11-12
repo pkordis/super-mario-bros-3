@@ -9,9 +9,11 @@ import com.jme3.audio.AudioKey;
 import com.jme3.audio.AudioNode;
 import com.jme3.audio.AudioRenderer;
 import com.jme3.util.BufferUtils;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.event.GameEventBus;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,13 +21,19 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static house.x1337.app.smb3.enumeration.MusicTrack.GRASS_LAND;
+import static com.jme3.audio.AudioSource.Status.Playing;
+import static com.jme3.audio.AudioSource.Status.Stopped;
+import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
+import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
+import static house.x1337.app.smb3.enumeration.MusicTrack.WORLD_1_GRASS_LAND;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -47,15 +55,22 @@ class SoundPlayerTest {
     private static final int LEAD_IN_FRAMES = 15;
     private static final int SOUND_FRAMES = 100;
     private static final int TAIL_FRAMES = 400;
+    private static final float FRAME_SECONDS = 1 / 60f;
 
     private final GameEventBus gameEventBus = new GameEventBus();
     private final AudioRenderer audioRenderer = mock(AudioRenderer.class);
     private final AssetManager assetManager = mock(AssetManager.class);
     private final Application application = mock(Application.class);
-    private final SoundPlayer soundPlayer = new SoundPlayer(gameEventBus, new SoundEffectTrimmer());
+    private final SoundPlayer soundPlayer = new SoundPlayer(
+        gameEventBus,
+        new SoundEffectTrimmer(),
+        new OggTrackLength()
+    );
+    private final List<SoundPlayComplete> completions = new ArrayList<>();
 
     @BeforeEach
     void prepare() {
+        gameEventBus.subscribe(SoundPlayComplete.class, completions::add);
         when(assetManager.loadAsset(any(AudioKey.class))).thenAnswer(invocation -> {
             final AudioKey key = invocation.getArgument(0);
             return key.isStream() ? mock(AudioData.class) : decodedEffect();
@@ -137,6 +152,27 @@ class SoundPlayerTest {
     }
 
     @Test
+    @DisplayName("An effect that is not self-overlapping plays on its own node, and not again while that node sounds")
+    void anEffectThatDoesNotOverlapItselfWaitsForItsEnd() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute - a press, a second press while it sounds, a third once it has ended
+        soundPlayer.play(TAIL_WAG);
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer).playSource(node.capture());
+        node.getValue().setStatus(Playing);
+        soundPlayer.play(TAIL_WAG);
+        node.getValue().setStatus(Stopped);
+        soundPlayer.play(TAIL_WAG);
+
+        // Verify
+        verify(audioRenderer, times(2).description("The first press and the one after the end"))
+            .playSource(node.getValue());
+        verify(audioRenderer, never()).playSourceInstance(any(AudioNode.class));
+    }
+
+    @Test
     @DisplayName("Different effects play their own nodes")
     void differentEffectsPlayTheirOwnNodes() {
         // Prepare
@@ -179,7 +215,7 @@ class SoundPlayerTest {
         soundPlayer.play(OVERWORLD);
 
         // Execute
-        soundPlayer.play(GRASS_LAND);
+        soundPlayer.play(WORLD_1_GRASS_LAND);
         soundPlayer.stopMusic();
         soundPlayer.stopMusic();
 
@@ -192,6 +228,52 @@ class SoundPlayerTest {
         assertThat(stopped.getAllValues())
             .as("The first track when the second starts, then the second; a second stop does nothing")
             .containsExactly(tracks.get(0), tracks.get(1));
+    }
+
+    @Test
+    @DisplayName("A jingle plays once instead of looping")
+    void aJinglePlaysOnce() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(COURSE_CLEAR);
+
+        // Verify
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer).playSource(node.capture());
+        assertThat(node.getValue().isLooping()).as("Plays once").isFalse();
+    }
+
+    @Test
+    @DisplayName("The current track follows what was started and stopped")
+    void theCurrentTrackFollowsPlayAndStop() {
+        // Prepare
+        soundPlayer.attach(application);
+        final MusicTrack beforePlaying = soundPlayer.getCurrentTrack();
+
+        // Execute
+        soundPlayer.play(OVERWORLD);
+        final MusicTrack afterTheFirst = soundPlayer.getCurrentTrack();
+        soundPlayer.play(WORLD_1_GRASS_LAND);
+        final MusicTrack afterTheSecond = soundPlayer.getCurrentTrack();
+        soundPlayer.stopMusic();
+
+        // Verify
+        assertThat(beforePlaying).as("Nothing before the first track").isNull();
+        assertThat(afterTheFirst).isEqualTo(OVERWORLD);
+        assertThat(afterTheSecond).isEqualTo(WORLD_1_GRASS_LAND);
+        assertThat(soundPlayer.getCurrentTrack()).as("Nothing after the stop").isNull();
+    }
+
+    @Test
+    @DisplayName("Without an engine no track is current, even after asking for one")
+    void withoutAnEngineNoTrackIsCurrent() {
+        // Execute
+        soundPlayer.play(OVERWORLD);
+
+        // Verify
+        assertThat(soundPlayer.getCurrentTrack()).isNull();
     }
 
     @Test
@@ -214,6 +296,81 @@ class SoundPlayerTest {
             .loadAsset(any(AudioKey.class));
         verify(audioRenderer, times(2).description("Once before the stop, once on the next engine"))
             .playSourceInstance(any(AudioNode.class));
+    }
+
+    @Test
+    @DisplayName("A jingle that plays to its end publishes SoundPlayComplete once, on the frame its node stops")
+    void aJingleThatEndsPublishesItsCompletionOnce() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(COURSE_CLEAR);
+        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer).playSource(node.capture());
+        node.getValue().setStatus(Playing);
+
+        // Execute
+        soundPlayer.update(FRAME_SECONDS);
+        final List<SoundPlayComplete> whilePlaying = List.copyOf(completions);
+        node.getValue().setStatus(Stopped);
+        soundPlayer.update(FRAME_SECONDS);
+        soundPlayer.update(FRAME_SECONDS);
+
+        // Verify
+        assertThat(whilePlaying).as("Not while it plays").isEmpty();
+        assertThat(completions).as("Once, at its end").containsExactly(new SoundPlayComplete(COURSE_CLEAR));
+    }
+
+    @Test
+    @DisplayName("A jingle stopped or replaced before its end publishes nothing, and a looping track never ends")
+    void aCutJingleAndALoopPublishNothing() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(COURSE_CLEAR);
+        soundPlayer.stopMusic();
+        soundPlayer.update(FRAME_SECONDS);
+        soundPlayer.play(HURRY_UP);
+        soundPlayer.play(OVERWORLD);
+        soundPlayer.update(FRAME_SECONDS);
+
+        // Verify
+        assertThat(completions).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Without an audio renderer a jingle still ends, once its length, read from its file, has passed")
+    void withoutARendererAJingleEndsAfterItsLength() {
+        // Prepare - the hurry-up file is 2.784 s long
+        when(application.getAudioRenderer()).thenReturn(null);
+        soundPlayer.attach(application);
+        soundPlayer.play(HURRY_UP);
+
+        // Execute
+        soundPlayer.update(2.7f);
+        final List<SoundPlayComplete> beforeItsEnd = List.copyOf(completions);
+        soundPlayer.update(0.1f);
+
+        // Verify
+        assertThat(beforeItsEnd).as("2.7 s in").isEmpty();
+        assertThat(completions).as("2.8 s in").containsExactly(new SoundPlayComplete(HURRY_UP));
+        assertThat(soundPlayer.getCurrentTrack()).as("Still the last track started").isEqualTo(HURRY_UP);
+        verifyNoInteractions(assetManager, audioRenderer);
+    }
+
+    @Test
+    @DisplayName("Without an audio renderer a looping track never ends")
+    void withoutARendererALoopNeverEnds() {
+        // Prepare
+        when(application.getAudioRenderer()).thenReturn(null);
+        soundPlayer.attach(application);
+        soundPlayer.play(OVERWORLD);
+
+        // Execute
+        soundPlayer.update(1000f);
+
+        // Verify
+        assertThat(completions).isEmpty();
     }
 
     private List<AudioKey> streamedKeys() {

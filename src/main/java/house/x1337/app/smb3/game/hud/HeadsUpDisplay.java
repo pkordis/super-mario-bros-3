@@ -103,6 +103,14 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     }
 
     /**
+     * Takes this HUD off the screen for good: its viewport is removed from the engine and stops rendering. Called
+     * when a level build replaces this HUD with a new one.
+     */
+    public void dispose() {
+        gameEngine.getRenderManager().removeMainView(hudViewPort);
+    }
+
+    /**
      * Called once per frame from the game loop. Syncs HUD state from the
      * current player/game data and re-renders the HUD texture when dirty.
      *

@@ -13,6 +13,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.ItemType.ONE_UP_MUSHROOM;
 import static house.x1337.app.smb3.enumeration.ItemType.SWITCH_BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP_BLOCK;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.GROWING_CAPABLE;
 import static house.x1337.app.smb3.enumeration.SuperMushroomType.LIFE_AWARDING_GREEN;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -56,6 +57,10 @@ public interface RewardDispensingLevelObject extends LevelObject {
         }
     }
 
+    /**
+     * Dispenses a super leaf. It makes no sound of its own: what struck the block (the player's head, a kicked
+     * shell) plays the bump, and that bump is the leaf's sound.
+     */
     default void onSuperLeafDispensed(final LevelScenePlayer levelScenePlayer) {
         final SuperLeaf superLeaf = getBean(
             SuperLeaf.class,
@@ -78,6 +83,7 @@ public interface RewardDispensingLevelObject extends LevelObject {
         if (levelObject instanceof SuperMushroom superMushroom) {
             superMushroom.configure((SuperMushroomVariantData) levelObjectType.getVariantData());
             getBean(SuperMushroomMotionManager.class).spawn(superMushroom);
+            getSoundPlayer().play(POWER_UP_BLOCK);
         } else {
             throw new IllegalStateException("The mushroom dispensed must be an instance of SuperMushroom");
         }

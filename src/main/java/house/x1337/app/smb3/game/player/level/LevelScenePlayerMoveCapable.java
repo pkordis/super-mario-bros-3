@@ -21,6 +21,7 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.DOWN;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
@@ -155,6 +156,7 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                 // Mid-air A press: tail wag (raccoon/tanooki only; big Mario is
                 // tailless and small Mario cannot, so both skip this).
                 runtimeState.setPlayerWagCount(GameConstants.WAG_COUNT);
+                getSoundPlayer().play(TAIL_WAG);
             }
         }
 

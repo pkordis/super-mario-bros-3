@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.level.scene;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -35,6 +36,7 @@ public final class LevelScene implements LevelSceneCapabilities {
     private Coordinates renderingStarter;
     private Coordinates spawnPoint;
     private Coordinates levelCompletionCard;
+    private MusicTrack backgroundMusic;
 
     private LevelSceneLayer airLayer;
     private LevelSceneLayer airDecorationsLayer;

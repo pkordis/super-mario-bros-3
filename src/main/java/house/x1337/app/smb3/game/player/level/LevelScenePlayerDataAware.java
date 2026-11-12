@@ -1,7 +1,10 @@
 package house.x1337.app.smb3.game.player.level;
 
+import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.input.PlayerInputHandler;
+import house.x1337.app.smb3.model.event.PlayerPowerLost;
+import house.x1337.app.smb3.model.event.PlayerPowerReached;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
@@ -13,7 +16,11 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static java.lang.Math.abs;
 
-public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateAware {
+/**
+ * The player's P-meter and flight time. The meter becoming full publishes {@link PlayerPowerReached}, and a full meter
+ * draining a step or emptied when its flight ends publishes {@link PlayerPowerLost}.
+ */
+public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateAware, GameEngineAware {
     PlayerData getPlayerData();
 
     default void handleFlyTimeCountdown() {
@@ -23,8 +30,12 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
             if (runtimeState.getFlyTimeToggle() != 0) {
                 runtimeState.setPlayerFlyTime(runtimeState.getPlayerFlyTime() - 1);
                 if (runtimeState.getPlayerFlyTime() <= 0) {
+                    final boolean wasFull = getPlayerData().getPlayerPower() >= PMETER_LEVELS;
                     getPlayerData().setPlayerPower(0);
                     getPlayerData().setPowerThrottle(0);
+                    if (wasFull) {
+                        getGameEngine().publish(new PlayerPowerLost());
+                    }
                 }
             }
         }
@@ -52,6 +63,9 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
                     if (power < PMETER_LEVELS) {
                         playerData.setPlayerPower(power + 1);
                         playerData.setPowerThrottle(PMETER_CHARGE_FRAMES);
+                        if (power + 1 == PMETER_LEVELS) {
+                            getGameEngine().publish(new PlayerPowerReached());
+                        }
                     } else {
                         playerData.setPowerThrottle(PMETER_FULL_HOLD_FRAMES);
                     }
@@ -59,6 +73,9 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
                     if (power > 0) {
                         playerData.setPlayerPower(power - 1);
                         playerData.setPowerThrottle(PMETER_DRAIN_FRAMES);
+                        if (power == PMETER_LEVELS) {
+                            getGameEngine().publish(new PlayerPowerLost());
+                        }
                     }
                 }
             }

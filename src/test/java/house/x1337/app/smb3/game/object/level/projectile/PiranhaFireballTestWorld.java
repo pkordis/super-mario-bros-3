@@ -8,6 +8,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -62,6 +63,7 @@ final class PiranhaFireballTestWorld implements AutoCloseable {
         when(animator.buildSprite(any())).thenAnswer(invocation -> new Geometry("Fireball", new Quad(0.5f, 1f)));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PiranhaFireballAnimator.class))
             .thenReturn(animator);

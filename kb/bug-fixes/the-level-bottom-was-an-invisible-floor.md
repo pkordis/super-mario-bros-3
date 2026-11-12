@@ -78,3 +78,10 @@ publishing a tick early, ignoring the death kind, dropping the already-dying gua
 death each fail the tests.
 
 Verified by unit tests only; not checked in the running game.
+
+## Later: the stand-in is gone (SMB3-68)
+
+`DeathMusicStandIn`, `PlayerDeathMusicFinished` and `PLAYER_PIT_DEATH_COUNTDOWN_TICKS` were removed once the
+sound engine reported the end of the real death music. A pit death now ends on `SoundPlayComplete(PLAYER_DOWN)`,
+4.238 s after it starts (see "Event-driven end" in `dynamic-entities.md`). `PlayerPitFallTest` and
+`PlayerDeathEventChainTest` were rewritten around that event.

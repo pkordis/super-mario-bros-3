@@ -6,6 +6,7 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -29,6 +31,8 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -83,6 +87,7 @@ class GoombaStompTest {
         final GoombaAnimator animator = mock(GoombaAnimator.class);
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(GoombaAnimator.class))
             .thenReturn(animator);
@@ -279,6 +284,21 @@ class GoombaStompTest {
             goomba.motionUpdate();
         }
         assertThat(goomba.isExpired()).as("the original 16 frames still governed the lifetime").isTrue();
+    }
+
+    @Test
+    @DisplayName("A stomp plays the stomp sound once, and a second stomp on the flattened Goomba plays nothing")
+    void aStompPlaysTheStompSoundOnce() {
+        // Prepare
+        final Goomba goomba = goombaAt(5, WALK_ROW);
+        final LevelScenePlayer player = descendingPlayer();
+
+        // Execute
+        goomba.onCollisionFromAbove(player);
+        goomba.onCollisionFromAbove(player);
+
+        // Verify
+        verify(goomba.getSoundPlayer(), times(1)).play(ENEMY_STOMP);
     }
 
     // -------------------------------------------------------------------------

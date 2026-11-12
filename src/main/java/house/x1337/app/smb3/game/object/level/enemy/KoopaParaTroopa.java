@@ -33,6 +33,7 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_PARATROOPA;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
@@ -147,6 +148,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         handedOver = true;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
+        getSoundPlayer().play(ENEMY_STOMP);
         handOverToKoopaTroopa(STOMP_HIT_COOLDOWN_TICKS);
         expired = true;
     }

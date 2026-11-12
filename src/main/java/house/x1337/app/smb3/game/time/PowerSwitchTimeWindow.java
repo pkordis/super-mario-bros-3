@@ -21,19 +21,22 @@ public final class PowerSwitchTimeWindow {
         log.debug("P-Switch active for {} ticks", TOTAL_TICKS);
     }
 
-    public void tick() {
+    /** @return whether the window ran out on this tick */
+    public boolean tick() {
         if (count == 0) {
-            return;
+            return false;
         }
         ticksWithinCount++;
         if (ticksWithinCount < TICKS_PER_COUNT) {
-            return;
+            return false;
         }
         ticksWithinCount = 0;
         count--;
         if (count == 0) {
             log.debug("P-Switch expired");
+            return true;
         }
+        return false;
     }
 
     public boolean isActive() {

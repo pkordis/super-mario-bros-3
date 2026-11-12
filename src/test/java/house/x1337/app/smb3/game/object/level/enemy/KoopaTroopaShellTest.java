@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
@@ -29,6 +30,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
 import static house.x1337.app.smb3.game.object.level.enemy.base.GroundWalkingEnemy.STOMP_HIT_COOLDOWN_TICKS;
@@ -134,6 +137,7 @@ class KoopaTroopaShellTest {
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         tailAttackFlashMotionManager = mock(TailAttackFlashMotionManager.class);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
             .thenReturn(animator);
@@ -240,6 +244,52 @@ class KoopaTroopaShellTest {
 
         // Verify
         assertThat(troopa.getPendingScoreReward()).isNull();
+    }
+
+    @Test
+    @DisplayName("A stomp plays the stomp sound, and the same stomp arriving again plays nothing more")
+    void aStompPlaysTheStompSoundOnce() {
+        // Prepare
+        final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
+        final LevelScenePlayer player = descendingPlayer();
+
+        // Execute
+        troopa.onCollisionFromAbove(player);
+        troopa.onCollisionFromAbove(player);
+
+        // Verify
+        verify(troopa.getSoundPlayer(), times(1)).play(ENEMY_STOMP);
+    }
+
+    @Test
+    @DisplayName("A tail strike plays the kill sound once")
+    void aTailStrikePlaysTheKillSound() {
+        // Prepare
+        final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
+        final LevelScenePlayer player = playerAtPixelX(2 * TILE_SPRITE_SIZE);
+
+        // Execute
+        troopa.onTailAttack(player);
+
+        // Verify
+        verify(troopa.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
+    }
+
+    @Test
+    @DisplayName("A block bumped under a walking troopa plays the kill sound once")
+    void aBlockBumpPlaysTheKillSound() {
+        // Prepare
+        final KoopaTroopa troopa = troopaAt(5, WALK_ROW);
+        troopa.faceClosestPlayer();
+        tick(troopa, 1);
+        bumpTheBlockUnder(troopa);
+        final SoundPlayer soundPlayer = StaticBeanFactory.getBean(SoundPlayer.class);
+
+        // Execute
+        tick(troopa, 1);
+
+        // Verify
+        verify(soundPlayer, times(1)).play(KOOPA_SHELL);
     }
 
     // -------------------------------------------------------------------------

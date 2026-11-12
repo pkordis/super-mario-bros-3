@@ -27,6 +27,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.game.motion.pop.BlockCoinPopMotion.SPIN_PHASE_TICKS;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.blockCoin;
 import static house.x1337.app.smb3.game.motion.pop.PopMotions.poppedOutCoin;
@@ -153,6 +155,7 @@ public final class CoinRewardMotionManager implements MotionManager {
             worldOffsetOf(gameEngine, objectPosition.x() + POPPED_OUT_COIN_X_OFFSET_PIXELS, objectPosition.y())
         );
         coin.start();
+        getSoundPlayer().play(COIN);
         activeCoins.add(new FlyingCoin(coin, landed -> landPoppedOutCoin(landed, player, objectPosition), false));
     }
 
@@ -189,10 +192,13 @@ public final class CoinRewardMotionManager implements MotionManager {
         final PixelPosition objectPosition
     ) {
         final PlayerData playerData = player.getPlayerData();
-        playerData.addCoin();
+        final boolean coinEarnedALife = playerData.addCoin();
         final int tally = player.getRuntimeState().nextKillTally();
         final Reward reward = KILL_TALLY_LADDER[min(POPPED_OUT_FIRST_LADDER_INDEX + tally, MAX_KILL_TALLY)];
         playerData.add(reward.getData());
+        if (coinEarnedALife || reward.getData().getLives() > 0) {
+            getSoundPlayer().play(ONE_UP);
+        }
 
         final int risen = coin.getMotion().verticalOffsetAt(coin.getMotion().durationTicks());
         final double captionTop = objectPosition.y() - risen - POPPED_OUT_CAPTION_ABOVE_COIN_PIXELS;

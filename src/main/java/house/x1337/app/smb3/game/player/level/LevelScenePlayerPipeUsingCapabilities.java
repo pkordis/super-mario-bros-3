@@ -23,6 +23,7 @@ import static house.x1337.app.smb3.enumeration.PipeEntryDirection.DOWN;
 import static house.x1337.app.smb3.enumeration.PipeEntryDirection.UP;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
@@ -198,6 +199,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
         getGameEngine().getCameraState().hold();
         advanceAnimation();
         updateVisualPosition();
+        getSoundPlayer().play(POWER_DOWN);
     }
 
     default void tickPipeEntering() {
@@ -258,6 +260,7 @@ public interface LevelScenePlayerPipeUsingCapabilities
         }
 
         runtimeState.startExitingPipe(portal, direction);
+        getSoundPlayer().play(POWER_DOWN);
         placeInside(portal, direction);
         faceTheWayThrough(direction);
         position.snapshotPrevious();

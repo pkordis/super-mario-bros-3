@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.block.motion.BlockMotionManager;
 import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
+import house.x1337.app.smb3.model.event.PowerSwitchExpired;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -62,7 +63,9 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
                 }
             }
         }
-        powerSwitchTimeWindow.tick();
+        if (powerSwitchTimeWindow.tick()) {
+            gameEngine.publish(new PowerSwitchExpired());
+        }
     }
 
     /**

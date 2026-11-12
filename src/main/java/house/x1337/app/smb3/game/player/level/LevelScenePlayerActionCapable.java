@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.player.level;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
+import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_DOWN;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 
@@ -45,6 +46,7 @@ public interface LevelScenePlayerActionCapable
         if (!inputDown && runtimeState.getPlayerTailAttackCountdown() == 0) {
             if (inputHandler.consumePress(HANDLER_RUN)) {
                 runtimeState.setPlayerTailAttackCountdown(18);
+                getSoundPlayer().play(TAIL_WAG);
             }
         }
     }

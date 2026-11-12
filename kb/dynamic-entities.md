@@ -417,13 +417,18 @@ rules: a wall to the player, open to objects.
 - **No throe.** `dieByFallingOff()` sets `PlayerDeathKind.FELL_OFF` (`Player_IsDying = 2`), whatever the suit
   and even while flashing: it skips `isHurtable()`. Nothing moves and nothing is drawn
   (`isSpriteDrawnThisTick()` is false) while the game is halted.
-- **Event-driven end.** The ROM waits `Event_Countdown = $C0` while the death music plays. Here
-  `PlayerDeathStarted(FELL_OFF)` arms `DeathMusicStandIn`, which publishes `PlayerDeathMusicFinished` 192
-  ticks later; `PlayerDeathSequence` turns that into one `PlayerDied`. The stand-in is a `MotionManager`
-  for its clock (`updateWhileHalted`) and its reset (every level build). Both are singletons, so
-  `GameEngine.simpleInitApp` subscribes them once per engine; `@PostConstruct` would be deaf after the first
-  engine purges the bus. Delete the stand-in when a sound engine publishes the event. The hurt throe still
-  ends itself with `PlayerDied` when the body clears the level.
+- **Event-driven end.** The ROM waits `Event_Countdown = $C0` while the death music plays. Here the death ends
+  when the real death music has played to its end (SMB3-68). `PlayerDeathSequence` publishes one `PlayerDied` once
+  both have happened, in either order:
+  - the music is over: `SoundPlayComplete(PLAYER_DOWN)`, published by `SoundPlayer` (the jingle is 4.238 s, longer
+    than the ROM's 192 frames, so the pit death now lasts about 1 s more);
+  - the body is gone: at once for `FELL_OFF`, and for a throe when `LevelScenePlayer.tickDeath` publishes
+    `PlayerDeathFallEnded` as the body clears the level. Before SMB3-68 the throe published `PlayerDied` itself at
+    that moment, and the rebuild cut the death music short.
+
+  The R reset (`LevelSceneResetRequested`) forgets a death in progress. The sequence is a singleton, so
+  `GameEngine.simpleInitApp` subscribes it once per engine; `@PostConstruct` would be deaf after the first engine
+  purges the bus. `LevelMusic` plays the `PLAYER_DOWN` jingle on `PlayerDeathStarted` (`kb/sound.md`).
 
 Pinned by `CollisionGridLevelBottomTest`, `PitFallTest`, `CameraStateVisibleBottomTest`,
 `PlayerPitDeathTest`, `PlayerPitFallTest` and `PlayerDeathEventChainTest`.
@@ -2310,7 +2315,7 @@ and the level tester always plays the World 1 schedule.
   true difference in the port. Speeds are `PiranhaFireball_XVel = $0B, $0E` and `_YVel = $0B, $05`,
   indexed near / far. X is negated for a player on the left and Y for a player above the plant's top.
   `VenusFireTrap.aimAt` is the pure function.
-- There is no sound in the ROM, and the port has no sound system yet.
+- There is no sound in the ROM for the spit, and the port plays none (SMB3-68 leaves it silent on purpose).
 
 A plant spits from `EnemyMotionManager#update`, and the fireball manager works in `postCollision`, so a
 fireball moves on the tick it is spat.

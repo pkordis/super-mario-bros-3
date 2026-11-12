@@ -8,13 +8,13 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
-import house.x1337.app.smb3.game.player.level.death.DeathMusicStandIn;
 import house.x1337.app.smb3.game.player.level.death.PlayerDeathSequence;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEvent;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
 import house.x1337.app.smb3.model.event.PlayerDied;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -32,8 +32,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
-import static house.x1337.app.smb3.GameConstants.PLAYER_PIT_DEATH_COUNTDOWN_TICKS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.MusicTrack.PLAYER_DOWN;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -71,7 +71,6 @@ class PlayerPitFallTest {
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEventBus bus;
-    private DeathMusicStandIn standIn;
     private List<GameEvent> published;
     private GameEngine gameEngine;
 
@@ -81,8 +80,6 @@ class PlayerPitFallTest {
         published = new ArrayList<>();
         bus.subscribe(PlayerDeathStarted.class, published::add);
         bus.subscribe(PlayerDied.class, published::add);
-        standIn = new DeathMusicStandIn(bus);
-        standIn.subscribe();
         new PlayerDeathSequence(bus).subscribe();
 
         final LevelScene levelScene = mock(LevelScene.class);
@@ -157,31 +154,30 @@ class PlayerPitFallTest {
     @Test
     @DisplayName("Dead in the pit, the player neither moves nor is drawn, and the level ends with the music")
     void thePitDeathHoldsStillThenEndsWithTheMusic() {
-        // Prepare - fallen to its death; the engine's halted tick runs the player, then the managers
+        // Prepare - fallen to its death
         final LevelScenePlayer player = playerAt(SHRUNK, FIRST_PIT_COLUMN * TILE_SPRITE_SIZE + 32);
         for (int tick = 0; tick < 120 && !player.getRuntimeState().isDying(); tick++) {
             player.updateFrame();
         }
         assertThat(player.getRuntimeState().isDyingByFallingOff()).as("Died in the pit").isTrue();
-        standIn.updateWhileHalted();
         final double deathX = player.getPosition().getX();
         final double deathY = player.getPosition().getY();
 
-        // Execute & Verify - the 191 ticks after the death's own leave the level running
-        for (int tick = 1; tick < PLAYER_PIT_DEATH_COUNTDOWN_TICKS; tick++) {
-            haltedTick(player);
+        // Execute & Verify - the halted ticks while the death music plays leave the level running
+        for (int tick = 1; tick <= 300; tick++) {
+            player.updateFrame();
             assertThat(player.getPosition().getY()).as("Tick %d: no rise, no fall", tick)
                 .isCloseTo(deathY, within(TOLERANCE));
             assertThat(player.getRuntimeState().isSpriteDrawnThisTick()).as("Tick %d: not drawn", tick).isFalse();
         }
         assertThat(published).as("No PlayerDied while the music plays").hasSize(1);
 
-        haltedTick(player);
-        assertThat(published.getLast()).as("The 192nd tick after the death's ends the level")
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
+        assertThat(published.getLast()).as("The end of the death music ends the level")
             .isInstanceOf(PlayerDied.class);
 
         for (int tick = 0; tick < 300; tick++) {
-            haltedTick(player);
+            player.updateFrame();
         }
         assertThat(published).as("Exactly once").hasSize(2);
         assertThat(player.getPosition().getX()).isCloseTo(deathX, within(TOLERANCE));
@@ -216,12 +212,6 @@ class PlayerPitFallTest {
         player.getPosition().setY(STANDING_Y);
         player.getPosition().snapshotPrevious();
         return player;
-    }
-
-    /** One tick of a game the death has halted, in the engine's order: players, then the managers. */
-    private void haltedTick(final LevelScenePlayer player) {
-        player.updateFrame();
-        standIn.updateWhileHalted();
     }
 
     private LevelObject[][] floorWithAPit() {

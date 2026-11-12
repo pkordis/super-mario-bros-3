@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.ui.editor.level.menu.file;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
@@ -43,6 +44,7 @@ public final class SaveLevelSceneWindow extends JDialog {
 
     private final JTextField titleField = new JTextField(28);
     private final JTextArea descriptionArea = new JTextArea(4, 28);
+    private final BackgroundMusicComboBox backgroundMusicCombo;
 
     public SaveLevelSceneWindow(
         final Frame owner,
@@ -52,6 +54,11 @@ public final class SaveLevelSceneWindow extends JDialog {
         super(owner, "Save Scene", true);
         this.levelSceneService = levelSceneService;
         this.tab = tab;
+        backgroundMusicCombo = getBean(
+            BackgroundMusicComboBox.class,
+            getBean(MusicTrackCellRenderer.class)
+        );
+        backgroundMusicCombo.setSelectedItem(tab.getBackgroundMusic());
 
         if (tab.getSceneTitle() != null) {
             titleField.setText(tab.getSceneTitle());
@@ -136,6 +143,13 @@ public final class SaveLevelSceneWindow extends JDialog {
         descScroll.setPreferredSize(new Dimension(260, 80));
         form.add(descScroll, fieldGbc);
 
+        // ── Background music row (optional, none by default) ──────────────────
+        labelGbc.gridy++;
+        fieldGbc.gridy++;
+        labelGbc.anchor = WEST;
+        form.add(new JLabel("Background music:"), labelGbc);
+        form.add(backgroundMusicCombo, fieldGbc);
+
         // ── Required-field legend ─────────────────────────────────────────────
         labelGbc.gridy++;
         labelGbc.anchor = WEST;
@@ -182,14 +196,17 @@ public final class SaveLevelSceneWindow extends JDialog {
         }
 
         final String description = descriptionArea.getText().trim();
+        final MusicTrack backgroundMusic = backgroundMusicCombo.getSelectedTrack();
 
         // Apply the entered metadata to the tab before building the LevelScene
         tab.setSceneTitle(title);
         tab.setSceneDescription(description.isEmpty() ? null : description);
+        tab.setBackgroundMusic(backgroundMusic);
 
         final LevelScene levelScene = LevelSceneEditorTabFactory.fromLevelSceneEditor(tab);
         levelScene.setTitle(title);
         levelScene.setDescription(description.isEmpty() ? null : description);
+        levelScene.setBackgroundMusic(backgroundMusic);
 
         levelSceneService.save(levelScene);
 
@@ -202,10 +219,13 @@ public final class SaveLevelSceneWindow extends JDialog {
 
     /**
      * Shortens {@code value} to at most {@code maxLength} characters by keeping
-     * a prefix and suffix joined with an ellipsis.  Returns the original string
+     * a prefix and suffix joined with an ellipsis. Returns the original string
      * unchanged when it already fits.
      */
-    private static String abbreviate(final String value, final int maxLength) {
+    private static String abbreviate(
+        final String value,
+        final int maxLength
+    ) {
         if (value == null || value.length() <= maxLength) {
             return value;
         }

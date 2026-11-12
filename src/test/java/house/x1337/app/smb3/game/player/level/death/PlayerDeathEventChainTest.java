@@ -2,134 +2,111 @@ package house.x1337.app.smb3.game.player.level.death;
 
 import house.x1337.app.smb3.event.GameEventBus;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
-import house.x1337.app.smb3.model.event.PlayerDeathMusicFinished;
+import house.x1337.app.smb3.model.event.PlayerDeathFallEnded;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
 import house.x1337.app.smb3.model.event.PlayerDied;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static house.x1337.app.smb3.GameConstants.PLAYER_PIT_DEATH_COUNTDOWN_TICKS;
+import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
+import static house.x1337.app.smb3.enumeration.MusicTrack.PLAYER_DOWN;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * How a pit death ends: {@code PlayerDeathStarted(FELL_OFF)}, then {@code PlayerDeathMusicFinished} once
- * the death music is over, then a single {@code PlayerDied}. The wait is 192 ticks, and the level is left
- * on the tick that reads the count as zero. Until there is a sound engine the stand-in counts that wait.
- *
- * <p>Each tick below is one simulation tick of a halted game. The first is the tick the death began on:
- * the engine runs the player before the motion managers, so the stand-in's first count lands on the
- * death's own tick.
+ * How a death ends: {@code PlayerDeathStarted}, then the end of the death music ({@code SoundPlayComplete} for
+ * {@code PLAYER_DOWN}) and, for a death by an enemy, the body's fall off the level ({@code PlayerDeathFallEnded}),
+ * then a single {@code PlayerDied}.
  */
 class PlayerDeathEventChainTest {
     private GameEventBus bus;
-    private DeathMusicStandIn standIn;
     private PlayerDeathSequence sequence;
-    private AtomicInteger musicFinished;
     private AtomicInteger playerDied;
 
     @BeforeEach
     void prepare() {
         bus = new GameEventBus();
-        standIn = new DeathMusicStandIn(bus);
         sequence = new PlayerDeathSequence(bus);
-        musicFinished = new AtomicInteger();
         playerDied = new AtomicInteger();
-    }
-
-    @Test
-    @DisplayName("The stand-in reports the end of the music 192 ticks after the tick the death began on")
-    void theStandInReportsTheMusicEnd192TicksLater() {
-        // Prepare
         subscribeTheEngine();
-        bus.publish(new PlayerDeathStarted(FELL_OFF));
-
-        // Execute & Verify - the death's own tick, then 191 more
-        assertThat(PLAYER_PIT_DEATH_COUNTDOWN_TICKS).as("The pit-death wait is 192 ticks").isEqualTo(192);
-        tick(PLAYER_PIT_DEATH_COUNTDOWN_TICKS);
-        assertThat(musicFinished.get()).as("Not yet").isZero();
-        assertThat(standIn.isArmed()).isTrue();
-
-        tick(1);
-        assertThat(musicFinished.get()).as("On the 192nd tick after the death's").isEqualTo(1);
-        assertThat(standIn.isArmed()).as("Spent").isFalse();
-
-        tick(300);
-        assertThat(musicFinished.get()).as("Once").isEqualTo(1);
     }
 
     @Test
-    @DisplayName("Only when the music has ended is PlayerDied published, exactly once")
-    void playerDiedFollowsTheMusicOnce() {
+    @DisplayName("A pit death ends with the death music, exactly once")
+    void aPitDeathEndsWithTheMusic() {
         // Prepare
-        subscribeTheEngine();
-        bus.publish(new PlayerDeathStarted(FELL_OFF));
-
-        // Execute & Verify
-        tick(PLAYER_PIT_DEATH_COUNTDOWN_TICKS);
-        assertThat(playerDied.get()).as("The level does not end while the music plays").isZero();
-
-        tick(1);
-        assertThat(playerDied.get()).as("It ends with the music").isEqualTo(1);
-        assertThat(sequence.isFellOffDeathInProgress()).isFalse();
-
-        tick(300);
-        assertThat(playerDied.get()).as("And only once").isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("Any publisher of the music's end finishes a pit death, with no stand-in at all")
-    void anyPublisherOfTheMusicEndFinishesTheDeath() {
-        // Prepare - a sound engine in place of the stand-in
-        sequence.subscribe();
-        recordTheEvents();
         bus.publish(new PlayerDeathStarted(FELL_OFF));
 
         // Execute
-        bus.publish(new PlayerDeathMusicFinished());
-        bus.publish(new PlayerDeathMusicFinished());
+        final int beforeTheMusicEnds = playerDied.get();
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
 
         // Verify
-        assertThat(playerDied.get()).as("One death, one PlayerDied").isEqualTo(1);
+        assertThat(beforeTheMusicEnds).as("Not while the music plays").isZero();
+        assertThat(playerDied.get()).as("Once, with the music").isEqualTo(1);
+        assertThat(sequence.isDeathInProgress()).isFalse();
     }
 
     @Test
-    @DisplayName("The throe neither arms the stand-in nor is ended by the music, since it ends itself")
-    void theThroeIsLeftToItself() {
+    @DisplayName("A death by an enemy waits for the music after the body has fallen off the level")
+    void aThroeWaitsForTheMusic() {
         // Prepare
-        subscribeTheEngine();
         bus.publish(new PlayerDeathStarted(THROE));
 
         // Execute
-        tick(400);
-        bus.publish(new PlayerDeathMusicFinished());
+        bus.publish(new PlayerDeathFallEnded());
+        final int whileTheMusicPlays = playerDied.get();
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
 
         // Verify
-        assertThat(standIn.isArmed()).as("Not armed").isFalse();
-        assertThat(musicFinished.get()).as("Only the published one").isEqualTo(1);
-        assertThat(playerDied.get()).as("The throe publishes its own PlayerDied").isZero();
+        assertThat(whileTheMusicPlays).as("The body is gone, the music plays on").isZero();
+        assertThat(playerDied.get()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("A level restart part-way through disarms the stand-in, so the fresh level is not ended")
-    void aRestartDisarmsTheStandIn() {
+    @DisplayName("A death by an enemy waits for the body when the music ends first")
+    void aThroeWaitsForTheBody() {
         // Prepare
-        subscribeTheEngine();
-        bus.publish(new PlayerDeathStarted(FELL_OFF));
-        tick(50);
+        bus.publish(new PlayerDeathStarted(THROE));
 
-        // Execute - the R reset: the request, then the rebuild's MotionManager reset
-        bus.publish(LevelSceneResetRequested.builder().build());
-        standIn.reset();
-        tick(400);
+        // Execute
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
+        final int whileTheBodyFalls = playerDied.get();
+        bus.publish(new PlayerDeathFallEnded());
 
         // Verify
-        assertThat(standIn.isArmed()).isFalse();
-        assertThat(musicFinished.get()).as("No music end for the abandoned death").isZero();
+        assertThat(whileTheBodyFalls).as("The music is over, the body still falls").isZero();
+        assertThat(playerDied.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Another track's end does not end a death")
+    void anotherTracksEndIsIgnored() {
+        // Prepare
+        bus.publish(new PlayerDeathStarted(FELL_OFF));
+
+        // Execute
+        bus.publish(new SoundPlayComplete(COURSE_CLEAR));
+
+        // Verify
+        assertThat(playerDied.get()).isZero();
+        assertThat(sequence.isDeathInProgress()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Without a death, the music's end and a fallen body change nothing")
+    void nothingWithoutADeath() {
+        // Execute
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
+        bus.publish(new PlayerDeathFallEnded());
+
+        // Verify
         assertThat(playerDied.get()).isZero();
     }
 
@@ -137,60 +114,38 @@ class PlayerDeathEventChainTest {
     @DisplayName("The R reset makes the sequence forget the death, so a late music end changes nothing")
     void theResetForgetsTheDeathInProgress() {
         // Prepare
-        sequence.subscribe();
-        recordTheEvents();
         bus.publish(new PlayerDeathStarted(FELL_OFF));
 
         // Execute
         bus.publish(LevelSceneResetRequested.builder().build());
-        bus.publish(new PlayerDeathMusicFinished());
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
 
         // Verify
-        assertThat(sequence.isFellOffDeathInProgress()).isFalse();
+        assertThat(sequence.isDeathInProgress()).isFalse();
         assertThat(playerDied.get()).isZero();
     }
 
     @Test
-    @DisplayName("After an engine is destroyed, the next one subscribes both again and the chain still works once")
-    void bothWorkInASecondSession() {
-        // Prepare - a first session that ends mid-countdown, its listeners purged with its engine
-        subscribeTheEngine();
+    @DisplayName("After an engine is destroyed, the next one subscribes again and a death still ends once")
+    void itWorksInASecondSession() {
+        // Prepare - a first session that ends mid-death, its listeners purged with its engine
         bus.publish(new PlayerDeathStarted(FELL_OFF));
-        tick(20);
         bus.purgeEventListeners();
 
         // Execute - the second engine's start-up, then a pit death in it
         subscribeTheEngine();
-        final boolean armedAtTheStart = standIn.isArmed();
+        final boolean inProgressAtTheStart = sequence.isDeathInProgress();
         bus.publish(new PlayerDeathStarted(FELL_OFF));
-        tick(PLAYER_PIT_DEATH_COUNTDOWN_TICKS + 1);
+        bus.publish(new SoundPlayComplete(PLAYER_DOWN));
 
         // Verify
-        assertThat(armedAtTheStart).as("The first session's countdown is gone").isFalse();
-        assertThat(musicFinished.get()).as("Heard, and not twice").isEqualTo(1);
+        assertThat(inProgressAtTheStart).as("The first session's death is forgotten").isFalse();
         assertThat(playerDied.get()).as("The level ends once").isEqualTo(1);
     }
 
-    // -------------------------------------------------------------------------
-    // Fixtures
-    // -------------------------------------------------------------------------
-
-    /** What {@code GameEngine.simpleInitApp} does, plus listeners that count what reaches the bus. */
+    /** What {@code GameEngine.simpleInitApp} does, plus a listener that counts the level's ends. */
     private void subscribeTheEngine() {
-        standIn.subscribe();
         sequence.subscribe();
-        recordTheEvents();
-    }
-
-    private void recordTheEvents() {
-        bus.subscribe(PlayerDeathMusicFinished.class, event -> musicFinished.incrementAndGet());
         bus.subscribe(PlayerDied.class, event -> playerDied.incrementAndGet());
-    }
-
-    /** Ticks of a halted game: the engine calls {@code updateWhileHalted} on every motion manager. */
-    private void tick(final int ticks) {
-        for (int tick = 0; tick < ticks; tick++) {
-            standIn.updateWhileHalted();
-        }
     }
 }

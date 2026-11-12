@@ -34,6 +34,8 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.LEFT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.RIGHT;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.shellKill;
@@ -146,6 +148,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         velocity = velocity.withX(0);
         animator.applyCurrentFrame(this);
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
+        getSoundPlayer().play(ENEMY_STOMP);
     }
 
     @Override
@@ -157,6 +160,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         final boolean playerOnTheLeft = playerX + SPRITE_SIZE_PIXELS / 2.0 < position.x() + SPRITE_SIZE_PIXELS / 2.0;
         whamMotion = strikeFrom(playerOnTheLeft ? LEFT : RIGHT);
         pendingScoreReward = levelScenePlayer.currentKillChain();
+        getSoundPlayer().play(KOOPA_SHELL);
 
         // Put the flash on the side the Goomba is actually on, so it always lands between the two rather
         // than off the player's far shoulder. Keying off which side was struck rather than off the

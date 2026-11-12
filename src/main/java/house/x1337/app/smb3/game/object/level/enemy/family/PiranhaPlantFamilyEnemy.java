@@ -20,6 +20,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_PIPE_PLANT;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantState.HIDDEN;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.abs;
@@ -243,6 +244,7 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
             )
         );
         setPendingScoreReward(levelScenePlayer.currentKillChain());
+        getSoundPlayer().play(KOOPA_SHELL);
         killInAPoof();
     }
 

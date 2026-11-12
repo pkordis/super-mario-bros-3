@@ -176,9 +176,11 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     detached at the touch, and SMB3-64's spin-away draws the flight along the same `CardFlight`.
   - `TimeBonus.convertStep` is one `DoTimeBonus` step. `PlayerTimer.takeOff` takes the time off without expiring
     the timer, so the paused clock shows 000.
-  - `CourseClearMusicStandIn` stands in for `MUS1_COURSECLEAR` with `COURSE_CLEAR_MUSIC_TICKS = 0`: no music yet, so
-    the bonus starts as soon as the card is off screen. The package-private `LevelCompletion` constructor takes a
-    longer one for tests.
+  - The time bonus waits for the course-clear jingle to play to its end. The touch sets `courseClearPlaying`, and
+    `SoundPlayComplete(COURSE_CLEAR)` clears it (`LevelCompletion.subscribe()`, called by `GameEngine.simpleInitApp`
+    once per engine; SMB3-68 replaced a 255-tick stand-in). `LevelMusic` plays the jingle itself on
+    `LevelCardCollected`. Each bonus step plays `CASINO_BEEP`. Tests call the package-private
+    `onSoundPlayComplete` to end the jingle on the tick they choose.
   - The player's sprite X is `floor(X - screen left) & $FF`. `haltRunOff()` sets `PlayerRuntimeState.runOffHalted`,
     and `LevelScenePlayer.updateFrame` then only snapshots the position.
   - Three mixed cards go straight to `EXITING` until SMB3-48 adds state 6. A triple match takes the ordinary path for

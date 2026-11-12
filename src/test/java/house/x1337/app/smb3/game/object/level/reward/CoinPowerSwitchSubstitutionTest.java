@@ -16,6 +16,7 @@ import house.x1337.app.smb3.game.object.level.block.motion.BrickBlockMotionManag
 import house.x1337.app.smb3.game.object.level.reward.animation.CoinAnimator;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
 import house.x1337.app.smb3.model.game.Coordinates;
@@ -32,6 +33,9 @@ import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BREAKING_BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -41,6 +45,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -69,6 +74,7 @@ class CoinPowerSwitchSubstitutionTest {
         gameEngine = gameEngineMock();
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PowerSwitchTimeWindow.class))
             .thenReturn(powerSwitchTimeWindow);
@@ -162,6 +168,55 @@ class CoinPowerSwitchSubstitutionTest {
         powerSwitchTimeWindow.reset();
         assertTrue(coin.isCollected());
         assertFalse(coin.isCollidable());
+    }
+
+    @Test
+    @DisplayName("Large Mario smashing a substituted coin plays the breaking sound once")
+    void smashingPlaysTheBreakingSound() {
+        // Prepare
+        final Coin coin = newCoin();
+        final LevelScenePlayer player = playerMock(true);
+        powerSwitchTimeWindow.activate();
+
+        // Execute
+        coin.onCollisionFromBelow(player);
+
+        // Verify
+        verify(coin.getSoundPlayer(), times(1)).play(BREAKING_BLOCK);
+    }
+
+    @Test
+    @DisplayName("Touching a coin plays the coin sound once, and touching it again plays nothing")
+    void collectingACoinPlaysTheCoinSound() {
+        // Prepare
+        final Coin coin = newCoin();
+        final LevelScenePlayer player = playerMock(false);
+
+        // Execute
+        coin.onCollisionWith(player);
+        coin.onCollisionWith(player);
+
+        // Verify
+        verify(coin.getSoundPlayer(), times(1)).play(COIN);
+        verify(coin.getSoundPlayer(), never()).play(ONE_UP);
+    }
+
+    @Test
+    @DisplayName("The hundredth coin also plays the extra-life sound")
+    void theHundredthCoinPlaysTheExtraLifeSound() {
+        // Prepare
+        final PlayerData playerData = new PlayerData();
+        playerData.setCoins(99);
+        final LevelScenePlayer player = playerMock(false, playerData);
+
+        // Execute
+        final Coin coin = newCoin();
+        coin.onCollisionWith(player);
+
+        // Verify
+        verify(coin.getSoundPlayer(), times(1)).play(COIN);
+        verify(coin.getSoundPlayer(), times(1)).play(ONE_UP);
+        assertEquals(5, playerData.getLives());
     }
 
     @Test

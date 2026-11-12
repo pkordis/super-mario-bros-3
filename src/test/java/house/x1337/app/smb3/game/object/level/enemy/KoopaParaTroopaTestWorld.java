@@ -14,6 +14,7 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnim
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -110,6 +111,7 @@ final class KoopaParaTroopaTestWorld implements AutoCloseable {
         when(troopaAnimator.buildShellFootSprite(any(), anyBoolean())).thenAnswer(invocation -> quad("Foot"));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaParaTroopaAnimator.class))
             .thenReturn(animator);

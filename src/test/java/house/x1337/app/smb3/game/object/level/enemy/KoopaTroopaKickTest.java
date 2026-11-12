@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManage
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
@@ -38,6 +39,9 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_200;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_400;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_800;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_8000;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KICKED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.SHELLED;
@@ -51,6 +55,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -128,6 +133,7 @@ class KoopaTroopaKickTest {
         final KoopaTroopaAnimator animator = mock(KoopaTroopaAnimator.class);
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
             .thenReturn(animator);
@@ -705,6 +711,77 @@ class KoopaTroopaKickTest {
         assertThat(troopa.getSpinBeat())
             .as("the next kick rolls from the resting frame, not from wherever this one stopped")
             .isZero();
+    }
+
+    // -------------------------------------------------------------------------
+    // Sounds
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("A kick plays the shell sound once")
+    void aKickPlaysTheShellSound() {
+        // Prepare
+        final KoopaTroopa troopa = restingShell();
+        clearInvocations(troopa.getSoundPlayer());
+
+        // Execute
+        troopa.onKicked(playerAt(SHELL_X - 40, RIGHT, 0), true);
+
+        // Verify
+        verify(troopa.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
+    }
+
+    @Test
+    @DisplayName("A shell killing two enemies plays the shell sound twice, once for each")
+    void aShellKillingTwoEnemiesPlaysTwoShellSounds() {
+        // Prepare
+        final KoopaTroopa troopa = kickedShell(true);
+        clearInvocations(troopa.getSoundPlayer());
+
+        // Execute
+        troopa.onKickedInto(killableObject());
+        troopa.onKickedInto(killableObject());
+
+        // Verify
+        verify(troopa.getSoundPlayer(), times(2)).play(KOOPA_SHELL);
+    }
+
+    @Test
+    @DisplayName("A rolling shell rebounding off a wall plays the block sound once")
+    void aWallReboundPlaysTheBlockSound() {
+        // Prepare
+        solidColumn(SHELL_COLUMN + 2);
+        final LevelScenePlayer blockOwner = playerAt(SHELL_X - 40, RIGHT, 0);
+        when(collisionGrid.findClosestPlayerTo(anyDouble(), anyDouble())).thenReturn(Optional.of(blockOwner));
+        final KoopaTroopa troopa = kickedShell(true);
+        clearInvocations(troopa.getSoundPlayer());
+
+        // Execute
+        tick(troopa, 20);
+
+        // Verify
+        verify(troopa.getSoundPlayer(), times(1)).play(BLOCK);
+    }
+
+    @Test
+    @DisplayName("Stomping a resting shell kicks it with the shell sound, and stomping a rolling one plays the stomp")
+    void stompingAShellPlaysTheMatchingSound() {
+        // Prepare
+        final KoopaTroopa resting = restingShell();
+        final LevelScenePlayer onTheResting = playerAt(SHELL_X - 8, RIGHT, 0);
+        onTheResting.getPosition().setDY(2.0);
+        clearInvocations(resting.getSoundPlayer());
+
+        // Execute
+        resting.onCollisionFromAbove(onTheResting);
+        tick(resting, KICK_HIT_COOLDOWN_TICKS);
+        final LevelScenePlayer onTheRolling = playerAt(resting.getPosition().x() - 8, RIGHT, 0);
+        onTheRolling.getPosition().setDY(2.0);
+        resting.onCollisionFromAbove(onTheRolling);
+
+        // Verify
+        verify(resting.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
+        verify(resting.getSoundPlayer(), times(1)).play(ENEMY_STOMP);
     }
 
     // -------------------------------------------------------------------------

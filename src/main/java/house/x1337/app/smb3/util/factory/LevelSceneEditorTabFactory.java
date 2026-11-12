@@ -47,6 +47,7 @@ public interface LevelSceneEditorTabFactory {
         tab.setLevelCompletionCard(null);
         tab.setSceneTitle(generateTemporarySceneTitle());
         tab.setSceneDescription(null);
+        tab.setBackgroundMusic(null);
         tab.setSceneId(null);
         tab.setPipePortals(new ArrayList<>());
         tabAndGridUpdate(tab, grid);
@@ -63,6 +64,7 @@ public interface LevelSceneEditorTabFactory {
         }
         levelScene.setTitle(editor.getSceneTitle());
         levelScene.setDescription(editor.getSceneDescription());
+        levelScene.setBackgroundMusic(editor.getBackgroundMusic());
         levelScene.setDimensions(new LevelSceneDimensions(
             editor.getColumns(),
             editor.getRows()
@@ -112,6 +114,7 @@ public interface LevelSceneEditorTabFactory {
         tab.setLevelCompletionCard(placedOrNull(levelScene.getLevelCompletionCard()));
         tab.setSceneTitle(levelScene.getTitle());
         tab.setSceneDescription(levelScene.getDescription());
+        tab.setBackgroundMusic(levelScene.getBackgroundMusic());
         tab.setSceneId(levelScene.getId());
         tab.setPipePortals(copyOf(levelScene.getPipePortals()));
         tabAndGridUpdate(tab, grid);

@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
@@ -34,6 +35,7 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_200;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_400;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_800;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.max;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,6 +111,7 @@ class GoombaTailAttackTest {
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         tailAttackFlashMotionManager = mock(TailAttackFlashMotionManager.class);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(GoombaAnimator.class))
             .thenReturn(animator);
@@ -137,6 +140,21 @@ class GoombaTailAttackTest {
         assertThat(goomba.isSquished()).as("not the stomp death").isFalse();
         assertThat(goomba.getWhamMotion()).as("thrown off the level instead").isNotNull();
         assertThat(goomba.isHittable()).as("intangible from the blow onwards").isFalse();
+    }
+
+    @Test
+    @DisplayName("A tail attack plays the kill sound once, and a second one on the dying Goomba plays nothing")
+    void aTailAttackPlaysTheKillSoundOnce() {
+        // Prepare
+        final Goomba goomba = goombaAt(5, WALK_ROW);
+        final LevelScenePlayer player = playerAt(4 * TILE_SPRITE_SIZE, WALK_ROW_PIXEL_Y, RIGHT);
+
+        // Execute
+        goomba.onTailAttack(player);
+        goomba.onTailAttack(player);
+
+        // Verify
+        verify(goomba.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
     }
 
     @Test

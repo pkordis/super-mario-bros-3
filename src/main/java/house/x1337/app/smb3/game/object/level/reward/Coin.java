@@ -4,6 +4,7 @@ import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.CoinType;
 import house.x1337.app.smb3.enumeration.Reward;
+import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
@@ -33,6 +34,7 @@ import static house.x1337.app.smb3.enumeration.CoinType.FLIPPING;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.COIN_FLIPPING;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_50;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 
 @Data
@@ -84,7 +86,10 @@ public final class Coin implements AnimatableLevelObject, BreakableBrickCapabili
         setExpired(true);
 
         final PlayerData playerData = player.getPlayerData();
-        playerData.addCoin();
+        getSoundPlayer().play(COIN);
+        if (playerData.addCoin()) {
+            getSoundPlayer().play(SoundEffect.ONE_UP);
+        }
         playerData.addPoints(rewardType.getData().getPoints());
 
         animator.unregisterAt(offset);

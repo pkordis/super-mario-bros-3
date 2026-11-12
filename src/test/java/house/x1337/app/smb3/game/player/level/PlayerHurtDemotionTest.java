@@ -1,6 +1,8 @@
 package house.x1337.app.smb3.game.player.level;
 
 import house.x1337.app.smb3.enumeration.PlayerMode;
+import house.x1337.app.smb3.enumeration.SoundEffect;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -15,12 +17,15 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerMode.TANOOKI;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.HURT_INVINCIBILITY_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.NORMAL_TRANSITION_TICKS;
 import static house.x1337.app.smb3.model.game.player.PlayerRuntimeState.SUIT_LOSS_TRANSITION_TICKS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -308,6 +313,40 @@ class PlayerHurtDemotionTest {
             .isEqualTo(3.5);
     }
 
+    @ParameterizedTest
+    @EnumSource(value = PlayerMode.class, names = {"RACCOON", "TANOOKI"})
+    @DisplayName("Losing an advanced suit plays the poof sound once, and the invincible player hit again plays nothing")
+    void losingASuitPlaysThePoofSound(final PlayerMode advancedMode) {
+        // Prepare
+        final LevelScenePlayer player = hurtablePlayer(
+            advancedMode,
+            new PlayerRuntimeState(),
+            positionWithVelocity(0, 0)
+        );
+
+        // Execute
+        player.getHurtBy(null);
+        player.getHurtBy(null);
+
+        // Verify
+        verify(player.getSoundPlayer(), times(1)).play(SoundEffect.TANOOKI);
+        verify(player.getSoundPlayer(), never()).play(POWER_DOWN);
+    }
+
+    @Test
+    @DisplayName("Shrinking plays the power-down sound once")
+    void shrinkingPlaysThePowerDownSound() {
+        // Prepare
+        final LevelScenePlayer player = hurtablePlayer(NORMAL, new PlayerRuntimeState(), positionWithVelocity(0, 0));
+
+        // Execute
+        player.getHurtBy(null);
+        player.getHurtBy(null);
+
+        // Verify
+        verify(player.getSoundPlayer(), times(1)).play(POWER_DOWN);
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
@@ -319,6 +358,7 @@ class PlayerHurtDemotionTest {
         final PlayerPosition position
     ) {
         final LevelScenePlayer player = mock(LevelScenePlayer.class);
+        when(player.getSoundPlayer()).thenReturn(mock(SoundPlayer.class));
         when(player.getMode()).thenReturn(mode);
         when(player.getRuntimeState()).thenReturn(runtimeState);
         when(player.getPosition()).thenReturn(position);

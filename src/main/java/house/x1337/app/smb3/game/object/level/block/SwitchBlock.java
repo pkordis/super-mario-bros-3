@@ -8,6 +8,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.animator.SwitchBlockAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
+import house.x1337.app.smb3.model.event.PowerSwitchActivated;
 import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.SWITCH_BLOCK;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.SoundEffect.CANNONBALL;
 
 /**
  * The P-Switch: a single-tile, solid, standable block that flips every breakable brick in the level
@@ -31,8 +33,8 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_O
  * <p>Pressing it retires the switch — it stops animating, loses its collision box and repaints as
  * the static pressed sprite, by being replaced with a {@link PressedSwitchBlock} — shakes the screen
  * (see {@code LevelSceneVibration}) and opens the brick/coin window (see
- * {@code PowerSwitchTimeWindow}). Still to come: the music change. The "Wham!" sound is out of
- * scope while the project has no sound engine.
+ * {@code PowerSwitchTimeWindow}). It also plays the "Wham!"; {@code LevelMusic} plays the P-switch music
+ * while the window is open.
  */
 @Slf4j
 @Getter
@@ -82,6 +84,8 @@ public class SwitchBlock implements AnimatableLevelObject {
         // The screen shakes straight after the pressed tile is placed.
         levelSceneVibration.powerShake();
         powerSwitchTimeWindow.activate();
+        gameEngine.publish(new PowerSwitchActivated());
+        getSoundPlayer().play(CANNONBALL);
         log.debug("Switch block pressed at {}x{}", offset.x(), offset.y());
     }
 }

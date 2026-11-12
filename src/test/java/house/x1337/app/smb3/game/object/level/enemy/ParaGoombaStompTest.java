@@ -13,6 +13,7 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthAllocator.baseDepthOfSlot;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,6 +111,7 @@ class ParaGoombaStompTest {
             .thenAnswer(invocation -> new Geometry("Goomba", new Quad(1f, 1f)));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(ParaGoombaAnimator.class))
             .thenReturn(paraGoombaAnimator);
@@ -250,6 +253,21 @@ class ParaGoombaStompTest {
         assertThat(replacement.isSquished()).isTrue();
         assertThat(replacement.getPendingScoreReward()).isEqualTo(SCORE_100);
         assertThat(secondStomp.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
+    }
+
+    @Test
+    @DisplayName("A stomp plays the stomp sound once, and a second stomp on the finished ParaGoomba plays nothing")
+    void aStompPlaysTheStompSoundOnce() {
+        // Prepare
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+        final LevelScenePlayer player = descendingPlayer();
+
+        // Execute
+        paraGoomba.onCollisionFromAbove(player);
+        paraGoomba.onCollisionFromAbove(player);
+
+        // Verify
+        verify(paraGoomba.getSoundPlayer(), times(1)).play(ENEMY_STOMP);
     }
 
     @Test

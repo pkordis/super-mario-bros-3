@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static java.util.Objects.hash;
 import static java.util.Objects.requireNonNull;
 import static lombok.AccessLevel.NONE;
@@ -44,13 +45,20 @@ public final class PlayerData {
         return playerTimer.isShown();
     }
 
-    public void addCoin() {
+    /**
+     * Counts one coin. The hundredth is traded for an extra life and the count goes back to 0.
+     *
+     * @return whether this coin earned an extra life
+     */
+    public boolean addCoin() {
         ++coins;
 
         if (coins == 100) {
             coins -= 100;
             addLives(1);
+            return true;
         }
+        return false;
     }
 
     public void addPoints(final Integer score) {
@@ -84,6 +92,20 @@ public final class PlayerData {
 
     public void clearCards() {
         Arrays.fill(cards, null);
+    }
+
+    /**
+     * Empties the P-meter and its throttle, as at the start of a fresh run.
+     *
+     * @return whether the meter was full before
+     */
+    public boolean resetPowerMeter() {
+        final boolean wasFull = playerPower >= PMETER_LEVELS;
+        playerPower = 0;
+        powerThrottle = 0;
+        powerMeter = 0;
+        powerMeterFull = false;
+        return wasFull;
     }
 
     @Data
