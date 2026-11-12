@@ -2,6 +2,7 @@ package house.x1337.app.smb3.runner;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.service.ConfigurationService;
+import house.x1337.app.smb3.service.GameSettingsService;
 import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
@@ -18,6 +19,7 @@ public class LevelSceneEditorRunner implements ApplicationRunner {
     private final AtomicBoolean launched = new AtomicBoolean(false);
     private final LevelSceneEditorWindow levelSceneEditorWindow;
     private final ConfigurationService configurationService;
+    private final GameSettingsService gameSettingsService;
 
     @Override
     public void run(final ApplicationArguments args) {
@@ -26,6 +28,7 @@ public class LevelSceneEditorRunner implements ApplicationRunner {
         }
 
         configurationService.loadPhysics();
+        gameSettingsService.load();
 
         invokeLater(() -> {
             if (launched.compareAndSet(false, true)) {

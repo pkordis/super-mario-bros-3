@@ -13,6 +13,9 @@ import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.settings.GameSettings;
+import house.x1337.app.smb3.repository.GameSettingsRepository;
+import house.x1337.app.smb3.service.GameSettingsService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +31,8 @@ import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
+import static house.x1337.app.smb3.enumeration.TimerPace.STANDARD;
+import static house.x1337.app.smb3.enumeration.TimerPace.REAL_TIME;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.FRESH;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.carryOver;
 import static house.x1337.app.smb3.game.time.PowerSwitchTimeWindow.TOTAL_TICKS;
@@ -57,6 +62,7 @@ class GameEngineBuildLevelTest {
     private final List<LevelScenePlayer> nextSpawns = new ArrayList<>();
     private final LevelMusic levelMusic = mock(LevelMusic.class);
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = new PowerSwitchTimeWindow();
+    private final GameSettingsService gameSettingsService = new GameSettingsService(mock(GameSettingsRepository.class));
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -81,6 +87,9 @@ class GameEngineBuildLevelTest {
             }
             if (type == PowerSwitchTimeWindow.class) {
                 return powerSwitchTimeWindow;
+            }
+            if (type == GameSettingsService.class) {
+                return gameSettingsService;
             }
             return mock(type);
         });
@@ -262,5 +271,32 @@ class GameEngineBuildLevelTest {
 
         // Verify
         assertThat(openWhenTheMusicStarted).containsExactly(false);
+    }
+
+    @Test
+    @DisplayName("A fresh start counts the timer at the pace saved in the settings")
+    void aFreshStartTakesTheSavedTimerPace() {
+        // Prepare
+        gameSettingsService.save(new GameSettings(STANDARD));
+
+        // Execute
+        gameEngine.buildLevel();
+
+        // Verify
+        assertThat(playerData.getPlayerTimer().getPace()).isEqualTo(STANDARD);
+    }
+
+    @Test
+    @DisplayName("A carried-over start keeps the pace the run started with, even after the settings changed")
+    void aCarriedOverStartKeepsTheRunsTimerPace() {
+        // Prepare
+        gameEngine.buildLevel();
+        gameSettingsService.save(new GameSettings(STANDARD));
+
+        // Execute
+        gameEngine.buildLevel(carryOver(RACCOON));
+
+        // Verify
+        assertThat(playerData.getPlayerTimer().getPace()).isEqualTo(REAL_TIME);
     }
 }

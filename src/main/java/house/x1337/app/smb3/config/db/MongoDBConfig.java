@@ -65,6 +65,9 @@ public class MongoDBConfig {
     @Value("${spring.data.mongodb.collection.configuration:configuration}")
     private String configurationCollection;
 
+    @Value("${spring.data.mongodb.collection.game-data:gameData}")
+    private String gameDataCollection;
+
     @Bean
     ConnectionString connectionString() {
         return new ConnectionString(format("mongodb://%s:%s/", host, port));
@@ -159,5 +162,10 @@ public class MongoDBConfig {
     @Bean
     MongoCollection<Document> configurationMongoCollection(final MongoDatabase mongoDatabase) {
         return mongoDatabase.getCollection(configurationCollection);
+    }
+
+    @Bean
+    MongoCollection<Document> gameDataMongoCollection(final MongoDatabase mongoDatabase) {
+        return mongoDatabase.getCollection(gameDataCollection);
     }
 }

@@ -6,6 +6,7 @@ import house.x1337.app.smb3.ui.editor.level.menu.file.ExitMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.file.ImportFromPngLevelSceneMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.file.NewLevelSceneMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.file.SaveLevelSceneMenuItem;
+import house.x1337.app.smb3.ui.editor.level.menu.file.SettingsMenuItem;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,7 @@ public class FileMenu extends JMenu {
     private final SaveLevelSceneMenuItem saveLevelSceneMenuItem;
     private final BrowseLevelScenesMenuItem browseLevelScenesMenuItem;
     private final ImportFromPngLevelSceneMenuItem importFromPngLevelSceneMenuItem;
+    private final SettingsMenuItem settingsMenuItem;
     private final ExitMenuItem exitMenuItem;
 
     @PostConstruct
@@ -28,6 +30,8 @@ public class FileMenu extends JMenu {
         add(browseLevelScenesMenuItem);
         addSeparator();
         add(importFromPngLevelSceneMenuItem);
+        addSeparator();
+        add(settingsMenuItem);
         addSeparator();
         add(exitMenuItem);
     }
