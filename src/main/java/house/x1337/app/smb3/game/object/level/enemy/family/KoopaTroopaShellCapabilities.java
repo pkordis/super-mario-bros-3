@@ -12,6 +12,8 @@ import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.HELD;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KICKED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
@@ -226,6 +228,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         final int inheritedXVelocity = carrier == null ? 0 : playerXVelocityFixedPoint(carrier);
         setPendingScoreReward(SCORE_100);
         onStruckByKickedObject(inheritedXVelocity);
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     private void breakFreeOfTheHands() {
@@ -275,6 +278,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         showGeometryForState();
         refreshShellFrame();
         positionSprite();
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     @Override
@@ -355,6 +359,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
             : proposed.x();
         final double probeY = position.y() + BODY_SIZE_PIXELS / 2.0;
         final StaticEnvironmentCollisionGrid collisionGrid = getCollisionGrid();
+        getSoundPlayer().play(BLOCK);
         collisionGrid
             .findClosestPlayerTo(position.x(), position.y())
             .ifPresent(player -> collisionGrid.resolveTailAttack(player, probeX, probeY));
@@ -403,6 +408,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
             : -SHELL_CHAIN_KNOCK_X_VELOCITY_FIXED_POINT;
 
         other.onStruckByKickedObject(knockAway);
+        getSoundPlayer().play(KOOPA_SHELL);
         if (mutualKick) {
             onStruckByKickedObject(knockBack);
             return;
@@ -445,6 +451,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         setGrounded(false);
         showGeometryForState();
         positionSprite();
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     private int playerXVelocityFixedPoint(final LevelScenePlayer levelScenePlayer) {

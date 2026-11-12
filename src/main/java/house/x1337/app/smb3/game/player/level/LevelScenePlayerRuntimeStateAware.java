@@ -29,6 +29,8 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.TANOOKI;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
@@ -212,8 +214,10 @@ public interface LevelScenePlayerRuntimeStateAware
         }
         if (isAdvanced()) {
             loseAdvancedSuit();
+            getSoundPlayer().play(TANOOKI);
         } else if (isLarge()) {
             turnToShrunk();
+            getSoundPlayer().play(POWER_DOWN);
         } else {
             die();
         }

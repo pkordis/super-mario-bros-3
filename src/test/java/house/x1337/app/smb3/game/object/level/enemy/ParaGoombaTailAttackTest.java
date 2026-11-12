@@ -11,6 +11,7 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.animator.ParaGoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.EnemyLevelObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -26,6 +27,7 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.max;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -112,6 +114,7 @@ class ParaGoombaTailAttackTest {
         tailAttackFlashMotionManager = mock(TailAttackFlashMotionManager.class);
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(ParaGoombaAnimator.class))
             .thenReturn(paraGoombaAnimator);
@@ -135,6 +138,22 @@ class ParaGoombaTailAttackTest {
     @AfterEach
     void tearDown() {
         staticBeanFactory.close();
+    }
+
+    @Test
+    @DisplayName("A tail attack plays the kill sound once, through the replacement, and a second one plays nothing")
+    void aTailAttackPlaysTheKillSoundOnce() {
+        // Prepare
+        final ParaGoomba paraGoomba = paraGoombaAt(START_COLUMN, REST_ROW);
+        paraGoomba.faceClosestPlayer();
+        final LevelScenePlayer player = playerAt((START_COLUMN - 1) * (double) TILE_SPRITE_SIZE);
+
+        // Execute
+        paraGoomba.onTailAttack(player);
+        paraGoomba.onTailAttack(player);
+
+        // Verify
+        verify(paraGoomba.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
     }
 
     @Test

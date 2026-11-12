@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -507,6 +508,7 @@ class EnemySpawnerTest {
     private static final class StubGoombaMotionManager implements EnemyMotionManager<Goomba> {
         private final List<Goomba> activeInstances = new ArrayList<>();
         private final List<ScorePopupAnimation> activeScorePopups = new ArrayList<>();
+        private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
 
         @Override
         public List<Goomba> getActiveInstances() {
@@ -521,6 +523,11 @@ class EnemySpawnerTest {
         @Override
         public Class<Goomba> getType() {
             return Goomba.class;
+        }
+
+        @Override
+        public SoundPlayer getSoundPlayer() {
+            return soundPlayer;
         }
     }
 

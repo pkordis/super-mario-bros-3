@@ -2,6 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules;
@@ -70,6 +71,8 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
     private Coordinates levelCompletionCard = null;
     private String sceneTitle = null;
     private String sceneDescription = null;
+    /** The music the scene plays; {@code null} for none. */
+    private MusicTrack backgroundMusic = null;
     private String sceneId = null;
 
     /**
@@ -141,6 +144,7 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         levelCompletionCard = null;
         sceneTitle = null;
         sceneDescription = null;
+        backgroundMusic = null;
         sceneId = null;
         pipePortals = new ArrayList<>();
     }

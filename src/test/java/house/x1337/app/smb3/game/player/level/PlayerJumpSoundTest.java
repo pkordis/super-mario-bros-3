@@ -14,17 +14,20 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * The jump sound plays when a jump starts from the ground, once per press, and not for a press in the air.
+ * The jump sound plays when a jump starts from the ground, once per press; a press in the air wags the tail and
+ * plays the tail wag instead.
  */
 class PlayerJumpSoundTest {
     private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
@@ -64,7 +67,7 @@ class PlayerJumpSoundTest {
     }
 
     @Test
-    @DisplayName("A press in the air, a tail wag, plays no jump sound")
+    @DisplayName("A press in the air, a tail wag, plays the tail wag and no jump sound")
     void aPressInTheAirPlaysNoJumpSound() {
         // Prepare
         final LevelScenePlayer player = player(true);
@@ -76,6 +79,22 @@ class PlayerJumpSoundTest {
 
         // Verify
         assertThat(runtimeState.getPlayerWagCount()).as("The press wagged the tail").isPositive();
+        verify(soundPlayer, times(1)).play(TAIL_WAG);
+        verify(soundPlayer, never()).play(JUMP);
+    }
+
+    @Test
+    @DisplayName("A press in the air without a tail plays nothing")
+    void aPressInTheAirWithoutATailPlaysNothing() {
+        // Prepare
+        final LevelScenePlayer player = player(false);
+        runtimeState.setTo(FALLING);
+        when(inputHandler.consumePress(HANDLER_JUMP)).thenReturn(true);
+
+        // Execute
+        player.handleVerticalMovement(inputHandler);
+
+        // Verify
         verifyNoInteractions(soundPlayer);
     }
 

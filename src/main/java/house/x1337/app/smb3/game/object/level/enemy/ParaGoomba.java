@@ -29,6 +29,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.PARA_GOOMBA;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -129,6 +130,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         deWinged = true;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
+        getSoundPlayer().play(ENEMY_STOMP);
         replaceWithGroundGoomba(STOMP_HIT_COOLDOWN_TICKS);
         setExpired(true);
     }

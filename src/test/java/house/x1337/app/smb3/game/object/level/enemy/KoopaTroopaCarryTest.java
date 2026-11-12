@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManage
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -138,6 +139,7 @@ class KoopaTroopaCarryTest {
         final KoopaTroopaAnimator animator = mock(KoopaTroopaAnimator.class);
         when(animator.walkFrameCount(any())).thenReturn(WALK_FRAME_COUNT);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(KoopaTroopaAnimator.class))
             .thenReturn(animator);

@@ -16,6 +16,7 @@ import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.game.object.level.ActiveLevelObject.FALLEN_OUT_OF_THE_LEVEL_Y_PIXELS;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -107,6 +109,7 @@ class EnemyMotionManagerTest {
         // subject and only its presence matters here. Reward.Data is a prototype too, and is what carries
         // the points and lives this test is about, so that one has to be real.
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(Reward.Data.class))
             .thenAnswer(invocation -> new Reward.Data());
@@ -396,6 +399,7 @@ class EnemyMotionManagerTest {
 
         // Verify
         assertThat(playerData.getScore()).isEqualTo(400);
+        verify(manager.getSoundPlayer(), never()).play(ONE_UP);
         assertThat(manager.getActiveScorePopups()).as("and the caption went up with it").hasSize(1);
         assertThat(enemy.getPendingScoreReward()).as("drained, so it pays exactly once").isNull();
     }
@@ -418,6 +422,7 @@ class EnemyMotionManagerTest {
         assertThat(enemy.getPendingScoreReward()).isNull();
         assertThat(playerData.getLives()).isEqualTo(livesBefore + 1);
         assertThat(playerData.getScore()).as("a 1-up is worth no points").isZero();
+        verify(manager.getSoundPlayer(), times(1)).play(ONE_UP);
     }
 
     @Test
@@ -608,6 +613,7 @@ class EnemyMotionManagerTest {
         private final Class<StubEnemy> type = StubEnemy.class;
         private final List<StubEnemy> activeInstances = new ArrayList<>();
         private final List<ScorePopupAnimation> activeScorePopups = new ArrayList<>();
+        private final SoundPlayer soundPlayer = StaticBeanFactory.getBean(SoundPlayer.class);
     }
 
     /**

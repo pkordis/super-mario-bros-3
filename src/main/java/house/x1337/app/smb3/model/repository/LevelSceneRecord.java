@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.model.repository;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,7 @@ public final class LevelSceneRecord implements Serializable {
     private Coordinates renderingStarter;
     private Coordinates spawnPoint;
     private Coordinates levelCompletionCard;
+    private MusicTrack backgroundMusic;
     @Singular
     private Map<String, LevelSceneLayerData> layers;
 

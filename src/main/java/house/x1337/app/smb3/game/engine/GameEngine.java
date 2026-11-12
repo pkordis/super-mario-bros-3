@@ -20,15 +20,19 @@ import house.x1337.app.smb3.game.player.Player;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.factory.PlayerFactory;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
-import house.x1337.app.smb3.game.player.level.death.DeathMusicStandIn;
 import house.x1337.app.smb3.game.player.level.death.PlayerDeathSequence;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.game.sound.LevelMusic;
 import house.x1337.app.smb3.game.sound.OpenAlSoftConfiguration;
+import house.x1337.app.smb3.game.sound.PowerMeterSound;
 import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.jme3.core.DepthOrderedGeometryComparator;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.event.GameplayHalted;
+import house.x1337.app.smb3.model.event.GameplayResumed;
+import house.x1337.app.smb3.model.event.PlayerPowerLost;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -47,6 +51,7 @@ import static house.x1337.app.smb3.GameConstants.VIEWPORT_WIDTH;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.PlayerIdentityType.MARIO;
+import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_CAPTURE_TOGGLE;
 import static lombok.AccessLevel.PRIVATE;
 
 @Slf4j
@@ -81,6 +86,9 @@ public final class GameEngine extends GameEngineCapabilities {
      * tick is consumed. This decouples game-logic rate (60 Hz) from render rate.
      */
     private double simulationAccumulator = 0.0;
+
+    /** Whether gameplay was halted on the last tick, so its changes can be announced. */
+    private boolean gameplayHalted;
 
     /**
      * @return whether gameplay is halted: by a player, or by a blocking screen fade, which leaves nothing else
@@ -151,14 +159,18 @@ public final class GameEngine extends GameEngineCapabilities {
         stateManager.attach(cameraState);
         viewPort.setBackgroundColor(BLACK);
 
-        // The pit death ends when the death music ends (PlayerDeathStarted -> PlayerDeathMusicFinished ->
-        // PlayerDied). Both pieces are singletons that outlive this engine, and destroy() purges the bus,
-        // so each engine subscribes them once here rather than in @PostConstruct.
-        getBean(DeathMusicStandIn.class).subscribe();
+        // A death ends when its music and its body are both gone (PlayerDeathStarted, SoundPlayComplete and, for a
+        // throe, PlayerDeathFallEnded -> PlayerDied). The sequence is a singleton that outlives this engine, and
+        // destroy() purges the bus, so each engine subscribes it once here rather than in @PostConstruct.
         getBean(PlayerDeathSequence.class).subscribe();
 
-        // The sound player is a singleton too: it plays through whichever engine attached itself last.
+        // The sound player is a singleton too: it plays through whichever engine attached itself last. The level
+        // music and the P-meter sound subscribe here for the same reason as the death sequence above, and so does
+        // this engine's level completion.
         getBean(SoundPlayer.class).attach(this);
+        getBean(LevelMusic.class).subscribe();
+        getBean(PowerMeterSound.class).subscribe();
+        levelCompletion.subscribe();
 
         // The fading engine is a singleton too, so a fade left running (or the screen held black) by a previous engine
         // must not carry into this one.
@@ -260,6 +272,10 @@ public final class GameEngine extends GameEngineCapabilities {
         // Create and attach the player at its spawn. A fresh LevelScenePlayer re-reads the spawn point
         // and builds a fresh vertical scroll, so the camera returns to the level start.
         playerData.setIdentity(MARIO.identity());
+        // A fresh start begins with an empty P-meter; a run carried through a pipe keeps its charge
+        if (!start.isCarryOver() && playerData.resetPowerMeter()) {
+            publish(new PlayerPowerLost());
+        }
         playerOne = PlayerFactory.spawn(
             playerData,
             onSpawn -> {
@@ -276,31 +292,40 @@ public final class GameEngine extends GameEngineCapabilities {
         if (previousInput != null && playerOne instanceof final LevelScenePlayer spawnedLevelPlayer) {
             spawnedLevelPlayer.getInputHandler().carryOverFrom(previousInput);
         }
+        // Each HUD has its own viewport, so the one it replaces must stop rendering
+        if (headsUpDisplay != null) {
+            headsUpDisplay.dispose();
+        }
         headsUpDisplay = HeadsUpDisplayFactory.create(this);
         if (start.restartTimer()) {
             playerData.getPlayerTimer().clear();
             playerData.getPlayerTimer().setInitialTime(300);
             playerData.getPlayerTimer().start();
         }
+
+        // After the grid rebuild, which closes any P-switch window the previous run left open
+        getBean(LevelMusic.class).start(levelScene, start);
     }
 
     private void registerCaptureTrigger() {
         getInputManager().addMapping(
-            PlayerInputHandler.HANDLER_CAPTURE_TOGGLE,
+            HANDLER_CAPTURE_TOGGLE,
             new KeyTrigger(KeyInput.KEY_9)
         );
         getInputManager().addListener(
             (ActionListener) (name, isPressed, tpf) -> {
-                if (isPressed && PlayerInputHandler.HANDLER_CAPTURE_TOGGLE.equals(name)) {
+                if (isPressed && HANDLER_CAPTURE_TOGGLE.equals(name)) {
                     frameCaptureState.toggleCapture();
                 }
             },
-            PlayerInputHandler.HANDLER_CAPTURE_TOGGLE
+            HANDLER_CAPTURE_TOGGLE
         );
     }
 
     @Override
     public void simpleUpdate(final float timePerFrame) {
+        // A jingle that has ended is reported before this frame's ticks, which react to it
+        getBean(SoundPlayer.class).update(timePerFrame);
         simulationAccumulator += timePerFrame;
 
         // jME3 fully runs simpleInitApp() — which spawns the player, builds its
@@ -326,7 +351,9 @@ public final class GameEngine extends GameEngineCapabilities {
                 // updateFrame above; every other player froze itself. The camera
                 // follows the (now-stationary) player node and the un-advanced
                 // vertical scroll, so it holds still too.
-                if (isGameplayHalted()) {
+                final boolean halted = isGameplayHalted();
+                announceHaltChange(halted);
+                if (halted) {
                     motionManagers.forEach(MotionManager::updateWhileHalted);
                     continue;
                 }
@@ -373,5 +400,18 @@ public final class GameEngine extends GameEngineCapabilities {
         this.activeObjectGrid = levelScene.toActiveObjectGrid(this);
         activeObjectGrid.spawnPlacedEnemies();
         levelScene.reset();
+    }
+
+    /** Publishes {@link GameplayHalted} or {@link GameplayResumed} on the tick gameplay stops or starts again. */
+    private void announceHaltChange(final boolean halted) {
+        if (halted == gameplayHalted) {
+            return;
+        }
+        gameplayHalted = halted;
+        if (halted) {
+            publish(new GameplayHalted());
+        } else {
+            publish(new GameplayResumed());
+        }
     }
 }

@@ -282,13 +282,6 @@ public final class GameConstants {
      */
     public static final double PLAYER_DEATH_FALL_MAX = 4.0;
 
-    /**
-     * Ticks a player who fell into a pit waits, unseen, before the level ends. 192 ticks is how long the
-     * death music plays, which is what the wait stands for: {@code DeathMusicStandIn} counts it until a
-     * sound engine reports the real track's end.
-     */
-    public static final int PLAYER_PIT_DEATH_COUNTDOWN_TICKS = 192;
-
     public static final int PMETER_LEVELS = 7;
     public static final int PMETER_CHARGE_FRAMES = 8;
     public static final int PMETER_DRAIN_FRAMES = 24;

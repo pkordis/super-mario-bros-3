@@ -14,11 +14,11 @@ disassembly. All dasm references are `~/Projects/smb3dasm`.
 | 3 | Press behaviour (collision box gone, static pressed art) | **done** as scoped, committed |
 | 4 | Screen shake | **done** |
 | 5 | Brick↔coin substitution for the duration | **done** as scoped |
-| 6 | Music swap and restore on expiry | not started |
+| 6 | Music swap and restore on expiry | **done** (SMB3-68, `LevelMusic`; see `kb/sound.md`) |
 | 7 | Spawn poof cloud | **done** |
 
-Sound is **out of scope for the whole feature set** for now (there is no sound engine yet), so the
-stomp's `SND_LEVELBABOOM` "Wham!" is not tracked as work. Item 6 stays deferred.
+The stomp's "Wham!" plays `SoundEffect.CANNONBALL` from `SwitchBlock.onCollisionFromAbove` (SMB3-68). The music
+swap is not triggered by the switch itself: `LevelMusic` watches `PowerSwitchTimeWindow.isActive()` every tick.
 
 ---
 
@@ -50,7 +50,7 @@ LDA #CHNGTILE_PSWITCHSTOMP
 CMP Level_ChgTileEvent / BEQ PRG008_B64F   ; already queued, skip
 JSR Level_QueueChangeBlock
 LDA #$10 / STA Level_Vibration             ; screen shake, 16 frames   (feature 4)
-LDA Sound_QLevel1 / ORA #SND_LEVELBABOOM   ; "Wham!"                   (no sound engine)
+LDA Sound_QLevel1 / ORA #SND_LEVELBABOOM   ; "Wham!"                   (SoundEffect.CANNONBALL)
 LDA #$80 / STA Level_PSwitchCnt            ; duration                  (feature 5)
 LDA #MUS2B_PSWITCH / STA Sound_QMusic2     ; music                     (feature 6)
 ```

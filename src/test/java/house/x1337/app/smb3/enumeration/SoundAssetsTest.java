@@ -55,7 +55,7 @@ class SoundAssetsTest {
         // Verify
         assertThat(paths).as("One file per constant").hasSize(SoundEffect.values().length);
         assertThat(paths).as("The effects and the effect files").isEqualTo(files);
-        assertThat(files).as("Effect files").hasSize(28);
+        assertThat(files).as("Effect files").hasSize(30);
     }
 
     @Test

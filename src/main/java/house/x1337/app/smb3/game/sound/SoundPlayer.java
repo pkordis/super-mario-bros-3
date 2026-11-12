@@ -11,6 +11,8 @@ import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.event.GameEventBus;
 import house.x1337.app.smb3.model.event.GameEngineStopped;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,30 +20,48 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import static com.jme3.audio.AudioData.DataType.Stream;
+import static com.jme3.audio.AudioSource.Status.Playing;
+import static com.jme3.audio.AudioSource.Status.Stopped;
 
 /**
  * Plays the game's sound effects and music through the running engine's audio renderer.
  *
  * <p>Effects are fire and forget: each {@link #play(SoundEffect)} starts a new instance, so the same effect can
- * overlap itself, and no effect stops the music. Every effect is decoded into memory and trimmed by
+ * overlap itself, and no effect stops the music or any other effect. There are no channels: everything overlaps.
+ * The one exception is an effect that is not self-overlapping, which plays on its own node and ignores a play while
+ * that node still sounds. An effect can also loop, through {@link #loop(SoundEffect)},
+ * until {@link #stopLoop(SoundEffect)}; each effect has at most one loop playing. Every effect is decoded into
+ * memory and trimmed by
  * {@link SoundEffectTrimmer} when an engine attaches, so the first play of each one is as quick as the rest.
- * Music plays one track at a time and loops; it is streamed, with the stream cached so it can rewind to the start.
+ * Music plays one track at a time, looped unless the track is a jingle; it is streamed, with the stream cached so
+ * it can rewind to the start.
+ *
+ * <p>A jingle that plays to its end publishes {@link SoundPlayComplete}, from {@link #update(float)} on the engine's
+ * update thread. A jingle stopped or replaced first publishes nothing. On an engine without an audio renderer (a
+ * headless one, for example) nothing is heard, but a jingle still ends: once its length, read from its file by
+ * {@link OggTrackLength}, has passed. So the game moves on at the same moments with or without a sound device.
  *
  * <p>The player is a singleton and outlives each engine, so every engine hands itself over through
- * {@link #attach(Application)} as it starts. Until then, and on an engine without an audio renderer (a headless
- * one, for example), every call does nothing. Calls must come from the engine's update thread: jME only knows
- * the audio renderer on that thread.
+ * {@link #attach(Application)} as it starts. Until then every call does nothing. Calls must come from the engine's
+ * update thread: jME only knows the audio renderer on that thread.
  */
+@Data
 @Slf4j
 @Singleton
 @RequiredArgsConstructor
 public final class SoundPlayer {
     private final GameEventBus gameEventBus;
     private final SoundEffectTrimmer soundEffectTrimmer;
+    private final OggTrackLength oggTrackLength;
     private final Map<SoundEffect, AudioNode> effects = new EnumMap<>(SoundEffect.class);
+    private final Map<SoundEffect, AudioNode> loops = new EnumMap<>(SoundEffect.class);
 
+    private boolean attached;
+    private double clockSeconds;
     private AssetManager assetManager;
     private AudioNode music;
+    private MusicTrack currentTrack;
+    private PlayingJingle jingle;
 
     /**
      * Starts playing for the given engine: drops whatever was kept for the previous one, loads every effect, and
@@ -52,8 +72,10 @@ public final class SoundPlayer {
      */
     public void attach(final Application application) {
         detach();
+        attached = true;
+        gameEventBus.subscribe(GameEngineStopped.class, event -> detach());
         if (application.getAudioRenderer() == null) {
-            log.info("No audio renderer: sound is off for this engine");
+            log.info("No audio renderer: sound is off for this engine, and jingles end after their length");
             return;
         }
         assetManager = application.getAssetManager();
@@ -62,44 +84,106 @@ public final class SoundPlayer {
             effects.put(effect, loadEffect(effect));
         }
         log.debug("Loaded {} sound effects in {} ms", effects.size(), (System.nanoTime() - start) / 1_000_000);
-        gameEventBus.subscribe(GameEngineStopped.class, event -> detach());
     }
 
     /**
-     * Plays a sound effect over whatever is already playing.
+     * Publishes {@link SoundPlayComplete} once the current jingle has played to its end. Called once per frame by the
+     * engine, on its update thread.
+     *
+     * @param timePerFrame the time since the previous frame, in seconds
+     */
+    public void update(final float timePerFrame) {
+        clockSeconds += timePerFrame;
+        if (jingle != null && jingle.hasEnded(clockSeconds)) {
+            final MusicTrack ended = jingle.track();
+            jingle = null;
+            gameEventBus.publish(new SoundPlayComplete(ended));
+        }
+    }
+
+    /**
+     * Plays a sound effect over whatever is already playing. A self-overlapping effect starts a new copy every time;
+     * one that is not ({@link SoundEffect#isSelfOverlapping()}) is ignored while it still sounds.
      *
      * @param effect the effect to play
      */
     public void play(final SoundEffect effect) {
         final AudioNode node = effects.get(effect);
-        if (node != null) {
+        if (node == null) {
+            return;
+        }
+        if (effect.isSelfOverlapping()) {
             node.playInstance();
+        } else if (node.getStatus() != Playing) {
+            node.play();
         }
     }
 
     /**
-     * Stops the current track, if any, and loops the given one from its start.
+     * Plays a sound effect over and over, with no gap between the repeats, until {@link #stopLoop(SoundEffect)}.
+     * Does nothing while the effect already loops.
+     *
+     * @param effect the effect to loop
+     */
+    public void loop(final SoundEffect effect) {
+        final AudioNode effectNode = effects.get(effect);
+        if (effectNode == null || loops.containsKey(effect)) {
+            return;
+        }
+        final AudioNode node = new AudioNode(effectNode.getAudioData(), new AudioKey(effect.getPath(), false));
+        node.setPositional(false);
+        node.setLooping(true);
+        node.play();
+        loops.put(effect, node);
+    }
+
+    /**
+     * Stops the loop of a sound effect. Does nothing when the effect does not loop. Instances started by
+     * {@link #play(SoundEffect)} play on.
+     *
+     * @param effect the effect whose loop stops
+     */
+    public void stopLoop(final SoundEffect effect) {
+        final AudioNode node = loops.remove(effect);
+        if (node != null) {
+            node.stop();
+        }
+    }
+
+    /**
+     * Stops the current track, if any, and plays the given one from its start: looped when the track loops, once
+     * when it is a jingle, which publishes {@link SoundPlayComplete} at its end.
      *
      * @param track the track to play
      */
     public void play(final MusicTrack track) {
-        if (assetManager == null) {
+        if (!attached) {
             return;
         }
         stopMusic();
-        final AudioNode node = new AudioNode(assetManager, track.getPath(), Stream);
-        node.setPositional(false);
-        node.setLooping(true);
-        node.play();
-        music = node;
+        currentTrack = track;
+        if (assetManager != null) {
+            final AudioNode node = new AudioNode(assetManager, track.getPath(), Stream);
+            node.setPositional(false);
+            node.setLooping(track.isLooping());
+            node.play();
+            music = node;
+        }
+        if (!track.isLooping()) {
+            jingle = music != null
+                ? new AudibleJingle(track, music)
+                : new SilentJingle(track, clockSeconds + oggTrackLength.secondsOf(track.getPath()));
+        }
     }
 
-    /** Stops the current track, if any. */
+    /** Stops the current track, if any. A jingle stopped here never publishes {@link SoundPlayComplete}. */
     public void stopMusic() {
         if (music != null) {
             music.stop();
             music = null;
         }
+        currentTrack = null;
+        jingle = null;
     }
 
     /**
@@ -108,7 +192,11 @@ public final class SoundPlayer {
      */
     private void detach() {
         effects.clear();
+        loops.clear();
+        attached = false;
         music = null;
+        currentTrack = null;
+        jingle = null;
         assetManager = null;
     }
 
@@ -121,5 +209,27 @@ public final class SoundPlayer {
         final AudioNode node = new AudioNode(data, key);
         node.setPositional(false);
         return node;
+    }
+
+    /** A jingle under way, which knows when it has played to its end. */
+    private sealed interface PlayingJingle permits AudibleJingle, SilentJingle {
+        boolean hasEnded(double clockSeconds);
+        MusicTrack track();
+    }
+
+    /** A heard jingle: it has ended once the renderer has stopped its node, which it does at the stream's end. */
+    private record AudibleJingle(MusicTrack track, AudioNode node) implements PlayingJingle {
+        @Override
+        public boolean hasEnded(final double clockSeconds) {
+            return node.getStatus() == Stopped;
+        }
+    }
+
+    /** A jingle with no renderer to play it: it has ended once its length has passed. */
+    private record SilentJingle(MusicTrack track, double endsAtSeconds) implements PlayingJingle {
+        @Override
+        public boolean hasEnded(final double clockSeconds) {
+            return clockSeconds >= endsAtSeconds;
+        }
     }
 }

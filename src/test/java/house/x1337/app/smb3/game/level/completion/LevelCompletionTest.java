@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.level.completion;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
@@ -20,11 +21,13 @@ import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.GameEvent;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
 import house.x1337.app.smb3.model.event.LevelCompleted;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -45,6 +48,7 @@ import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
+import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.EXIT_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.CARD_FLYING_OFF;
@@ -87,14 +91,17 @@ class LevelCompletionTest {
     private final GameObjectAnimator<?> tileAnimator = mock(GameObjectAnimator.class);
     private final MotionManager otherManager = mock(MotionManager.class);
     private final LevelScenePlayer player = mock(LevelScenePlayer.class);
+    private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
     private LevelCompletion levelCompletion;
+    private int musicTicks;
 
     @BeforeEach
     void prepare() {
         // LevelCompletion takes its card spawner from the bean factory; a real one reads the scene's card.
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(soundPlayer);
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(eq(LevelCompletionCardSpawner.class), any(GameEngine.class)))
             .thenAnswer(invocation -> new LevelCompletionCardSpawner(invocation.<GameEngine>getArgument(1)));
@@ -115,6 +122,7 @@ class LevelCompletionTest {
         when(player.getPosition()).thenReturn(position);
         when(player.getRuntimeState()).thenReturn(runtimeState);
 
+        // The course-clear jingle ends at once unless a test sets how many ticks it plays for
         levelCompletion = new LevelCompletion(gameEngine);
         levelCompletion.reset();
     }
@@ -264,11 +272,10 @@ class LevelCompletionTest {
     }
 
     @Test
-    @DisplayName("Nothing is converted while the course-clear music stand-in plays")
+    @DisplayName("Nothing is converted while the course-clear jingle plays")
     void theBonusWaitsForTheMusic() {
-        // Prepare - a 200-tick track
-        levelCompletion = new LevelCompletion(gameEngine, new CourseClearMusicStandIn(200));
-        levelCompletion.reset();
+        // Prepare - a jingle that ends on the 200th tick
+        musicTicks = 200;
         startTheTimerAt(287);
         position.setX(EXIT_X);
         levelCompletion.collect(FLOWER, player);
@@ -279,7 +286,46 @@ class LevelCompletionTest {
         assertThat(playerData.getTimer()).as("Still playing").isEqualTo(287);
         assertThat(playerData.getScore()).isZero();
         tick(1);
-        assertThat(playerData.getTimer()).as("The track has ended").isEqualTo(277);
+        assertThat(playerData.getTimer()).as("The jingle has ended").isEqualTo(277);
+    }
+
+    @Test
+    @DisplayName("Only the course-clear jingle's end lets the bonus start, and only after the card is touched")
+    void onlyTheCourseClearJinglesEndCounts() {
+        // Prepare - the jingle's end heard before the touch, then the touch
+        levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+
+        // Execute & Verify
+        levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.HURRY_UP));
+        for (int tick = 0; tick < 300; tick++) {
+            levelCompletion.tick();
+        }
+        assertThat(playerData.getTimer()).as("Still waiting for the jingle").isEqualTo(287);
+        levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
+        levelCompletion.tick();
+        assertThat(playerData.getTimer()).as("The jingle has ended").isEqualTo(277);
+    }
+
+    @Test
+    @DisplayName("Each step of the bonus beeps once, and the music wait and the end of the clock are silent")
+    void eachStepBeepsOnce() {
+        // Prepare
+        musicTicks = 50;
+        startTheTimerAt(287);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+
+        // Execute
+        tick(49);
+        verify(soundPlayer, never()).play(CASINO_BEEP);
+        tick(400);
+
+        // Verify
+        assertThat(playerData.getTimer()).isZero();
+        verify(soundPlayer, times(35)).play(CASINO_BEEP);
     }
 
     @Test
@@ -291,14 +337,15 @@ class LevelCompletionTest {
         levelCompletion.collect(FLOWER, player);
         assertThat(ticksUntil(EXITING)).as("The timer").isEqualTo(FLIGHT_TICKS + COURSE_CLEAR_TICKS);
 
-        // Execute & Verify - the clock: a 300-tick track holds the bonus back past the timer
-        levelCompletion = new LevelCompletion(gameEngine, new CourseClearMusicStandIn(300));
+        // Execute & Verify - the clock: a jingle 300 ticks long holds the bonus back past the timer
+        musicTicks = 300;
         levelCompletion.reset();
         startTheTimerAt(287);
         levelCompletion.collect(FLOWER, player);
         assertThat(ticksUntil(EXITING)).as("The clock: 35 steps from tick 300, done on tick 335").isEqualTo(335);
 
         // Execute & Verify - the player: not at the exit until it is moved there
+        musicTicks = 0;
         levelCompletion.reset();
         startTheTimerAt(287);
         position.setX(100);
@@ -565,14 +612,25 @@ class LevelCompletionTest {
         int ticks = 0;
         while (levelCompletion.getPhase() != phase) {
             assertThat(ticks).as("Reaching %s", phase).isLessThan(10_000);
-            levelCompletion.tick();
+            tick(1);
             ticks++;
         }
         return ticks;
     }
 
+    /**
+     * Ticks the completion. Before each tick the course-clear jingle plays on for {@link #musicTicks} more ticks,
+     * counted from the touch; once they are spent its end is heard, so it ends on that tick, as a jingle that long
+     * would.
+     */
     private void tick(final int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
+            if (levelCompletion.isUnderway() && musicTicks > 0) {
+                musicTicks--;
+            }
+            if (musicTicks == 0) {
+                levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
+            }
             levelCompletion.tick();
         }
     }

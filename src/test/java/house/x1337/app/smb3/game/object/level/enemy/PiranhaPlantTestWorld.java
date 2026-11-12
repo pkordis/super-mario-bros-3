@@ -14,6 +14,7 @@ import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
 import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManager;
 import house.x1337.app.smb3.game.object.level.enemy.animator.PiranhaPlantAnimator;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
@@ -80,6 +81,7 @@ final class PiranhaPlantTestWorld implements AutoCloseable {
         when(animator.buildStemSprite(any())).thenAnswer(invocation -> quad("Stem"));
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
+        staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(mock(SoundPlayer.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PiranhaPlantAnimator.class))
             .thenReturn(animator);

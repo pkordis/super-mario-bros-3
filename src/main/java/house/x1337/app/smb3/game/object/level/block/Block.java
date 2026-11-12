@@ -7,6 +7,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.BlockType;
 import house.x1337.app.smb3.enumeration.ItemType;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
@@ -18,7 +19,6 @@ import house.x1337.app.smb3.game.object.level.block.animator.QuestionBlockAnimat
 import house.x1337.app.smb3.game.object.level.block.animator.SwitchBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
 import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
-import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.model.ImageResource;
@@ -41,6 +41,7 @@ import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_S
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
@@ -152,9 +153,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
         levelScenePlayer
             .getCollisionGrid()
             .removeLevelObjectAt(offset);
-        levelScenePlayer
-            .getPlayerData()
-            .addCoin();
+        collectCoin(levelScenePlayer);
 
         log.debug("Brick collected as coin at {}x{}", offset.x(), offset.y());
     }
@@ -213,7 +212,6 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
      */
     @Override
     public void onCoinDispensed(final LevelScenePlayer levelScenePlayer) {
-        final PlayerData playerData = levelScenePlayer.getPlayerData();
         coinRewardMotionManager
             .spawnCoinReward(
                 levelScenePlayer.getGameEngine(),
@@ -226,7 +224,16 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
                 // popping in the air
                 levelScenePlayer.getPlayerData().addPoints(score);
             });
-        playerData.addCoin();
+        // Here rather than in the callback above, which runs off the engine's thread
+        collectCoin(levelScenePlayer);
+    }
+
+    /** Counts a coin, with its sound, and the extra-life sound when it is the hundredth. */
+    private void collectCoin(final LevelScenePlayer levelScenePlayer) {
+        getSoundPlayer().play(COIN);
+        if (levelScenePlayer.getPlayerData().addCoin()) {
+            getSoundPlayer().play(SoundEffect.ONE_UP);
+        }
     }
 
     /**
@@ -240,7 +247,8 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
      * <p>The write is unconditional, so whatever occupied the cell above is replaced. Valid level data
      * always leaves that cell empty, since otherwise the switch would appear embedded in terrain.
      *
-     * <p>The switch appears in a puff of smoke, spawned in the same cell.
+     * <p>The switch appears in a puff of smoke, spawned in the same cell. It makes no sound of its own: what struck
+     * the block (the player's head, a kicked shell) plays the bump, and that bump is the switch's sound.
      */
     @Override
     public void onSwitchBlockDispensed(final LevelScenePlayer levelScenePlayer) {

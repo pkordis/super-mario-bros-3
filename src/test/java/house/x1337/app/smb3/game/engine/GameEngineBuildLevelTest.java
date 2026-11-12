@@ -8,6 +8,7 @@ import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.LevelMusic;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
@@ -33,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
@@ -49,6 +52,7 @@ class GameEngineBuildLevelTest {
     private final PlayerData playerData = new PlayerData();
     private final LevelScenePlayer spawned = mock(LevelScenePlayer.class);
     private final List<LevelScenePlayer> nextSpawns = new ArrayList<>();
+    private final LevelMusic levelMusic = mock(LevelMusic.class);
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -67,6 +71,9 @@ class GameEngineBuildLevelTest {
             }
             if (type == LevelScenePlayer.class) {
                 return nextSpawns.isEmpty() ? spawned : nextSpawns.removeFirst();
+            }
+            if (type == LevelMusic.class) {
+                return levelMusic;
             }
             return mock(type);
         });
@@ -183,5 +190,23 @@ class GameEngineBuildLevelTest {
         // Verify
         assertThat(gameEngine.getLevelFrameCounter().getTicks()).isZero();
         verify(gameEngine.getLevelCompletion(), times(2)).reset();
+    }
+
+    @Test
+    @DisplayName("Every build hands the scene and the kind of start to the level music, after the grid is rebuilt")
+    void everyBuildStartsTheLevelMusic() {
+        // Prepare
+        final LevelScene levelScene = gameEngine.getLevelScene();
+
+        // Execute
+        gameEngine.buildLevel();
+        gameEngine.buildLevel(carryOver(RACCOON));
+
+        // Verify
+        final InOrder order = inOrder(gameEngine, levelMusic);
+        order.verify(gameEngine).setupLevel(levelScene);
+        order.verify(levelMusic).start(levelScene, FRESH);
+        order.verify(gameEngine).setupLevel(levelScene);
+        order.verify(levelMusic).start(levelScene, carryOver(RACCOON));
     }
 }

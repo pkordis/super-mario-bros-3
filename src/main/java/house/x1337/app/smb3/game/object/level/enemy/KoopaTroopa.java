@@ -32,6 +32,8 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.KOOPA_TROOPA;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.RED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.HELD;
@@ -192,6 +194,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         if (hitCooldownTicks == 0 && state == KICKED) {
             hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
             levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
+            getSoundPlayer().play(ENEMY_STOMP);
             velocity = STILL;
             enterShell();
             return;
@@ -202,6 +205,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         hitCooldownTicks = STOMP_HIT_COOLDOWN_TICKS;
         pendingScoreReward = levelScenePlayer.nextKillChainReward();
         levelScenePlayer.getPosition().setDY(PLAYER_STOMP_BOUNCE_Y_VELOCITY);
+        getSoundPlayer().play(ENEMY_STOMP);
         enterShell();
     }
 
@@ -215,6 +219,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         upsideDown = true;
         enterShell();
         spawnTailFlash(levelScenePlayer, playerOnTheLeft);
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     @Override
@@ -360,6 +365,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         upsideDown = true;
         facingRight = false;
         enterShell();
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     private void launchAwayFromPlayer(

@@ -7,10 +7,11 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
+import house.x1337.app.smb3.game.sound.SoundPlayerAware;
 
 import java.util.List;
 
-public interface GameEngineAware {
+public interface GameEngineAware extends SoundPlayerAware {
     GameEngine getGameEngine();
 
     default AssetManager getAssetManager() {

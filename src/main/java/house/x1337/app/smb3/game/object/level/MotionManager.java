@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.object.level;
 
 import house.x1337.app.smb3.annotation.Singleton;
+import house.x1337.app.smb3.game.sound.SoundPlayerAware;
 import house.x1337.app.smb3.util.CastCapable;
 import house.x1337.app.smb3.util.loader.ImageResourceLoader;
 import lombok.Getter;
@@ -11,7 +12,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
-public interface MotionManager extends ImageResourceLoader {
+public interface MotionManager extends ImageResourceLoader, SoundPlayerAware {
     void update();
 
     /**

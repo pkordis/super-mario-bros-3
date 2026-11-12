@@ -7,8 +7,12 @@ children, closed as won't do). First wired in SMB3-67.
 ## Files
 
 - `src/main/resources/sound/music/` (32 files): the songs plus the short jingles (hurry up, course clear,
-  player down, ...). `MusicTrack` has one constant per file.
-- `src/main/resources/sound/effects/` (28 files). `SoundEffect` has one constant per file.
+  player down, ...). `MusicTrack` has one constant per file. Each constant also has a label, whether it loops, and a
+  `GameContext`: the eight world map songs are `WORLD_*` constants (`WORLD_1_GRASS_LAND`, ...) in `MAP`; the file names
+  stay `grass_land.ogg` and so on. Every other track is in `LEVEL_SCENE`.
+- `src/main/resources/sound/effects/` (30 files). `SoundEffect` has one constant per file. `power_on.ogg` and
+  `tail_wag.ogg` were added by the developer after SMB3-67, outside the numbered download. `twirl.ogg` is the world
+  map's sound (`MAP`); the raccoon's tail plays `tail_wag.ogg`.
 - Source: the developer's download in `~/Desktop/SMB3_resources/sounds`, named `NN - Koji Kondo - <Title>.ogg`.
   The rename table (track number to file name) is in the SMB3-67 description. Tracks 01-32 are music, 33-60 effects.
 - `SoundAssetsTest` keeps the enums and the folders one to one.
@@ -32,13 +36,32 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
   not in playback. The decoded length matches the Ogg's own sample count exactly, the file ends in exact zeros
   with no DC offset, and a lossy decoder cannot produce a burst out of a stretch of exact zeros.
 - Trailing silence and the pops are cut when the effects load (see `SoundEffectTrimmer` below).
+- **`power_on`** (the full P-meter) is different: 133.5 ms (5887 frames), Vorbis stereo 44 100 Hz, a steady tone at
+  about -20 dBFS from the first sample to the last, with no lead-in and no tail. It is one cycle cut to loop, so
+  the trimmer leaves it whole and the loop has no gap.
 
 ## `SoundPlayer`
 
 `house.x1337.app.smb3.game.sound.SoundPlayer`, a `@Singleton` reached with `getBean(SoundPlayer.class)`.
 
 - `play(SoundEffect)`: one `AudioNode` per effect, `playInstance()` each time, so effects overlap (themselves
-  included) and never stop the music.
+  included) and never stop the music. There is no channel or slot system: every sound overlaps every other.
+  - **Exception: an effect that does not overlap itself** (`SoundEffect.isSelfOverlapping()` false; only `TAIL_WAG`
+    today) plays on its loaded node with `play()`, and a play is ignored while that node's status is `Playing`. jME's
+    `ALAudioRenderer.updateInRenderThread` sets a bound buffer node back to `Stopped` when the buffer finishes.
+  - Why the tail wag (cross-checked in the original): the game asks for the wag sound on every new A press in the
+    air and every B press that starts a swipe, with no timer. The original's sound engine drops a new wag request
+    while the previous one still plays, and the request is lost, since the sound queues are cleared every frame. The
+    wag sounds for 18 frames and ends on the 19th. Mashing therefore gives one wag per clip length, an even rhythm,
+    instead of one per press. `tail_wag.ogg` trims to 0.320 s (19.2 frames), so the clip's own length gives the same
+    spacing. A longer clip would not help: it would only space the sounds further apart.
+  - Not copied: in the original the wag also shares a channel with the coin, item-rise, vine, cannon, text blip,
+    power-up and 1-up sounds, so it is skipped while one of those plays and cut off when one starts.
+- `loop(SoundEffect)` / `stopLoop(SoundEffect)`: at most one loop per effect, on its own non-positional node
+  (`setLooping(true)`, `play()`) that shares the loaded effect's trimmed buffer. Both are no-ops when there is
+  nothing to do (already looping, not looping, no engine), so callers can call one of them every tick. The loops
+  are dropped with the effects on detach. A `playInstance()` sound cannot be stopped on its own, hence the separate
+  node.
 - **Every effect is loaded when an engine attaches**, not on its first play: decoded (`AudioKey` with
   `stream = false`), trimmed by `SoundEffectTrimmer`, and wrapped in a node. All 28 take about 256 ms in a cold JVM
   at engine start. Loading on first play instead cost the first jump about 50 ms.
@@ -51,8 +74,22 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
   - The jump went from 1683 ms to 534 ms and now starts on its first sample. Its first 2 ms are the decoder's
     -57 dB pre-echo, then full level.
   - The original `.ogg` files are untouched, and new effects are trimmed the same way.
-- `play(MusicTrack)` / `stopMusic()`: one track at a time, looping. `DataType.Stream` in jME means a stream with the
-  stream cache on (`CachedOggStream`), which is seekable, so the loop can rewind. An uncached stream cannot loop.
+- `play(MusicTrack)` / `stopMusic()`: one track at a time, looped unless `MusicTrack.isLooping()` is false (the seven
+  jingles). `DataType.Stream` in jME means a stream with the stream cache on (`CachedOggStream`), which is seekable,
+  so the loop can rewind. An uncached stream cannot loop. `getCurrentTrack()` is the track last started, until
+  `stopMusic()` or the engine stops; a jingle that has played out is still returned. Without an engine it stays null.
+- **The end of a jingle** is published as `SoundPlayComplete(track)` from `update(timePerFrame)`, which
+  `GameEngine.simpleUpdate` calls once per frame, before the frame's ticks, on the engine thread. The jingle in
+  progress is a small `PlayingJingle`:
+  - `AudibleJingle` (an audio renderer): ended once its node's status is `Stopped`. The renderer sets `Playing` in
+    `playSource` and `Stopped` when the stream runs out.
+  - `SilentJingle` (no renderer: headless engine, OpenAL off): ended once its length has passed, counted from the
+    frame times given to `update`. The length is read by `OggTrackLength` from the file itself: the granule position
+    of its last Ogg page (the sample-frame count) over the sample rate in the Vorbis identification header, cached
+    per file. An unreadable file counts as 0 s, so a wait on it ends at once rather than never. `hurry_up.ogg` reads
+    2.784 s, `player_down.ogg` and `course_clear.ogg` 4.238 s.
+  - `stopMusic()`, or playing another track, drops the jingle in progress, so a jingle cut short publishes nothing.
+    A looping track never gets one.
 - **Lifecycle.** `GameEngine.simpleInitApp` calls `attach(this)`, which drops anything kept for a previous engine
   and subscribes to `GameEngineStopped` to drop this engine's nodes again. Nothing is stopped on detach: the
   engine's audio renderer stops its sources when it shuts down, and the event may arrive on a thread with no audio
@@ -126,11 +163,109 @@ mixing periods, about three of them queued.
 
 ## Triggers
 
+The mapping (SMB3-68) is a best guess from the file titles; tune it here and in the code together.
+
 | Sound | Where | Condition |
 |---|---|---|
-| `SoundEffect.JUMP` | `LevelScenePlayerMoveCapable.handleVerticalMovement` | A jump press that starts a jump from the ground. A mid-air press (tail wag) plays nothing. |
+| `JUMP` | `LevelScenePlayerMoveCapable.handleVerticalMovement` | A jump press that starts a jump from the ground. |
+| `TAIL_WAG` | same method; `LevelScenePlayerActionCapable.handleTailAttack` | A mid-air press that wags the tail; a B press that starts a tail swipe. Not while the previous wag still sounds (see `play(SoundEffect)` above). (`TWIRL` belongs to the world map and is not played in a level.) |
+| `ENEMY_STOMP` | `onCollisionFromAbove` of `Goomba`, `ParaGoomba`, `KoopaParaTroopa`, `KoopaTroopa` | Every stomp that bounces the player, including one that stops a kicked shell. |
+| `KOOPA_SHELL` | `KoopaTroopaShellCapabilities.onKicked` | Every kick: on release, on contact, and the stomp on a resting shell (`kickWithoutPose`). Not when the kick crushes the shell; `crushUpward` plays it instead. |
+| `KOOPA_SHELL` | `onKickedInto`, `onKilledByCarryContact`, each enemy's `onTailAttack`, `KoopaTroopa.onBumpedFromBelow` | One per enemy killed by a kicked shell, a carried shell or the tail, and a Koopa flipped by a bumped block. A ParaGoomba or KoopaParaTroopa delegates to its replacement, which plays it. |
+| `BLOCK` | `LevelScenePlayer`, right after its collision pass | The head hits anything solid (`runtimeState.isHitCeiling()`). The reward sounds play on top. A super leaf and a P-switch have no sound of their own, so this bump is theirs. |
+| `BLOCK` | `KoopaTroopaShellCapabilities.bumpOffBlocks` | A kicked shell rebounds off a wall (and so bumps any leaf out of the block it hits). |
+| `BREAKING_BLOCK` | `BreakableBrickCapabilities.smashBrick` | Any brick broken. |
+| `COIN` (+ `ONE_UP`) | `Coin.onCollisionWith`, `Block.onPlayerOverlap`, `Block.onCoinDispensed`, `CoinRewardMotionManager.spawnPoppedOutCoin` | Every coin. `PlayerData.addCoin()` returns true for the 100th, which also plays `ONE_UP`. The block coin plays outside the `whenCompleteAsync` callback, which runs on a pool thread. |
+| `POWER_UP_BLOCK` | `RewardDispensingLevelObject.onSuperMushroomDispensed` | A mushroom (growing or 1-up, including the mushroom a leaf block gives a small player) comes out of a block. Not a leaf or a P-switch: `onSuperLeafDispensed` and `Block.onSwitchBlockDispensed` play nothing, and both are heard as the `BLOCK` bump. |
+| `POWER_UP` / `TANOOKI` / `ONE_UP` | `LevelScenePlayer.onRewardConsumption` | `ONE_UP` for a 1-up mushroom, `TANOOKI` for the poof into a raccoon, `POWER_UP` otherwise (grow, points only). |
+| `TANOOKI` / `POWER_DOWN` | `LevelScenePlayerRuntimeStateAware.getHurtBy` | Suit lost / shrink. |
+| `POWER_DOWN` | `beginPipeEntry`, `beginPipeExit` | Into a pipe, and out of one when there is an exit to play (not for an erased pipe). |
+| `CANNONBALL` | `SwitchBlock.onCollisionFromAbove` | The P-switch press ("Wham!"). |
+| `CASINO_BEEP` | `LevelCompletion.tickCourseClear` | Each time-bonus step. |
+| `ONE_UP` | `EnemyMotionManager.postCollision`, `CoinRewardMotionManager.landPoppedOutCoin` | A kill-chain reward that carries a life. |
+| `POWER_ON` (looped) | `PowerMeterSound` | Looped while the P-meter is full (the HUD's [P] flashes) and gameplay is not halted; stopped otherwise. A halt (death, pipe, suit change, blocking fade) silences it with the meter still full. It follows `PlayerPowerReached` / `PlayerPowerLost` and `GameplayHalted` / `GameplayResumed`. |
 
-`LevelScenePlayer` takes its `SoundPlayer` from the bean factory in its constructor and exposes it as
-`getSoundPlayer()`. Tests that build a real `LevelScenePlayer` under a mocked `StaticBeanFactory` get `null` for it
-unless the mock answers with mocks by default (as `PlayerRunOffTest` does) or stubs `SoundPlayer`. Stub it before
-driving a ground jump.
+Not played: the skid (no file), the Venus Fire Trap's spit and picking up a shell (silent on
+purpose), and everything belonging to features not built yet (pause, fireballs, vines, map, ...). A tail strike on
+a block plays no bump (only `TAIL_WAG` at the swing's start), unlike the head; so a leaf or a P-switch knocked out
+by the tail is silent. Adding a bump there must not go through `Block.onTailAttack`, which the kicked shell also reaches (through
+`resolveTailAttack`) after playing its own `BLOCK`.
+
+**The P-meter events.** `LevelScenePlayerDataAware` publishes `PlayerPowerReached` when the meter steps from 6 to 7
+and `PlayerPowerLost` when a full meter drains a step or is emptied as its flight ends. `GameEngine.buildLevel`
+publishes `PlayerPowerLost` too when a fresh start (`LevelRunStart.FRESH`) empties a full meter
+(`PlayerData.resetPowerMeter()` returns whether it was full), so a death at full power leaves no loop behind. A pipe
+trip keeps the charge, and the loop resumes on the `GameplayResumed` after the exit. `GameEngine` publishes
+`GameplayHalted` / `GameplayResumed` on the tick `isGameplayHalted()` changes (`announceHaltChange`, in the level
+branch of the tick, after the players have moved).
+
+**How the sound player is reached.** Through `SoundPlayerAware.getSoundPlayer()`, a default method that returns
+`getBean(SoundPlayer.class)`. `SoundPlayer` is a `@Singleton`, so `StaticBeanFactory` serves it from its singleton
+cache after the first call: no class holds a sound player field. `SoundPlayerAware` is extended by the most base
+types that play sounds, so nothing declares it directly any more:
+
+- `GameEngineAware`: every level object (blocks, coins, the P-switch, every enemy), `LevelScenePlayer` and
+  `LevelCompletion`.
+- `MotionManager`: `CoinRewardMotionManager` and the enemy motion managers.
+- `Player`: `MapPlayer`, which reaches neither of the other two.
+
+`LevelMusic` and `PowerMeterSound` are the exception: they are built with their `SoundPlayer` (constructor
+injection), which their tests hand a mock.
+
+The head bump is played by `LevelScenePlayer`, right after its collision pass, when `runtimeState.isHitCeiling()`
+is set. The collision grid plays nothing.
+
+**Tests.** The sound player is looked up on every call, so a test must hand out the same mock every time:
+`staticBeanFactory.when(() -> getBean(SoundPlayer.class)).thenReturn(soundPlayer)`, or a default answer that returns
+one shared `soundPlayer` for `SoundPlayer.class` (a default answer of `mock(type)` would give each call a new mock,
+and `verify(x.getSoundPlayer())` would check one that never played). A `mockStatic` without a default answer returns
+`null`, which NPEs on the first sound. Verify on the object (`verify(goomba.getSoundPlayer()).play(ENEMY_STOMP)`) or
+on the shared mock. A mocked `LevelScenePlayer` needs a `getSoundPlayer()` stub only when the test runs the player's
+own code, such as `getHurtBy` or `handleVerticalMovement`.
+
+## Level music
+
+`house.x1337.app.smb3.game.sound.LevelMusic` (`@Singleton`) decides what plays during a level. It runs on events
+only: it is not ticked, and is not a `MotionManager`.
+
+- **What the level wants:** `P_SWITCH` while the P-switch window is open, otherwise the scene's `backgroundMusic`,
+  otherwise silence.
+- **Every build.** `GameEngine.buildLevel(LevelRunStart)` ends with `levelMusic.start(levelScene, start)`, after the
+  grid rebuild has closed any P-switch window. It cuts any jingle and reads the window. A fresh start (test, death
+  restart, R, restart after completion) plays the wanted track from its start, or stops the music. A carried-over
+  start (`LevelRunStart.isCarryOver()`, through a pipe) keeps the track when `getCurrentTrack()` already is the one
+  wanted.
+- **The P-switch is announced.** `SwitchBlock` publishes `PowerSwitchActivated` right after `activate()`;
+  `StaticEnvironmentCollisionGrid.tick()` publishes `PowerSwitchExpired` when `PowerSwitchTimeWindow.tick()` returns
+  true (the tick its count reaches 0). `reset()` publishes nothing: its two callers are the grid rebuild, after
+  which `start` reads the window, and the card touch, whose jingle silences the level anyway (an event there would
+  restart the scene's music for one tick before `COURSE_CLEAR` replaced it). A second press while the window is
+  open does not restart the P-switch music. The window itself still counts its 512 ticks: it is a gameplay timer.
+- **Jingles** stop the music and play once. Each ends on its own `SoundPlayComplete`; a track's end that is not the
+  jingle in progress is ignored.
+  - `PlayerTimerHurryUp`, published by `PlayerTimer.tick()` on the step that brings the time to 100 (never for a
+    run starting at 100 or less, nor through `takeOff`): `HURRY_UP`, then what the level wants, from its start.
+    `hurry_up.ogg` was trimmed to 2.784 s, where its music ends; the original carried a thump and about 2 s of
+    200 Hz buzzing after 2.817 s.
+  - `PlayerDeathStarted` (both kinds): `PLAYER_DOWN`, then silence until the rebuild. The death ends on its end
+    (see `PlayerDeathSequence` in `dynamic-entities.md`), so the jingle is heard in full.
+  - `LevelCardCollected`: `COURSE_CLEAR`, then silence. `LevelCompletion` lets the time bonus start on its end.
+  - While a jingle plays, a P-switch change only decides what plays after it.
+- `GameEngine.simpleInitApp` calls `subscribe()` once per engine, after `SoundPlayer.attach`, since the bus is
+  purged on `destroy()`. `PowerMeterSound`, `PlayerDeathSequence` and the engine's `LevelCompletion` subscribe there
+  too.
+
+## Background music per scene
+
+`LevelScene.backgroundMusic` / `LevelSceneRecord.backgroundMusic`, a nullable `MusicTrack`; null is no music, and
+every scene saved before SMB3-68 loads as null. Both databases store the enum by name (Mongo's `PojoCodecProvider`,
+Nitrite's Jackson mapper), so renaming or removing a `MusicTrack` constant breaks scenes that use it.
+
+- Copied by `LevelSceneConverter` both ways and by `LevelSceneRecordNormalizer` (which rebuilds the record field by
+  field on every save, so a field it misses is silently dropped).
+- Editor: `LevelSceneEditorTab.backgroundMusic`, set by `LevelSceneEditorTabFactory.fromScene`, copied by
+  `fromLevelSceneEditor` (so the tester plays an unsaved choice), cleared by `fromImport` and `resetData`.
+- Save dialog: a "Background music:" row with a `BackgroundMusicComboBox` ("None", then the looping `LEVEL_SCENE`
+  tracks in enum order: no jingles and no world map songs), labels from `MusicTrackCellRenderer`. A `JComboBox`
+  cannot index a null item, so "None"
+  shows as the selection but is not highlighted in the open list.

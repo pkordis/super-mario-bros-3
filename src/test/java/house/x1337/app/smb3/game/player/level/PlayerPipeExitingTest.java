@@ -13,6 +13,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -43,6 +44,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.BACKGROUND;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_BODY_PART;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_HORIZONTAL;
@@ -58,6 +60,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,6 +85,7 @@ class PlayerPipeExitingTest {
 
     private final Tile[][] tiles = new Tile[ROWS][COLUMNS];
     private final FadingEngine fadingEngine = new FadingEngine();
+    private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
     private GameEngine gameEngine;
     private CameraState cameraState;
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
@@ -125,6 +130,9 @@ class PlayerPipeExitingTest {
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class, invocation -> {
             final Class<?> type = invocation.getArgument(0);
+            if (type == SoundPlayer.class) {
+                return soundPlayer;
+            }
             return type == PlayerRuntimeState.class ? new PlayerRuntimeState() : mock(type);
         });
     }
@@ -328,6 +336,48 @@ class PlayerPipeExitingTest {
         assertThat(player.getRuntimeState().getPipeEntryDirection()).isNull();
         assertThat(player.getRuntimeState().isExitingPipe()).isTrue();
         assertThat(player.getRuntimeState().getPipeCountdown()).isEqualTo(PIPE_EXIT_TICKS_DOWN);
+    }
+
+    @Test
+    @DisplayName("A scene with no spawn point, reached only through a pipe, still builds the player for the exit")
+    void aSceneWithoutASpawnPointStillBuildsThePlayer() {
+        // Prepare
+        when(gameEngine.getLevelScene().getSpawnPoint()).thenReturn(null);
+
+        // Execute
+        final LevelScenePlayer player = player(NORMAL);
+        player.beginPipeExit(UPRIGHT);
+
+        // Verify
+        assertThat(player.getRuntimeState().isExitingPipe()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Going into a pipe and coming out of the next each play the pipe sound once")
+    void enteringAndExitingPlayThePipeSound() {
+        // Prepare
+        final LevelScenePlayer player = player(NORMAL);
+
+        // Execute
+        player.beginPipeEntry(UPRIGHT, DOWN);
+        verify(player.getSoundPlayer(), times(1)).play(POWER_DOWN);
+        player.beginPipeExit(UPSIDE_DOWN);
+
+        // Verify
+        verify(player.getSoundPlayer(), times(2)).play(POWER_DOWN);
+    }
+
+    @Test
+    @DisplayName("Coming out where the pipe was erased plays no pipe sound, as there is no exit to play out")
+    void anErasedPipeExitIsSilent() {
+        // Prepare
+        final LevelScenePlayer player = player(NORMAL);
+
+        // Execute
+        player.beginPipeExit(ERASED);
+
+        // Verify
+        verify(player.getSoundPlayer(), never()).play(POWER_DOWN);
     }
 
     @Test

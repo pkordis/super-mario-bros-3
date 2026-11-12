@@ -11,6 +11,7 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_10;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BREAKING_BLOCK;
 
 public interface BreakableBrickCapabilities extends AnimatableLevelObject, GameEngineAware {
     GameObjectAnimatorSingleTiled<?> getAnimator();
@@ -46,6 +47,7 @@ public interface BreakableBrickCapabilities extends AnimatableLevelObject, GameE
                 .getDimensions()
         );
         getBean(BrickBlockMotionManager.class).spawnBreak(getGameEngine(), getOffset());
+        getSoundPlayer().play(BREAKING_BLOCK);
         levelScenePlayer
             .getPlayerData()
             .addPoints(SCORE_10.getData().getPoints());

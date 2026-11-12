@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.level.completion;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
+import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
@@ -18,6 +19,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.event.LevelCardCollected;
 import house.x1337.app.smb3.model.event.LevelCompleted;
+import house.x1337.app.smb3.model.event.SoundPlayComplete;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
@@ -30,6 +32,7 @@ import java.util.List;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
 import static house.x1337.app.smb3.game.player.PlayerData.CARD_SLOTS;
 import static java.lang.Math.floor;
 import static java.util.Objects.requireNonNull;
@@ -43,9 +46,9 @@ import static lombok.AccessLevel.NONE;
  *     <li>The touch: see {@link #collect}.</li>
  *     <li>State 4, the card's flight: until the card is off the top of the screen ({@link CardFlight}). Then state 5
  *         starts with a {@link #COURSE_CLEAR_TICKS} timer.</li>
- *     <li>State 5: one {@link TimeBonus} step per tick once the course-clear music has ended. It ends when the timer
- *         is 0, the clock is all converted and the player is at the exit. Then state 7 starts with an
- *         {@link #EXIT_TICKS} timer.</li>
+ *     <li>State 5: one {@link TimeBonus} step per tick once the course-clear jingle has played to its end (its
+ *         {@link SoundPlayComplete}). It ends when the timer is 0, the clock is all converted and the player is at
+ *         the exit. Then state 7 starts with an {@link #EXIT_TICKS} timer.</li>
  *     <li>State 7: when the timer runs out, three held cards are cleared and the level ends
  *         ({@link LevelCompleted}).</li>
  * </ol>
@@ -74,8 +77,8 @@ public final class LevelCompletion implements GameEngineAware {
 
     private final GameEngine gameEngine;
     private final LevelCompletionCardSpawner cardSpawner;
-    private final CourseClearMusicStandIn musicStandIn;
 
+    private boolean courseClearPlaying;
     private LevelCompletionCardType collectedCard;
     private LevelScenePlayer runningOffPlayer;
     private Phase phase = Phase.NOT_STARTED;
@@ -85,16 +88,23 @@ public final class LevelCompletion implements GameEngineAware {
     private int phaseTimer;
 
     public LevelCompletion(final GameEngine gameEngine) {
-        this(gameEngine, new CourseClearMusicStandIn());
-    }
-
-    LevelCompletion(
-        final GameEngine gameEngine,
-        final CourseClearMusicStandIn musicStandIn
-    ) {
         this.gameEngine = gameEngine;
         this.cardSpawner = getBean(LevelCompletionCardSpawner.class, gameEngine);
-        this.musicStandIn = musicStandIn;
+    }
+
+    /**
+     * Listens for the end of the course-clear jingle, which lets the time bonus start. Called once by each engine as
+     * it starts, as an engine's {@code destroy()} purges the bus.
+     */
+    public void subscribe() {
+        gameEngine.getGameEventBus().subscribe(SoundPlayComplete.class, this::onSoundPlayComplete);
+    }
+
+    /** @param event a track that has played to its end: the course-clear jingle lets the time bonus start */
+    void onSoundPlayComplete(final SoundPlayComplete event) {
+        if (event.getTrack() == MusicTrack.COURSE_CLEAR) {
+            courseClearPlaying = false;
+        }
     }
 
     /** @return whether the card has been touched in this run */
@@ -113,7 +123,7 @@ public final class LevelCompletion implements GameEngineAware {
         cardFlight = null;
         collectedCard = null;
         runningOffPlayer = null;
-        musicStandIn.stop();
+        courseClearPlaying = false;
         cardSpawner.reset();
     }
 
@@ -134,7 +144,7 @@ public final class LevelCompletion implements GameEngineAware {
         collectedCard = card;
         runningOffPlayer = player;
         cardSpawner.retire();
-        musicStandIn.start();
+        courseClearPlaying = true;
 
         final PlayerData playerData = player.getPlayerData();
         playerData.addCard(card);
@@ -157,7 +167,6 @@ public final class LevelCompletion implements GameEngineAware {
         if (runningOffPlayer.getRuntimeState().isDying()) {
             return;
         }
-        musicStandIn.tick();
         if (phaseTimer > 0) {
             phaseTimer--;
         }
@@ -182,9 +191,13 @@ public final class LevelCompletion implements GameEngineAware {
 
     private void tickCourseClear() {
         haltThePlayerAtTheExit();
-        // The time bonus reports "not done" while the music plays, and on the frame of its last step
-        final boolean converting = musicStandIn.isPlaying() || TimeBonus.convertStep(runningOffPlayer.getPlayerData());
-        if (converting || phaseTimer > 0 || !isPlayerAtTheExit()) {
+        // The time bonus reports "not done" while the course-clear jingle plays, and on the frame of its last step
+        final boolean musicPlaying = courseClearPlaying;
+        final boolean stepped = !musicPlaying && TimeBonus.convertStep(runningOffPlayer.getPlayerData());
+        if (stepped) {
+            getSoundPlayer().play(CASINO_BEEP);
+        }
+        if (musicPlaying || stepped || phaseTimer > 0 || !isPlayerAtTheExit()) {
             return;
         }
         // Three mixed cards go through the 1UP display first (SMB3-48); until then they go straight to the exit

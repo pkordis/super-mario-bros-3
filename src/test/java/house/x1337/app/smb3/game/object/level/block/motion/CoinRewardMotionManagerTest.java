@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.object.level.block.motion;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.Reward;
+import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.motion.pop.PopMotion;
@@ -9,6 +10,7 @@ import house.x1337.app.smb3.game.object.level.block.animation.CoinPopAnimation;
 import house.x1337.app.smb3.game.object.level.reward.animation.ScorePopupAnimation;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.WorldOffset;
@@ -33,6 +35,7 @@ import static house.x1337.app.smb3.enumeration.Reward.SCORE_1000;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_2000;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_4000;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_8000;
+import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager.BLOCK_COIN_MOTION;
 import static house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager.POPPED_OUT_COIN_MOTION;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -76,6 +79,7 @@ class CoinRewardMotionManagerTest {
     private final List<PopMotion> coinMotions = new ArrayList<>();
     private final List<ScorePopupAnimation> captions = new ArrayList<>();
     private final List<Reward.Data> captionRewards = new ArrayList<>();
+    private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private LevelScenePlayer player;
     private CoinRewardMotionManager manager;
@@ -105,6 +109,9 @@ class CoinRewardMotionManagerTest {
             }
             if (type == Reward.Data.class) {
                 return new Reward.Data();
+            }
+            if (type == SoundPlayer.class) {
+                return soundPlayer;
             }
             return mock(type);
         });
@@ -308,6 +315,32 @@ class CoinRewardMotionManagerTest {
         verify(coins.getFirst()).start();
         assertThat(spriteLeftOf(coins.getFirst())).isCloseTo(164, within(TOLERANCE));
         assertThat(spriteTopOf(coins.getFirst())).isCloseTo(300, within(TOLERANCE));
+    }
+
+    @Test
+    @DisplayName("A popped-out coin plays the coin sound once, as it pops out")
+    void aPoppedOutCoinPlaysTheCoinSound() {
+        // Execute
+        manager.spawnPoppedOutCoin(player, new PixelPosition(160, 300));
+        tick(36);
+
+        // Verify
+        verify(manager.getSoundPlayer(), times(1)).play(COIN);
+        verify(manager.getSoundPlayer(), never()).play(SoundEffect.ONE_UP);
+    }
+
+    @Test
+    @DisplayName("A popped-out coin that is the hundredth plays the extra-life sound as it lands")
+    void theHundredthPoppedOutCoinPlaysTheExtraLifeSound() {
+        // Prepare
+        playerData.setCoins(99);
+        manager.spawnPoppedOutCoin(player, new PixelPosition(160, 300));
+
+        // Execute
+        tick(36);
+
+        // Verify
+        verify(manager.getSoundPlayer(), times(1)).play(SoundEffect.ONE_UP);
     }
 
     @Test

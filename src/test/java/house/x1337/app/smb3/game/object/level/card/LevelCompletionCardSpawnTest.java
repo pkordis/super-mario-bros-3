@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.level.completion.LevelCompletion;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.placement.EnemySpawner;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
 import house.x1337.app.smb3.model.ImageResource;
@@ -70,6 +71,9 @@ class LevelCompletionCardSpawnTest {
                 final LevelCompletionCard card = new LevelCompletionCard(invocation.<GameEngine>getArgument(1));
                 card.setCardImages(cardImages);
                 return card;
+            }
+            if (type == SoundPlayer.class) {
+                return mock(SoundPlayer.class);
             }
             throw new IllegalArgumentException("Unexpected bean " + type);
         });

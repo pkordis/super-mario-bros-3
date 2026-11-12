@@ -13,6 +13,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.player.PlayerData;
+import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -44,6 +45,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_BODY_PART;
 import static house.x1337.app.smb3.enumeration.TileType.PIPE_TERMINATION_PART;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
@@ -59,6 +61,8 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -86,6 +90,7 @@ class PlayerPipeEntryTest {
     private static final PipePortal SIDE = portal(IN, PIPE_PORTAL_VERTICAL, 10, 13);
     private static final List<PipePortal> ALL_PORTALS = List.of(UPRIGHT, UPSIDE_DOWN, SIDE);
 
+    private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
     private Tile[][] tiles;
     private LevelScene levelScene;
     private GameEngine gameEngine;
@@ -134,6 +139,9 @@ class PlayerPipeEntryTest {
 
         staticBeanFactory = mockStatic(StaticBeanFactory.class, invocation -> {
             final Class<?> type = invocation.getArgument(0);
+            if (type == SoundPlayer.class) {
+                return soundPlayer;
+            }
             return type == PlayerRuntimeState.class ? new PlayerRuntimeState() : mock(type);
         });
     }
@@ -364,6 +372,24 @@ class PlayerPipeEntryTest {
         assertThat(player.getRuntimeState().isHitCeiling()).isTrue();
         assertThat(player.getRuntimeState().getEnteredPipePortal()).isEqualTo(UPSIDE_DOWN);
         assertThat(player.getRuntimeState().getPipeEntryDirection()).isEqualTo(UP);
+    }
+
+    @Test
+    @DisplayName("The head striking something solid plays the bump sound once, and the next tick plays nothing")
+    void aHeadStrikePlaysTheBumpSoundOnce() {
+        // Prepare - rising into the upside-down pipe's lip, without UP held, so the player bumps it
+        withCollisionGrid();
+        final LevelScenePlayer player = player(NORMAL, UPSIDE_DOWN_PIPE_MIDDLE_X, 58, JUMPING);
+        player.getPosition().setDY(-2);
+
+        // Execute
+        player.updateFrame();
+        final boolean hitTheCeiling = player.getRuntimeState().isHitCeiling();
+        player.updateFrame();
+
+        // Verify
+        assertThat(hitTheCeiling).isTrue();
+        verify(player.getSoundPlayer(), times(1)).play(BLOCK);
     }
 
     @Test

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static house.x1337.app.smb3.enumeration.MusicTrack.ATHLETIC;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.dizitart.no2.common.module.NitriteModule.module;
@@ -76,6 +77,45 @@ class NitriteLevelSceneRepositoryTest {
         // Verify
         assertThat(readWithCard.getLevelCompletionCard()).isEqualTo(of(168, 21));
         assertThat(readWithoutCard.getLevelCompletionCard()).isNull();
+    }
+
+    @Test
+    @DisplayName("A scene's background music is stored by name and read back; a scene without one reads null")
+    void storesTheBackgroundMusic() {
+        // Prepare
+        final LevelSceneRecord withMusic = record("scene-1", "1-1");
+        withMusic.setBackgroundMusic(ATHLETIC);
+        repository.upsert(withMusic);
+        repository.upsert(record("scene-2", "1-1 bonus room"));
+
+        // Execute
+        final LevelSceneRecord readWithMusic = repository.findById("scene-1").orElseThrow();
+        final LevelSceneRecord readWithoutMusic = repository.findById("scene-2").orElseThrow();
+
+        // Verify
+        assertThat(readWithMusic.getBackgroundMusic()).isEqualTo(ATHLETIC);
+        assertThat(readWithoutMusic.getBackgroundMusic()).isNull();
+    }
+
+    @Test
+    @DisplayName("A scene document written before the field existed reads with no background music")
+    void aDocumentWithoutTheFieldReadsNull() {
+        // Prepare
+        final LevelSceneRecord legacy = record("scene-1", "1-1");
+        repository.upsert(legacy);
+        nitrite.getRepository(LevelSceneRecord.class).getDocumentCollection()
+            .find()
+            .forEach(document -> {
+                document.remove("backgroundMusic");
+                nitrite.getRepository(LevelSceneRecord.class).getDocumentCollection().update(document);
+            });
+
+        // Execute
+        final LevelSceneRecord read = repository.findById("scene-1").orElseThrow();
+
+        // Verify
+        assertThat(read.getTitle()).isEqualTo("1-1");
+        assertThat(read.getBackgroundMusic()).isNull();
     }
 
     private static LevelSceneRecord record(final String id, final String title) {

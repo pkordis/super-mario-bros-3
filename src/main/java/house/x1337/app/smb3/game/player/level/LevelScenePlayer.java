@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.PlayerDeathKind;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
+import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
@@ -15,11 +16,10 @@ import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimationContext;
-import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.PlayerDeathFallEnded;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
-import house.x1337.app.smb3.model.event.PlayerDied;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -38,6 +38,9 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT
 import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.SUSTAINED;
 import static house.x1337.app.smb3.enumeration.PlayerVisibility.FOREGROUND;
 import static house.x1337.app.smb3.enumeration.Reward.ONE_UP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.TANOOKI;
 import static house.x1337.app.smb3.game.player.factory.PlayerAnimatorFactory.contextForLevel;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_JUMP;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
@@ -86,7 +89,6 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private static final double TAIL_ATTACK_BLOCK_PROBE_Y = 28;
 
     private final PlayerRuntimeState runtimeState = getBean(PlayerRuntimeState.class);
-    private final SoundPlayer soundPlayer = getBean(SoundPlayer.class);
     private final LevelScenePlayerAnimationContext animationContext;
     private final PlayerInputHandler inputHandler;
     private final PlayerPosition position;
@@ -100,9 +102,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private Node node;
 
     /**
-     * Guards the one-shot {@link PlayerDied} publish at the end of the death throe, so the engine is
-     * asked to restart the level exactly once even though {@link #tickDeath()} keeps running until the
-     * engine swaps the scene out.
+     * Guards the one-shot {@link PlayerDeathFallEnded} publish at the end of the death throe, so the body's fall is
+     * reported exactly once even though {@link #tickDeath()} keeps running until the engine swaps the scene out.
      */
     private boolean deathEventPublished;
 
@@ -461,6 +462,10 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // and snap the player backward, causing a visible camera jolt.
         final boolean suppressWalls = lowClearance || runtimeState.getLowClearanceGrace() > 0;
         final boolean hitSomething = collisionGrid.handleCollision(this, suppressWalls);
+        // The collision pass flags the tick the head strikes something solid, whatever it is
+        if (runtimeState.isHitCeiling()) {
+            getSoundPlayer().play(BLOCK);
+        }
 
         // Refine the logical state after physics + collision
         refinePlayerState(inputHandler, hitSomething, lowClearance);
@@ -530,9 +535,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     private void tickDeath() {
         position.snapshotPrevious();
 
-        // A pit death has no throe: nothing moves and nothing is drawn while the death countdown runs
-        // out. That wait is the death music, so the level's end comes from PlayerDeathSequence when the
-        // music finishes, not from here.
+        // A pit death has no throe: nothing moves and nothing is drawn while the death music plays. The
+        // level's end comes from PlayerDeathSequence when the music finishes, not from here.
         if (runtimeState.isDyingByFallingOff()) {
             applyHurtFlashVisibility();
             return;
@@ -554,7 +558,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
 
         if (!deathEventPublished && hasFallenOffLevel(position, getLevelScene().getDimensions().rows())) {
             deathEventPublished = true;
-            gameEngine.publish(new PlayerDied());
+            gameEngine.publish(new PlayerDeathFallEnded());
         }
     }
 
@@ -583,15 +587,21 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void onRewardConsumption(final RewardLevelObject reward) {
         final PlayerMode mode = getMode();
+        final boolean extraLife = reward.getRewardType() == ONE_UP;
         if (runtimeState.isTransitioning() || runtimeState.isInPipe()) {
+            getSoundPlayer().play(extraLife ? SoundEffect.ONE_UP : POWER_UP);
             return;
         }
-        if (reward.getRewardType() != ONE_UP) {
-            if (mode == SHRUNK) {
-                turnToNormal();
-            } else if (reward instanceof SuperLeaf && mode != RACCOON) {
-                turnToRaccoon();
-            }
+        if (extraLife) {
+            getSoundPlayer().play(SoundEffect.ONE_UP);
+        } else if (mode == SHRUNK) {
+            turnToNormal();
+            getSoundPlayer().play(POWER_UP);
+        } else if (reward instanceof SuperLeaf && mode != RACCOON) {
+            turnToRaccoon();
+            getSoundPlayer().play(TANOOKI);
+        } else {
+            getSoundPlayer().play(POWER_UP);
         }
     }
 

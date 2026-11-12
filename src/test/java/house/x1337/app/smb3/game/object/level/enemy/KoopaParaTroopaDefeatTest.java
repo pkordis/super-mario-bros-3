@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.KILLED;
 import static house.x1337.app.smb3.enumeration.enemy.KoopaTroopaState.NORMAL;
@@ -108,6 +109,21 @@ class KoopaParaTroopaDefeatTest {
         assertThat(player.getPosition().getDY()).isCloseTo(PLAYER_STOMP_BOUNCE_Y_VELOCITY, within(TOLERANCE));
         verify(world.getActiveObjectGrid(), times(1).description("One hand-over only"))
             .spawnEnemy(any(EnemyLevelObject.class));
+    }
+
+    @Test
+    @DisplayName("The stomp plays the stomp sound once")
+    void theStompPlaysTheStompSoundOnce() {
+        // Prepare
+        final KoopaParaTroopa paraTroopa = world.paratroopaAt(START_COLUMN, REST_ROW);
+        final LevelScenePlayer player = descendingPlayer();
+
+        // Execute
+        paraTroopa.onCollisionFromAbove(player);
+        paraTroopa.onCollisionFromAbove(player);
+
+        // Verify
+        verify(paraTroopa.getSoundPlayer(), times(1)).play(ENEMY_STOMP);
     }
 
     @Test

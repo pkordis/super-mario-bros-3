@@ -226,9 +226,14 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
     comes out of the exit. A scene that is not saved fades back in and restarts the level.
   - In both: `beginPipeExit(exit)`, `centreVerticalScrollOn(exit)`, `fadeIn(STANDARD, ...)`.
 - **Exit waits for the fade-in:** `tickPipeExiting` only snapshots while `FadingEngine.isHaltingGameplay()`.
-- **`LevelRunStart`** (`game.engine`): `FRESH` (`SHRUNK`, timer restarted) is what `buildLevel()` uses;
-  `carryOver(mode)` keeps the suit and leaves the timer running. Score, coins and lives live on the shared
-  `PlayerData` and carry over anyway.
+- **`LevelRunStart`** (`game.engine`): `FRESH` (`SHRUNK`, timer restarted, P-meter emptied by
+  `PlayerData.resetPowerMeter()`) is what `buildLevel()` uses; `carryOver(mode)` keeps the suit, the P-meter charge
+  and leaves the timer running. Score, coins, lives and cards live on the shared `PlayerData` and carry over anyway.
+  Before the P-meter reset, a death at full power respawned with a full meter (the meter does not drain while
+  dying), so the new player had the power top speed and the `POWER_ON` loop until it drained.
+- **One HUD viewport at a time:** every `buildLevel` builds a new `HeadsUpDisplay`, whose `@PostConstruct` adds a
+  `"HUD"` main view. `buildLevel` calls `dispose()` (`RenderManager.removeMainView`) on the HUD it replaces first;
+  before that, each death, R or pipe trip left one more stale HUD viewport rendering underneath every frame.
 - **Restart goes home:** the session remembers the scene the engine held before its first swap
   (`originalLevelScene`); a death or R does `useLevelScene(original)` and `buildLevel()` (fresh). A restart that lands
   during a trip calls `PipePortalTransit.cancel()`, which drops the trip and `reset()`s the fade so the screen is not

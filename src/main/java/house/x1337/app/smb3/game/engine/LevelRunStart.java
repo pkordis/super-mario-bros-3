@@ -13,4 +13,9 @@ public record LevelRunStart(
     public static LevelRunStart carryOver(final PlayerMode mode) {
         return new LevelRunStart(mode, false);
     }
+
+    /** @return whether the run goes on from another scene, as through a pipe, rather than starting over */
+    public boolean isCarryOver() {
+        return !restartTimer;
+    }
 }

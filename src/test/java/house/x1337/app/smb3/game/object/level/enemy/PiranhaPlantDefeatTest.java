@@ -14,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_POOF;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantMode.GREEN;
 import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantMode.RED;
 import static house.x1337.app.smb3.enumeration.enemy.PiranhaPlantState.OUT;
@@ -151,6 +152,21 @@ class PiranhaPlantDefeatTest {
             within(WORLD_TOLERANCE)
         );
         assertThat(cloud.getValue().z()).isEqualTo(Z_DEPTH_POOF);
+    }
+
+    @Test
+    @DisplayName("A tail strike on a plant that is out plays the kill sound once")
+    void aTailStrikePlaysTheKillSound() {
+        // Prepare
+        final PiranhaPlant plant = world.spawnedPlant(GREEN);
+        world.tick(plant, 30);
+        final LevelScenePlayer player = world.playerAtPixelX(PLANT_X - TILE_SPRITE_SIZE);
+
+        // Execute
+        plant.onTailAttack(player);
+
+        // Verify
+        verify(plant.getSoundPlayer(), times(1)).play(KOOPA_SHELL);
     }
 
     @Test

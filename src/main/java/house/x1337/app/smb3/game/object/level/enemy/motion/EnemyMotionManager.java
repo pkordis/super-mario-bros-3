@@ -14,8 +14,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 
-public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLevelObjectMotionManager<E> {
+public interface EnemyMotionManager<E extends EnemyLevelObject>
+    extends ActiveLevelObjectMotionManager<E> {
     @Override
     default void update() {
         final List<E> activeInstances = getActiveInstances();
@@ -80,6 +82,9 @@ public interface EnemyMotionManager<E extends EnemyLevelObject> extends ActiveLe
             // Taken exactly once: the enemy stays in the list for the rest of its death animation.
             instance.setPendingScoreReward(null);
             instance.getGameEngine().getPlayerData().add(reward.getData());
+            if (reward.getData().getLives() > 0) {
+                getSoundPlayer().play(ONE_UP);
+            }
             spawnScorePopupFor(instance, reward);
         }
     }
