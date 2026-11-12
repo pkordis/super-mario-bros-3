@@ -112,6 +112,16 @@ public final class LevelSceneVerticalScroll {
     }
 
     /**
+     * Keeps the camera where the last tick left it, with nothing to ease across between render frames. The player
+     * calls this at the start of every tick, before any of its early returns, so a tick that ends before
+     * {@link #update} (a power-up or suit-loss transition, a death, a pipe, any other pause) holds the camera still
+     * instead of replaying the previous tick's move on every tick.
+     */
+    public void hold() {
+        previousCameraY = cameraY;
+    }
+
+    /**
      * Interpolates the camera centre Y between the previous and current
      * simulation ticks, in lockstep with the player node's visual interpolation.
      * Called once per render frame with the same {@code alpha} the node uses, so

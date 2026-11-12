@@ -344,6 +344,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // advanced is a lag flag that lies, and this one gates every pickup.
         advanceCarryLag();
 
+        // The vertical scroll, for the same reason: every tick starts from a camera at rest, and only a tick that
+        // reaches updateVerticalScroll below moves it. A tick that returns early would otherwise leave the previous
+        // tick's camera move in place, and the render frames between ticks would keep easing across it, so the view
+        // would flicker for the whole pause wherever the screen refreshes faster than the simulation.
+        verticalScroll.hold();
+
         // The death throe owns the tick: it freezes gameplay and plays out its own rise-and-fall off
         // the bottom of the screen (the death routine owns the Y motion while the rest of the game is
         // halted). Checked first: a dying player runs no physics, input or transition.

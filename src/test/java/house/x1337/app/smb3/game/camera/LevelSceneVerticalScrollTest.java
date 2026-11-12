@@ -200,4 +200,25 @@ class LevelSceneVerticalScrollTest {
         assertThat(aboveBand).as("Player 3.6 above the centre").isCloseTo(11.4f, within(TOLERANCE));
         assertThat(high.update(15f, false)).isCloseTo(11.4f, within(TOLERANCE));
     }
+
+    @Test
+    @DisplayName("Holding after a scrolling tick leaves nothing to ease across, so the camera rests between frames")
+    void holdingLeavesTheCameraAtRest() {
+        // Prepare - two flying ticks, so the last one moved the camera up by the cap
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
+        scroll.update(15f, true);
+        final float cameraY = scroll.update(15f, true);
+        assertThat(scroll.interpolate(0.5))
+            .as("Between two scrolling ticks the camera eases")
+            .isCloseTo(cameraY - MAX_UP_PER_TICK / 2, within(TOLERANCE));
+
+        // Execute - a tick that does not scroll, as a pause
+        scroll.hold();
+
+        // Verify
+        for (final double alpha : new double[] {0, 0.25, 0.5, 0.75, 1}) {
+            assertThat(scroll.interpolate(alpha)).as("Alpha %s", alpha).isCloseTo(cameraY, within(TOLERANCE));
+        }
+        assertThat(scroll.getCameraY()).as("The camera itself does not move").isCloseTo(cameraY, within(TOLERANCE));
+    }
 }
