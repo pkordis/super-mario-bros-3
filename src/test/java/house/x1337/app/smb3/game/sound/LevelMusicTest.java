@@ -145,6 +145,36 @@ class LevelMusicTest {
     }
 
     @Test
+    @DisplayName("A pipe taken while the P-switch window is open keeps the P-switch music playing without a restart")
+    void aCarryOverWithTheWindowOpenKeepsThePowerSwitchMusic() {
+        // Prepare
+        powerSwitchTimeWindow.activate();
+        when(soundPlayer.getCurrentTrack()).thenReturn(P_SWITCH);
+
+        // Execute
+        levelMusic.start(scene(UNDERGROUND), carryOver(NORMAL));
+
+        // Verify
+        verify(soundPlayer, never()).play(any(MusicTrack.class));
+        verify(soundPlayer, never()).stopMusic();
+    }
+
+    @Test
+    @DisplayName("The window running out in the scene a pipe led to plays that scene's track")
+    void theWindowRunningOutAfterAPipePlaysTheNewScenesTrack() {
+        // Prepare
+        powerSwitchTimeWindow.activate();
+        when(soundPlayer.getCurrentTrack()).thenReturn(P_SWITCH);
+        levelMusic.start(scene(UNDERGROUND), carryOver(NORMAL));
+
+        // Execute
+        gameEventBus.publish(new PowerSwitchExpired());
+
+        // Verify
+        verify(soundPlayer).play(UNDERGROUND);
+    }
+
+    @Test
     @DisplayName("The P-switch plays its music while the window is open, then the scene's track from its start")
     void thePowerSwitchSwapsTheMusicForItsDuration() {
         // Prepare

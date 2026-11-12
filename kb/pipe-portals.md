@@ -147,8 +147,9 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   the player (this replaces the ROM's masking sprite and sprite trimming); `CameraState.hold()` keeps the camera where
   it is; the pipe pose is drawn at once.
 - **Halt:** `isHaltingGameplay()` includes `isEnteringPipe()` (`Level_PipeMove` is ORed into `Player_HaltGame`,
-  prg008.asm:347-353), so `GameEngine.simpleUpdate` freezes the timer, enemies, projectiles, rewards and the P-switch
-  window while score popups keep rising. `isHurtable()` is false and `onRewardConsumption` ignores rewards.
+  prg008.asm:347-353), so `GameEngine.simpleUpdate` freezes the timer, enemies, projectiles and rewards while score
+  popups keep rising. The P-switch window keeps counting (SMB3-69): the ROM's countdown sits after the halt flag in
+  `Player_DoGameplay` and does not read it. `isHurtable()` is false and `onRewardConsumption` ignores rewards.
 - **Tick** (`tickPipeEntering`, `Level_PipeEnter` prg029.asm:1323-1434): runs instead of input, physics, collision,
   scrolling and the pit check. The countdown is decremented first; that reads the same values as the ROM, which
   decrements `Event_Countdown` at the end of every frame including the entry frame (`PRG008_A1DE`). So:

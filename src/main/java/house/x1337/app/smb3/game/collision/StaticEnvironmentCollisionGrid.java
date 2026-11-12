@@ -55,6 +55,11 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
      * tail's or a kicked shell's probe for a hit from the side. A coin out of the block launches from this height.
      */
     private int bumpProbeY;
+
+    /**
+     * Collects whatever the players overlap while the P-Switch window is open, then counts the window down, in that
+     * order so the window's last tick can still be collected.
+     */
     public void tick() {
         if (powerSwitchTimeWindow.isActive()) {
             for (final Player player : gameEngine.getAllPlayers()) {
@@ -63,6 +68,15 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
                 }
             }
         }
+        countDownPowerSwitchTimeWindow();
+    }
+
+    /**
+     * Counts the P-Switch window down by one tick and publishes {@link PowerSwitchExpired} on the tick it runs out.
+     * Besides {@link #tick()}, the engine calls it on the ticks a player halts gameplay, as the window keeps counting
+     * while the player goes through a pipe or grows.
+     */
+    public void countDownPowerSwitchTimeWindow() {
         if (powerSwitchTimeWindow.tick()) {
             gameEngine.publish(new PowerSwitchExpired());
         }

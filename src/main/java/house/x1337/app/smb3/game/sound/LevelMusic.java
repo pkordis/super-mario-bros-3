@@ -38,9 +38,10 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
  * closing only changes what plays once the jingle is over.
  *
  * <p>Everything here follows events: a jingle's end is its {@link SoundPlayComplete}, and the P-switch is
- * {@link PowerSwitchActivated} and {@link PowerSwitchExpired}. A window closed by a level build or by the card
- * publishes nothing: the build calls {@link #start(LevelScene, LevelRunStart)}, which reads the window, and the
- * card's jingle silences the level anyway.
+ * {@link PowerSwitchActivated} and {@link PowerSwitchExpired}. A window closed by a fresh level build, by a death or
+ * by the card publishes nothing: the build calls {@link #start(LevelScene, LevelRunStart)}, which reads the window,
+ * and the death's and the card's jingles silence the level anyway. A build carried over from another scene finds the
+ * window still open, so the P-switch music plays on through the scene change.
  *
  * <p>It is a singleton that outlives each engine, so it subscribes through {@link #subscribe()} once per engine, as
  * an engine's {@code destroy()} purges the bus.

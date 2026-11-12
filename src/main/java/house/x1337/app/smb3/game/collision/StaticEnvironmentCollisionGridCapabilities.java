@@ -94,10 +94,9 @@ public interface StaticEnvironmentCollisionGridCapabilities {
             }
         }
 
-        // The P-Switch window belongs to the grid and lives exactly as long as it does; a rebuilt grid
-        // (new level, or a re-run in the editor's tester) starts closed.
+        // The P-Switch window outlives the grid: a run carried through a pipe keeps it open, and only a run that
+        // starts over closes it (GameEngine.buildLevel).
         final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
-        powerSwitchTimeWindow.reset();
 
         final StaticEnvironmentCollisionGrid collisionGrid = getBean(
             StaticEnvironmentCollisionGrid.class,

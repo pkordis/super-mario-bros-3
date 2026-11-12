@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.PlayerTimer;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.sound.LevelMusic;
+import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -29,10 +30,12 @@ import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.FRESH;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.carryOver;
+import static house.x1337.app.smb3.game.time.PowerSwitchTimeWindow.TOTAL_TICKS;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RIGHT;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_RUN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
@@ -44,15 +47,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * How a run of the level starts: from its start (small, timer at 300), or through a level junction, where the suit and
- * the running timer carry over. Built on an engine that is never started, with the tile
- * rendering and the grids left out.
+ * How a run of the level starts: from its start (small, timer at 300, P-switch window closed), or through a level
+ * junction, where the suit, the running timer and an open P-switch window carry over. Built on an engine that is never
+ * started, with the tile rendering and the grids left out.
  */
 class GameEngineBuildLevelTest {
     private final PlayerData playerData = new PlayerData();
     private final LevelScenePlayer spawned = mock(LevelScenePlayer.class);
     private final List<LevelScenePlayer> nextSpawns = new ArrayList<>();
     private final LevelMusic levelMusic = mock(LevelMusic.class);
+    private final PowerSwitchTimeWindow powerSwitchTimeWindow = new PowerSwitchTimeWindow();
 
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
@@ -74,6 +78,9 @@ class GameEngineBuildLevelTest {
             }
             if (type == LevelMusic.class) {
                 return levelMusic;
+            }
+            if (type == PowerSwitchTimeWindow.class) {
+                return powerSwitchTimeWindow;
             }
             return mock(type);
         });
@@ -208,5 +215,52 @@ class GameEngineBuildLevelTest {
         order.verify(levelMusic).start(levelScene, FRESH);
         order.verify(gameEngine).setupLevel(levelScene);
         order.verify(levelMusic).start(levelScene, carryOver(RACCOON));
+    }
+
+    @Test
+    @DisplayName("A fresh start closes a P-switch window the previous run left open")
+    void aFreshStartClosesThePowerSwitchWindow() {
+        // Prepare
+        powerSwitchTimeWindow.activate();
+
+        // Execute
+        gameEngine.buildLevel();
+
+        // Verify
+        assertThat(powerSwitchTimeWindow.isActive()).isFalse();
+        assertThat(powerSwitchTimeWindow.getTicksRemaining()).isZero();
+    }
+
+    @Test
+    @DisplayName("A carried-over start keeps the P-switch window open with the ticks it has left")
+    void aCarriedOverStartKeepsThePowerSwitchWindow() {
+        // Prepare - 100 ticks spent before the pipe
+        powerSwitchTimeWindow.activate();
+        for (int tick = 0; tick < 100; tick++) {
+            powerSwitchTimeWindow.tick();
+        }
+
+        // Execute
+        gameEngine.buildLevel(carryOver(RACCOON));
+
+        // Verify
+        assertThat(powerSwitchTimeWindow.isActive()).isTrue();
+        assertThat(powerSwitchTimeWindow.getTicksRemaining()).isEqualTo(TOTAL_TICKS - 100);
+    }
+
+    @Test
+    @DisplayName("The level music reads the window once a fresh start has closed it")
+    void theLevelMusicStartsAfterTheWindowIsClosed() {
+        // Prepare
+        powerSwitchTimeWindow.activate();
+        final List<Boolean> openWhenTheMusicStarted = new ArrayList<>();
+        doAnswer(invocation -> openWhenTheMusicStarted.add(powerSwitchTimeWindow.isActive()))
+            .when(levelMusic).start(any(), any());
+
+        // Execute
+        gameEngine.buildLevel();
+
+        // Verify
+        assertThat(openWhenTheMusicStarted).containsExactly(false);
     }
 }
