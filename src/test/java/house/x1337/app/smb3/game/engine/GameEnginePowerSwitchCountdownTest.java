@@ -11,6 +11,8 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.repository.GameSettingsRepository;
+import house.x1337.app.smb3.service.GameSettingsService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -62,6 +64,9 @@ class GameEnginePowerSwitchCountdownTest {
             }
             if (type == LevelScenePlayer.class) {
                 return player;
+            }
+            if (type == GameSettingsService.class) {
+                return new GameSettingsService(mock(GameSettingsRepository.class));
             }
             return mock(type);
         });

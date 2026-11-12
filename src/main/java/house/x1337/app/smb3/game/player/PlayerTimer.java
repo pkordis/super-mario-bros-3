@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.game.player;
 
+import house.x1337.app.smb3.enumeration.TimerPace;
 import house.x1337.app.smb3.event.GameEventBusAware;
 import house.x1337.app.smb3.model.event.PlayerTimerCleared;
 import house.x1337.app.smb3.model.event.PlayerTimerExpired;
@@ -7,7 +8,7 @@ import house.x1337.app.smb3.model.event.PlayerTimerHurryUp;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import static house.x1337.app.smb3.GameConstants.SIMULATION_FPS;
+import static house.x1337.app.smb3.enumeration.TimerPace.REAL_TIME;
 
 @Data
 @Slf4j
@@ -20,6 +21,7 @@ public final class PlayerTimer implements GameEventBusAware {
     private int frameTick;
     private int initialTime = DEFAULT_INITIAL_TIME;
     private int time;
+    private TimerPace pace = REAL_TIME;
 
     public void start() {
         if (!active) {
@@ -59,12 +61,12 @@ public final class PlayerTimer implements GameEventBusAware {
     }
 
     /**
-     * Counts one simulation tick, and one second every {@code SIMULATION_FPS} ticks. The step that brings the time
-     * down to 100 publishes {@link PlayerTimerHurryUp}, and the one that brings it to 0 publishes
-     * {@link PlayerTimerExpired} and stops the timer. A run that starts at 100 or less, or time taken off by the
-     * time bonus, never publishes the hurry-up.
+     * Counts one simulation tick, and one timer step every {@link TimerPace#getTicksPerStep()} ticks of its pace: once
+     * a second at {@link TimerPace#REAL_TIME}. The step that brings the time down to 100 publishes
+     * {@link PlayerTimerHurryUp}, and the one that brings it to 0 publishes {@link PlayerTimerExpired} and stops the
+     * timer. A run that starts at 100 or less, or time taken off by the time bonus, never publishes the hurry-up.
      *
-     * @return whether a second went by on this tick
+     * @return whether a step went by on this tick
      */
     public boolean tick() {
         if (!active) {
@@ -72,7 +74,7 @@ public final class PlayerTimer implements GameEventBusAware {
         }
 
         frameTick++;
-        if (frameTick >= SIMULATION_FPS) {
+        if (frameTick >= pace.getTicksPerStep()) {
             frameTick = 0;
             time--;
 

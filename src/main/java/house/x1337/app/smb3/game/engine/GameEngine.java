@@ -34,6 +34,7 @@ import house.x1337.app.smb3.model.event.GameEngineStopped;
 import house.x1337.app.smb3.model.event.GameplayHalted;
 import house.x1337.app.smb3.model.event.GameplayResumed;
 import house.x1337.app.smb3.model.event.PlayerPowerLost;
+import house.x1337.app.smb3.service.GameSettingsService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -65,6 +66,7 @@ public final class GameEngine extends GameEngineCapabilities {
     private final LevelFrameCounter levelFrameCounter = new LevelFrameCounter();
     private final LevelCompletion levelCompletion = getBean(LevelCompletion.class, this);
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
+    private final GameSettingsService gameSettingsService = getBean(GameSettingsService.class);
 
     private final CameraState cameraState;
     private final PlayerData playerData;
@@ -309,6 +311,8 @@ public final class GameEngine extends GameEngineCapabilities {
         if (start.restartTimer()) {
             playerData.getPlayerTimer().clear();
             playerData.getPlayerTimer().setInitialTime(300);
+            // A fresh start takes the pace saved last; a run carried through a pipe keeps the pace it started with
+            playerData.getPlayerTimer().setPace(gameSettingsService.getSettings().getTimerPace());
             playerData.getPlayerTimer().start();
         }
 
