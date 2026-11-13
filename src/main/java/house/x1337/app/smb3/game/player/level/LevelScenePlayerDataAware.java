@@ -19,6 +19,10 @@ import static java.lang.Math.abs;
 /**
  * The player's P-meter and flight time. The meter becoming full publishes {@link PlayerPowerReached}, and a full meter
  * draining a step or emptied when its flight ends publishes {@link PlayerPowerLost}.
+ *
+ * <p>From the touch of the end-level card, while the player runs off the level, the meter is frozen at the level it
+ * had: it neither charges nor drains, and a flight running out leaves it as it is. So a full meter stays full, its
+ * [P] flashing, until the level ends.
  */
 public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateAware, GameEngineAware {
     PlayerData getPlayerData();
@@ -29,7 +33,7 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
             runtimeState.setFlyTimeToggle(runtimeState.getFlyTimeToggle() ^ 1);
             if (runtimeState.getFlyTimeToggle() != 0) {
                 runtimeState.setPlayerFlyTime(runtimeState.getPlayerFlyTime() - 1);
-                if (runtimeState.getPlayerFlyTime() <= 0) {
+                if (runtimeState.getPlayerFlyTime() <= 0 && !runtimeState.isRunningOffLevel()) {
                     final boolean wasFull = getPlayerData().getPlayerPower() >= PMETER_LEVELS;
                     getPlayerData().setPlayerPower(0);
                     getPlayerData().setPowerThrottle(0);
@@ -52,8 +56,8 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
             && abs(position.getDX()) >= PLAYER_TOP_RUN_SPEED - 0.001;
         runtimeState.setRunning(running);
 
-        // P-meter update
-        if (runtimeState.getPlayerFlyTime() <= 0) {
+        // P-meter update, frozen during the run-off
+        if (runtimeState.getPlayerFlyTime() <= 0 && !runtimeState.isRunningOffLevel()) {
             final int throttle = playerData.getPowerThrottle();
             if (throttle > 0) {
                 playerData.setPowerThrottle(throttle - 1);

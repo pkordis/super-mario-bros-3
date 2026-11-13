@@ -5,6 +5,8 @@ import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.LevelFrameCounter;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion.Message;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
@@ -39,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
@@ -49,12 +52,16 @@ import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.CARD_FLASH_BIT;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_MESSAGE_TICK;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.EXIT_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.CARD_FLYING_OFF;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COMPLETED;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COURSE_CLEAR;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.EXITING;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.STATUS_BAR_CARD_HOLD_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.YOU_GOT_A_CARD_TICK;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -63,6 +70,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -92,6 +100,7 @@ class LevelCompletionTest {
     private final MotionManager otherManager = mock(MotionManager.class);
     private final LevelScenePlayer player = mock(LevelScenePlayer.class);
     private final SoundPlayer soundPlayer = mock(SoundPlayer.class);
+    private final LevelFrameCounter frameCounter = new LevelFrameCounter();
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
     private LevelCompletion levelCompletion;
@@ -117,6 +126,7 @@ class LevelCompletionTest {
         final CameraState cameraState = mock(CameraState.class);
         when(cameraState.getActiveObjectRegion(anyInt())).thenReturn(new AxisAlignedBoundingBox(0, 0, 256, 192));
         when(gameEngine.getCameraState()).thenReturn(cameraState);
+        when(gameEngine.getLevelFrameCounter()).thenReturn(frameCounter);
 
         when(player.getPlayerData()).thenReturn(playerData);
         when(player.getPosition()).thenReturn(position);
@@ -549,6 +559,86 @@ class LevelCompletionTest {
         assertThat(LevelCompletion.isOnScreen(new PixelPosition(100, 274), screen)).as("Off bottom").isFalse();
     }
 
+    @Test
+    @DisplayName("COURSE CLEAR! shows 66 ticks into state 5, YOU GOT A CARD 95 ticks in, and both stay to the end")
+    void theMessagesShowOnTheStateTimer() {
+        // Prepare
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(STAR, player);
+        ticksUntil(COURSE_CLEAR);
+        final Message duringTheFlight = levelCompletion.getMessage();
+
+        // Execute & Verify
+        tick(COURSE_CLEAR_TICKS - COURSE_CLEAR_MESSAGE_TICK - 1);
+        assertThat(levelCompletion.getMessage()).as("65 ticks in").isEqualTo(Message.NONE);
+        tick(1);
+        assertThat(levelCompletion.getMessage()).as("66 ticks in").isEqualTo(Message.COURSE_CLEAR);
+        tick(COURSE_CLEAR_MESSAGE_TICK - YOU_GOT_A_CARD_TICK - 1);
+        assertThat(levelCompletion.getMessage()).as("94 ticks in").isEqualTo(Message.COURSE_CLEAR);
+        tick(1);
+        assertThat(levelCompletion.getMessage()).as("95 ticks in").isEqualTo(Message.YOU_GOT_A_CARD);
+        assertThat(levelCompletion.getCollectedCard()).as("The card in the box").isEqualTo(STAR);
+        ticksUntil(COMPLETED);
+        assertThat(levelCompletion.getMessage()).as("At the end").isEqualTo(Message.YOU_GOT_A_CARD);
+        assertThat(duringTheFlight).as("During the flight").isEqualTo(Message.NONE);
+        levelCompletion.reset();
+        assertThat(levelCompletion.getMessage()).as("On the next run").isEqualTo(Message.NONE);
+    }
+
+    @Test
+    @DisplayName("The status bar hides the new card until 96 ticks into state 5, holds it 47 ticks, then flashes it")
+    void theNewCardReachesTheStatusBarAfterTheMessage() {
+        // Prepare
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        final boolean beforeTheTouch = levelCompletion.isNewestCardHidden();
+        levelCompletion.collect(FLOWER, player);
+        final boolean onTheTouch = levelCompletion.isNewestCardHidden();
+
+        // Execute & Verify - hidden through the flight and the first 95 ticks of state 5
+        final int flight = ticksUntil(COURSE_CLEAR);
+        assertThat(levelCompletion.isNewestCardHidden()).as("As state 5 starts, %d ticks in", flight).isTrue();
+        for (int tick = 1; tick < COURSE_CLEAR_TICKS; tick++) {
+            tick(1);
+            assertThat(levelCompletion.isNewestCardHidden()).as("%d ticks into state 5", tick).isTrue();
+        }
+        for (int tick = COURSE_CLEAR_TICKS; tick < COURSE_CLEAR_TICKS + STATUS_BAR_CARD_HOLD_TICKS - 1; tick++) {
+            tick(1);
+            assertThat(levelCompletion.isNewestCardHidden()).as("%d ticks into state 5: held", tick).isFalse();
+        }
+        final List<Boolean> flashes = new ArrayList<>();
+        for (int tick = 0; tick < 4 * CARD_FLASH_BIT; tick++) {
+            tick(1);
+            assertThat(levelCompletion.isNewestCardHidden()).as("Flashing, frame %d", frameCounter.getTicks())
+                .isEqualTo((frameCounter.getTicks() & CARD_FLASH_BIT) == 0);
+            flashes.add(levelCompletion.isNewestCardHidden());
+        }
+        assertThat(beforeTheTouch).as("Before the touch").isFalse();
+        assertThat(onTheTouch).as("On the touch").isTrue();
+        assertThat(playerData.getCards()).as("In the player's data throughout").containsExactly(FLOWER, null, null);
+        assertThat(flashes).as("Both ways while flashing").contains(true, false);
+        assertThat(levelCompletion.getPhase()).as("Still flashing while exiting").isEqualTo(EXITING);
+        ticksUntil(COMPLETED);
+        assertThat(levelCompletion.isNewestCardHidden()).as("Once the level has ended").isFalse();
+    }
+
+    @Test
+    @DisplayName("The touch mutes every sound effect but the time bonus's beep, before its sweep pops out any coin")
+    void theTouchMutesTheEffects() {
+        // Prepare
+        final EnemyLevelObject goomba = enemyAt(100, 120);
+        final SweepManagers managers = sweepManagers(new ArrayList<>(List.of(goomba)), new ArrayList<>());
+
+        // Execute
+        levelCompletion.collect(FLOWER, player);
+
+        // Verify
+        final InOrder order = inOrder(soundPlayer, managers.coins());
+        order.verify(soundPlayer).muteEffectsExcept(CASINO_BEEP);
+        order.verify(managers.coins()).spawnPoppedOutCoin(player, goomba.getPosition());
+    }
+
     private record SweepManagers(
         CoinRewardMotionManager coins,
         PoofMotionManager poofs,
@@ -631,6 +721,7 @@ class LevelCompletionTest {
             if (musicTicks == 0) {
                 levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
             }
+            frameCounter.tick();
             levelCompletion.tick();
         }
     }

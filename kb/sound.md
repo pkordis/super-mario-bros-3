@@ -44,8 +44,12 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
 
 `house.x1337.app.smb3.game.sound.SoundPlayer`, a `@Singleton` reached with `getBean(SoundPlayer.class)`.
 
-- `play(SoundEffect)`: one `AudioNode` per effect, `playInstance()` each time, so effects overlap (themselves
-  included) and never stop the music. There is no channel or slot system: every sound overlaps every other.
+- `play(SoundEffect)`: a new non-positional `AudioNode` copy of the effect's node each time (sharing its trimmed
+  buffer), started with `play()`, so effects overlap (themselves included) and never stop the music. There is no
+  channel or slot system: every sound overlaps every other. The copies sounding are kept (pruned of `Stopped` ones on
+  each play) so a mute can stop them. Until SMB3-49 each play was `playInstance()` on the effect's one node, which
+  jME cannot stop: `AudioNode.stop()` only stops what `play()` started, and `ALAudioRenderer.playSourceInstance`
+  never binds the node to its channel, so an instance only ends when its buffer does.
   - **Exception: an effect that does not overlap itself** (`SoundEffect.isSelfOverlapping()` false; only `TAIL_WAG`
     today) plays on its loaded node with `play()`, and a play is ignored while that node's status is `Playing`. jME's
     `ALAudioRenderer.updateInRenderThread` sets a bound buffer node back to `Stopped` when the buffer finishes.
@@ -60,8 +64,12 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
 - `loop(SoundEffect)` / `stopLoop(SoundEffect)`: at most one loop per effect, on its own non-positional node
   (`setLooping(true)`, `play()`) that shares the loaded effect's trimmed buffer. Both are no-ops when there is
   nothing to do (already looping, not looping, no engine), so callers can call one of them every tick. The loops
-  are dropped with the effects on detach. A `playInstance()` sound cannot be stopped on its own, hence the separate
-  node.
+  are dropped with the effects on detach.
+- `muteEffectsExcept(SoundEffect...)` / `unmuteEffects()` (SMB3-49): the mute stops every effect still sounding at
+  once (the loops, the copies, the tail wag's node) and, until the unmute, `play` and `loop` do nothing for every
+  effect but the ones named. The music is not muted. The level completion mutes on the touch with `CASINO_BEEP` let
+  through; `GameEngine.buildLevel` unmutes on every run start, and `attach` (through `detach`) on every engine.
+  `PowerMeterSound` needs nothing of its own: its `loop(POWER_ON)` is simply ignored while muted.
 - **Every effect is loaded when an engine attaches**, not on its first play: decoded (`AudioKey` with
   `stream = false`), trimmed by `SoundEffectTrimmer`, and wrapped in a node. All 28 take about 256 ms in a cold JVM
   at engine start. Loading on first play instead cost the first jump about 50 ms.
@@ -107,7 +115,8 @@ jME rules that bite:
 - jME finds the audio renderer through a thread-local (`AudioContext`) that is set on the engine's update thread
   only. Play calls must come from gameplay code on that thread, never from Swing.
 - Tests can install a mocked `AudioRenderer` with `AudioContext.setAudioRenderer(...)` on the test thread and
-  verify `playSource` / `playSourceInstance` / `stopSource` (see `SoundPlayerTest`). Reset it to `null` after.
+  verify `playSource` / `stopSource` (see `SoundPlayerTest`). Reset it to `null` after. A mocked renderer never sets
+  a node's status, so a test sets `Playing` itself on the nodes it wants a mute to find sounding.
 
 ## Latency (measured)
 
@@ -125,7 +134,7 @@ The renderer is OpenAL Soft 1.23.0, bundled with LWJGL 3.3.2, at 48 kHz with `AL
 mixing periods, about three of them queued.
 
 - jME's `AudioNode.playInstance` adds nothing: it binds the buffer and calls `alSourcePlay` straight away
-  (`ALAudioRenderer.playSourceInstance`).
+  (`ALAudioRenderer.playSourceInstance`). `play()` on a fresh node, which effects use since SMB3-49, does the same.
 - **The OpenAL buffer can be shrunk with an OpenAL Soft config file.** With `period_size = 480` and `periods = 2`
   under `[general]`, the measured source latency drops from 60 ms to **22 ms**. `period_size = 240` measured the
   same 22 ms, which is probably the Windows shared-mode floor.
@@ -183,7 +192,12 @@ The mapping (SMB3-68) is a best guess from the file titles; tune it here and in 
 | `CANNONBALL` | `SwitchBlock.onCollisionFromAbove` | The P-switch press ("Wham!"). |
 | `CASINO_BEEP` | `LevelCompletion.tickCourseClear` | Each time-bonus step. |
 | `ONE_UP` | `EnemyMotionManager.postCollision`, `CoinRewardMotionManager.landPoppedOutCoin` | A kill-chain reward that carries a life. |
-| `POWER_ON` (looped) | `PowerMeterSound` | Looped while the P-meter is full (the HUD's [P] flashes) and gameplay is not halted; stopped otherwise. A halt (death, pipe, suit change, blocking fade) silences it with the meter still full. It follows `PlayerPowerReached` / `PlayerPowerLost` and `GameplayHalted` / `GameplayResumed`. |
+| `POWER_ON` (looped) | `PowerMeterSound` | Looped while the P-meter is full (the HUD's [P] flashes) and gameplay is not halted; stopped otherwise. A halt (death, pipe, suit change, blocking fade) silences it with the meter still full. It follows `PlayerPowerReached` / `PlayerPowerLost` and `GameplayHalted` / `GameplayResumed`. The card touch mutes it (SMB3-49), though the frozen meter stays full. |
+
+**From the card touch to the level's end** (SMB3-49) only the course-clear jingle and the `CASINO_BEEP` steps are
+heard: every other effect is muted (`SoundPlayer.muteEffectsExcept`), the P ringing and the coins of the touch's
+sweep included. This follows the original game as observed by the developer; dasm alone suggests the ringing would
+go on over the jingle until the meter drained.
 
 Not played: the skid (no file), the Venus Fire Trap's spit and picking up a shell (silent on
 purpose), and everything belonging to features not built yet (pause, fireballs, vines, map, ...). A tail strike on

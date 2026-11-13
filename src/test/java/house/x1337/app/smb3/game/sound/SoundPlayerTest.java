@@ -31,8 +31,10 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
 import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
 import static house.x1337.app.smb3.enumeration.MusicTrack.WORLD_1_GRASS_LAND;
+import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_ON;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -130,8 +132,8 @@ class SoundPlayerTest {
     }
 
     @Test
-    @DisplayName("Playing an effect loads nothing more and starts a new instance of its trimmed, headspace node")
-    void playingAnEffectStartsAnInstance() {
+    @DisplayName("Playing an effect loads nothing more and starts a new copy of its trimmed, headspace node each time")
+    void playingAnEffectStartsACopy() {
         // Prepare
         soundPlayer.attach(application);
 
@@ -142,9 +144,12 @@ class SoundPlayerTest {
         // Verify
         verify(assetManager, times(SoundEffect.values().length)).loadAsset(any(AudioKey.class));
         final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
-        verify(audioRenderer, times(2)).playSourceInstance(node.capture());
-        assertThat(node.getAllValues().get(0)).as("The same node both times").isSameAs(node.getValue());
+        verify(audioRenderer, times(2)).playSource(node.capture());
+        verify(audioRenderer, never()).playSourceInstance(any(AudioNode.class));
+        assertThat(node.getAllValues().get(0)).as("A copy each time").isNotSameAs(node.getValue());
         assertThat(node.getValue().isPositional()).as("Headspace audio").isFalse();
+        assertThat(node.getValue().getAudioData()).as("The effect's own sound")
+            .isSameAs(soundPlayer.getEffects().get(JUMP).getAudioData());
         final AudioBuffer data = (AudioBuffer) node.getValue().getAudioData();
         assertThat(data.getData().limit())
             .as("Only the sounding frames, 2 channels of 2 bytes each")
@@ -184,8 +189,11 @@ class SoundPlayerTest {
 
         // Verify
         final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
-        verify(audioRenderer, times(2)).playSourceInstance(node.capture());
-        assertThat(node.getAllValues().get(0)).isNotSameAs(node.getAllValues().get(1));
+        verify(audioRenderer, times(2)).playSource(node.capture());
+        assertThat(node.getAllValues()).extracting(AudioNode::getAudioData).containsExactly(
+            soundPlayer.getEffects().get(JUMP).getAudioData(),
+            soundPlayer.getEffects().get(COIN).getAudioData()
+        );
     }
 
     @Test
@@ -291,11 +299,78 @@ class SoundPlayerTest {
         soundPlayer.play(JUMP);
 
         // Verify
-        verify(audioRenderer, never()).playSource(any(AudioNode.class));
+        assertThat(streamedKeys()).as("The track asked for once the engine stopped").isEmpty();
         verify(assetManager, times(2 * SoundEffect.values().length).description("Every effect, once per engine"))
             .loadAsset(any(AudioKey.class));
         verify(audioRenderer, times(2).description("Once before the stop, once on the next engine"))
-            .playSourceInstance(any(AudioNode.class));
+            .playSource(any(AudioNode.class));
+    }
+
+    @Test
+    @DisplayName("A mute stops every effect still sounding, its loops included, and leaves the music playing")
+    void aMuteStopsTheEffectsSounding() {
+        // Prepare - the music, the P ringing, a jump and a tail wag all sounding
+        soundPlayer.attach(application);
+        soundPlayer.play(OVERWORLD);
+        soundPlayer.loop(POWER_ON);
+        soundPlayer.play(JUMP);
+        soundPlayer.play(TAIL_WAG);
+        final ArgumentCaptor<AudioNode> played = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(4)).playSource(played.capture());
+        played.getAllValues().forEach(node -> node.setStatus(Playing));
+        final List<AudioNode> nodes = played.getAllValues();
+
+        // Execute
+        soundPlayer.muteEffectsExcept(CASINO_BEEP);
+
+        // Verify
+        final ArgumentCaptor<AudioNode> stopped = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(3)).stopSource(stopped.capture());
+        assertThat(stopped.getAllValues()).as("The loop, the jump and the tail wag")
+            .containsExactlyInAnyOrder(nodes.get(1), nodes.get(2), nodes.get(3));
+        assertThat(soundPlayer.getCurrentTrack()).as("The music plays on").isEqualTo(OVERWORLD);
+    }
+
+    @Test
+    @DisplayName("While muted, only the effects let through play, and no loop starts")
+    void whileMutedOnlyTheEffectsLetThroughPlay() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.muteEffectsExcept(CASINO_BEEP);
+
+        // Execute
+        soundPlayer.play(COIN);
+        soundPlayer.play(TAIL_WAG);
+        soundPlayer.loop(POWER_ON);
+        soundPlayer.play(CASINO_BEEP);
+
+        // Verify
+        final ArgumentCaptor<AudioNode> played = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer).playSource(played.capture());
+        assertThat(played.getValue().getAudioData()).as("Only the beep")
+            .isSameAs(soundPlayer.getEffects().get(CASINO_BEEP).getAudioData());
+    }
+
+    @Test
+    @DisplayName("Unmuted, or on the next engine, every effect plays and loops again")
+    void unmutedEveryEffectPlaysAgain() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.muteEffectsExcept(CASINO_BEEP);
+
+        // Execute
+        soundPlayer.unmuteEffects();
+        soundPlayer.play(COIN);
+        soundPlayer.loop(POWER_ON);
+        soundPlayer.stopLoop(POWER_ON);
+        soundPlayer.muteEffectsExcept(CASINO_BEEP);
+        soundPlayer.attach(application);
+        soundPlayer.play(JUMP);
+
+        // Verify
+        final ArgumentCaptor<AudioNode> played = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, times(3)).playSource(played.capture());
+        assertThat(played.getAllValues().get(1).isLooping()).as("The loop").isTrue();
     }
 
     @Test

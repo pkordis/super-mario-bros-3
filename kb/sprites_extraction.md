@@ -405,3 +405,14 @@ so take the dominant colour per index rather than requiring a perfect bijection.
 `CardUR` (top row) and `CardLL`, `CardLR` (bottom row), prg031.asm:2761-2764 — row-major, top left first. The
 empty box is four `$FE` tiles, all index 3; `hud_base.png`'s three boxes match it pixel for pixel, which is a good
 check that the alignment and colours are right.
+
+**The level-end messages** (SMB3-49) use the same two banks: the level's second background window is switched to
+`$5E` for state 5 of the end-level card. "COURSE CLEAR!", "YOU GOT A CARD" and the box's borders are `$80-$A8` in
+chr094, the blank `$FC` and the box's inside `$FE` in chr095. They are drawn with background sub-palette 0, which
+has the status bar's colours (`$0F $30 $3C`): index 1 black, 2 white, 3 cyan. None uses index 0, so in the game
+the cells are opaque, the letters on black. This project's pictures make that black background transparent so the
+level shows through: the font cells keep only the white, and `box.png` keeps its black inner outline but is
+transparent outside its white border. The letters, "!" and the blank are the bold font, `font/bold/*.png`
+(`BoldFontGlyph`), one cell each; the messages are written with it from their text. The box is one composed
+picture, `sprites/object/card/message/box.png`. Fonts go under `src/main/resources/font/<font>/`, one folder per
+font, named by their look. See `level-completion.md`.

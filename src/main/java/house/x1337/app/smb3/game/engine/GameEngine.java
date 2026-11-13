@@ -14,6 +14,7 @@ import house.x1337.app.smb3.game.engine.fade.FadingEngine;
 import house.x1337.app.smb3.game.hud.HeadsUpDisplay;
 import house.x1337.app.smb3.game.hud.factory.HeadsUpDisplayFactory;
 import house.x1337.app.smb3.game.level.completion.LevelCompletion;
+import house.x1337.app.smb3.game.level.completion.LevelCompletionMessageOverlayState;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.MotionManager;
 import house.x1337.app.smb3.game.player.Player;
@@ -197,11 +198,12 @@ public final class GameEngine extends GameEngineCapabilities {
         // the level is rebuilt in place).
         buildLevel();
 
-        // Post views render in the order they are created, and three are stacked over the finished frame: the
-        // foremost sprites, then the fade (which must darken them too), then frame capture (which must record the
-        // fade). The foremost overlay is built here, at once; the two app states build theirs when they initialise,
-        // in the order they are attached.
+        // Post views render in the order they are created, and four are stacked over the finished frame: the
+        // foremost sprites, then the level completion's messages, then the fade (which must darken them both), then
+        // frame capture (which must record the fade). The foremost overlay is built here, at once; the three app
+        // states build theirs when they initialise, in the order they are attached.
         getBean(ForemostSpriteOverlay.class).prepare(this);
+        stateManager.attach(getBean(LevelCompletionMessageOverlayState.class, levelCompletion));
         stateManager.attach(getBean(FadeOverlayState.class, fadingEngine));
 
         // Frame-capture state — toggled by pressing 9.
@@ -265,9 +267,11 @@ public final class GameEngine extends GameEngineCapabilities {
         // enemy is duplicated.
         setupLevel(levelScene);
 
-        // Every run starts its level frame counter phases over, with the end-level card uncollected.
+        // Every run starts its level frame counter phases over, with the end-level card uncollected and every sound
+        // effect heard again, after a completion has muted them.
         levelFrameCounter.reset();
         levelCompletion.reset();
+        getBean(SoundPlayer.class).unmuteEffects();
 
         // Retire the previous player's input listener before the respawn attaches a new one. The key
         // mappings are shared and stay (PlayerInputHandler.init registers them once per engine); only

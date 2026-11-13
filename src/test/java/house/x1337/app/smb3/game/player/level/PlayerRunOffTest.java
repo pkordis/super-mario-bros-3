@@ -11,6 +11,7 @@ import house.x1337.app.smb3.game.player.PlayerData;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
+import house.x1337.app.smb3.model.event.PlayerPowerLost;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
@@ -21,7 +22,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.PLAYER_END_LEVEL_X_VELOCITY;
@@ -29,6 +32,7 @@ import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.FELL_OFF;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
+import static house.x1337.app.smb3.enumeration.PlayerMode.RACCOON;
 import static house.x1337.app.smb3.enumeration.PlayerMode.SHRUNK;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
@@ -67,10 +71,12 @@ class PlayerRunOffTest {
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
     private StaticEnvironmentCollisionGrid grid;
+    private final List<PlayerPowerLost> powerLosses = new ArrayList<>();
 
     @BeforeEach
     void prepare() {
         final GameEventBus bus = new GameEventBus();
+        bus.subscribe(PlayerPowerLost.class, powerLosses::add);
         final LevelScene levelScene = mock(LevelScene.class);
         when(levelScene.getSpawnPoint()).thenReturn(of(0, 0));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
@@ -227,8 +233,8 @@ class PlayerRunOffTest {
     }
 
     @Test
-    @DisplayName("The P-meter drains, though B is held")
-    void thePowerMeterDrains() {
+    @DisplayName("A full P-meter stays full through the walk, though B is held, and no power loss is published")
+    void aFullPowerMeterStaysFull() {
         // Prepare
         final LevelScenePlayer player = playerAt(NORMAL, TILE_SPRITE_SIZE);
         player.getPlayerData().setPlayerPower(PMETER_LEVELS);
@@ -236,12 +242,71 @@ class PlayerRunOffTest {
 
         // Execute
         player.startRunningOff();
-        for (int tick = 0; tick < 100; tick++) {
+        for (int tick = 0; tick < 200; tick++) {
             player.updateFrame();
         }
 
         // Verify
-        assertThat(player.getPlayerData().getPlayerPower()).isLessThan(PMETER_LEVELS);
+        assertThat(player.getPlayerData().getPlayerPower()).as("Still full").isEqualTo(PMETER_LEVELS);
+        assertThat(powerLosses).as("No power loss").isEmpty();
+    }
+
+    @Test
+    @DisplayName("A part-charged P-meter keeps its level through the walk")
+    void aPartChargedPowerMeterKeepsItsLevel() {
+        // Prepare
+        final LevelScenePlayer player = playerAt(NORMAL, TILE_SPRITE_SIZE);
+        player.getPlayerData().setPlayerPower(3);
+
+        // Execute
+        player.startRunningOff();
+        for (int tick = 0; tick < 200; tick++) {
+            player.updateFrame();
+        }
+
+        // Verify
+        assertThat(player.getPlayerData().getPlayerPower()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("A full P-meter stays full once the player has walked past the level's right edge")
+    void aFullPowerMeterStaysFullPastTheLevelsEdge() {
+        // Prepare
+        final LevelScenePlayer player = playerAt(NORMAL, (COLUMNS - 3) * TILE_SPRITE_SIZE);
+        player.getPlayerData().setPlayerPower(PMETER_LEVELS);
+
+        // Execute
+        player.startRunningOff();
+        for (int tick = 0; tick < 200; tick++) {
+            player.updateFrame();
+        }
+
+        // Verify
+        assertThat(player.isPastTheLevelsRightEdge()).as("Past the edge").isTrue();
+        assertThat(player.getPlayerData().getPlayerPower()).as("Still full").isEqualTo(PMETER_LEVELS);
+        assertThat(powerLosses).as("No power loss").isEmpty();
+    }
+
+    @Test
+    @DisplayName("A flight that runs out during the run-off leaves a full P-meter full")
+    void aFlightRunningOutLeavesTheMeterFull() {
+        // Prepare - a raccoon flying with a full meter, touched in the air with 20 ticks of flight left
+        final LevelScenePlayer player = playerAt(RACCOON, 3 * TILE_SPRITE_SIZE);
+        player.getPosition().setY(STANDING_Y - 48);
+        player.getRuntimeState().setTo(FALLING);
+        player.getRuntimeState().setPlayerFlyTime(20);
+        player.getPlayerData().setPlayerPower(PMETER_LEVELS);
+
+        // Execute
+        player.startRunningOff();
+        for (int tick = 0; tick < 120; tick++) {
+            player.updateFrame();
+        }
+
+        // Verify
+        assertThat(player.getRuntimeState().getPlayerFlyTime()).as("The flight has run out").isZero();
+        assertThat(player.getPlayerData().getPlayerPower()).as("Still full").isEqualTo(PMETER_LEVELS);
+        assertThat(powerLosses).as("No power loss").isEmpty();
     }
 
     @Test
