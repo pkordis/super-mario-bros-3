@@ -190,12 +190,14 @@ The mapping (SMB3-68) is a best guess from the file titles; tune it here and in 
 | `TANOOKI` / `POWER_DOWN` | `LevelScenePlayerRuntimeStateAware.getHurtBy` | Suit lost / shrink. |
 | `POWER_DOWN` | `beginPipeEntry`, `beginPipeExit` | Into a pipe, and out of one when there is an exit to play (not for an erased pipe). |
 | `CANNONBALL` | `SwitchBlock.onCollisionFromAbove` | The P-switch press ("Wham!"). |
-| `CASINO_BEEP` | `LevelCompletion.tickCourseClear` | Each time-bonus step. |
+| `CASINO_BEEP` | `LevelCompletion.stepTheTimeBonus` | Each time-bonus step. |
 | `ONE_UP` | `EnemyMotionManager.postCollision`, `CoinRewardMotionManager.landPoppedOutCoin` | A kill-chain reward that carries a life. |
+| `ONE_UP` | `LivesBonus.payOut` | Each life three cards pay out at the level's end (SMB3-48), the next one 48 ticks later, the 1-up sound's length. |
 | `POWER_ON` (looped) | `PowerMeterSound` | Looped while the P-meter is full (the HUD's [P] flashes) and gameplay is not halted; stopped otherwise. A halt (death, pipe, suit change, blocking fade) silences it with the meter still full. It follows `PlayerPowerReached` / `PlayerPowerLost` and `GameplayHalted` / `GameplayResumed`. The card touch mutes it (SMB3-49), though the frozen meter stays full. |
 
 **From the card touch to the level's end** (SMB3-49) only the course-clear jingle and the `CASINO_BEEP` steps are
-heard: every other effect is muted (`SoundPlayer.muteEffectsExcept`), the P ringing and the coins of the touch's
+heard, and from the lives payout on (SMB3-48) the `ONE_UP` of each life too (`muteEffectsExcept(CASINO_BEEP, ONE_UP)`):
+every other effect is muted (`SoundPlayer.muteEffectsExcept`), the P ringing and the coins of the touch's
 sweep included. This follows the original game as observed by the developer; dasm alone suggests the ringing would
 go on over the jingle until the meter drained.
 
@@ -263,7 +265,9 @@ only: it is not ticked, and is not a `MotionManager`.
     200 Hz buzzing after 2.817 s.
   - `PlayerDeathStarted` (both kinds): `PLAYER_DOWN`, then silence until the rebuild. The death ends on its end
     (see `PlayerDeathSequence` in `dynamic-entities.md`), so the jingle is heard in full.
-  - `LevelCardCollected`: `COURSE_CLEAR`, then silence. `LevelCompletion` lets the time bonus start on its end.
+  - `LevelCardCollected`: `COURSE_CLEAR`, or `VICTORY_FANFARE` when the card makes three of a kind
+    (`LevelCardCollected.isThreeOfAKind()`, SMB3-48), then silence. `LevelCompletion` lets the time bonus start on
+    the end of whichever of the two played.
   - While a jingle plays, a P-switch change only decides what plays after it.
 - `GameEngine.simpleInitApp` calls `subscribe()` once per engine, after `SoundPlayer.attach`, since the bus is
   purged on `destroy()`. `PowerMeterSound`, `PlayerDeathSequence` and the engine's `LevelCompletion` subscribe there

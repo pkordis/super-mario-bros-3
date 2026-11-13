@@ -416,3 +416,10 @@ transparent outside its white border. The letters, "!" and the blank are the bol
 (`BoldFontGlyph`), one cell each; the messages are written with it from their text. The box is one composed
 picture, `sprites/object/card/message/box.png`. Fonts go under `src/main/resources/font/<font>/`, one folder per
 font, named by their look. See `level-completion.md`.
+
+**The lives bonus and the fanfare** (SMB3-48). The "nUP" is three 8 x 16 sprites in palette 1: the digit from chr085
+(local `$30-$37`, two tiles each for 1, 2, 3, 5) and "U", "P" from chr050 (local `$2A-$2D`), saved as
+`sprites/object/card/lives_bonus/digit_{1,2,3,5}.png` and `up.png` with the in-level card's sprite colours. The card's
+twinkle is chr006 local `$10-$17` (two 16 x 16 frames, colour index 2 only), `sprites/object/card/twinkle/`. The
+fireworks' dot is the animated background tile local `$29` of chr096, chr098, chr100 and chr102 (one per animation frame),
+saved twice: `sprites/object/card/fireworks/bright/` and `dim/`, index 1 clear. See `level-completion.md`.

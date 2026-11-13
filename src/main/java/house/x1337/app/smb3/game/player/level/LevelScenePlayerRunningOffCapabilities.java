@@ -33,6 +33,12 @@ public interface LevelScenePlayerRunningOffCapabilities
         getRuntimeState().setRunOffHalted(true);
     }
 
+    /** Stops the player where it stands, with no input, until the level ends: the fanfare of three matching cards. */
+    default void standStill() {
+        getInputHandler().ignorePlayerInput();
+        haltRunOff();
+    }
+
     default boolean isRunOffHalted() {
         return getRuntimeState().isRunOffHalted();
     }

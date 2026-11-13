@@ -19,6 +19,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InOrder;
 
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
+import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.enumeration.MusicTrack.ATHLETIC;
 import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
 import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
@@ -26,6 +27,7 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
 import static house.x1337.app.smb3.enumeration.MusicTrack.PLAYER_DOWN;
 import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
 import static house.x1337.app.smb3.enumeration.MusicTrack.UNDERGROUND;
+import static house.x1337.app.smb3.enumeration.MusicTrack.VICTORY_FANFARE;
 import static house.x1337.app.smb3.enumeration.PlayerDeathKind.THROE;
 import static house.x1337.app.smb3.enumeration.PlayerMode.NORMAL;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.FRESH;
@@ -322,7 +324,7 @@ class LevelMusicTest {
 
         // Execute - the card closes the window without an event, then its jingle plays out
         powerSwitchTimeWindow.reset();
-        gameEventBus.publish(new LevelCardCollected(MUSHROOM));
+        gameEventBus.publish(new LevelCardCollected(MUSHROOM, false));
         final boolean playingBeforeTheEnd = levelMusic.isJinglePlaying();
         gameEventBus.publish(new SoundPlayComplete(COURSE_CLEAR));
 
@@ -332,6 +334,27 @@ class LevelMusicTest {
         verify(soundPlayer).play(COURSE_CLEAR);
         verify(soundPlayer, never()).play(OVERWORLD);
         verify(soundPlayer, never()).play(P_SWITCH);
+    }
+
+    @Test
+    @DisplayName("A card that makes three of a kind plays the victory fanfare instead, and the level stays silent "
+        + "after")
+    void threeOfAKindPlaysTheVictoryFanfare() {
+        // Prepare
+        levelMusic.start(scene(OVERWORLD), FRESH);
+        clearInvocations(soundPlayer);
+
+        // Execute
+        gameEventBus.publish(new LevelCardCollected(STAR, true));
+        final boolean playingBeforeTheEnd = levelMusic.isJinglePlaying();
+        gameEventBus.publish(new SoundPlayComplete(VICTORY_FANFARE));
+
+        // Verify
+        assertThat(playingBeforeTheEnd).isTrue();
+        assertThat(levelMusic.isJinglePlaying()).isFalse();
+        verify(soundPlayer).play(VICTORY_FANFARE);
+        verify(soundPlayer, never()).play(COURSE_CLEAR);
+        verify(soundPlayer, never()).play(OVERWORLD);
     }
 
     @Test

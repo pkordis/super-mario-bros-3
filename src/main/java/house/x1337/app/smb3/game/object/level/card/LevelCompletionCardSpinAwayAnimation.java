@@ -8,6 +8,8 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.level.completion.CardFlight;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion.FanfareCard;
 import house.x1337.app.smb3.game.object.level.Animation;
 import house.x1337.app.smb3.model.AnimationImageResource;
 import house.x1337.app.smb3.model.game.Coordinates;
@@ -19,7 +21,13 @@ import lombok.Getter;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ITEM_REWARD;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 
+/**
+ * The collected card spinning away from where it was touched: up off the screen, or, in the fanfare of three matching
+ * cards, as the level completion's {@link FanfareCard} says on each tick (flying and drifting left, twinkling, gone).
+ */
 @Getter
 @Prototype
 public final class LevelCompletionCardSpinAwayAnimation implements Animation {
@@ -30,7 +38,10 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
 
     static final int[] PICTURE_BY_FRAME_GROUP = {0, 1, 2, 1};
     static final int PICTURES_PER_FACE = 3;
+    static final int DRIFT_SIXTEENTHS = 16;
+    static final int DRIFT_STOP_X = 7;
 
+    private static final int TWINKLES = 2;
     private static final Dimensions CARD_DIMENSIONS = new Dimensions(
         "LevelCompletionCardSpinAway",
         TILE_SIZE_GAME_UNITS,
@@ -43,31 +54,27 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
     private Geometry spriteGeometry;
     private Material material;
     private Texture[] pictures;
+    private Texture[] twinkles;
     private CardFlight flight;
-    private int column;
+    private int xSixteenths;
     private int frame;
     private boolean expired;
 
-    /**
-     * Starts the spin-away where the collected card was, showing its face-on picture.
-     *
-     * @param gameEngine the game engine
-     * @param cell       the card's cell
-     * @param face       the face the card showed when it was touched
-     * @param frames     the pictures, three per face in {@link LevelCompletionCardType} order
-     */
+    /** @param frames the spin pictures, three per face in {@link LevelCompletionCardType} order */
     public void configure(
         final GameEngine gameEngine,
         final Coordinates cell,
         final LevelCompletionCardType face,
-        final AnimationImageResource frames
+        final AnimationImageResource frames,
+        final AnimationImageResource twinkle
     ) {
         this.gameEngine = gameEngine;
         this.rootNode = gameEngine.getRootNode();
-        this.column = cell.x();
+        this.xSixteenths = cell.x() * TILE_SPRITE_SIZE * DRIFT_SIXTEENTHS;
         this.flight = new CardFlight(cell.y() * TILE_SPRITE_SIZE);
         this.frame = FIRST_SPIN_FRAME + face.ordinal();
         this.pictures = loadPictures(frames, face);
+        this.twinkles = loadTwinkles(twinkle);
         this.spriteGeometry = fromTexture(gameEngine.getAssetManager(), pictureOf(frame), CARD_DIMENSIONS);
         this.material = spriteGeometry.getMaterial();
         getWorldOffset().applyTo(spriteGeometry);
@@ -79,6 +86,11 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
         if (expired) {
             return;
         }
+        final LevelCompletion levelCompletion = gameEngine.getLevelCompletion();
+        if (levelCompletion.isFanfare()) {
+            tickInTheFanfare(levelCompletion.getFanfareCard());
+            return;
+        }
         // The card's vertical visibility is worked out before it moves on this frame
         final boolean offScreen = flight.isAboveTheTopOf(gameEngine.getCameraState().getActiveObjectRegion(0).top());
         flight.advance();
@@ -87,20 +99,21 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
             return;
         }
         getWorldOffset().applyTo(spriteGeometry);
-        if ((gameEngine.getLevelFrameCounter().getTicks() & SPIN_COUNTER_MASK) == 0) {
-            spin();
-        }
+        spinOnItsFrames();
     }
 
-    /** @return the bottom-left of the card's quad, at the card's level X */
     @Override
     public WorldOffset getWorldOffset() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
         return WorldOffset.of(
-            column,
+            (float) getX() / TILE_SPRITE_SIZE,
             rows - (float) (flight.y() + TILE_SPRITE_SIZE) / TILE_SPRITE_SIZE,
             Z_DEPTH_ITEM_REWARD
         );
+    }
+
+    public int getX() {
+        return floorDiv(xSixteenths, DRIFT_SIXTEENTHS);
     }
 
     /** @return the picture shown: 0 face-on, 1 narrow, 2 edge-on */
@@ -111,6 +124,28 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
     @Override
     public void detach() {
         rootNode.detachChild(spriteGeometry);
+    }
+
+    private void tickInTheFanfare(final FanfareCard fanfareCard) {
+        switch (fanfareCard) {
+            case FLYING -> {
+                if (floorMod(getX(), TILE_SPRITE_SIZE) != DRIFT_STOP_X) {
+                    xSixteenths--;
+                }
+                flight.advance();
+                getWorldOffset().applyTo(spriteGeometry);
+                spinOnItsFrames();
+            }
+            case SMALL_TWINKLE -> material.setTexture("ColorMap", twinkles[0]);
+            case LARGE_TWINKLE -> material.setTexture("ColorMap", twinkles[1]);
+            case GONE -> expired = true;
+        }
+    }
+
+    private void spinOnItsFrames() {
+        if ((gameEngine.getLevelFrameCounter().getTicks() & SPIN_COUNTER_MASK) == 0) {
+            spin();
+        }
     }
 
     private void spin() {
@@ -133,6 +168,14 @@ public final class LevelCompletionCardSpinAwayAnimation implements Animation {
         for (int picture = 0; picture < PICTURES_PER_FACE; picture++) {
             final int[] pixels = frames.getFrameRgbData(face.ordinal() * PICTURES_PER_FACE + picture);
             textures[picture] = loadTexture(pixels, CARD_PIXELS);
+        }
+        return textures;
+    }
+
+    private Texture[] loadTwinkles(final AnimationImageResource twinkle) {
+        final Texture[] textures = new Texture[TWINKLES];
+        for (int picture = 0; picture < TWINKLES; picture++) {
+            textures[picture] = loadTexture(twinkle.getFrameRgbData(picture), CARD_PIXELS);
         }
         return textures;
     }

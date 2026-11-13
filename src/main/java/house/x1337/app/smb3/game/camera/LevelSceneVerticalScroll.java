@@ -9,6 +9,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.clamp;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.lang.Math.round;
 
 /**
  * Vertical camera scroll for horizontal levels, with the bottom-locked
@@ -43,6 +44,7 @@ public final class LevelSceneVerticalScroll {
     private static final float BAND_BOTTOM_FRACTION = 5.5f / 15; // 0.367
     private static final float EPSILON = 1.0e-4f;
 
+    private final int rows;
     private final float minCameraY;
     private final float maxCameraY;
     private final float halfViewHeight;
@@ -58,6 +60,7 @@ public final class LevelSceneVerticalScroll {
 
     public LevelSceneVerticalScroll(final LevelScene levelScene) {
         final int rows = levelScene.getDimensions().rows();
+        this.rows = rows;
         final float halfViewHeight = FRUSTUM;
         final float viewHeight = 2.0f * halfViewHeight;
         final float minY;
@@ -119,6 +122,16 @@ public final class LevelSceneVerticalScroll {
      */
     public void hold() {
         previousCameraY = cameraY;
+    }
+
+    /** Moves the view up from outside the player's band, as the fanfare does, never past the level's top. */
+    public void scrollUp(final int pixels) {
+        cameraY = min(cameraY + (float) pixels / TILE_SPRITE_SIZE, maxCameraY);
+    }
+
+    /** @return the view's top line, in sprite pixels down from the level's top */
+    public int getViewTop() {
+        return round((rows - cameraY - halfViewHeight) * TILE_SPRITE_SIZE);
     }
 
     /**

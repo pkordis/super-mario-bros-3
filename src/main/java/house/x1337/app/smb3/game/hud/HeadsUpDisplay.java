@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
+import static house.x1337.app.smb3.game.player.PlayerData.CARD_SLOTS;
 
 /**
  * Fixed HUD (status bar) rendered at the bottom of the game window.
@@ -55,7 +56,7 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     private boolean dirty = true;
     private boolean lastPowerFlashLit;
     private boolean lastPowerMeterFull;
-    private boolean newestCardHidden;
+    private int hiddenCardSlots;
     private int lastPowerMeter = -1;
     private int maxPowerTick;
 
@@ -90,6 +91,11 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         gameEngine.getRenderManager().removeMainView(hudViewPort);
     }
 
+    @Override
+    public boolean isCardSlotHidden(final int slot) {
+        return (hiddenCardSlots & 1 << slot) != 0;
+    }
+
     /**
      * Called once per frame from the game loop. Syncs HUD state from the
      * current player/game data and re-renders the HUD texture when dirty.
@@ -122,10 +128,15 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         dirty = !playerDataSnapshot.equals(playerData);
         playerDataSnapshot.updateFrom(playerData);
 
-        // The level completion keeps the card it has just given off the status bar for a while, then flashes it
-        final boolean hidden = gameEngine.getLevelCompletion().isNewestCardHidden();
-        if (hidden != newestCardHidden) {
-            newestCardHidden = hidden;
+        // The level completion can leave any card slot empty for a while
+        int hidden = 0;
+        for (int slot = 0; slot < CARD_SLOTS; slot++) {
+            if (gameEngine.getLevelCompletion().isCardSlotHidden(slot)) {
+                hidden |= 1 << slot;
+            }
+        }
+        if (hidden != hiddenCardSlots) {
+            hiddenCardSlots = hidden;
             dirty = true;
         }
 
