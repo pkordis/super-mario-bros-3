@@ -21,7 +21,6 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
-import static java.lang.Math.abs;
 
 /**
  * Manages small Mario's sprite-based rendering and walk/run animation.
@@ -62,7 +61,6 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         final PlayerOrientationHorizontal orientation = levelScenePlayer.getOrientation().getHorizontal();
         final PlayerMovement movement = levelScenePlayer.getRuntimeState().getMovement();
         final int flyTime = levelScenePlayer.getRuntimeState().getPlayerFlyTime();
-        final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
         if (renderPipePose(node, levelScenePlayer, orientation)) {
             return;
@@ -114,7 +112,7 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         // animation tick system. RUNNING uses the walk sprite set (faster
         // cycle, not spread-eagle). POWER_RUNNING selects the run sprite set.
         if (movement == POWER_RUNNING || movement == RUNNING || movement == WALKING) {
-            renderWalkRun(node, movement, orientation, absDx);
+            renderWalkRun(node, levelScenePlayer, movement, orientation);
             return;
         }
 

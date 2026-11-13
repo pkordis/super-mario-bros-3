@@ -27,7 +27,6 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
-import static java.lang.Math.abs;
 import static java.lang.Math.min;
 
 /**
@@ -141,7 +140,7 @@ public final class RaccoonAnimator
         }
 
         if (movement == WALKING || movement == RUNNING || movement == POWER_RUNNING) {
-            renderWalkRun(node, movement, orientationHorizontal, abs(position.getDX()));
+            renderWalkRun(node, levelScenePlayer, movement, orientationHorizontal);
             return;
         }
 
