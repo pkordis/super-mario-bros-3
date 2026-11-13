@@ -125,6 +125,43 @@ class HeadsUpDisplayCardRenderingTest {
         }
     }
 
+    @Test
+    @DisplayName("A hidden newest card leaves its box empty, and only its box: the cards before it are still drawn")
+    void aHiddenNewestCardLeavesItsBoxEmpty() throws IOException {
+        // Prepare
+        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), true);
+        final PlayerData playerData = player();
+        playerData.addCard(STAR);
+        playerData.addCard(MUSHROOM);
+
+        // Execute
+        final int[] pixels = hiding.renderToPixels(playerData);
+
+        // Verify
+        assertThat(slot(pixels, 0)).as("Box 1 still holds the star").isEqualTo(card(STAR));
+        assertThat(slot(pixels, 1)).as("Box 2, the newest, is empty").isEqualTo(slot(basePixels, 1));
+        assertThat(slot(pixels, 2)).as("Box 3 is empty").isEqualTo(slot(basePixels, 2));
+    }
+
+    @Test
+    @DisplayName("A hidden newest card in the third box leaves the first two drawn")
+    void aHiddenThirdCardLeavesTheFirstTwo() throws IOException {
+        // Prepare
+        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), true);
+        final PlayerData playerData = player();
+        playerData.addCard(FLOWER);
+        playerData.addCard(STAR);
+        playerData.addCard(MUSHROOM);
+
+        // Execute
+        final int[] pixels = hiding.renderToPixels(playerData);
+
+        // Verify
+        assertThat(slot(pixels, 0)).as("Box 1").isEqualTo(card(FLOWER));
+        assertThat(slot(pixels, 1)).as("Box 2").isEqualTo(card(STAR));
+        assertThat(slot(pixels, 2)).as("Box 3, the newest, is empty").isEqualTo(slot(basePixels, 2));
+    }
+
     private static PlayerData player() {
         final PlayerData playerData = new PlayerData();
         playerData.setIdentity(MARIO.identity());
@@ -160,10 +197,19 @@ class HeadsUpDisplayCardRenderingTest {
         }
     }
 
-    private record TestRenderer(ImageResource baseImage) implements HeadsUpDisplayRenderer {
+    private record TestRenderer(ImageResource baseImage, boolean newestCardHidden) implements HeadsUpDisplayRenderer {
+        TestRenderer(final ImageResource baseImage) {
+            this(baseImage, false);
+        }
+
         @Override
         public ImageResource getBaseImage() {
             return baseImage;
+        }
+
+        @Override
+        public boolean isNewestCardHidden() {
+            return newestCardHidden;
         }
 
         @Override

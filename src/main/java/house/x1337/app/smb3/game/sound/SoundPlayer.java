@@ -16,8 +16,12 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.jme3.audio.AudioData.DataType.Stream;
 import static com.jme3.audio.AudioSource.Status.Playing;
@@ -26,15 +30,20 @@ import static com.jme3.audio.AudioSource.Status.Stopped;
 /**
  * Plays the game's sound effects and music through the running engine's audio renderer.
  *
- * <p>Effects are fire and forget: each {@link #play(SoundEffect)} starts a new instance, so the same effect can
- * overlap itself, and no effect stops the music or any other effect. There are no channels: everything overlaps.
- * The one exception is an effect that is not self-overlapping, which plays on its own node and ignores a play while
- * that node still sounds. An effect can also loop, through {@link #loop(SoundEffect)},
+ * <p>Effects are fire and forget: each {@link #play(SoundEffect)} starts a new copy of the effect on a node of its own,
+ * so the same effect can overlap itself, and no effect stops the music or any other effect. There are no channels:
+ * everything overlaps. The one exception is an effect that is not self-overlapping, which plays on its own node and
+ * ignores a play while that node still sounds. An effect can also loop, through {@link #loop(SoundEffect)},
  * until {@link #stopLoop(SoundEffect)}; each effect has at most one loop playing. Every effect is decoded into
  * memory and trimmed by
  * {@link SoundEffectTrimmer} when an engine attaches, so the first play of each one is as quick as the rest.
  * Music plays one track at a time, looped unless the track is a jingle; it is streamed, with the stream cached so
  * it can rewind to the start.
+ *
+ * <p>The effects can be muted, all but a few, through {@link #muteEffectsExcept(SoundEffect...)}: every effect still
+ * sounding stops at once, loops included, and until {@link #unmuteEffects()} a muted effect neither plays nor loops.
+ * The music is not muted. Each copy is its own node rather than an instance of the effect's node precisely so the
+ * mute can stop it: jME cannot stop an instance.
  *
  * <p>A jingle that plays to its end publishes {@link SoundPlayComplete}, from {@link #update(float)} on the engine's
  * update thread. A jingle stopped or replaced first publishes nothing. On an engine without an audio renderer (a
@@ -55,8 +64,11 @@ public final class SoundPlayer {
     private final OggTrackLength oggTrackLength;
     private final Map<SoundEffect, AudioNode> effects = new EnumMap<>(SoundEffect.class);
     private final Map<SoundEffect, AudioNode> loops = new EnumMap<>(SoundEffect.class);
+    private final List<AudioNode> copies = new ArrayList<>();
+    private final Set<SoundEffect> heardWhileMuted = EnumSet.noneOf(SoundEffect.class);
 
     private boolean attached;
+    private boolean effectsMuted;
     private double clockSeconds;
     private AssetManager assetManager;
     private AudioNode music;
@@ -109,11 +121,14 @@ public final class SoundPlayer {
      */
     public void play(final SoundEffect effect) {
         final AudioNode node = effects.get(effect);
-        if (node == null) {
+        if (node == null || isMuted(effect)) {
             return;
         }
         if (effect.isSelfOverlapping()) {
-            node.playInstance();
+            copies.removeIf(copy -> copy.getStatus() == Stopped);
+            final AudioNode copy = copyOf(effect, node);
+            copy.play();
+            copies.add(copy);
         } else if (node.getStatus() != Playing) {
             node.play();
         }
@@ -121,24 +136,23 @@ public final class SoundPlayer {
 
     /**
      * Plays a sound effect over and over, with no gap between the repeats, until {@link #stopLoop(SoundEffect)}.
-     * Does nothing while the effect already loops.
+     * Does nothing while the effect already loops, or while it is muted.
      *
      * @param effect the effect to loop
      */
     public void loop(final SoundEffect effect) {
         final AudioNode effectNode = effects.get(effect);
-        if (effectNode == null || loops.containsKey(effect)) {
+        if (effectNode == null || loops.containsKey(effect) || isMuted(effect)) {
             return;
         }
-        final AudioNode node = new AudioNode(effectNode.getAudioData(), new AudioKey(effect.getPath(), false));
-        node.setPositional(false);
+        final AudioNode node = copyOf(effect, effectNode);
         node.setLooping(true);
         node.play();
         loops.put(effect, node);
     }
 
     /**
-     * Stops the loop of a sound effect. Does nothing when the effect does not loop. Instances started by
+     * Stops the loop of a sound effect. Does nothing when the effect does not loop. Copies started by
      * {@link #play(SoundEffect)} play on.
      *
      * @param effect the effect whose loop stops
@@ -148,6 +162,31 @@ public final class SoundPlayer {
         if (node != null) {
             node.stop();
         }
+    }
+
+    /**
+     * Stops every effect still sounding, loops included, and keeps every effect but the given ones from playing or
+     * looping until {@link #unmuteEffects()}. The music plays on.
+     *
+     * @param stillHeard the effects that play on through the mute
+     */
+    public void muteEffectsExcept(final SoundEffect... stillHeard) {
+        effectsMuted = true;
+        heardWhileMuted.clear();
+        heardWhileMuted.addAll(List.of(stillHeard));
+        loops.values().forEach(AudioNode::stop);
+        loops.clear();
+        copies.forEach(AudioNode::stop);
+        copies.clear();
+        effects.values().stream()
+            .filter(node -> node.getStatus() == Playing)
+            .forEach(AudioNode::stop);
+    }
+
+    /** Lets every effect play again after {@link #muteEffectsExcept(SoundEffect...)}. */
+    public void unmuteEffects() {
+        effectsMuted = false;
+        heardWhileMuted.clear();
     }
 
     /**
@@ -193,11 +232,26 @@ public final class SoundPlayer {
     private void detach() {
         effects.clear();
         loops.clear();
+        copies.clear();
+        unmuteEffects();
         attached = false;
         music = null;
         currentTrack = null;
         jingle = null;
         assetManager = null;
+    }
+
+    private boolean isMuted(final SoundEffect effect) {
+        return effectsMuted && !heardWhileMuted.contains(effect);
+    }
+
+    private AudioNode copyOf(
+        final SoundEffect effect,
+        final AudioNode effectNode
+    ) {
+        final AudioNode copy = new AudioNode(effectNode.getAudioData(), new AudioKey(effect.getPath(), false));
+        copy.setPositional(false);
+        return copy;
     }
 
     private AudioNode loadEffect(final SoundEffect effect) {

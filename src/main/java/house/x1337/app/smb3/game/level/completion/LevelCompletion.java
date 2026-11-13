@@ -25,6 +25,7 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Iterator;
 import java.util.List;
@@ -54,26 +55,39 @@ import static lombok.AccessLevel.NONE;
  * </ol>
  *
  * <p>Like every object timer, the state timer goes down at the start of every tick that is not halted, before the
- * state runs. In states 4 and 5 the player is halted once it reaches the exit, screen X 32: it has walked off the
- * right of the screen and its screen X, kept to 0-255, has wrapped round.
+ * state runs. In states 4 and 5 the player is halted once it reaches the exit, screen X 32 or 33: its screen X halved
+ * equals {@value #EXIT_SPRITE_X} halved. It has walked off the right of the screen and its screen X, kept to 0-255,
+ * has wrapped round.
+ *
+ * <p>State 5 shows the messages ({@link #getMessage()}): "COURSE CLEAR!" on the tick its timer reaches
+ * {@value #COURSE_CLEAR_MESSAGE_TICK}, then "YOU GOT A CARD" with the card on the tick it reaches
+ * {@value #YOU_GOT_A_CARD_TICK}. Both stay until the level ends.
+ *
+ * <p>The card is in the player's data from the touch, but the status bar shows it only from the tick state 5's timer
+ * runs out, the tick after "YOU GOT A CARD". It is then drawn for a hold of {@value #STATUS_BAR_CARD_HOLD_TICKS}
+ * ticks, which starts with the message, and from then on flashes: hidden on the frames whose frame counter has its
+ * {@value #CARD_FLASH_BIT} bit clear (see {@link #isNewestCardHidden()}).
+ *
+ * <p>From the touch on, only the course-clear jingle and the time bonus's {@code CASINO_BEEP} steps are heard: the
+ * touch mutes every other sound effect, which a new level run hears again.
+ *
+ * <p>The touch's sweep counts an object as on screen when its X is within the {@value #SCREEN_WIDTH_PIXELS} px of the
+ * screen and its bottom within the {@value #SCREEN_LINES} lines below the screen's top.
  */
 @Getter
 @Prototype
 public final class LevelCompletion implements GameEngineAware {
-    /** State 5's timer, set as the card leaves the screen. */
+    static final int CARD_FLASH_BIT = 16;
+    static final int COURSE_CLEAR_MESSAGE_TICK = 30;
     static final int COURSE_CLEAR_TICKS = 96;
-
-    /** State 7's timer. */
-    static final int EXIT_TICKS = 128;
-
-    /** Screen X 32 or 33: the player's screen X halved equals this value halved. */
     static final int EXIT_SPRITE_X = 32;
-
-    private static final int SPRITE_X_MASK = 255;
-
-    /** The screen's width, and the lines below its top that count as on screen. */
+    static final int EXIT_TICKS = 128;
     static final int SCREEN_WIDTH_PIXELS = 256;
     static final int SCREEN_LINES = 240;
+    static final int STATUS_BAR_CARD_HOLD_TICKS = 48;
+    static final int YOU_GOT_A_CARD_TICK = 1;
+
+    private static final int SPRITE_X_MASK = 255;
 
     private final GameEngine gameEngine;
     private final LevelCompletionCardSpawner cardSpawner;
@@ -86,6 +100,9 @@ public final class LevelCompletion implements GameEngineAware {
     @Getter(NONE)
     private CardFlight cardFlight;
     private int phaseTimer;
+    private Message message = Message.NONE;
+    private boolean newestCardRevealed;
+    private int statusBarCardHold;
 
     public LevelCompletion(final GameEngine gameEngine) {
         this.gameEngine = gameEngine;
@@ -117,6 +134,20 @@ public final class LevelCompletion implements GameEngineAware {
         return phase == Phase.COMPLETED;
     }
 
+    /**
+     * @return whether the status bar leaves the newest card's slot empty on this frame: from the touch until state 5's
+     *         timer runs out, and after the hold on the frames the card flashes off
+     */
+    public boolean isNewestCardHidden() {
+        if (phase == Phase.NOT_STARTED || phase == Phase.COMPLETED) {
+            return false;
+        }
+        if (!newestCardRevealed) {
+            return true;
+        }
+        return statusBarCardHold == 0 && (gameEngine.getLevelFrameCounter().getTicks() & CARD_FLASH_BIT) == 0;
+    }
+
     public void reset() {
         phase = Phase.NOT_STARTED;
         phaseTimer = 0;
@@ -124,6 +155,9 @@ public final class LevelCompletion implements GameEngineAware {
         collectedCard = null;
         runningOffPlayer = null;
         courseClearPlaying = false;
+        message = Message.NONE;
+        newestCardRevealed = false;
+        statusBarCardHold = 0;
         cardSpawner.reset();
     }
 
@@ -154,6 +188,8 @@ public final class LevelCompletion implements GameEngineAware {
         player.getRuntimeState().setKillTally(0);
         player.getPosition().setDY(0);
         player.startRunningOff();
+        // Before the sweep, whose popped-out coins must not be heard either
+        getSoundPlayer().muteEffectsExcept(CASINO_BEEP);
         clearTheObjects(player);
 
         gameEngine.publish(new LevelCardCollected(card));
@@ -169,6 +205,9 @@ public final class LevelCompletion implements GameEngineAware {
         }
         if (phaseTimer > 0) {
             phaseTimer--;
+        }
+        if (statusBarCardHold > 0) {
+            statusBarCardHold--;
         }
         switch (phase) {
             case CARD_FLYING_OFF -> tickCardFlyingOff();
@@ -191,6 +230,7 @@ public final class LevelCompletion implements GameEngineAware {
 
     private void tickCourseClear() {
         haltThePlayerAtTheExit();
+        showTheMessages();
         // The time bonus reports "not done" while the course-clear jingle plays, and on the frame of its last step
         final boolean musicPlaying = courseClearPlaying;
         final boolean stepped = !musicPlaying && TimeBonus.convertStep(runningOffPlayer.getPlayerData());
@@ -203,6 +243,17 @@ public final class LevelCompletion implements GameEngineAware {
         // Three mixed cards go through the 1UP display first (SMB3-48); until then they go straight to the exit
         phase = Phase.EXITING;
         phaseTimer = EXIT_TICKS;
+    }
+
+    private void showTheMessages() {
+        if (phaseTimer == COURSE_CLEAR_MESSAGE_TICK) {
+            message = Message.COURSE_CLEAR;
+        } else if (phaseTimer == YOU_GOT_A_CARD_TICK) {
+            message = Message.YOU_GOT_A_CARD;
+            statusBarCardHold = STATUS_BAR_CARD_HOLD_TICKS;
+        } else if (phaseTimer == 0) {
+            newestCardRevealed = true;
+        }
     }
 
     private void tickExiting() {
@@ -230,9 +281,10 @@ public final class LevelCompletion implements GameEngineAware {
         getMotionManagers(PiranhaFireballMotionManager.class).forEach(PiranhaFireballMotionManager::removeAll);
         getMotionManagers(PoofMotionManager.class).forEach(PoofMotionManager::removeSwitchPuffs);
 
-        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
-        final List<? extends ActiveLevelObjectMotionManager> managers =
+        @SuppressWarnings("unchecked")
+        final List<ActiveLevelObjectMotionManager<?>> managers = (List<ActiveLevelObjectMotionManager<?>>)
             getMotionManagers(ActiveLevelObjectMotionManager.class);
+        final AxisAlignedBoundingBox screen = gameEngine.getCameraState().getActiveObjectRegion(0);
         for (final ActiveLevelObjectMotionManager<?> manager : managers) {
             if (manager instanceof LevelCompletionCardMotionManager) {
                 continue;
@@ -319,5 +371,19 @@ public final class LevelCompletion implements GameEngineAware {
         COURSE_CLEAR,
         EXITING,
         COMPLETED
+    }
+
+    /**
+     * What state 5 has written on the screen so far, with the text each message writes. Each message stays until the
+     * level ends.
+     */
+    @Getter
+    @RequiredArgsConstructor
+    public enum Message {
+        NONE(""),
+        COURSE_CLEAR("COURSE CLEAR !"),
+        YOU_GOT_A_CARD("YOU GOT A CARD");
+
+        private final String text;
     }
 }

@@ -90,6 +90,14 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
     int CARD_SPACING = 3 * CELL_WIDTH;
 
     /**
+     * @return whether the newest card, the last one held, is left out of its slot: the level completion keeps it off
+     *         the status bar for a while and then flashes it
+     */
+    default boolean isNewestCardHidden() {
+        return false;
+    }
+
+    /**
      * Renders the HUD by copying the static base image and overlaying dynamic
      * content based on the current {@link PlayerData}.
      *
@@ -182,12 +190,22 @@ public interface HeadsUpDisplayRenderer extends HeadsUpDisplayFontRenderer, Game
         final int[] pixels,
         final List<LevelCompletionCardType> cards
     ) {
+        final int newestSlot = newestSlotOf(cards);
         for (int slot = 0; slot < cards.size(); slot++) {
             final LevelCompletionCardType card = cards.get(slot);
-            if (card != null) {
+            if (card != null && !(slot == newestSlot && isNewestCardHidden())) {
                 blit(pixels, pixels(card), CARD_SIZE, CARD_SIZE, FIRST_CARD_X + slot * CARD_SPACING, CARD_Y);
             }
         }
+    }
+
+    private int newestSlotOf(final List<LevelCompletionCardType> cards) {
+        for (int slot = cards.size() - 1; slot >= 0; slot--) {
+            if (cards.get(slot) != null) {
+                return slot;
+            }
+        }
+        return -1;
     }
 
     private void renderPlayerIcon(

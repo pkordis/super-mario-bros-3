@@ -49,36 +49,16 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
     @Value("classpath:/hud/hud_base.png")
     private ImageResource baseImage;
 
-    private ViewPort hudViewPort;
     private Camera hudCamera;
     private Node hudRoot;
-
-    /** Tracks whether the HUD needs re-rendering (dirty flag). */
+    private ViewPort hudViewPort;
     private boolean dirty = true;
-
-    /** Snapshot of last rendered P-meter value for dirty detection. */
-    private int lastPMeter = -1;
-
-    /** Snapshot of last rendered P-meter full state. */
-    private boolean lastPMeterFull;
-
-    /**
-     * [P] flash tick counter. Decremented every frame when P-meter is full.
-     * The flash state is determined by bit 3 of this counter
-     * ({@code tick & 8}). When bit 3 is clear, [P]
-     * shows lit; when set, [P] shows dark. This produces an 8-frame-on /
-     * 8-frame-off flash cycle (16-frame period).
-     */
+    private boolean lastPowerFlashLit;
+    private boolean lastPowerMeterFull;
+    private boolean newestCardHidden;
+    private int lastPowerMeter = -1;
     private int maxPowerTick;
 
-    /** Snapshot of last rendered [P] flash state for dirty detection. */
-    private boolean lastPFlashLit;
-
-    /**
-     * Initializes the HUD viewport, camera, and scene graph. Must be called
-     * from the jME3 render thread (inside {@code simpleInitApp} or via
-     * {@code enqueue}).
-     */
     @PostConstruct
     void init() {
         hudCamera = gameEngine.getCamera().clone();
@@ -142,6 +122,13 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
         dirty = !playerDataSnapshot.equals(playerData);
         playerDataSnapshot.updateFrom(playerData);
 
+        // The level completion keeps the card it has just given off the status bar for a while, then flashes it
+        final boolean hidden = gameEngine.getLevelCompletion().isNewestCardHidden();
+        if (hidden != newestCardHidden) {
+            newestCardHidden = hidden;
+            dirty = true;
+        }
+
         // P-meter: convert from playerPower (0–7) to display level
         if (player instanceof LevelScenePlayer levelPlayer) {
             final int power = levelPlayer.getPlayerData().getPlayerPower();
@@ -155,23 +142,20 @@ public final class HeadsUpDisplay implements HeadsUpDisplayRenderer {
                 final boolean flashLit = (maxPowerTick & 8) == 0;
                 playerData.setPowerMeterFull(flashLit);
 
-                if (flashLit != lastPFlashLit) {
-                    lastPFlashLit = flashLit;
+                if (flashLit != lastPowerFlashLit) {
+                    lastPowerFlashLit = flashLit;
                     dirty = true;
                 }
             } else {
                 playerData.setPowerMeterFull(false);
             }
 
-            if (power != lastPMeter || full != lastPMeterFull) {
+            if (power != lastPowerMeter || full != lastPowerMeterFull) {
                 playerData.setPowerMeter(power);
-                lastPMeter = power;
-                lastPMeterFull = full;
+                lastPowerMeter = power;
+                lastPowerMeterFull = full;
                 dirty = true;
             }
         }
-
-        // Future: sync lives, coins, score, timer, world from game state
-        // and set dirty = true when any value changes.
     }
 }

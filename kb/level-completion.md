@@ -115,7 +115,7 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     stopped clock does. Before SMB3-44 the HUD hid any timer that was not counting.
   - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
 - **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
-  bonus (SMB3-48), the messages (SMB3-49), and the music. The card's spin-away is SMB3-64.
+  bonus (SMB3-48), the messages (SMB3-49, since done, below), and the music. The card's spin-away is SMB3-64.
 
 ## The run-off (SMB3-45)
 
@@ -124,7 +124,8 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
   (prg008.asm:1329-1349, `PRG008_A6D2`) zeroes `Player_XVel`, `Pad_Holding` and `Pad_Input` every frame, and
   `PRG029_D257` (prg029.asm:1099-1118) writes `Player_XVel = $14` (1.25 px per frame) only while grounded, so a player
   touched mid-jump drops straight down first. Gravity, collision, the walk animation, scrolling and the P-meter drain
-  go on; a pit still kills; the crush check is skipped (prg008.asm:913). The exit's timers are SMB3-46.
+  go on; a pit still kills; the crush check is skipped (prg008.asm:913). The exit's timers are SMB3-46. Since SMB3-49
+  the port freezes the P-meter instead, as the original is seen to do (see the SMB3-49 section).
 - **Port:**
   - The run-off lives in `LevelScenePlayerRunningOffCapabilities`, one of `LevelScenePlayerCapabilities`' mixins;
     `updateFrame` only calls into it. `LevelCompletion.collect` calls `startRunningOff()`:
@@ -185,7 +186,7 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     and `LevelScenePlayer.updateFrame` then only snapshots the position.
   - Three mixed cards go straight to `EXITING` until SMB3-48 adds state 6. A triple match takes the ordinary path for
     now (SMB3-48).
-- **Not ported:** `SND_LEVELBLIP` and the music (sound), the messages (SMB3-49).
+- **Not ported:** `SND_LEVELBLIP` and the music (sound). The messages are SMB3-49, below.
 
 ## The objects turn into coins (SMB3-47)
 
@@ -375,3 +376,88 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     `LevelCompletionCardSpinAwayPicturesTest` (white or clear, mirrored, the shared edge-on picture).
 - **Not checked:** no capture of a card being collected exists in `captures/`, so the pictures and their white are
   checked against chr007 and the in-level card's palette, not against the original running.
+
+## The messages, the new card on the status bar, the P-meter and the mute (SMB3-49)
+
+- **ROM, the messages** (`EndLevelCard_MsgAndCard`, prg002.asm:5676-5694). State 5 starts with `Objects_Timer = $60`.
+  - At timer `$1E` (66 frames into state 5) `Graphics_Queue = $2D` writes "COURSE CLEAR!" (`Video_CourseClear`,
+    prg030.asm:345-349): 14 patterns at VRAM `$2889`.
+  - At timer `$01` (95 frames in) `Graphics_Queue = $2E` writes "YOU GOT A CARD" and its box (`Video_YouGotCard`,
+    prg030.asm:351-370): the words and the box's middle row at `$28E7` (19 patterns), the top border at `$28D6`,
+    the second middle row at `$2916`, the bottom border at `$2936`. In the same frame `EndLevelCard_DrawCardT2`
+    sets `Objects_Timer2 = $30`, and `EndLevelCard_DrawCard` (prg002.asm:5957-6002) puts the card's four patterns
+    into the box at `$28F7` and `$2917` (`EndLevelCard_CardBackLower`).
+  - `EndLevelCard_CardFace`'s comments pair the rows wrongly. Read with the routine's indexing (`CardFace - 4 + Y`
+    and `CardFace + 8 + Y`, `Y = frame * 4 + 1`, two passes of `Y += 2`), the faces are `$E0 $E1 / $E2 $E3`,
+    `$E4 $E6 / $E7 $E8` and `$AC $AD / $AE $AF`: exactly the status bar's `CardUL`/`CardUR`/`CardLL`/`CardLR`.
+  - The patterns are background tiles in nametable `$2800`. The level's second background window is switched to
+    `$5E` as state 5 starts (prg002.asm:5645-5646), the status bar's own bank, so `$80-$BF` are chr094 and
+    `$C0-$FF` chr095 (§9 of `sprites_extraction.md`). Palette: background sub-palette 0, which is `$0F $30 $3C` in
+    every tileset (`PalSet_*`, prg027.asm): index 1 black, 2 white, 3 the status bar's cyan. No index 0 is used, so
+    each written cell is opaque in the game: the letters sit on black. This project draws that black background
+    transparent (the font cells and the area outside the box's white border), so the level shows through.
+  - **Screen position.** A horizontal level's nametables are stacked (`$2000` above `$2800`), and a level scrolled to
+    its bottom shows `$2800` row 0 at its top line, with no horizontal offset at the level's right end. So row `r`,
+    column `c` of `$2800` is at view `(8c, 8r)`: "COURSE CLEAR!" at (72, 32), "YOU GOT A CARD" at (56, 56), the box
+    from (176, 48) to (207, 79), the card at (184, 56).
+- **ROM, the new card on the status bar.** The touch gives the card with `Player_GetCard` (prg002.asm:6253), which
+  does not redraw the status bar (`Player_GetCardAndUpdate`, prg031.asm:2776, would). The status bar's card slots
+  are only redrawn by `StatusBar_DrawCardPiece`, and in state 5 only `EndLevelCard_DrawFlashing`
+  (prg002.asm:6056-6093) calls it, once `Objects_Timer` is 0 (prg002.asm:5748-5752), and again in state 7
+  (prg002.asm:5835). So the new card's slot stays empty until 96 frames into state 5. `DrawFlashing` draws the card
+  while `Objects_Timer2` is non-zero, then leaves the slot empty on the frames where `Counter_1 & $10` is 0. The
+  newest card is the last non-empty slot (`EndLevelCard_SetFrameToCard`).
+- **Observed in the original, not derived from dasm.** With a full P-meter, the ringing stops on the touch, every
+  sound but the course-clear music is muted, and the [P] keeps flashing until the level ends. dasm alone suggests
+  otherwise: `Player_PowerUpdate` (prg008.asm:981-1060) runs every frame, halted or not, so the run-off would drain
+  the meter, and player sounds take square 1 over the music (`Music_Sq1NoteOn`, prg031.asm:719-723). The port
+  follows the observation.
+- **Port:**
+  - `LevelCompletion.getMessage()` is `Message.NONE`, `COURSE_CLEAR` or `YOU_GOT_A_CARD`, set in `tickCourseClear`
+    on `phaseTimer` 30 and 1 (`COURSE_CLEAR_MESSAGE_TICK`, `YOU_GOT_A_CARD_TICK`), and kept until `reset()`.
+  - `LevelCompletionMessageOverlayState` draws it: a post view over the game viewport, created after the
+    foremost-sprite overlay and before the fade, with one unit quad textured with the 256 x 192 picture
+    `LevelCompletionMessageRenderer` writes, repainted only when the message or the card changes. It is fixed to
+    the view, which matches the ROM's place for a level ending at its bottom.
+  - **Font-driven.** Each `Message` carries its text (`"COURSE CLEAR !"`, with the ROM's blank before the "!", and
+    `"YOU GOT A CARD"`), and the renderer writes it one 8 x 8 cell per character with the bold font
+    (`BoldFontGlyph`), from cell (9, 4) and (7, 7). Blank cells fill the gap up to the box, a single 32 x 32
+    picture at cell (22, 6). Changing a message is changing its text.
+  - **The font's limit.** In this white-on-black style the bank only holds the letters the two messages use:
+    A C D E G L O R S T U Y, "!" and the blank (`$80-$9B`, `$FC`). A character outside them is refused with an
+    `IllegalArgumentException`. chr094 and chr095 also hold a full alphabet (A-P at `$B0-$BF`, Q-Z and q-v at
+    `$C0-$CF`, a-p at `$D0-$DF`; W, X, Y, Z also at `$81`, `$88`, `$8C`, `$8F`), but drawn in index 0 on index 3: with
+    background sub-palette 0 that is backdrop-coloured letters on cyan, a different look. Using it for other texts
+    would need its own colours (an asset decision, not a ROM one). That alphabet is the dialogue font, below.
+  - Assets:
+    - `font/bold/<glyph>.png`: the font's 14 characters, rendered from chr094/chr095 with the colours above. Fonts
+      are named by their look, not their use, and live under `src/main/resources/font/<font>/`, one folder per
+      font. The dialogue font (Toad and King, the princess's letter, the Toad houses; mixed case at `$B0-$EA`, its
+      own palette) goes into its own folder when it is ported. If more letters of this style turn up (the in-air
+      variant's bank for the triple match, SMB3-48), they join `font/bold/`.
+    - `sprites/object/card/message/box.png`: the card's box, one 32 x 32 picture composed from its border patterns
+      (`$A0-$A8`) and its inside (`$FE`). It is a sprite, not part of the font.
+    - The card in the box is the status bar's `hud/card/<face>.png`, which matches the box's patterns pixel for
+      pixel.
+    - The two whole pictures the first version drew are now test fixtures
+      (`src/test/resources/.../expected_course_clear.png`, `expected_you_got_a_card.png`):
+      `LevelCompletionMessageRendererTest` checks that the font and the box reproduce them pixel for pixel.
+  - The text writer (`LevelCompletionMessageRenderer.writeText` and `glyphFor`: character to cell, cells left to
+    right) is deliberately not shared yet. Pull it out into a font-agnostic writer when the dialogue port gives it a
+    second user, whose needs (typed out a character a tick, line breaks in a box, its own palette) should shape that
+    API.
+  - `LevelCompletion.isNewestCardHidden()` is true from the touch until state 5's timer is 0 (`newestCardRevealed`),
+    and after that, once `statusBarCardHold` (`Objects_Timer2`, `STATUS_BAR_CARD_HOLD_TICKS` = 48 from the message
+    tick, decremented with `phaseTimer`) is 0, on frames where `LevelFrameCounter & CARD_FLASH_BIT` is 0. So the card
+    shows 96 ticks into state 5 and is drawn for the 47 ticks after that before it starts to flash. `HeadsUpDisplay`
+    reads it every frame and re-renders on a change; `HeadsUpDisplayRenderer.renderCards` leaves the newest card's
+    slot empty when `isNewestCardHidden()`. The card stays in `PlayerData` throughout.
+  - The P-meter: `LevelScenePlayerDataAware.handlePowerMeterAndRunFlag` does not charge or drain while
+    `PlayerRuntimeState.isRunningOffLevel()`, and `handleFlyTimeCountdown` lets a flight run out without emptying
+    the meter. No `PlayerPowerLost` is published, so the HUD's [P] keeps flashing. The next fresh start empties it.
+  - The mute: `LevelCompletion.collect` calls `SoundPlayer.muteEffectsExcept(CASINO_BEEP)` before the sweep, so the
+    popped-out coins are silent too; `GameEngine.buildLevel` unmutes (see `sound.md`).
+- **Not ported:** the "in the air" variant (`Video_YouGotCardH` at `$22C7` and the card patterns below `$80`, chosen
+  by `Vert_Scroll`), used by the triple-match display (SMB3-48). A level that ends higher up than its bottom shows
+  the messages at the same place on the view, where the ROM would put them at their nametable place.
+- **Not checked:** no capture of a level end exists in `captures/`, so the place and colours come from dasm alone.
