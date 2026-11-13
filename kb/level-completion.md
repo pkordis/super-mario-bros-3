@@ -125,9 +125,22 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
   (`Player_FlipBits = $41`) and sets `Player_EndLevel` every frame. While it is set, `Player_Control`
   (prg008.asm:1329-1349, `PRG008_A6D2`) zeroes `Player_XVel`, `Pad_Holding` and `Pad_Input` every frame, and
   `PRG029_D257` (prg029.asm:1099-1118) writes `Player_XVel = $14` (1.25 px per frame) only while grounded, so a player
-  touched mid-jump drops straight down first. Gravity, collision, the walk animation, scrolling and the P-meter drain
-  go on; a pit still kills; the crush check is skipped (prg008.asm:913). The exit's timers are SMB3-46. Since SMB3-49
-  the port freezes the P-meter instead, as the original is seen to do (see the SMB3-49 section).
+  touched mid-jump drops straight down first. The crush check is skipped (prg008.asm:913). The exit's timers are
+  SMB3-46. Since SMB3-49 the port freezes the P-meter, as the original is seen to do (see the SMB3-49 section).
+- **ROM, a grounded walk-off frame (checked for SMB3-70):** `PRG029_D26B` jumps to `PRG029_D457` (prg029.asm:1517-1577),
+  which applies the X velocity, picks the frame and draws the player itself, then returns with `RTS`. Returning
+  normally from `Player_DrawAndDoActions` is the "skip the rest" path: `Player_DrawAndDoActions29` falls into
+  `PRG008_A224` (prg008.asm:422-447), whose `PLA PLA` drops the return into the per-frame list at prg008.asm:927-937.
+  So on those frames `Player_Control`, `Player_PowerUpdate`, `Player_DoScrolling` and `Player_DetectSolids` do not run.
+  Only airborne walk-off frames take the normal path, with gravity and collision, until the player lands.
+  - **The walk cycle:** the frame comes from the global frame counter, `(Counter_1 & 6) >> 1` (prg029.asm:1542-1545),
+    into the same `Player_WalkFramesByPUp` table as an ordinary walk (`(Player_Suit << 2) | step`). The step advances
+    every 2 frames, a 4-step cycle in 8. An ordinary walk at the same XVel 20 takes `Player_WalkAnimTickMax[20 >> 3]`
+    = 5 frames a step (prg008.asm:1192-1195, 2926-2956), so the walk-off's legs move 2.5 times faster. This holds for
+    every suit and whatever speed the card was touched at, since XVel is rewritten to 20 every frame.
+  - The skipped `Player_PowerUpdate` is why the P-meter is seen to freeze. The skipped `Player_DetectSolids` means the
+    ROM's player could not fall into a pit on the way; the port keeps its collision and pit check (no level puts a
+    pit past the card).
 - **Port:**
   - The run-off lives in `LevelScenePlayerRunningOffCapabilities`, one of `LevelScenePlayerCapabilities`' mixins;
     `updateFrame` only calls into it. `LevelCompletion.collect` calls `startRunningOff()`:
@@ -143,6 +156,11 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
   - Once the step would put the left foot (X + 4, both suits) past the last column there is nothing to stand on:
     `tickBeyondTheLevel` walks the player on at its height, with no gravity, collision or pit check, so it never
     "falls" off the end of the level.
+  - **The walk cycle (SMB3-70):** while `isRunningOff()`, `BaseLevelScenePlayerAnimator.renderWalkRun` steps the
+    walk frame every `RUN_OFF_WALK_TICKS_PER_FRAME` (2) ticks instead of the speed-based `WALK_ANIM_TICK_MAX`, for
+    every suit's animator, in the level and past its right edge alike. The cycle counts from the walk frame the player
+    had at the touch rather than from a global counter; the start phase is not visible. Until SMB3-70 the walk-off
+    used the ordinary walk timing, a step every 5 ticks. `PlayerRunOffWalkAnimationTest` covers both.
   - Until SMB3-46, `LevelCompletion` published `LevelCompleted` once the player's X passed the camera's right edge.
     SMB3-46 replaced that with the ROM's exit (below). `TestSessionEventListener` turns `LevelCompleted` into
     `requestLevelSceneRestart()`, the R path. A player who dies on the way never completes the level.

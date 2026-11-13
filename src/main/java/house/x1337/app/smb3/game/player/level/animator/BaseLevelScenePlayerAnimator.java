@@ -28,6 +28,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     static final int AIRBORNE_HOLD_FRAME_SMALL = 1;
     static final int FACE_FORWARD_FRAME = -2;
     static final int KICK_FRAME = -3;
+    static final int RUN_OFF_WALK_TICKS_PER_FRAME = 2;
     static final int STANDING_WALK_FRAME = 2;
 
     private A assets;
@@ -53,10 +54,12 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     protected final void advanceWalkAnimation(final double absDx) {
         final int rawVel = (int) (absDx * TILE_SPRITE_SIZE);
         final int tickIndex = min(rawVel >> 3, WALK_ANIM_TICK_MAX.length - 1);
-        final int tickMax = WALK_ANIM_TICK_MAX[tickIndex];
+        advanceWalkFrameEvery(WALK_ANIM_TICK_MAX[tickIndex]);
+    }
 
+    private void advanceWalkFrameEvery(final int ticksPerFrame) {
         walkAnimTicks++;
-        if (walkAnimTicks >= tickMax) {
+        if (walkAnimTicks >= ticksPerFrame) {
             walkAnimTicks = 0;
             walkFrameIndex = (walkFrameIndex + 1) % specifications.getWalkFrameSequence().length;
         }
@@ -95,11 +98,16 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
 
     protected final void renderWalkRun(
         final Node node,
+        final LevelScenePlayer levelScenePlayer,
         final PlayerMovement movement,
-        final PlayerOrientationHorizontal orientation,
-        final double absDx
+        final PlayerOrientationHorizontal orientation
     ) {
-        advanceWalkAnimation(absDx);
+        if (levelScenePlayer.isRunningOff()) {
+            // The end-level walk-off steps at a fixed quick beat of its own, faster than a walk at its speed
+            advanceWalkFrameEvery(RUN_OFF_WALK_TICKS_PER_FRAME);
+        } else {
+            advanceWalkAnimation(abs(levelScenePlayer.getPosition().getDX()));
+        }
 
         final boolean powerRunning = movement == POWER_RUNNING;
         final int[] frameSequence = powerRunning

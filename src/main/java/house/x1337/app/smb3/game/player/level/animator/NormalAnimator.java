@@ -23,7 +23,6 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
-import static java.lang.Math.abs;
 
 /**
  * Manages "normal" (big, non-powered) Mario's sprite-based rendering and
@@ -60,7 +59,6 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         final PlayerMovement movement = runtimeState.getMovement();
         final int flyTime = runtimeState.getPlayerFlyTime();
-        final double absDx = abs(levelScenePlayer.getPosition().getDX());
 
         if (renderPipePose(node, levelScenePlayer, orientation)) {
             return;
@@ -119,7 +117,7 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
         }
 
         if (movement == POWER_RUNNING || movement == RUNNING || movement == WALKING) {
-            renderWalkRun(node, movement, orientation, absDx);
+            renderWalkRun(node, levelScenePlayer, movement, orientation);
             return;
         }
 
