@@ -7,6 +7,7 @@ import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.LevelFrameCounter;
 import house.x1337.app.smb3.game.level.completion.LevelCompletion;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion.FanfareCard;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
@@ -54,6 +55,8 @@ class LevelCompletionCardSpinAwayTest {
     private final AtomicReference<AxisAlignedBoundingBox> screen =
         new AtomicReference<>(new AxisAlignedBoundingBox(200, 0, 456, 192));
     private final AnimationImageResource frames = mock(AnimationImageResource.class);
+    private final AnimationImageResource twinkle = mock(AnimationImageResource.class);
+    private final LevelCompletion levelCompletion = mock(LevelCompletion.class);
     private GameEngine gameEngine;
     private Node rootNode;
 
@@ -65,7 +68,9 @@ class LevelCompletionCardSpinAwayTest {
         when(cameraState.getActiveObjectRegion(anyInt())).thenAnswer(invocation -> screen.get());
         when(gameEngine.getCameraState()).thenReturn(cameraState);
         when(gameEngine.getLevelFrameCounter()).thenReturn(frameCounter);
+        when(gameEngine.getLevelCompletion()).thenReturn(levelCompletion);
         when(frames.getFrameRgbData(anyInt())).thenAnswer(invocation -> new int[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE]);
+        when(twinkle.getFrameRgbData(anyInt())).thenAnswer(invocation -> new int[TILE_SPRITE_SIZE * TILE_SPRITE_SIZE]);
     }
 
     @Test
@@ -75,7 +80,6 @@ class LevelCompletionCardSpinAwayTest {
         final LevelCompletionCardMotionManager cards = new LevelCompletionCardMotionManager();
         final LevelCompletionCardSpinAwayMotionManager spinAways = mock(LevelCompletionCardSpinAwayMotionManager.class);
         doReturn(List.of(cards, spinAways)).when(gameEngine).getMotionManagers();
-        when(gameEngine.getLevelCompletion()).thenReturn(mock(LevelCompletion.class));
         final LevelCompletionCard card = LevelCompletionCardScene.place(gameEngine, CELL);
         cards.spawn(card);
         card.onCollisionWith(mock(LevelScenePlayer.class));
@@ -254,13 +258,93 @@ class LevelCompletionCardSpinAwayTest {
         }
 
         // Verify
-        verify(animation).configure(gameEngine, CELL, STAR, manager.getAnimationFrames());
+        verify(animation).configure(gameEngine, CELL, STAR, manager.getAnimationFrames(), manager.getTwinkleFrames());
         assertThat(manager.getActiveAnimations()).containsExactly(animation);
+    }
+
+    @Test
+    @DisplayName("In the fanfare it rises as in its flight, drifting left 1 px on its first tick and every 16th after, "
+        + "and stays on screen whatever the screen's top")
+    void inTheFanfareItDriftsLeft() {
+        // Prepare - the screen's top far below the card
+        when(levelCompletion.isFanfare()).thenReturn(true);
+        when(levelCompletion.getFanfareCard()).thenReturn(FanfareCard.FLYING);
+        screen.set(new AxisAlignedBoundingBox(200, CARD_TOP + 100, 456, CARD_TOP + 292));
+        final LevelCompletionCardSpinAwayAnimation spinAway = spinAway(MUSHROOM);
+        final int startX = CELL.x() * TILE_SPRITE_SIZE;
+        final List<Integer> xs = new ArrayList<>();
+
+        // Execute
+        for (int tick = 1; tick <= 34; tick++) {
+            tick(spinAway);
+            xs.add(spinAway.getX());
+        }
+
+        // Verify
+        assertThat(xs.getFirst()).as("Tick 1").isEqualTo(startX - 1);
+        assertThat(xs.get(15)).as("Tick 16").isEqualTo(startX - 1);
+        assertThat(xs.get(16)).as("Tick 17").isEqualTo(startX - 2);
+        assertThat(xs.get(33)).as("Tick 34").isEqualTo(startX - 3);
+        assertThat(spinAway.getSpriteGeometry().getLocalTranslation().x * TILE_SPRITE_SIZE).isEqualTo(startX - 3);
+        assertThat(bottomOf(spinAway)).as("Risen as in its flight")
+            .isEqualTo(CARD_TOP + floorDiv(-40 * 34, TILE_SPRITE_SIZE) + TILE_SPRITE_SIZE);
+        assertThat(spinAway.isExpired()).as("Above the screen's top, still there").isFalse();
+    }
+
+    @Test
+    @DisplayName("In the fanfare the drift stops for good once its X modulo 16 is 7, 9 px left of where it started")
+    void theDriftStopsAtSeven() {
+        // Prepare
+        when(levelCompletion.isFanfare()).thenReturn(true);
+        when(levelCompletion.getFanfareCard()).thenReturn(FanfareCard.FLYING);
+        final LevelCompletionCardSpinAwayAnimation spinAway = spinAway(MUSHROOM);
+        final int startX = CELL.x() * TILE_SPRITE_SIZE;
+
+        // Execute & Verify
+        for (int tick = 1; tick < 129; tick++) {
+            tick(spinAway);
+        }
+        assertThat(spinAway.getX()).as("Tick 128").isEqualTo(startX - 8);
+        tick(spinAway);
+        assertThat(spinAway.getX()).as("Tick 129").isEqualTo(startX - 9);
+        for (int tick = 0; tick < 100; tick++) {
+            tick(spinAway);
+        }
+        assertThat(spinAway.getX()).as("Stopped").isEqualTo(startX - 9);
+    }
+
+    @Test
+    @DisplayName("In the fanfare it shows the twinkle it is told to, in place, and is removed once it is gone")
+    void inTheFanfareItTwinklesThenGoes() {
+        // Prepare
+        when(levelCompletion.isFanfare()).thenReturn(true);
+        final LevelCompletionCardSpinAwayMotionManager manager = new LevelCompletionCardSpinAwayMotionManager();
+        final LevelCompletionCardSpinAwayAnimation spinAway = spinAway(MUSHROOM);
+        manager.getActiveAnimations().add(spinAway);
+        final float bottom = bottomOf(spinAway);
+
+        // Execute & Verify
+        when(levelCompletion.getFanfareCard()).thenReturn(FanfareCard.SMALL_TWINKLE);
+        frameCounter.tick();
+        manager.update();
+        assertThat(shownTexture(spinAway)).as("Small").isSameAs(spinAway.getTwinkles()[0]);
+        when(levelCompletion.getFanfareCard()).thenReturn(FanfareCard.LARGE_TWINKLE);
+        frameCounter.tick();
+        manager.update();
+        assertThat(shownTexture(spinAway)).as("Large").isSameAs(spinAway.getTwinkles()[1]);
+        assertThat(bottomOf(spinAway)).as("In place").isEqualTo(bottom);
+        when(levelCompletion.getFanfareCard()).thenReturn(FanfareCard.GONE);
+        frameCounter.tick();
+        manager.update();
+        assertThat(manager.getActiveAnimations()).isEmpty();
+        assertThat(rootNode.hasChild(spinAway.getSpriteGeometry())).isFalse();
+        verify(twinkle).getFrameRgbData(0);
+        verify(twinkle).getFrameRgbData(1);
     }
 
     private LevelCompletionCardSpinAwayAnimation spinAway(final LevelCompletionCardType face) {
         final LevelCompletionCardSpinAwayAnimation spinAway = new LevelCompletionCardSpinAwayAnimation();
-        spinAway.configure(gameEngine, CELL, face, frames);
+        spinAway.configure(gameEngine, CELL, face, frames, twinkle);
         return spinAway;
     }
 
@@ -274,7 +358,7 @@ class LevelCompletionCardSpinAwayTest {
     }
 
     private static int shownPicture(final LevelCompletionCardSpinAwayAnimation spinAway) {
-        final Texture texture = (Texture) spinAway.getMaterial().getTextureParam("ColorMap").getTextureValue();
+        final Texture texture = shownTexture(spinAway);
         final Texture[] pictures = spinAway.getPictures();
         for (int picture = 0; picture < pictures.length; picture++) {
             if (pictures[picture] == texture) {
@@ -283,5 +367,9 @@ class LevelCompletionCardSpinAwayTest {
             }
         }
         throw new AssertionError("The spin-away shows a texture that is not one of its pictures");
+    }
+
+    private static Texture shownTexture(final LevelCompletionCardSpinAwayAnimation spinAway) {
+        return (Texture) spinAway.getMaterial().getTextureParam("ColorMap").getTextureValue();
     }
 }

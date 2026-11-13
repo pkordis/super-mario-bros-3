@@ -17,7 +17,6 @@ import com.jme3.scene.shape.Quad;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.BoldFontGlyph;
 import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
-import house.x1337.app.smb3.game.level.completion.LevelCompletion.Message;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,20 +24,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.HUD_VIEWPORT_BOTTOM;
 
 /**
- * Shows the level completion's messages ({@link LevelCompletion#getMessage()}) over the level view, fixed to the
- * view as the status bar is.
- *
- * <p>It is a post view with its own camera over the game's viewport, which sees one quad textured with the picture
- * {@link LevelCompletionMessageRenderer} writes with the bold font and the card's box, both loaded once as the view
- * is built. The picture is repainted only when the message or the card changes,
- * and the quad is culled while there is no message. The engine creates this view after the foremost-sprite overlay
- * and before the fade, which must darken it. Its node sits outside {@code rootNode}, so it is settled after every
- * change, as {@code FadeOverlayState} does.
+ * Shows {@link LevelCompletion#getScreen()} over the level view: a post view with its own camera and one quad, its
+ * texture repainted by {@link LevelCompletionMessageRenderer} only when the screen changes. The engine creates it
+ * after the foremost-sprite overlay and before the fade, which must darken it. Its node sits outside
+ * {@code rootNode}, so it is settled after every change.
  */
 @Slf4j
 @Prototype
@@ -49,8 +44,13 @@ public class LevelCompletionMessageOverlayState extends BaseAppState implements 
 
     private final LevelCompletion levelCompletion;
     private final Map<BoldFontGlyph, int[]> glyphs = new EnumMap<>(BoldFontGlyph.class);
+    private final Map<Integer, int[]> digits = new HashMap<>();
+    private final Map<LevelCompletionCardType, int[]> cards = new EnumMap<>(LevelCompletionCardType.class);
 
     private int[] box;
+    private int[] up;
+    private int[][] brightDots;
+    private int[][] dimDots;
     @Getter(AccessLevel.PACKAGE)
     private Geometry quad;
     @Getter(AccessLevel.PACKAGE)
@@ -58,14 +58,17 @@ public class LevelCompletionMessageOverlayState extends BaseAppState implements 
     private ViewPort viewPort;
     private RenderManager renderManager;
     private Material material;
-    private Message shownMessage;
-    private LevelCompletionCardType shownCard;
+    private LevelCompletionScreen shown;
 
     @Override
     protected void initialize(final Application app) {
         renderManager = app.getRenderManager();
         glyphs.putAll(loadGlyphs());
         box = loadBox();
+        digits.putAll(loadDigits());
+        up = loadUp();
+        brightDots = loadDots(true);
+        dimDots = loadDots(false);
 
         // A unit square seen through a parallel projection over the game's viewport, the way the HUD's camera sees
         // its quad (HeadsUpDisplay#init)
@@ -94,7 +97,7 @@ public class LevelCompletionMessageOverlayState extends BaseAppState implements 
         viewPort.setClearFlags(false, false, false);
         viewPort.attachScene(node);
 
-        show(levelCompletion.getMessage(), levelCompletion.getCollectedCard());
+        show(levelCompletion.getScreen());
         log.info("Level completion messages initialised as a post view over the level view");
     }
 
@@ -109,8 +112,32 @@ public class LevelCompletionMessageOverlayState extends BaseAppState implements 
     }
 
     @Override
+    public int[] digitPixels(final int lives) {
+        return digits.get(lives);
+    }
+
+    @Override
+    public int[] upPixels() {
+        return up;
+    }
+
+    @Override
+    public int[] dotPixels(
+        final boolean bright,
+        final int sparkle
+    ) {
+        return (bright ? brightDots : dimDots)[sparkle];
+    }
+
+    // Cached: the lives bonus repaints the view on every tick it moves
+    @Override
+    public int[] cardPixels(final LevelCompletionCardType card) {
+        return cards.computeIfAbsent(card, LevelCompletionMessageRenderer.super::cardPixels);
+    }
+
+    @Override
     public void update(final float timePerFrame) {
-        show(levelCompletion.getMessage(), levelCompletion.getCollectedCard());
+        show(levelCompletion.getScreen());
     }
 
     @Override
@@ -131,20 +158,16 @@ public class LevelCompletionMessageOverlayState extends BaseAppState implements 
         // Always on: no message draws nothing
     }
 
-    private void show(
-        final Message message,
-        final LevelCompletionCardType card
-    ) {
-        if (message == shownMessage && card == shownCard) {
+    private void show(final LevelCompletionScreen screen) {
+        if (screen.equals(shown)) {
             return;
         }
-        shownMessage = message;
-        shownCard = card;
-        if (message != Message.NONE) {
-            final int[] pixels = renderToPixels(message, card);
+        shown = screen;
+        if (!screen.isEmpty()) {
+            final int[] pixels = renderToPixels(screen);
             material.setTexture("ColorMap", loadTexture(pixels, new DimensionsPixels(SCREEN_WIDTH, SCREEN_HEIGHT)));
         }
-        quad.setCullHint(message == Message.NONE ? CullHint.Always : CullHint.Inherit);
+        quad.setCullHint(screen.isEmpty() ? CullHint.Always : CullHint.Inherit);
         node.updateLogicalState(0f);
         node.updateGeometricState();
     }

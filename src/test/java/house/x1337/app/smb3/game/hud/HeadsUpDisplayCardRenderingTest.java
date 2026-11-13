@@ -16,6 +16,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Set;
 
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
@@ -126,40 +127,46 @@ class HeadsUpDisplayCardRenderingTest {
     }
 
     @Test
-    @DisplayName("A hidden newest card leaves its box empty, and only its box: the cards before it are still drawn")
-    void aHiddenNewestCardLeavesItsBoxEmpty() throws IOException {
+    @DisplayName("A hidden slot is left empty, and only it: the cards before and after it are still drawn")
+    void aHiddenSlotIsLeftEmpty() throws IOException {
         // Prepare
-        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), true);
+        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), Set.of(1));
         final PlayerData playerData = player();
         playerData.addCard(STAR);
         playerData.addCard(MUSHROOM);
+        playerData.addCard(FLOWER);
 
         // Execute
         final int[] pixels = hiding.renderToPixels(playerData);
 
         // Verify
         assertThat(slot(pixels, 0)).as("Box 1 still holds the star").isEqualTo(card(STAR));
-        assertThat(slot(pixels, 1)).as("Box 2, the newest, is empty").isEqualTo(slot(basePixels, 1));
-        assertThat(slot(pixels, 2)).as("Box 3 is empty").isEqualTo(slot(basePixels, 2));
+        assertThat(slot(pixels, 1)).as("Box 2 is empty").isEqualTo(slot(basePixels, 1));
+        assertThat(slot(pixels, 2)).as("Box 3 still holds the flower").isEqualTo(card(FLOWER));
     }
 
     @Test
-    @DisplayName("A hidden newest card in the third box leaves the first two drawn")
+    @DisplayName("A hidden third slot leaves the first two drawn, and a hidden empty slot stays empty")
     void aHiddenThirdCardLeavesTheFirstTwo() throws IOException {
         // Prepare
-        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), true);
+        final TestRenderer hiding = new TestRenderer(renderer.baseImage(), Set.of(2));
         final PlayerData playerData = player();
         playerData.addCard(FLOWER);
         playerData.addCard(STAR);
         playerData.addCard(MUSHROOM);
+        final PlayerData oneCard = player();
+        oneCard.addCard(STAR);
 
         // Execute
         final int[] pixels = hiding.renderToPixels(playerData);
+        final int[] withOneCard = hiding.renderToPixels(oneCard);
 
         // Verify
         assertThat(slot(pixels, 0)).as("Box 1").isEqualTo(card(FLOWER));
         assertThat(slot(pixels, 1)).as("Box 2").isEqualTo(card(STAR));
-        assertThat(slot(pixels, 2)).as("Box 3, the newest, is empty").isEqualTo(slot(basePixels, 2));
+        assertThat(slot(pixels, 2)).as("Box 3 is empty").isEqualTo(slot(basePixels, 2));
+        assertThat(slot(withOneCard, 0)).as("One card, box 1").isEqualTo(card(STAR));
+        assertThat(slot(withOneCard, 2)).as("One card, box 3").isEqualTo(slot(basePixels, 2));
     }
 
     private static PlayerData player() {
@@ -197,9 +204,9 @@ class HeadsUpDisplayCardRenderingTest {
         }
     }
 
-    private record TestRenderer(ImageResource baseImage, boolean newestCardHidden) implements HeadsUpDisplayRenderer {
+    private record TestRenderer(ImageResource baseImage, Set<Integer> hiddenSlots) implements HeadsUpDisplayRenderer {
         TestRenderer(final ImageResource baseImage) {
-            this(baseImage, false);
+            this(baseImage, Set.of());
         }
 
         @Override
@@ -208,8 +215,8 @@ class HeadsUpDisplayCardRenderingTest {
         }
 
         @Override
-        public boolean isNewestCardHidden() {
-            return newestCardHidden;
+        public boolean isCardSlotHidden(final int slot) {
+            return hiddenSlots.contains(slot);
         }
 
         @Override

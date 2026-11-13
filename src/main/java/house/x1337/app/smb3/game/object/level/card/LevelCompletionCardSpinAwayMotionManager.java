@@ -24,6 +24,9 @@ public final class LevelCompletionCardSpinAwayMotionManager
     @Value("classpath:/sprites/object/card/spin_away/<mushroom,flower,star>/frame_{0,2}.png")
     private AnimationImageResource animationFrames;
 
+    @Value("classpath:/sprites/object/card/twinkle/frame_{0,1}.png")
+    private AnimationImageResource twinkleFrames;
+
     /**
      * Starts the spin-away of a card collected on this tick, where it was.
      *
@@ -31,7 +34,7 @@ public final class LevelCompletionCardSpinAwayMotionManager
      */
     public void spawn(final LevelCompletionCard card) {
         final LevelCompletionCardSpinAwayAnimation animation = getBean(LevelCompletionCardSpinAwayAnimation.class);
-        animation.configure(card.getGameEngine(), card.getOffset(), card.getFace(), animationFrames);
+        animation.configure(card.getGameEngine(), card.getOffset(), card.getFace(), animationFrames, twinkleFrames);
         activeAnimations.add(animation);
     }
 

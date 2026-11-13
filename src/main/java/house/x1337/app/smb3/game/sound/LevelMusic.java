@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
 import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.PLAYER_DOWN;
+import static house.x1337.app.smb3.enumeration.MusicTrack.VICTORY_FANFARE;
 import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
 
 /**
@@ -32,7 +33,8 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
  *     <li>the timer stepping down to 100 plays {@link MusicTrack#HURRY_UP}; after it the music the level wants
  *         starts again from its beginning,</li>
  *     <li>a death plays {@link MusicTrack#PLAYER_DOWN},</li>
- *     <li>the end-level card plays {@link MusicTrack#COURSE_CLEAR}.</li>
+ *     <li>the end-level card plays {@link MusicTrack#COURSE_CLEAR}, or {@link MusicTrack#VICTORY_FANFARE} when it
+ *         makes three matching cards.</li>
  * </ul>
  * After the last two the level stays silent until it is built again. While a jingle plays, the P-switch opening or
  * closing only changes what plays once the jingle is over.
@@ -63,7 +65,9 @@ public final class LevelMusic {
         reset();
         gameEventBus.subscribe(PlayerTimerHurryUp.class, event -> playJingle(HURRY_UP));
         gameEventBus.subscribe(PlayerDeathStarted.class, event -> playJingle(PLAYER_DOWN));
-        gameEventBus.subscribe(LevelCardCollected.class, event -> playJingle(COURSE_CLEAR));
+        gameEventBus.subscribe(LevelCardCollected.class, event -> playJingle(
+            event.isThreeOfAKind() ? VICTORY_FANFARE : COURSE_CLEAR
+        ));
         gameEventBus.subscribe(SoundPlayComplete.class, this::onSoundPlayComplete);
         gameEventBus.subscribe(PowerSwitchActivated.class, event -> onPowerSwitchChanged(true));
         gameEventBus.subscribe(PowerSwitchExpired.class, event -> onPowerSwitchChanged(false));

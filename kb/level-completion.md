@@ -75,7 +75,8 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
   - `HeadsUpDisplayFontRenderer` loads the three status-bar PNGs into `CARD_CACHE`;
     `HeadsUpDisplayRenderer.renderCards` blits each held card over its box. An empty slot keeps the base image's box,
     which is already the `` tiles.
-- **Not yet:** clearing the cards after a level with three, and the three-card bonus (SMB3-48).
+- **Not yet:** clearing the cards after a level with three, and the three-card bonus (SMB3-48, since done: see the
+  section on it).
 
 ## The card in the level (SMB3-44)
 
@@ -115,7 +116,8 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     stopped clock does. Before SMB3-44 the HUD hid any timer that was not counting.
   - Nothing to clear yet for the star, auto-scroll, projectiles or cannons: the port has none of them.
 - **Not yet:** the walk-off (SMB3-45), the time bonus and the level end (SMB3-46), the coins (SMB3-47), the three-card
-  bonus (SMB3-48), the messages (SMB3-49, since done, below), and the music. The card's spin-away is SMB3-64.
+  bonus (SMB3-48, since done, below), the messages (SMB3-49, since done, below), and the music. The card's spin-away
+  is SMB3-64.
 
 ## The run-off (SMB3-45)
 
@@ -161,7 +163,7 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     done". Otherwise a step takes 10 off and scores 500 while the hundreds or tens digit is non-zero, else 1 off and
     50 (`TimeBonus_Score`), and plays `SND_LEVELBLIP`; at 000 it reports "done". The state ends when the bonus is
     done, the timer is 0, and `Player_SpriteX / 2 == $10`. Then state 7 with `Objects_Timer = $80`, or with three
-    mixed cards state 6, the 1UP display (SMB3-48).
+    mixed cards state 6, the 1UP display (SMB3-48, since done).
   - **State 7**, `EndLevelCard_Exit` (prg002.asm:5808-5829): at timer 0 the level is left, and three held cards are
     cleared.
   - `Objects_Timer` goes down once per frame that is not halted, before the object runs (prg000.asm:1849-1855).
@@ -184,8 +186,8 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     `onSoundPlayComplete` to end the jingle on the tick they choose.
   - The player's sprite X is `floor(X - screen left) & $FF`. `haltRunOff()` sets `PlayerRuntimeState.runOffHalted`,
     and `LevelScenePlayer.updateFrame` then only snapshots the position.
-  - Three mixed cards go straight to `EXITING` until SMB3-48 adds state 6. A triple match takes the ordinary path for
-    now (SMB3-48).
+  - Three mixed cards go to the lives payout (SMB3-48, below) when state 5 ends, and a triple match plays the
+    fanfare instead of the run-off.
 - **Not ported:** `SND_LEVELBLIP` and the music (sound). The messages are SMB3-49, below.
 
 ## The objects turn into coins (SMB3-47)
@@ -433,8 +435,8 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     - `font/bold/<glyph>.png`: the font's 14 characters, rendered from chr094/chr095 with the colours above. Fonts
       are named by their look, not their use, and live under `src/main/resources/font/<font>/`, one folder per
       font. The dialogue font (Toad and King, the princess's letter, the Toad houses; mixed case at `$B0-$EA`, its
-      own palette) goes into its own folder when it is ported. If more letters of this style turn up (the in-air
-      variant's bank for the triple match, SMB3-48), they join `font/bold/`.
+      own palette) goes into its own folder when it is ported. The in-air variant of SMB3-48 uses the same cells
+      (`$00-$2F` of the same bank), so it needed no new letters.
     - `sprites/object/card/message/box.png`: the card's box, one 32 x 32 picture composed from its border patterns
       (`$A0-$A8`) and its inside (`$FE`). It is a sprite, not part of the font.
     - The card in the box is the status bar's `hud/card/<face>.png`, which matches the box's patterns pixel for
@@ -446,18 +448,124 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     right) is deliberately not shared yet. Pull it out into a font-agnostic writer when the dialogue port gives it a
     second user, whose needs (typed out a character a tick, line breaks in a box, its own palette) should shape that
     API.
-  - `LevelCompletion.isNewestCardHidden()` is true from the touch until state 5's timer is 0 (`newestCardRevealed`),
-    and after that, once `statusBarCardHold` (`Objects_Timer2`, `STATUS_BAR_CARD_HOLD_TICKS` = 48 from the message
-    tick, decremented with `phaseTimer`) is 0, on frames where `LevelFrameCounter & CARD_FLASH_BIT` is 0. So the card
-    shows 96 ticks into state 5 and is drawn for the 47 ticks after that before it starts to flash. `HeadsUpDisplay`
-    reads it every frame and re-renders on a change; `HeadsUpDisplayRenderer.renderCards` leaves the newest card's
-    slot empty when `isNewestCardHidden()`. The card stays in `PlayerData` throughout.
+  - The status bar's slots (rewritten by SMB3-48, below): `LevelCompletion.isCardSlotHidden(slot)` reads
+    `StatusBarCards`, which keeps each slot as it was last drawn, as the ROM's status bar does. The touch empties the
+    newest slot; `drawTheNewestFlashing` (`DrawFlashing`) runs on every state-5 tick with `phaseTimer` 0 except the
+    one that leaves state 5, and on every exit tick without a lives bonus. The hold (`Objects_Timer2`,
+    `NEWEST_CARD_HOLD_TICKS` = 48 from the message tick) and the flash on `LevelFrameCounter & FLASH_BIT` (16) are as
+    before. So the card shows 96 ticks into state 5, or on the exit's first tick when state 5 ends on the tick its
+    timer runs out (the ROM's `PRG002_BD35` sets the exit timer before `PRG002_BD02` reads it). `HeadsUpDisplay`
+    reads the three slots every frame into a mask and re-renders on a change; `HeadsUpDisplayRenderer.renderCards`
+    leaves a hidden slot empty. The card stays in `PlayerData` throughout.
   - The P-meter: `LevelScenePlayerDataAware.handlePowerMeterAndRunFlag` does not charge or drain while
     `PlayerRuntimeState.isRunningOffLevel()`, and `handleFlyTimeCountdown` lets a flight run out without emptying
     the meter. No `PlayerPowerLost` is published, so the HUD's [P] keeps flashing. The next fresh start empties it.
   - The mute: `LevelCompletion.collect` calls `SoundPlayer.muteEffectsExcept(CASINO_BEEP)` before the sweep, so the
     popped-out coins are silent too; `GameEngine.buildLevel` unmutes (see `sound.md`).
-- **Not ported:** the "in the air" variant (`Video_YouGotCardH` at `$22C7` and the card patterns below `$80`, chosen
-  by `Vert_Scroll`), used by the triple-match display (SMB3-48). A level that ends higher up than its bottom shows
-  the messages at the same place on the view, where the ROM would put them at their nametable place.
+- **Since ported:** the "in the air" variant (`Video_YouGotCardH`), by SMB3-48, below. A level that ends higher up
+  than its bottom still shows the ground messages at the same place on the view, where the ROM would put them at
+  their nametable place.
 - **Not checked:** no capture of a level end exists in `captures/`, so the place and colours come from dasm alone.
+
+## Three cards pay out lives, and the triple-match fanfare (SMB3-48)
+
+- **`LevelCompletion` at a glance.** One `Phase` after another, each on the state timer (`phaseTimer`, counted down
+  at the start of every un-halted tick, before the phase runs):
+  - Without three matching cards: the touch (`collect`: the player runs off) → `CARD_FLYING_OFF` until the card is
+    off the top → `COURSE_CLEAR` (96 ticks; messages at 30 and 1; the time bonus once the course-clear jingle ends;
+    done when the timer is 0, the clock is converted and the player is at the exit) → `PAYING_OUT_LIVES` with three
+    mixed cards (1 life) → `EXITING` (128 ticks, then three cards are cleared and `LevelCompleted` is published) →
+    `COMPLETED`.
+  - With three matching cards: the touch (the player stands still, tile animations go on, `VICTORY_FANFARE`) →
+    `FANFARE_RISING` (the card rises and drifts; the view scrolls to the sky; 15 twinkle ticks) →
+    `FANFARE_APPEARING` (the fireworks fade in, a step every 4 frames) → `FANFARE_MESSAGE` (128 ticks; "YOU GOT A
+    CARD" at 80; the time bonus once the fanfare ends) → `PAYING_OUT_LIVES` (2, 3 or 5 lives) → `EXITING` →
+    `COMPLETED`.
+  - The details of each step are in this file's sections: SMB3-45 (run-off and exit X), SMB3-46 (time bonus, exit),
+    SMB3-47 (the sweep and its on-screen test), SMB3-49 (messages, status-bar slots, mute) and below.
+
+- **ROM, the check** (`ObjHit_EndLevelCard`, prg002.asm:6146-6290, the check at its end): after `Player_GetCard`, if
+  the third slot is
+  filled and equal to the first two, `Objects_Var5` = the card (1-3), state 1 instead of 4, `LSR Level_TimerEn`
+  ($81 to $40: level animations run again) and `MUS1_BOSSVICTORY`.
+- **ROM, state 1** (`EndLevelCard_InitForFanfare`, prg002.asm:5409-5563), `Player_HaltTick = $FF` every frame:
+  - Timer 0: X moves by `XVel = -1` (4.4: -1/16 px a frame, so -1 px on the first frame, then every 16th) while
+    `X & $0F != 7`; `Object_ApplyYVel` (-$28, as state 4). Once `YHi == 0`, or `Y < 16` with `YHi == 1` (level line
+    below 272), `Vert_Scroll -= 3`; when it is below 17, `Objects_Timer = $10` and BG bank 0 = $5E (the font).
+  - The segment schedule (`Objects_Var1`, from `EndLevelCard_Var1` = $24/$25/$26): every 4 frames, `$24` (Appear1,
+    attributes of the 128 x 128 area to sub-palette 3), then the five `Video_3CM*` segments bottom up, then, once
+    `Vert_Scroll < 192`, Blackout (sub-palette 3 colours 1-3 to $0F). All of it is invisible in the ROM's own case
+    (the area is off the view and black), so the port skips it.
+  - Timer non-zero: frame `EndLevelCard_AsTwinkleFrames[timer / 2]` ($0F $0F $0F $10 $0F $10 $10 $10), sprite bank
+    5 = chr006. When `timer / 2` is 0: palettes (BG sub-palettes 1 and 2 colours 2-3, 3 to black), `Var1 = $25`,
+    state 2, drawn once more as frame $0F.
+- **ROM, state 2** (`EndLevelCard_Appear`, prg002.asm:5566-5594): every 4 frames, `Graphics_Queue = Var1` for $25-$2A:
+  Appear2 (palettes again: sub-palette 1 = $0F $30 $3C, 2 = $0F $10 $2C, 3 = black) then Appear3-7, attribute
+  changes that brighten the area from the middle out. On $2A: state 3, timer $80. The card is not drawn any more.
+- **ROM, state 3** (`EndLevelCard_3CMMsg2XUP`, prg002.asm:5596-5628): at timer $50, `Graphics_Queue = $2C`
+  (`Video_YouGotCardH`, prg030.asm:323-343: the words at `$22C7`, the box at `$22B6`-`$2316`) and the card into the box
+  at `$22D7`, `Timer2 = $30`, and no time bonus that frame. Below $50, `DrawFlashing`. `DoTimeBonus` every other
+  frame; when done and the timer is 0, `EndLevelCard_SetupXUP`.
+- **ROM, the fireworks** (dasm calls them the giant shape; `Video_3CMMush*`, `Video_3CMFlow*` in
+  prg000.asm:6842-6997, `Video_3CMStar*` in prg030.asm:176-245): sparkling dots in the shape of the matched card. Tile
+  `$A9` (a dot) and `$FC` (blank) in nametable `$2000`, cells 8-23 across, 4-19 down.
+  Pattern `$A9` is in BG bank 1, which the level animation cycles through $60, $62, $64, $66 every 8 frames
+  (`PT2_Anim`, `Counter_1 & $18`): chr096/098/100/102 tile `$29`, a small dot, a big dot, a square, the big dot again.
+  Colour index 1 is black, 2 and 3 the sub-palette's colours 2 and 3.
+- **ROM, the payout** (`EndLevelCard_SetupXUP`, prg002.asm:5720-5740; `EndLevelCard_DoXUPs`, 5758-5802;
+  `EndLevelCard_Give1UpsAndCycle`, 5837-5900; `EndLevelCard_Exit`, 5808-5835): lives `EndLevelCard_xUpByMatch[Var5 -
+  1]` (prg002.asm:5674) = 2, 3, 5, and 1 for three
+  mixed cards (`Var5 = 4`, set in state 5 when the third slot is filled). The object becomes the "nUP": `Y = $FF`,
+  `YVel = -$40`. Each frame of state 6, `Give1UpsAndCycle` first (a life and `SND_LEVEL1UP` when lives are left and
+  the 1-up sound is not playing; then the three sprites at `Objects_Y`: the digit `XUp_NumPats` $B3/$B5/$B7/$B1
+  from bank $55, "U" $EB and "P" $ED from bank $32, palette 1, X `XUp_XOff` $74/$7C/$84, + 8 unless `Vert_Scroll`
+  is below 128; then the cards cycle), then while `Y >= $80` timer $40 and the rise, else while the timer runs
+  `Y ^= 1`, else with no lives left state 7, timer $80. State 7 calls `Give1UpsAndCycle` on (or `DrawFlashing`
+  without a payout) and clears three cards at its end.
+  - The 1-up sound (`SndLev1_1up`, prg028.asm:793-819) sets `SFX_Counter2 = $30` and counts it down one a frame,
+    so the next life comes 48 frames later.
+  - The cycle: on frames with `Counter_1 & 7 != 0` slot `Var2` is drawn empty; on the 8th it is drawn and `Var2`
+    moves to the next slot. A slot keeps whatever was last drawn in it, so a third card never drawn since the touch
+    (state 5 ending on the tick its timer runs out) stays empty until its turn.
+- **Port:**
+  - `LevelCompletion` adds `FANFARE_RISING`, `FANFARE_APPEARING`, `FANFARE_MESSAGE` and `PAYING_OUT_LIVES` to its
+    phases, and `isFanfare()`. The touch of a third card of a kind calls `LevelScenePlayer.standStill()` (input
+    ignored, `runOffHalted`) instead of the run-off, and does not freeze the tile animators.
+  - The music: `LevelCardCollected` carries `threeOfAKind`, and `LevelMusic` plays `VICTORY_FANFARE` for it instead
+    of `COURSE_CLEAR` (`MUS1_BOSSVICTORY`). `DoTimeBonus` waits while any music plays (`SndCur_Music1`,
+    prg000.asm:613-615), so the fanfare's time bonus waits for the victory fanfare's `SoundPlayComplete`.
+  - The scroll: `LevelSceneVerticalScroll.scrollUp(3)` from `LevelCompletion.tick`, after the player's `hold()`,
+    so the move eases across render frames; `getViewTop()` is the view's top in level pixels. The thresholds are
+    level lines from the top, as in the ROM (`SKY_CARD_Y` = 272, `FANFARE_VIEW_TOP` = 17). A 27-row level starts at
+    line 240 and ends at line 15.
+  - The card: `LevelCompletion.getFanfareCard()` (`FLYING`, `SMALL_TWINKLE`, `LARGE_TWINKLE`, `GONE`) for the tick;
+    `LevelCompletionCardSpinAwayAnimation` follows it in the fanfare, with its X in sixteenths of a pixel for the
+    drift and no off-screen removal. Twinkle pictures `sprites/object/card/twinkle/frame_{0,1}.png`.
+  - What is drawn over the level: `LevelCompletion.getScreen()`, a `LevelCompletionScreen` (message, card, view top,
+    `FireworksPicture`, `LivesBonusPicture`), which the overlay repaints when it changes. The fanfare's
+    `Message.FANFARE_YOU_GOT_A_CARD` is the ground picture 15 rows lower, counted from the level's top. The fireworks
+    (`FireworksShape`, decoded from the segments; `FireworksFade`, the five visible attribute steps as 16 x 16 px
+    blocks, each with its explicit `step` 1-5 so the declaration order does not matter) are drawn from cell (8, 4)
+    of the level's top, their dots the dim or bright picture of
+    `LevelFrameCounter / 8 % 4`.
+  - `LivesBonus` gives the lives and moves the "nUP"; it is drawn one line below its sprite line (`Y + 1`) at the
+    line it had as the tick began, at X 116 in the fanfare and 124 otherwise (the intent of the `Vert_Scroll` test).
+    `StatusBarCards.cycle` is the card cycle. The payout calls `SoundPlayer.muteEffectsExcept(CASINO_BEEP, ONE_UP)`
+    and plays `ONE_UP` with each life.
+  - Assets: the fireworks' shapes and fade steps are text grids, one per enum constant, whose path the constant
+    carries: `sprites/object/card/fireworks/shape/<shape>.txt` (16 x 16, `#` dot, `.` nothing) and
+    `sprites/object/card/fireworks/fade/<step>.txt` (8 x 8 blocks of 16 x 16 px, `b` bright, `d` dim, `.` unseen). They
+    are read as the enum loads (`CharacterGridResource.readGrid`), which refuses a file of the wrong size or with
+    another character, so a broken file fails at once. `sprites/object/card/lives_bonus/digit_{1,2,3,5}.png`
+    (8 x 16) and `up.png` (16 x 16), with the in-level
+    card's sprite colours (index 1 black, 2 (252, 252, 252), 3 (216, 40, 0)); `sprites/object/card/fireworks/bright/` and
+    `dim/frame_{0,3}.png` (8 x 8), index 1 clear like the font's black, bright (255, 255, 255) / (181, 235, 242) as
+    the status bar, dim $10 (188, 188, 188) / $2C (0, 232, 216).
+- **Not ported:**
+  - Before the blackout the area's sub-palette 3 is the level's own, and the attribute steps also recolour the
+    level's own tiles in the 128 x 128 area. The port keeps the fireworks unseen until state 2 and leaves the
+    level's tiles alone.
+  - The "nUP" crossing the status bar while it rises: it is cut off at the view's bottom.
+- **Not checked:** no capture of a triple match or of a payout exists in `captures/`; pictures, colours and timing
+  come from dasm alone. The fireworks' black cells are transparent, like the font's black, so they show over
+  whatever the level has in its sky.

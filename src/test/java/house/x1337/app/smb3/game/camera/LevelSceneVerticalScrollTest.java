@@ -45,6 +45,28 @@ class LevelSceneVerticalScrollTest {
     }
 
     @Test
+    @DisplayName("Scrolled up from outside, the view's top moves up by the pixels asked, eased like any move, and "
+        + "stops at the level's top")
+    void anOutsideScrollUpStopsAtTheTop() {
+        // Prepare - 20 rows: the view's top starts at line 128
+        final LevelSceneVerticalScroll scroll = scrollForRows(ROWS);
+        final int start = scroll.getViewTop();
+
+        // Execute & Verify
+        scroll.hold();
+        scroll.scrollUp(3);
+        assertThat(start).isEqualTo(128);
+        assertThat(scroll.getViewTop()).isEqualTo(125);
+        assertThat(scroll.interpolate(0.5)).as("Half-way between the ticks").isCloseTo(BOTTOM + 1.5f / 16,
+            within(TOLERANCE));
+        for (int tick = 0; tick < 100; tick++) {
+            scroll.hold();
+            scroll.scrollUp(3);
+        }
+        assertThat(scroll.getViewTop()).as("The level's top").isZero();
+    }
+
+    @Test
     @DisplayName("Locked at the bottom during normal play — jumping never scrolls the camera")
     void lockedAtBottomWhenNotFlying() {
         // Prepare

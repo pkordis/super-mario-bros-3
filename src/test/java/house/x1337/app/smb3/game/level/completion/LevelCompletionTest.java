@@ -1,12 +1,17 @@
 package house.x1337.app.smb3.game.level.completion;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
+import house.x1337.app.smb3.enumeration.LevelCompletionCardType;
 import house.x1337.app.smb3.enumeration.MusicTrack;
+import house.x1337.app.smb3.game.camera.LevelSceneVerticalScroll;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.LevelFrameCounter;
+import house.x1337.app.smb3.game.level.completion.LevelCompletion.FanfareCard;
 import house.x1337.app.smb3.game.level.completion.LevelCompletion.Message;
+import house.x1337.app.smb3.game.level.completion.LevelCompletionScreen.FireworksPicture;
+import house.x1337.app.smb3.game.level.completion.LevelCompletionScreen.LivesBonusPicture;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.GameObjectAnimator;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
@@ -52,16 +57,29 @@ import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.FLOWER;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.MUSHROOM;
 import static house.x1337.app.smb3.enumeration.LevelCompletionCardType.STAR;
 import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
-import static house.x1337.app.smb3.game.level.completion.LevelCompletion.CARD_FLASH_BIT;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_MESSAGE_TICK;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.COURSE_CLEAR_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.EXIT_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.FANFARE_LIVES_BONUS_X;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.FANFARE_MESSAGE_TICK;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.FANFARE_MESSAGE_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.FanfareCard.LARGE_TWINKLE;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.FanfareCard.SMALL_TWINKLE;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.LIVES_BONUS_X;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.CARD_FLYING_OFF;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COMPLETED;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.COURSE_CLEAR;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.EXITING;
-import static house.x1337.app.smb3.game.level.completion.LevelCompletion.STATUS_BAR_CARD_HOLD_TICKS;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.FANFARE_APPEARING;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.FANFARE_MESSAGE;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.FANFARE_RISING;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.Phase.PAYING_OUT_LIVES;
+import static house.x1337.app.smb3.game.level.completion.LevelCompletion.TWINKLE_TICKS;
 import static house.x1337.app.smb3.game.level.completion.LevelCompletion.YOU_GOT_A_CARD_TICK;
+import static house.x1337.app.smb3.game.level.completion.StatusBarCards.FLASH_BIT;
+import static house.x1337.app.smb3.game.level.completion.StatusBarCards.NEWEST_CARD_HOLD_TICKS;
+import static house.x1337.app.smb3.game.player.PlayerData.CARD_SLOTS;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -82,7 +100,9 @@ import static org.mockito.Mockito.withSettings;
 /**
  * Touching the card starts the level's completion: the card goes into the player's next slot, the clock stops, and
  * the P-switch window, the kill chain and the player's vertical velocity are cleared. Then the card flies off, the
- * clock turns into score and the level ends on the state timers.
+ * clock turns into score and the level ends on the state timers. Three cards pay out lives first, and three matching
+ * cards play the fanfare before that: in a {@value #TALL_ROWS}-row level, with the card at row 21, the view reaches
+ * the sky on tick {@value #SKY_TICKS} of the fanfare.
  */
 class LevelCompletionTest {
     /** The card at row 9 (y 144) reaches y -19 after 65 ticks, so the screen top at 0 sees it gone on tick 66. */
@@ -92,6 +112,9 @@ class LevelCompletionTest {
     private static final double EXIT_X = 288;
 
     private static final int ROWS = 12;
+    private static final int SKY_TICKS = 100;
+    private static final int TALL_ROWS = 27;
+
     private final PlayerData playerData = new PlayerData();
     private final PlayerPosition position = new PlayerPosition();
     private final PlayerRuntimeState runtimeState = mock(PlayerRuntimeState.class);
@@ -103,6 +126,7 @@ class LevelCompletionTest {
     private final LevelFrameCounter frameCounter = new LevelFrameCounter();
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
+    private LevelScene levelScene;
     private LevelCompletion levelCompletion;
     private int musicTicks;
 
@@ -123,6 +147,7 @@ class LevelCompletionTest {
         when(levelScene.getLevelCompletionCard()).thenReturn(of(30, 9));
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(64, ROWS));
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
+        this.levelScene = levelScene;
         final CameraState cameraState = mock(CameraState.class);
         when(cameraState.getActiveObjectRegion(anyInt())).thenReturn(new AxisAlignedBoundingBox(0, 0, 256, 192));
         when(gameEngine.getCameraState()).thenReturn(cameraState);
@@ -214,7 +239,7 @@ class LevelCompletionTest {
 
         // Verify
         verify(gameEngine, times(1)).publish(any(LevelCardCollected.class));
-        verify(gameEngine).publish(new LevelCardCollected(FLOWER));
+        verify(gameEngine).publish(new LevelCardCollected(FLOWER, false));
         assertThat(playerData.getCards()).containsExactly(FLOWER, null, null);
         assertThat(levelCompletion.getCollectedCard()).isEqualTo(FLOWER);
     }
@@ -349,6 +374,7 @@ class LevelCompletionTest {
 
         // Execute & Verify - the clock: a jingle 300 ticks long holds the bonus back past the timer
         musicTicks = 300;
+        playerData.clearCards();
         levelCompletion.reset();
         startTheTimerAt(287);
         levelCompletion.collect(FLOWER, player);
@@ -356,6 +382,7 @@ class LevelCompletionTest {
 
         // Execute & Verify - the player: not at the exit until it is moved there
         musicTicks = 0;
+        playerData.clearCards();
         levelCompletion.reset();
         startTheTimerAt(287);
         position.setX(100);
@@ -589,38 +616,366 @@ class LevelCompletionTest {
     @Test
     @DisplayName("The status bar hides the new card until 96 ticks into state 5, holds it 47 ticks, then flashes it")
     void theNewCardReachesTheStatusBarAfterTheMessage() {
-        // Prepare
+        // Prepare - the player short of the exit, so state 5 goes on after its timer
         startTheTimerAt(0);
-        position.setX(EXIT_X);
-        final boolean beforeTheTouch = levelCompletion.isNewestCardHidden();
+        position.setX(100);
+        final boolean beforeTheTouch = levelCompletion.isCardSlotHidden(0);
         levelCompletion.collect(FLOWER, player);
-        final boolean onTheTouch = levelCompletion.isNewestCardHidden();
+        final boolean onTheTouch = levelCompletion.isCardSlotHidden(0);
 
         // Execute & Verify - hidden through the flight and the first 95 ticks of state 5
         final int flight = ticksUntil(COURSE_CLEAR);
-        assertThat(levelCompletion.isNewestCardHidden()).as("As state 5 starts, %d ticks in", flight).isTrue();
+        assertThat(levelCompletion.isCardSlotHidden(0)).as("As state 5 starts, %d ticks in", flight).isTrue();
         for (int tick = 1; tick < COURSE_CLEAR_TICKS; tick++) {
             tick(1);
-            assertThat(levelCompletion.isNewestCardHidden()).as("%d ticks into state 5", tick).isTrue();
+            assertThat(levelCompletion.isCardSlotHidden(0)).as("%d ticks into state 5", tick).isTrue();
         }
-        for (int tick = COURSE_CLEAR_TICKS; tick < COURSE_CLEAR_TICKS + STATUS_BAR_CARD_HOLD_TICKS - 1; tick++) {
+        for (int tick = COURSE_CLEAR_TICKS; tick < COURSE_CLEAR_TICKS + NEWEST_CARD_HOLD_TICKS - 1; tick++) {
             tick(1);
-            assertThat(levelCompletion.isNewestCardHidden()).as("%d ticks into state 5: held", tick).isFalse();
+            assertThat(levelCompletion.isCardSlotHidden(0)).as("%d ticks into state 5: held", tick).isFalse();
         }
         final List<Boolean> flashes = new ArrayList<>();
-        for (int tick = 0; tick < 4 * CARD_FLASH_BIT; tick++) {
+        for (int tick = 0; tick < 4 * FLASH_BIT; tick++) {
             tick(1);
-            assertThat(levelCompletion.isNewestCardHidden()).as("Flashing, frame %d", frameCounter.getTicks())
-                .isEqualTo((frameCounter.getTicks() & CARD_FLASH_BIT) == 0);
-            flashes.add(levelCompletion.isNewestCardHidden());
+            assertThat(levelCompletion.isCardSlotHidden(0)).as("Flashing, frame %d", frameCounter.getTicks())
+                .isEqualTo((frameCounter.getTicks() & FLASH_BIT) == 0);
+            flashes.add(levelCompletion.isCardSlotHidden(0));
+        }
+        position.setX(EXIT_X);
+        tick(1);
+        assertThat(levelCompletion.getPhase()).isEqualTo(EXITING);
+        for (int tick = 0; tick < 2 * FLASH_BIT; tick++) {
+            tick(1);
+            assertThat(levelCompletion.isCardSlotHidden(0)).as("Exiting, frame %d", frameCounter.getTicks())
+                .isEqualTo((frameCounter.getTicks() & FLASH_BIT) == 0);
         }
         assertThat(beforeTheTouch).as("Before the touch").isFalse();
         assertThat(onTheTouch).as("On the touch").isTrue();
+        assertThat(levelCompletion.isCardSlotHidden(1)).as("The empty slots are left alone").isFalse();
         assertThat(playerData.getCards()).as("In the player's data throughout").containsExactly(FLOWER, null, null);
         assertThat(flashes).as("Both ways while flashing").contains(true, false);
-        assertThat(levelCompletion.getPhase()).as("Still flashing while exiting").isEqualTo(EXITING);
         ticksUntil(COMPLETED);
-        assertThat(levelCompletion.isNewestCardHidden()).as("Once the level has ended").isFalse();
+        assertThat(levelCompletion.isCardSlotHidden(0)).as("Once the level has ended").isFalse();
+    }
+
+    @Test
+    @DisplayName("When state 5 ends on the tick its timer runs out, the new card first shows on the exit's first tick")
+    void theNewCardShowsWithTheExitWhenStateFiveEndsAtOnce() {
+        // Prepare
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(STAR, player);
+        ticksUntil(EXITING);
+
+        // Execute & Verify
+        assertThat(levelCompletion.isCardSlotHidden(0)).as("On the tick state 5 ends").isTrue();
+        tick(1);
+        assertThat(levelCompletion.isCardSlotHidden(0)).as("The exit's first tick, held").isFalse();
+    }
+
+    @Test
+    @DisplayName("Three matching cards start the fanfare: the player stands still, the tile animations go on")
+    void threeMatchingCardsStartTheFanfare() {
+        // Prepare
+        playerData.addCard(STAR);
+        playerData.addCard(STAR);
+
+        // Execute
+        levelCompletion.collect(STAR, player);
+
+        // Verify
+        assertThat(levelCompletion.isFanfare()).isTrue();
+        assertThat(levelCompletion.getPhase()).isEqualTo(FANFARE_RISING);
+        verify(player).standStill();
+        verify(player, never()).startRunningOff();
+        verify(tileAnimator, never()).freeze();
+        verify(gameEngine).publish(new LevelCardCollected(STAR, true));
+        assertThat(levelCompletion.isCardSlotHidden(2)).as("The third card is not on the status bar yet").isTrue();
+        assertThat(levelCompletion.isCardSlotHidden(0)).as("The first two are").isFalse();
+    }
+
+    @Test
+    @DisplayName("Two matching cards and a third that differs, or only two cards, are no fanfare")
+    void anyOtherCardsAreNoFanfare() {
+        // Execute & Verify
+        playerData.addCard(STAR);
+        playerData.addCard(STAR);
+        levelCompletion.collect(FLOWER, player);
+        assertThat(levelCompletion.isFanfare()).as("Mixed").isFalse();
+        playerData.clearCards();
+        levelCompletion.reset();
+        playerData.addCard(STAR);
+        levelCompletion.collect(STAR, player);
+        assertThat(levelCompletion.isFanfare()).as("Two").isFalse();
+        assertThat(levelCompletion.getPhase()).isEqualTo(CARD_FLYING_OFF);
+    }
+
+    @Test
+    @DisplayName("In the fanfare the card rises until it is above line 272, then the view scrolls up 3 px a tick until "
+        + "its top is above line 17")
+    void theFanfareScrollsTheViewUpToTheSky() {
+        // Prepare - the card at line 336 of a 27-row level whose view starts at its bottom, line 240
+        final LevelSceneVerticalScroll verticalScroll = aTallLevel();
+        startTheFanfare(MUSHROOM);
+        final List<Integer> viewTops = new ArrayList<>();
+
+        // Execute
+        for (int tick = 1; tick <= SKY_TICKS; tick++) {
+            tick(1);
+            viewTops.add(verticalScroll.getViewTop());
+        }
+
+        // Verify - the card is at line 271 on tick 26, the first scroll; 75 scrolls take the top from 240 to 15
+        assertThat(viewTops.get(24)).as("Tick 25").isEqualTo(240);
+        assertThat(viewTops.get(25)).as("Tick 26").isEqualTo(237);
+        assertThat(viewTops.get(SKY_TICKS - 2)).as("Tick 99").isEqualTo(18);
+        assertThat(viewTops.getLast()).as("Tick 100").isEqualTo(15);
+        assertThat(levelCompletion.getPhaseTimer()).as("The twinkle starts").isEqualTo(TWINKLE_TICKS);
+        tick(50);
+        assertThat(verticalScroll.getViewTop()).as("No further").isEqualTo(15);
+    }
+
+    @Test
+    @DisplayName("Once the view has reached the sky, the card twinkles for 15 ticks, then is gone as the fireworks "
+        + "start fading in")
+    void theCardTwinklesThenGoes() {
+        // Prepare
+        aTallLevel();
+        startTheFanfare(MUSHROOM);
+        tick(SKY_TICKS);
+        final List<FanfareCard> twinkles = new ArrayList<>();
+
+        // Execute
+        for (int tick = 0; tick < 15; tick++) {
+            assertThat(levelCompletion.getPhase()).as("Twinkle %d", tick).isEqualTo(FANFARE_RISING);
+            tick(1);
+            twinkles.add(levelCompletion.getFanfareCard());
+        }
+
+        // Verify
+        assertThat(twinkles).containsExactly(
+            LARGE_TWINKLE, LARGE_TWINKLE, LARGE_TWINKLE, LARGE_TWINKLE, LARGE_TWINKLE, LARGE_TWINKLE,
+            SMALL_TWINKLE, SMALL_TWINKLE, LARGE_TWINKLE, LARGE_TWINKLE,
+            SMALL_TWINKLE, SMALL_TWINKLE, SMALL_TWINKLE, SMALL_TWINKLE, SMALL_TWINKLE
+        );
+        assertThat(levelCompletion.getPhase()).isEqualTo(FANFARE_APPEARING);
+        tick(1);
+        assertThat(levelCompletion.getFanfareCard()).isEqualTo(FanfareCard.GONE);
+    }
+
+    @Test
+    @DisplayName("The fireworks fade in a step every 4 frames, the first step changing nothing, then YOU GOT A "
+        + "CARD is written in the sky 48 ticks into the message")
+    void theFireworksFadeInThenTheMessage() {
+        // Prepare - the twinkle ends on tick 115; ticks 116, 120 ... 136 are the frames that are multiples of 4
+        aTallLevel();
+        startTheFanfare(FLOWER);
+        tick(SKY_TICKS + 15);
+        final List<FireworksFade> fades = new ArrayList<>();
+
+        // Execute
+        for (int tick = 0; tick < 21; tick++) {
+            tick(1);
+            final FireworksPicture fireworks = levelCompletion.getScreen().fireworks();
+            fades.add(fireworks == null ? null : fireworks.fade());
+        }
+
+        // Verify - from the middle out, whatever order the steps are declared in, each held for 4 frames
+        final FireworksFade[] steps = {
+            FireworksFade.MIDDLE,
+            FireworksFade.MIDDLE_BRIGHT,
+            FireworksFade.INNER_BRIGHT,
+            FireworksFade.ALMOST_ALL_BRIGHT,
+            FireworksFade.ALL_BRIGHT
+        };
+        assertThat(fades.subList(0, 4)).as("The first step").containsOnlyNulls();
+        for (int step = 0; step < steps.length - 1; step++) {
+            assertThat(fades.subList(4 + 4 * step, 8 + 4 * step)).as("Step %d", step + 1).containsOnly(steps[step]);
+        }
+        assertThat(fades.getLast()).as("The last step, all lit").isEqualTo(FireworksFade.ALL_BRIGHT);
+        assertThat(levelCompletion.getPhase()).isEqualTo(FANFARE_MESSAGE);
+        assertThat(levelCompletion.getScreen().fireworks().shape()).isEqualTo(FLOWER);
+        assertThat(levelCompletion.getScreen().viewTop()).as("Drawn from the view's top").isEqualTo(15);
+        tick(FANFARE_MESSAGE_TICKS - FANFARE_MESSAGE_TICK - 1);
+        assertThat(levelCompletion.getMessage()).isEqualTo(Message.NONE);
+        assertThat(levelCompletion.isCardSlotHidden(2)).isTrue();
+        tick(1);
+        assertThat(levelCompletion.getMessage()).isEqualTo(Message.FANFARE_YOU_GOT_A_CARD);
+        tick(1);
+        assertThat(levelCompletion.isCardSlotHidden(2)).as("On the status bar from the next tick").isFalse();
+    }
+
+    @Test
+    @DisplayName("The fanfare's time bonus waits for the victory fanfare's end; the course clear's end does not count")
+    void theFanfaresBonusWaitsForTheVictoryFanfare() {
+        // Prepare - a fanfare that ends on the 400th tick, well after the message's timer
+        aTallLevel();
+        musicTicks = 400;
+        playerData.addCard(FLOWER);
+        playerData.addCard(FLOWER);
+        startTheTimerAt(287);
+        levelCompletion.collect(FLOWER, player);
+        ticksUntil(FANFARE_MESSAGE);
+
+        // Execute & Verify
+        levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
+        tick(FANFARE_MESSAGE_TICKS + 10);
+        assertThat(playerData.getTimer()).as("Still playing").isEqualTo(287);
+        assertThat(levelCompletion.getPhase()).isEqualTo(FANFARE_MESSAGE);
+        ticksUntil(PAYING_OUT_LIVES);
+        assertThat(playerData.getTimer()).as("Converted once it has ended").isZero();
+    }
+
+    @Test
+    @DisplayName("The sparkle of the fireworks' dots changes every 8 frames, through 4 pictures")
+    void theFireworksSparkle() {
+        // Prepare
+        aTallLevel();
+        startTheFanfare(STAR);
+        ticksUntil(FANFARE_MESSAGE);
+        final List<Integer> sparkles = new ArrayList<>();
+
+        // Execute
+        for (int tick = 0; tick < 40; tick++) {
+            tick(1);
+            sparkles.add(levelCompletion.getScreen().fireworks().sparkle());
+            assertThat(sparkles.getLast()).isEqualTo(frameCounter.getTicks() / 8 % 4);
+        }
+
+        // Verify
+        assertThat(sparkles).containsOnly(0, 1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("Three Mushrooms give 2 lives, three Flowers 3 and three Stars 5, each with the 1-up sound, and the "
+        + "cards are cleared")
+    void threeMatchingCardsPayOutLives() {
+        // Execute & Verify
+        for (final LevelCompletionCardType card : LevelCompletionCardType.values()) {
+            final int lives = switch (card) {
+                case MUSHROOM -> 2;
+                case FLOWER -> 3;
+                case STAR -> 5;
+            };
+            aTallLevel();
+            final int before = playerData.getLives();
+            final SoundPlayer sounds = mock(SoundPlayer.class);
+            staticBeanFactory.when(() -> StaticBeanFactory.getBean(SoundPlayer.class)).thenReturn(sounds);
+            startTheFanfare(card);
+            ticksUntil(COMPLETED);
+            assertThat(playerData.getLives() - before).as("%s", card).isEqualTo(lives);
+            verify(sounds, times(lives)).play(ONE_UP);
+            verify(sounds).muteEffectsExcept(CASINO_BEEP, ONE_UP);
+            assertThat(playerData.getCards()).as("%s", card).containsExactly(null, null, null);
+            levelCompletion.reset();
+        }
+    }
+
+    @Test
+    @DisplayName("Three mixed cards give 1 life once state 5 ends, then the exit follows")
+    void threeMixedCardsPayOutOneLife() {
+        // Prepare
+        playerData.addCard(MUSHROOM);
+        playerData.addCard(STAR);
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        final int before = playerData.getLives();
+        levelCompletion.collect(FLOWER, player);
+
+        // Execute
+        final int toThePayout = ticksUntil(PAYING_OUT_LIVES);
+        final int payout = ticksUntil(EXITING);
+
+        // Verify - one life on the payout's first tick; it rises 32 ticks and bounces 63, and exits on the 96th
+        assertThat(toThePayout).isEqualTo(FLIGHT_TICKS + COURSE_CLEAR_TICKS);
+        assertThat(payout).isEqualTo(96);
+        assertThat(playerData.getLives() - before).isEqualTo(1);
+        verify(soundPlayer).play(ONE_UP);
+        assertThat(levelCompletion.getScreen().livesBonus())
+            .isEqualTo(new LivesBonusPicture(1, LIVES_BONUS_X, 127));
+        ticksUntil(COMPLETED);
+        assertThat(playerData.getCards()).containsExactly(null, null, null);
+    }
+
+    @Test
+    @DisplayName("The nUP starts below the view, rises 4 px a tick while its line is 128 or more, then bounces 1 px")
+    void theLivesBonusRisesThenBounces() {
+        // Prepare
+        playerData.addCard(MUSHROOM);
+        playerData.addCard(STAR);
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        ticksUntil(PAYING_OUT_LIVES);
+        final List<Integer> ys = new ArrayList<>();
+
+        // Execute
+        for (int tick = 0; tick < 36; tick++) {
+            tick(1);
+            ys.add(levelCompletion.getScreen().livesBonus().y());
+        }
+
+        // Verify - drawn one line below its line as each tick began
+        assertThat(ys.getFirst()).isEqualTo(256);
+        assertThat(ys.get(1)).isEqualTo(252);
+        assertThat(ys.get(31)).as("Tick 32").isEqualTo(132);
+        assertThat(ys.subList(32, 36)).as("Bouncing").containsExactly(128, 127, 128, 127);
+        assertThat(levelCompletion.getScreen().livesBonus().x()).isEqualTo(LIVES_BONUS_X);
+    }
+
+    @Test
+    @DisplayName("Five lives come one 1-up sound apart, 48 ticks, and the exit starts with the last of them")
+    void livesComeOneSoundApart() {
+        // Prepare
+        aTallLevel();
+        final int before = playerData.getLives();
+        startTheFanfare(STAR);
+        ticksUntil(PAYING_OUT_LIVES);
+        final List<Integer> given = new ArrayList<>();
+
+        // Execute
+        for (int tick = 1; levelCompletion.getPhase() == PAYING_OUT_LIVES; tick++) {
+            final int lives = playerData.getLives();
+            tick(1);
+            if (playerData.getLives() > lives) {
+                given.add(tick);
+            }
+        }
+
+        // Verify
+        assertThat(given).containsExactly(1, 49, 97, 145, 193);
+        assertThat(playerData.getLives() - before).isEqualTo(5);
+        assertThat(levelCompletion.getScreen().livesBonus().x()).as("Without the 8 px of the ground")
+            .isEqualTo(FANFARE_LIVES_BONUS_X);
+        assertThat(levelCompletion.getScreen().livesBonus().lives()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("While lives are paid out the cards blink off in turn: one empty for 7 frames, drawn on the 8th")
+    void theCardsBlinkOffInTurn() {
+        // Prepare - the payout starts after tick 162, so its first tick is frame 163
+        playerData.addCard(MUSHROOM);
+        playerData.addCard(STAR);
+        startTheTimerAt(0);
+        position.setX(EXIT_X);
+        levelCompletion.collect(FLOWER, player);
+        ticksUntil(PAYING_OUT_LIVES);
+        final List<String> hidden = new ArrayList<>();
+
+        // Execute
+        for (int tick = 0; tick < 24; tick++) {
+            tick(1);
+            hidden.add(hiddenSlots());
+        }
+
+        // Verify - the third card, never drawn since the touch, shows once its turn has come
+        assertThat(hidden.subList(0, 5)).as("Frames 163-167").containsOnly("0 2");
+        assertThat(hidden.get(5)).as("Frame 168").isEqualTo("2");
+        assertThat(hidden.subList(6, 13)).as("Frames 169-175").containsOnly("1 2");
+        assertThat(hidden.get(13)).as("Frame 176").isEqualTo("2");
+        assertThat(hidden.subList(14, 21)).as("Frames 177-183").containsOnly("2");
+        assertThat(hidden.get(21)).as("Frame 184").isEmpty();
+        assertThat(hidden.get(22)).as("Frame 185").isEqualTo("0");
     }
 
     @Test
@@ -698,6 +1053,40 @@ class LevelCompletionTest {
         ticksUntil(COMPLETED);
     }
 
+    /**
+     * Makes the level 27 rows tall, with the card at row 21 (line 336) and the view at the level's bottom, its top at
+     * line 240, and starts a new run in it.
+     *
+     * @return the player's vertical scroll, which the fanfare drives
+     */
+    private LevelSceneVerticalScroll aTallLevel() {
+        when(levelScene.getLevelCompletionCard()).thenReturn(of(30, 21));
+        when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(64, TALL_ROWS));
+        final LevelSceneVerticalScroll verticalScroll = new LevelSceneVerticalScroll(levelScene);
+        when(player.getVerticalScroll()).thenReturn(verticalScroll);
+        levelCompletion.reset();
+        return verticalScroll;
+    }
+
+    /** Touches the third card of a kind, with no time left to convert. */
+    private void startTheFanfare(final LevelCompletionCardType card) {
+        startTheTimerAt(0);
+        playerData.addCard(card);
+        playerData.addCard(card);
+        levelCompletion.collect(card, player);
+    }
+
+    /** @return the slots the status bar shows empty, in order, separated by a space */
+    private String hiddenSlots() {
+        final List<String> hidden = new ArrayList<>();
+        for (int slot = 0; slot < CARD_SLOTS; slot++) {
+            if (levelCompletion.isCardSlotHidden(slot)) {
+                hidden.add(String.valueOf(slot));
+            }
+        }
+        return String.join(" ", hidden);
+    }
+
     private int ticksUntil(final LevelCompletion.Phase phase) {
         int ticks = 0;
         while (levelCompletion.getPhase() != phase) {
@@ -709,9 +1098,9 @@ class LevelCompletionTest {
     }
 
     /**
-     * Ticks the completion. Before each tick the course-clear jingle plays on for {@link #musicTicks} more ticks,
-     * counted from the touch; once they are spent its end is heard, so it ends on that tick, as a jingle that long
-     * would.
+     * Ticks the completion. Before each tick the touch's jingle (the victory fanfare for three matching cards, the
+     * course clear otherwise) plays on for {@link #musicTicks} more ticks, counted from the touch; once they are spent
+     * its end is heard, so it ends on that tick, as a jingle that long would.
      */
     private void tick(final int ticks) {
         for (int tick = 0; tick < ticks; tick++) {
@@ -719,7 +1108,9 @@ class LevelCompletionTest {
                 musicTicks--;
             }
             if (musicTicks == 0) {
-                levelCompletion.onSoundPlayComplete(new SoundPlayComplete(MusicTrack.COURSE_CLEAR));
+                levelCompletion.onSoundPlayComplete(new SoundPlayComplete(
+                    levelCompletion.isFanfare() ? MusicTrack.VICTORY_FANFARE : MusicTrack.COURSE_CLEAR
+                ));
             }
             frameCounter.tick();
             levelCompletion.tick();
