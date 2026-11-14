@@ -44,32 +44,77 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
 
 `house.x1337.app.smb3.game.sound.SoundPlayer`, a `@Singleton` reached with `getBean(SoundPlayer.class)`.
 
+- **Channels (SMB3-71).** Every effect plays on a `SoundChannel` (`SoundEffect.getChannel()`): one effect at a time
+  per channel, and the channels sound together, with the music alongside them all. This is the original's model: it
+  keeps one "current sound" per queue (`SndCur_Player`, `SndCur_Level1`, `SndCur_Level2`, `SndCur_Map`, smb3.asm:
+  1326-1332), each driving its own APU channel, and a new request on a queue replaces the sound playing there and
+  starts it from its beginning (prg028.asm:471-590, 725-937, 1033-1181). The channels and their effects:
+
+  | Channel | Original queue (APU channel) | Effects |
+  |---|---|---|
+  | `PLAYER` | Player (square 1) | `JUMP`, `BLOCK`, `ENEMY_STOMP`, `KOOPA_SHELL`, `POWER_DOWN` (pipe and shrink), `FIREBALL`, `POWER_ON`, `SUPER_JUMP` |
+  | `LEVEL_1` | Level1 (square 2) | `COIN`, `POWER_UP_BLOCK`, `VINE`, `CANNONBALL` (the P-switch "Wham!"), `CASINO_BEEP`, `POWER_UP`, `ONE_UP`, `TANOOKI`, `TAIL_WAG` |
+  | `LEVEL_2` | Level2 (noise, triangle) | `BREAKING_BLOCK`, `BOWSER_FIREBALL`, `AIRSHIP_MOVEMENT`, `HAMMER_BRO_MOVEMENT` |
+  | `WORLD_MAP` | Map (square 1) | `WORLD_START`, `MOVE_CURSOR`, `LEVEL_START`, `WRONG`, `N_SPADE_CLEAR`, `LEVEL_CLEAR`, `PLAYER_SPIN`, `TWIRL` |
+  | `PAUSE` | Pause (square 1) | `PAUSE` |
+
+  `SUPER_JUMP`, `PLAYER_SPIN`, `TWIRL`, `LEVEL_CLEAR` and `N_SPADE_CLEAR` have no clear counterpart (the closest are
+  the frog hop, the map's slide-back skid, the map's poof and the bonus-appears sound); none of them plays in a level
+  yet. Original sounds with no file: the frog hop, the shoe, the boomerang, the skid, the inventory flip.
+- **How an effect claims its channel**, `SoundEffect.getChannelRule()`, a `SoundChannelRule`:
+  - `CUTS` (all but three): stops the effect sounding on the channel and starts from its beginning, itself included.
+    This includes `CASINO_BEEP`, which the time bonus asks for on every step, so every tick: in the original
+    `DoTimeBonus` queues its 6-frame blip every frame (prg000.asm:611-650), the blip restarts every frame, and the
+    bonus is heard as one continuous, re-attacked tone. `casino_beep.ogg` is that blip (0.101 s, 6.1 frames), and it
+    restarts on every step the same way. A first cut of SMB3-71 let the beep ignore its repeats instead, to avoid a
+    feared buzz; that gave one beep per clip length, about five for a whole bonus, and was heard as wrong. Before
+    SMB3-71 every step started an overlapping copy, which also sounded continuous.
+  - `LOCKS`: `ONE_UP` and `AIRSHIP_MOVEMENT`. Nothing else starts on the channel until it ends (prg028.asm:726-728
+    for the 1-up, 1034-1038 for the airship); a request in the meantime is dropped, as the original's queue is
+    cleared every frame. Asked for again, a locking effect restarts. The original ignores that too, but the lives
+    payout asks for the next 1-up 48 ticks after the last, exactly the clip's trimmed 0.800 s, and the renderer may
+    not have marked the node stopped yet on that tick.
+  - `WAITS_FOR_SILENCE`: `TAIL_WAG`. It starts only on a silent channel and is dropped otherwise, so not over another
+    wag nor over a coin, a power-up or a 1-up (prg028.asm:890-895). The game asks for the wag on every new A press in
+    the air and every B press that starts a swipe, with no timer; mashing gives one wag per clip length (the wag
+    sounds 18 frames in the original; `tail_wag.ogg` trims to 0.320 s, 19.2 frames).
+  - Within one tick the last effect asked for wins, unless a locking one is sounding. The original picks the lowest
+    queued bit instead, which would drop the 1-up of the 100th coin (`COIN` and `ONE_UP` in the same tick).
+  - A channel is silent once the node it last started is no longer `Playing`: jME's
+    `ALAudioRenderer.updateInRenderThread` sets a bound buffer node back to `Stopped` when the buffer finishes, and
+    `playSource` sets `Playing` at once.
 - `play(SoundEffect)`: a new non-positional `AudioNode` copy of the effect's node each time (sharing its trimmed
-  buffer), started with `play()`, so effects overlap (themselves included) and never stop the music. There is no
-  channel or slot system: every sound overlaps every other. The copies sounding are kept (pruned of `Stopped` ones on
-  each play) so a mute can stop them. Until SMB3-49 each play was `playInstance()` on the effect's one node, which
+  buffer), started with `play()` and kept as the channel's `ChannelSound`, so the next effect on the channel can stop
+  it. Effects never stop the music. Until SMB3-49 each play was `playInstance()` on the effect's one node, which
   jME cannot stop: `AudioNode.stop()` only stops what `play()` started, and `ALAudioRenderer.playSourceInstance`
-  never binds the node to its channel, so an instance only ends when its buffer does.
-  - **Exception: an effect that does not overlap itself** (`SoundEffect.isSelfOverlapping()` false; only `TAIL_WAG`
-    today) plays on its loaded node with `play()`, and a play is ignored while that node's status is `Playing`. jME's
-    `ALAudioRenderer.updateInRenderThread` sets a bound buffer node back to `Stopped` when the buffer finishes.
-  - Why the tail wag (cross-checked in the original): the game asks for the wag sound on every new A press in the
-    air and every B press that starts a swipe, with no timer. The original's sound engine drops a new wag request
-    while the previous one still plays, and the request is lost, since the sound queues are cleared every frame. The
-    wag sounds for 18 frames and ends on the 19th. Mashing therefore gives one wag per clip length, an even rhythm,
-    instead of one per press. `tail_wag.ogg` trims to 0.320 s (19.2 frames), so the clip's own length gives the same
-    spacing. A longer clip would not help: it would only space the sounds further apart.
-  - Not copied: in the original the wag also shares a channel with the coin, item-rise, vine, cannon, text blip,
-    power-up and 1-up sounds, so it is skipped while one of those plays and cut off when one starts.
+  never binds the node to its channel, so an instance only ends when its buffer does. Until SMB3-71 every effect
+  overlapped every other, and itself, with only the tail wag ignoring its own repeats.
 - `loop(SoundEffect)` / `stopLoop(SoundEffect)`: at most one loop per effect, on its own non-positional node
-  (`setLooping(true)`, `play()`) that shares the loaded effect's trimmed buffer. Both are no-ops when there is
-  nothing to do (already looping, not looping, no engine), so callers can call one of them every tick. The loops
-  are dropped with the effects on detach.
+  (`setLooping(true)`, `play()`) that shares the loaded effect's trimmed buffer. A loop is the quietest sound on its
+  channel: any effect played there stops it (`heldLoops`), and `update` starts it again from its beginning on the
+  first frame the channel is silent. `loop` itself waits the same way when the channel is busy. This is the P-meter's
+  ring: in the original it starts only on a silent player channel (prg028.asm:512-518) and stops on the first frame
+  it is not asked for (prg028.asm:366-370), and the game asks for it every frame while the meter is full
+  (prg008.asm:982-1016). So a jump, stomp, kick, bump or pipe sound silences it until that sound ends, and a coin does
+  not. Both calls are no-ops when there is nothing to do (already looping, not looping, no engine), so callers can
+  call one of them every tick. The loops are dropped with the effects on detach.
 - `muteEffectsExcept(SoundEffect...)` / `unmuteEffects()` (SMB3-49): the mute stops every effect still sounding at
-  once (the loops, the copies, the tail wag's node) and, until the unmute, `play` and `loop` do nothing for every
+  once (the loops and every channel's effect) and, until the unmute, `play` and `loop` do nothing for every
   effect but the ones named. The music is not muted. The level completion mutes on the touch with `CASINO_BEEP` let
   through; `GameEngine.buildLevel` unmutes on every run start, and `attach` (through `detach`) on every engine.
-  `PowerMeterSound` needs nothing of its own: its `loop(POWER_ON)` is simply ignored while muted.
+  `PowerMeterSound` needs nothing of its own: its `loop(POWER_ON)` is simply ignored while muted. During the lives
+  payout `CASINO_BEEP` and `ONE_UP` share `LEVEL_1`, so a beep asked for while a 1-up sounds is dropped.
+- **Not copied:** the original's music gives up a square to the effects (square 1 while a player or map sound plays,
+  square 2 while a level-1 sound plays, prg031.asm:597-601 and 719-725) and keeps its timing while silent. The music
+  files are finished mixes, so the port plays the whole song under the effects. Pausing, not built yet, silences
+  the player and both level channels in the original (prg028.asm:46-51).
+  - The cost: a block bumped with the P-ring playing gives the bump, then the ring and the item rise together, over
+    the whole song. In the original both of the song's squares fall silent for those two, so only they, the bass and
+    the drums are heard; here the song's melody clashes with them.
+  - **Tried and rejected (SMB3-71):** lowering the whole song while any effect sounded on `PLAYER`, `LEVEL_1` or
+    `WORLD_MAP` (loops included), back to full volume once they were all silent. At 0.5 it was still too loud, and at
+    0.25 the constant dipping was heard as worse than the clash, so it was taken out. Splitting the music into one file
+    per voice, so the right voice could be muted, would need stems of all 32 tracks, which the project does not have.
 - **Every effect is loaded when an engine attaches**, not on its first play: decoded (`AudioKey` with
   `stream = false`), trimmed by `SoundEffectTrimmer`, and wrapped in a node. All 28 take about 256 ms in a cold JVM
   at engine start. Loading on first play instead cost the first jump about 50 ms.
@@ -177,7 +222,7 @@ The mapping (SMB3-68) is a best guess from the file titles; tune it here and in 
 | Sound | Where | Condition |
 |---|---|---|
 | `JUMP` | `LevelScenePlayerMoveCapable.handleVerticalMovement` | A jump press that starts a jump from the ground. |
-| `TAIL_WAG` | same method; `LevelScenePlayerActionCapable.handleTailAttack` | A mid-air press that wags the tail; a B press that starts a tail swipe. Not while the previous wag still sounds (see `play(SoundEffect)` above). (`TWIRL` belongs to the world map and is not played in a level.) |
+| `TAIL_WAG` | same method; `LevelScenePlayerActionCapable.handleTailAttack` | A mid-air press that wags the tail; a B press that starts a tail swipe. Only on a silent `LEVEL_1` channel (see the channel rules above). (`TWIRL` belongs to the world map and is not played in a level.) |
 | `ENEMY_STOMP` | `onCollisionFromAbove` of `Goomba`, `ParaGoomba`, `KoopaParaTroopa`, `KoopaTroopa` | Every stomp that bounces the player, including one that stops a kicked shell. |
 | `KOOPA_SHELL` | `KoopaTroopaShellCapabilities.onKicked` | Every kick: on release, on contact, and the stomp on a resting shell (`kickWithoutPose`). Not when the kick crushes the shell; `crushUpward` plays it instead. |
 | `KOOPA_SHELL` | `onKickedInto`, `onKilledByCarryContact`, each enemy's `onTailAttack`, `KoopaTroopa.onBumpedFromBelow` | One per enemy killed by a kicked shell, a carried shell or the tail, and a Koopa flipped by a bumped block. A ParaGoomba or KoopaParaTroopa delegates to its replacement, which plays it. |

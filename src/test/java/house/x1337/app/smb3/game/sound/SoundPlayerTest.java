@@ -31,15 +31,21 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
 import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
 import static house.x1337.app.smb3.enumeration.MusicTrack.WORLD_1_GRASS_LAND;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BREAKING_BLOCK;
 import static house.x1337.app.smb3.enumeration.SoundEffect.CASINO_BEEP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.JUMP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
+import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_ON;
+import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -157,43 +163,195 @@ class SoundPlayerTest {
     }
 
     @Test
-    @DisplayName("An effect that is not self-overlapping plays on its own node, and not again while that node sounds")
-    void anEffectThatDoesNotOverlapItselfWaitsForItsEnd() {
+    @DisplayName("The tail wag waits for a silent channel: it is dropped while a wag or a coin still sounds")
+    void theTailWagWaitsForASilentChannel() {
         // Prepare
         soundPlayer.attach(application);
 
-        // Execute - a press, a second press while it sounds, a third once it has ended
+        // Execute - a wag, a wag while it sounds, a coin, a wag over the coin, and a wag once the coin has ended
         soundPlayer.play(TAIL_WAG);
-        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
-        verify(audioRenderer).playSource(node.capture());
-        node.getValue().setStatus(Playing);
+        sounding(lastPlayed());
         soundPlayer.play(TAIL_WAG);
-        node.getValue().setStatus(Stopped);
+        soundPlayer.play(COIN);
+        final AudioNode coin = sounding(lastPlayed());
+        soundPlayer.play(TAIL_WAG);
+        coin.setStatus(Stopped);
         soundPlayer.play(TAIL_WAG);
 
         // Verify
-        verify(audioRenderer, times(2).description("The first press and the one after the end"))
-            .playSource(node.getValue());
+        assertThat(played()).extracting(AudioNode::getAudioData).as("The first wag, the coin and the last wag")
+            .containsExactly(dataOf(TAIL_WAG), dataOf(COIN), dataOf(TAIL_WAG));
         verify(audioRenderer, never()).playSourceInstance(any(AudioNode.class));
     }
 
     @Test
-    @DisplayName("Different effects play their own nodes")
-    void differentEffectsPlayTheirOwnNodes() {
+    @DisplayName("Effects on different channels sound together")
+    void differentChannelsSoundTogether() {
         // Prepare
         soundPlayer.attach(application);
 
-        // Execute
+        // Execute - a jump, a coin, a brick and the music, each on a channel of its own
+        soundPlayer.play(OVERWORLD);
         soundPlayer.play(JUMP);
+        sounding(lastPlayed());
+        soundPlayer.play(COIN);
+        sounding(lastPlayed());
+        soundPlayer.play(BREAKING_BLOCK);
+
+        // Verify
+        assertThat(played()).hasSize(4);
+        assertThat(played().subList(1, 4)).extracting(AudioNode::getAudioData)
+            .containsExactly(dataOf(JUMP), dataOf(COIN), dataOf(BREAKING_BLOCK));
+        verify(audioRenderer, never()).stopSource(any(AudioNode.class));
+    }
+
+    @Test
+    @DisplayName("An effect stops the one sounding on its channel and starts from its beginning")
+    void anEffectCutsTheOneOnItsChannel() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(OVERWORLD);
+        final AudioNode music = sounding(lastPlayed());
+        soundPlayer.play(COIN);
+        final AudioNode coin = sounding(lastPlayed());
+
+        // Execute
+        soundPlayer.play(POWER_UP);
+
+        // Verify
+        verify(audioRenderer).stopSource(coin);
+        verify(audioRenderer, never()).stopSource(music);
+        assertThat(lastPlayed().getAudioData()).isSameAs(dataOf(POWER_UP));
+    }
+
+    @Test
+    @DisplayName("An effect asked for again while it sounds restarts on a new node")
+    void theSameEffectRestarts() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(COIN);
+        final AudioNode first = sounding(lastPlayed());
+
+        // Execute
         soundPlayer.play(COIN);
 
         // Verify
-        final ArgumentCaptor<AudioNode> node = ArgumentCaptor.forClass(AudioNode.class);
-        verify(audioRenderer, times(2)).playSource(node.capture());
-        assertThat(node.getAllValues()).extracting(AudioNode::getAudioData).containsExactly(
-            soundPlayer.getEffects().get(JUMP).getAudioData(),
-            soundPlayer.getEffects().get(COIN).getAudioData()
-        );
+        verify(audioRenderer).stopSource(first);
+        assertThat(played()).hasSize(2);
+        assertThat(lastPlayed()).as("A new node").isNotSameAs(first);
+    }
+
+    @Test
+    @DisplayName("Within a tick the last effect asked for on a channel is the one heard")
+    void theLastEffectAskedForIsHeard() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute - the renderer reports each one sounding as soon as it starts, as a real one does
+        soundPlayer.play(ENEMY_STOMP);
+        final AudioNode stomp = sounding(lastPlayed());
+        soundPlayer.play(KOOPA_SHELL);
+
+        // Verify
+        verify(audioRenderer).stopSource(stomp);
+        assertThat(lastPlayed().getAudioData()).isSameAs(dataOf(KOOPA_SHELL));
+    }
+
+    @Test
+    @DisplayName("The 1-up locks its channel: other effects there are dropped, and another 1-up restarts it")
+    void theOneUpLocksItsChannel() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(ONE_UP);
+        final AudioNode oneUp = sounding(lastPlayed());
+
+        // Execute
+        soundPlayer.play(COIN);
+        soundPlayer.play(CASINO_BEEP);
+        final List<AudioNode> whileLocked = played();
+        soundPlayer.play(ONE_UP);
+        final AudioNode secondOneUp = sounding(lastPlayed());
+        secondOneUp.setStatus(Stopped);
+        soundPlayer.play(COIN);
+
+        // Verify
+        assertThat(whileLocked).as("Nothing over the 1-up").containsExactly(oneUp);
+        verify(audioRenderer).stopSource(oneUp);
+        assertThat(played()).extracting(AudioNode::getAudioData).as("Both 1-ups, then the coin once it has ended")
+            .containsExactly(dataOf(ONE_UP), dataOf(ONE_UP), dataOf(COIN));
+    }
+
+    @Test
+    @DisplayName("The time-bonus beep, asked for on every step, restarts on every step, and another effect cuts it")
+    void theBeepRestartsOnEveryStep() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(CASINO_BEEP);
+        final AudioNode first = sounding(lastPlayed());
+
+        // Execute - two more steps, then a coin
+        soundPlayer.play(CASINO_BEEP);
+        final AudioNode second = sounding(lastPlayed());
+        soundPlayer.play(CASINO_BEEP);
+        final AudioNode third = sounding(lastPlayed());
+        soundPlayer.play(COIN);
+
+        // Verify
+        assertThat(played()).extracting(AudioNode::getAudioData).as("A beep on each step, then the coin")
+            .containsExactly(dataOf(CASINO_BEEP), dataOf(CASINO_BEEP), dataOf(CASINO_BEEP), dataOf(COIN));
+        verify(audioRenderer).stopSource(first);
+        verify(audioRenderer).stopSource(second);
+        verify(audioRenderer).stopSource(third);
+    }
+
+    @Test
+    @DisplayName("A loop stops under an effect on its channel and starts again once the channel is silent")
+    void aLoopYieldsToItsChannel() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.loop(POWER_ON);
+        final AudioNode ring = lastPlayed();
+
+        // Execute
+        soundPlayer.play(COIN);
+        sounding(lastPlayed());
+        final boolean stoppedByTheCoin = wasStopped(ring);
+        soundPlayer.play(JUMP);
+        final AudioNode jump = sounding(lastPlayed());
+        final boolean stoppedByTheJump = wasStopped(ring);
+        soundPlayer.update(FRAME_SECONDS);
+        final int playsWhileTheJumpSounds = playsOf(ring);
+        jump.setStatus(Stopped);
+        soundPlayer.update(FRAME_SECONDS);
+        soundPlayer.update(FRAME_SECONDS);
+
+        // Verify
+        assertThat(ring.isLooping()).isTrue();
+        assertThat(stoppedByTheCoin).as("A coin is on another channel").isFalse();
+        assertThat(stoppedByTheJump).as("The jump shares its channel").isTrue();
+        assertThat(playsWhileTheJumpSounds).as("Held while the jump sounds").isEqualTo(1);
+        assertThat(playsOf(ring)).as("Started again once, when the jump has ended").isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("A loop asked for over an effect on its channel waits, and one stopped while waiting never starts")
+    void aLoopWaitsForItsChannel() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(JUMP);
+        final AudioNode jump = sounding(lastPlayed());
+
+        // Execute
+        soundPlayer.loop(POWER_ON);
+        final List<AudioNode> overTheJump = played();
+        soundPlayer.stopLoop(POWER_ON);
+        jump.setStatus(Stopped);
+        soundPlayer.update(FRAME_SECONDS);
+
+        // Verify
+        assertThat(overTheJump).as("Not over the jump").containsExactly(jump);
+        assertThat(played()).as("Never started").containsExactly(jump);
+        verify(audioRenderer, never()).stopSource(any(AudioNode.class));
     }
 
     @Test
@@ -309,16 +467,14 @@ class SoundPlayerTest {
     @Test
     @DisplayName("A mute stops every effect still sounding, its loops included, and leaves the music playing")
     void aMuteStopsTheEffectsSounding() {
-        // Prepare - the music, the P ringing, a jump and a tail wag all sounding
+        // Prepare - the music, the P ringing, a coin and a brick all sounding
         soundPlayer.attach(application);
         soundPlayer.play(OVERWORLD);
         soundPlayer.loop(POWER_ON);
-        soundPlayer.play(JUMP);
-        soundPlayer.play(TAIL_WAG);
-        final ArgumentCaptor<AudioNode> played = ArgumentCaptor.forClass(AudioNode.class);
-        verify(audioRenderer, times(4)).playSource(played.capture());
-        played.getAllValues().forEach(node -> node.setStatus(Playing));
-        final List<AudioNode> nodes = played.getAllValues();
+        soundPlayer.play(COIN);
+        soundPlayer.play(BREAKING_BLOCK);
+        final List<AudioNode> nodes = played();
+        nodes.forEach(this::sounding);
 
         // Execute
         soundPlayer.muteEffectsExcept(CASINO_BEEP);
@@ -326,7 +482,7 @@ class SoundPlayerTest {
         // Verify
         final ArgumentCaptor<AudioNode> stopped = ArgumentCaptor.forClass(AudioNode.class);
         verify(audioRenderer, times(3)).stopSource(stopped.capture());
-        assertThat(stopped.getAllValues()).as("The loop, the jump and the tail wag")
+        assertThat(stopped.getAllValues()).as("The loop, the coin and the brick")
             .containsExactlyInAnyOrder(nodes.get(1), nodes.get(2), nodes.get(3));
         assertThat(soundPlayer.getCurrentTrack()).as("The music plays on").isEqualTo(OVERWORLD);
     }
@@ -452,6 +608,36 @@ class SoundPlayerTest {
         final ArgumentCaptor<AudioKey> keys = ArgumentCaptor.forClass(AudioKey.class);
         verify(assetManager, atLeastOnce()).loadAsset(keys.capture());
         return keys.getAllValues().stream().filter(AudioKey::isStream).toList();
+    }
+
+    private List<AudioNode> played() {
+        final ArgumentCaptor<AudioNode> nodes = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, atLeast(0)).playSource(nodes.capture());
+        return List.copyOf(nodes.getAllValues());
+    }
+
+    private AudioNode lastPlayed() {
+        return played().getLast();
+    }
+
+    private int playsOf(final AudioNode node) {
+        return (int) played().stream().filter(each -> each == node).count();
+    }
+
+    private boolean wasStopped(final AudioNode node) {
+        final ArgumentCaptor<AudioNode> nodes = ArgumentCaptor.forClass(AudioNode.class);
+        verify(audioRenderer, atLeast(0)).stopSource(nodes.capture());
+        return nodes.getAllValues().contains(node);
+    }
+
+    /** Marks a node as the renderer does once it starts playing it, which a mocked renderer never does. */
+    private AudioNode sounding(final AudioNode node) {
+        node.setStatus(Playing);
+        return node;
+    }
+
+    private AudioData dataOf(final SoundEffect effect) {
+        return soundPlayer.getEffects().get(effect).getAudioData();
     }
 
     /** A stereo effect as the decoder hands it over: silence, a square tone, then a long silent tail. */
