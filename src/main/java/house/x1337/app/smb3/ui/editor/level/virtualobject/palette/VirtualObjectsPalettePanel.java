@@ -3,10 +3,10 @@ package house.x1337.app.smb3.ui.editor.level.virtualobject.palette;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class VirtualObjectsPalettePanel extends JPanel implements ComponentsBuil
     private final JLabel hintLabel = new JLabel();
     private final Map<VirtualObjectType, VirtualObjectButton> buttonsByType = new EnumMap<>(VirtualObjectType.class);
     private final PaletteSelectionService paletteSelectionService;
-    private final LevelSceneEditorTabSystem tabSystem;
+    private final LevelSceneTabs levelSceneTabs;
 
     @PostConstruct
     void init() {
@@ -62,7 +62,7 @@ public class VirtualObjectsPalettePanel extends JPanel implements ComponentsBuil
         }
 
         // The active layer can change with the tab, and a new tab starts on Air.
-        tabSystem.addChangeListener(event -> syncEnabledState());
+        levelSceneTabs.addActiveTabListener(event -> syncEnabledState());
         syncEnabledState();
     }
 
@@ -72,7 +72,7 @@ public class VirtualObjectsPalettePanel extends JPanel implements ComponentsBuil
      * armed stamp is released whenever the NPC layer is not the active one.
      */
     public void syncEnabledState() {
-        final LevelSceneEditorTab tab = tabSystem.getActiveTab();
+        final LevelSceneEditorTab tab = levelSceneTabs.getActiveTab();
         final boolean layerExists = hasNpcLayer(tab);
         final boolean placeable = isNpcLayerActive(tab);
         for (final VirtualObjectButton button : buttonsByType.values()) {

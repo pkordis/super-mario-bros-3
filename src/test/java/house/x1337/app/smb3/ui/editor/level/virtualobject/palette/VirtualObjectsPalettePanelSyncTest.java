@@ -4,11 +4,11 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.ui.editor.component.ScrollableFlowPanel;
+import house.x1337.app.smb3.ui.editor.component.WrapLayout;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
-import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ScrollableFlowPanel;
-import house.x1337.app.smb3.ui.editor.level.tile.palette.core.WrapLayout;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,13 +31,13 @@ import static org.mockito.Mockito.when;
  * entries: placeable on the NPC layer, greyed but clickable on another layer, and disabled when there is no NPC layer.
  */
 class VirtualObjectsPalettePanelSyncTest {
-    private LevelSceneEditorTabSystem tabSystem;
+    private LevelSceneTabs tabSystem;
     private PaletteSelectionService paletteSelectionService;
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
 
     @BeforeEach
     void prepare() {
-        tabSystem = mock(LevelSceneEditorTabSystem.class);
+        tabSystem = mock(LevelSceneTabs.class);
         paletteSelectionService = new PaletteSelectionService();
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory

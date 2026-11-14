@@ -13,11 +13,11 @@ import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
-import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.PipePortalDetails;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.PipePortalPrompt;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
+import house.x1337.app.smb3.ui.editor.tab.core.BaseEditorTab;
 import house.x1337.app.smb3.util.factory.LevelSceneImportRouter;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
@@ -25,18 +25,20 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
@@ -48,6 +50,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 import static house.x1337.app.smb3.enumeration.TileType.RENDERING_STARTER;
 import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.util.factory.LevelSceneEditorTabFactory.forTab;
 import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.SOUTH;
@@ -60,7 +63,10 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 @Prototype
 @RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class LevelSceneEditorTab extends BaseLevelSceneTab {
+public class LevelSceneEditorTab extends BaseEditorTab {
+    private static final Comparator<Coordinates> TOP_TO_BOTTOM_LEFT_TO_RIGHT =
+        comparingInt(Coordinates::y).thenComparingInt(Coordinates::x);
+
     private List<LevelSceneLayer> layers;
     private LevelSceneLayer activeLayer;
     private int rows;
@@ -120,33 +126,147 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         rows = newRows;
         columns = newCols;
         initLayers();
-        resetData();
-        levelSceneEditorGrid.setPreferredSize(new Dimension(columns * TILE_SIZE, rows * TILE_SIZE));
-        levelSceneEditorGrid.revalidate();
-        levelSceneEditorGrid.repaint();
-        updateStatus(null);
+        resetContent();
+        resetIdentity();
+        refreshSize();
     }
 
+    /**
+     * Empties every layer and removes the markers, the card and the pipe portals. The scene keeps its id, title,
+     * description, music and size, so saving it afterwards overwrites the stored scene.
+     */
     public void clearScene() {
         for (final LevelSceneLayer layer : layers) {
             for (final Tile[] row : layer.getTiles()) {
                 Arrays.fill(row, NULL_TILE);
             }
         }
-        resetData();
+        resetContent();
         levelSceneEditorGrid.repaint();
         updateStatus(null);
     }
 
-    private void resetData() {
+    private void resetContent() {
         renderingStarter = null;
         spawnPoint = null;
         levelCompletionCard = null;
+        pipePortals = new ArrayList<>();
+    }
+
+    private void resetIdentity() {
         sceneTitle = null;
         sceneDescription = null;
         backgroundMusic = null;
         sceneId = null;
-        pipePortals = new ArrayList<>();
+    }
+
+    /**
+     * Lists the content a resize to {@code newColumns} by {@code newRows} would cut. The bottom-left corner stays
+     * where it is, so shrinking cuts rows at the top and columns at the right.
+     *
+     * @return the cut cells, in the current coordinates, top to bottom and left to right, grouped by layer label
+     *     (the card and the pipe portals count as the NPC layer's) and then by marker, one group each for the
+     *     spawn point and the rendering starter; empty when nothing would be lost
+     */
+    public Map<String, List<Coordinates>> findContentCutBy(final int newColumns, final int newRows) {
+        final int cutTopRows = rows - newRows;
+        final Map<String, List<Coordinates>> cut = new LinkedHashMap<>();
+        for (final LevelSceneLayer layer : layers) {
+            final Set<Coordinates> cells = new LinkedHashSet<>();
+            final Tile[][] tiles = layer.getTiles();
+            for (int row = 0; row < rows; row++) {
+                for (int column = 0; column < columns; column++) {
+                    final Tile tile = tiles[row][column];
+                    if (tile != null && tile != NULL_TILE && isCut(of(column, row), newColumns, cutTopRows)) {
+                        cells.add(of(column, row));
+                    }
+                }
+            }
+            if (layer.getType() == NON_PLAYABLE_CHARACTERS) {
+                if (levelCompletionCard != null && isCut(levelCompletionCard, newColumns, cutTopRows)) {
+                    cells.add(levelCompletionCard);
+                }
+                for (final PipePortal portal : pipePortals) {
+                    for (final Coordinates cell : portal.cells()) {
+                        if (isCut(cell, newColumns, cutTopRows)) {
+                            cells.add(cell);
+                        }
+                    }
+                }
+            }
+            if (!cells.isEmpty()) {
+                cut.put(layer.getType().getLabel(), cells.stream().sorted(TOP_TO_BOTTOM_LEFT_TO_RIGHT).toList());
+            }
+        }
+        if (spawnPoint != null && isCut(spawnPoint, newColumns, cutTopRows)) {
+            cut.put(SPAWN_POINT.getLabel(), List.of(spawnPoint));
+        }
+        if (renderingStarter != null && isCut(renderingStarter, newColumns, cutTopRows)) {
+            cut.put(RENDERING_STARTER.getLabel(), List.of(renderingStarter));
+        }
+        return cut;
+    }
+
+    private boolean isCut(final Coordinates cell, final int newColumns, final int cutTopRows) {
+        return cell.y() < cutTopRows || cell.x() >= newColumns;
+    }
+
+    /**
+     * Resizes the scene keeping its bottom-left corner where it is: rows are added or removed at the top and
+     * columns at the right. Everything placed moves down by the rows added (up by the rows removed), so it keeps
+     * its place relative to the ground. Whatever ends up outside the scene is dropped, which is why the size dialog
+     * first checks {@link #findContentCutBy(int, int)}.
+     */
+    public void resize(final int newColumns, final int newRows) {
+        final int rowShift = newRows - rows;
+        for (final LevelSceneLayer layer : layers) {
+            layer.setTiles(shiftedTiles(layer.getTiles(), newColumns, newRows, rowShift));
+        }
+        if (importGrid != null) {
+            importGrid = shiftedTiles(importGrid, newColumns, newRows, rowShift);
+        }
+        rows = newRows;
+        columns = newColumns;
+        renderingStarter = shiftedCell(renderingStarter, rowShift);
+        spawnPoint = shiftedCell(spawnPoint, rowShift);
+        levelCompletionCard = shiftedCell(levelCompletionCard, rowShift);
+        for (final PipePortal portal : pipePortals) {
+            portal.setCoordinates(of(portal.getCoordinates().x(), portal.getCoordinates().y() + rowShift));
+        }
+        pipePortals.removeIf(portal -> portal.cells().stream().anyMatch(this::isOutsideTheScene));
+        refreshSize();
+    }
+
+    private Tile[][] shiftedTiles(
+        final Tile[][] tiles,
+        final int newColumns,
+        final int newRows,
+        final int rowShift
+    ) {
+        final Tile[][] shifted = emptyTiles(newRows, newColumns);
+        for (int row = Math.max(0, rowShift); row < newRows; row++) {
+            final int sourceRow = row - rowShift;
+            if (sourceRow >= rows) {
+                break;
+            }
+            System.arraycopy(tiles[sourceRow], 0, shifted[row], 0, Math.min(columns, newColumns));
+        }
+        return shifted;
+    }
+
+    private Coordinates shiftedCell(final Coordinates cell, final int rowShift) {
+        if (cell == null) {
+            return null;
+        }
+        final Coordinates shifted = of(cell.x(), cell.y() + rowShift);
+        return isOutsideTheScene(shifted) ? null : shifted;
+    }
+
+    private void refreshSize() {
+        levelSceneEditorGrid.setPreferredSize(new Dimension(columns * TILE_SIZE, rows * TILE_SIZE));
+        levelSceneEditorGrid.revalidate();
+        levelSceneEditorGrid.repaint();
+        updateStatus(null);
     }
 
     public boolean hasRenderingStarter() {
@@ -448,26 +568,14 @@ public class LevelSceneEditorTab extends BaseLevelSceneTab {
         levelSceneEditorGrid.repaint();
     }
 
+    @Override
     public String resolveTitle() {
         final String title = getSceneTitle();
         return (title != null && !title.isBlank()) ? title : "Untitled Scene";
     }
 
-    public void updateTabTitle() {
-        final String resolvedTitle = resolveTitle();
-        final LevelSceneEditorTabSystem tabSystem = getEditorTabSystem();
-        final int index = tabSystem.indexOfComponent(this);
-        if (index >= 0) {
-            tabSystem.setTitleAt(index, resolvedTitle);
-            final Component tabComponent = tabSystem.getTabComponentAt(index);
-            if (tabComponent instanceof JPanel tabPanel) {
-                for (final Component child : tabPanel.getComponents()) {
-                    if (child instanceof JLabel label) {
-                        label.setText(resolvedTitle);
-                        break;
-                    }
-                }
-            }
-        }
+    @Override
+    public void onClose() {
+        getBean(LevelSceneTabs.class).forget(this);
     }
 }

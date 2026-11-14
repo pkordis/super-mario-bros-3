@@ -3,8 +3,8 @@ package house.x1337.app.smb3.ui.editor.level.browse;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.service.LevelSceneService;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import lombok.Getter;
 
 import javax.swing.JDialog;
@@ -33,7 +33,7 @@ public final class BrowseScenesWindow extends JDialog implements ComponentsBuild
 
     @Getter
     private final List<LevelScene> loadedLevelScenes = new ArrayList<>();
-    private final LevelSceneEditorTabSystem levelSceneEditorTabSystem;
+    private final LevelSceneTabs levelSceneTabs;
     private final LevelSceneService levelSceneService;
 
     private int currentOffset = 0;
@@ -41,15 +41,15 @@ public final class BrowseScenesWindow extends JDialog implements ComponentsBuild
     public static void launch() {
         getBean(
             BrowseScenesWindow.class,
-            getBean(LevelSceneEditorWindow.class)
+            getBean(GameEditorWindow.class)
         );
     }
 
-    public BrowseScenesWindow(final LevelSceneEditorWindow owner) {
+    public BrowseScenesWindow(final GameEditorWindow owner) {
         super(owner, "Browse Scenes", true);
 
         levelSceneService = getBean(LevelSceneService.class);
-        levelSceneEditorTabSystem = getBean(LevelSceneEditorTabSystem.class);
+        levelSceneTabs = getBean(LevelSceneTabs.class);
         previewPanel = getBean(LevelScenePreviewPanel.class);
         buttonsBar = getBean(ButtonsBar.class);
         buttonsBar.disable(DELETE, OPEN);
@@ -104,7 +104,7 @@ public final class BrowseScenesWindow extends JDialog implements ComponentsBuild
             return;
         }
         final LevelScene levelScene = loadedLevelScenes.get(viewRow);
-        levelSceneEditorTabSystem.open(levelScene);
+        levelSceneTabs.open(levelScene);
         dispose();
     }
 

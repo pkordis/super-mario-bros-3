@@ -3,7 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tile.review;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import jakarta.annotation.PostConstruct;
@@ -39,7 +39,7 @@ public final class NewTilesReviewWindow extends JDialog implements ComponentsBui
     private Tile selectedTile;
 
     public NewTilesReviewWindow(
-        final LevelSceneEditorWindow parent,
+        final GameEditorWindow parent,
         final LevelSceneEditorTab newTab,
         final List<Tile> tileList
     ) {

@@ -1,22 +1,22 @@
 package house.x1337.app.smb3.ui.editor.level.menu.file;
 
 import house.x1337.app.smb3.annotation.Singleton;
-import house.x1337.app.smb3.ui.editor.level.menu.LevelSceneEditorWindowMenuItem;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.menu.GameEditorWindowMenuItem;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
 import static java.awt.event.KeyEvent.VK_S;
-import static javax.swing.JOptionPane.WARNING_MESSAGE;
-import static javax.swing.JOptionPane.showMessageDialog;
 import static javax.swing.KeyStroke.getKeyStroke;
 
+/**
+ * Only in the File menu while a level scene tab is active (see {@link LevelSceneFileMenuContribution}).
+ */
 @Singleton
 @RequiredArgsConstructor
-public class SaveLevelSceneMenuItem extends LevelSceneEditorWindowMenuItem {
-    private final LevelSceneEditorTabSystem levelSceneEditorTabSystem;
+public class SaveLevelSceneMenuItem extends GameEditorWindowMenuItem {
+    private final LevelSceneTabs levelSceneTabs;
 
     @PostConstruct
     void init() {
@@ -26,20 +26,9 @@ public class SaveLevelSceneMenuItem extends LevelSceneEditorWindowMenuItem {
     }
 
     private void saveLevelScene() {
-        final LevelSceneEditorTab activeTab = levelSceneEditorTabSystem.getActiveTab();
-        if (activeTab == null) {
-            showMessageDialog(
-                getParentFrame(),
-                "No active scene tab to save.",
-                "Save Level Scene",
-                WARNING_MESSAGE
-            );
-            return;
-        }
-
         final SaveLevelSceneWindow saveWindow = SaveLevelSceneWindow.launch(
             getParentFrame(),
-            activeTab
+            levelSceneTabs.getActiveTab()
         );
         saveWindow.setVisible(true);
     }

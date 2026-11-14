@@ -5,7 +5,8 @@ import com.jme3.system.awt.AwtPanelsContext;
 import com.jme3.system.awt.PaintMode;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.ui.editor.level.tab.core.BaseLevelSceneTab;
+import house.x1337.app.smb3.ui.editor.level.tester.LevelSceneTesterSession;
+import house.x1337.app.smb3.ui.editor.tab.core.BaseEditorTab;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -19,8 +20,19 @@ import static java.awt.Color.BLACK;
 
 @Prototype
 @RequiredArgsConstructor
-public class GameEngineTesterTab extends BaseLevelSceneTab {
+public class GameEngineTesterTab extends BaseEditorTab {
     private final GameEngine gameEngine;
+    private final LevelSceneTesterSession session;
+
+    @Override
+    public String resolveTitle() {
+        return "Level Scene Tester";
+    }
+
+    @Override
+    public void onClose() {
+        session.stop();
+    }
 
     @PostConstruct
     void init() {

@@ -13,9 +13,9 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.service.PipePortalService;
-import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
 import house.x1337.app.smb3.ui.editor.level.tab.GameEngineTesterTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.pane.MiddlePane;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -33,7 +33,7 @@ public class LevelSceneTesterSession implements TestSessionEventListener, LevelS
     @Getter
     private final GameEngine gameEngine;
     private final DebuggerPanel debuggerPanel;
-    private final LevelSceneEditorTabSystem editorTabs;
+    private final LevelSceneTabs levelSceneTabs;
     private final MiddlePane middlePane;
 
     private LevelScene originalLevelScene;
@@ -49,7 +49,7 @@ public class LevelSceneTesterSession implements TestSessionEventListener, LevelS
 
         gameEngine.start();
 
-        editorTabs.addGameEngineTesterTab(getBean(GameEngineTesterTab.class, gameEngine), this);
+        levelSceneTabs.addTesterTab(getBean(GameEngineTesterTab.class, gameEngine, this));
     }
 
     public void stop() {
@@ -61,7 +61,7 @@ public class LevelSceneTesterSession implements TestSessionEventListener, LevelS
         gameEngine.stop();
 
         // Remove the test tab
-        editorTabs.removeGameEngineTesterTab();
+        levelSceneTabs.removeTesterTab();
 
         // Dispose of the debugger panel and its resources
         debuggerPanel.dispose();

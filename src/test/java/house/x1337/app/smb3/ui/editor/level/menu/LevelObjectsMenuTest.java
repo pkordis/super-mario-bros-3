@@ -14,7 +14,7 @@ import static org.mockito.Mockito.mock;
 
 class LevelObjectsMenuTest {
     @Test
-    @DisplayName("Pipe Portal Linkage is the last entry of Level Objects, after a separator")
+    @DisplayName("Pipe Portal Linkage is the last entry of Level > Objects, after a separator")
     void pipePortalLinkageIsLast() {
         // Prepare
         final CreateCustomLevelObjectMenuItem createCustom = new CreateCustomLevelObjectMenuItem();

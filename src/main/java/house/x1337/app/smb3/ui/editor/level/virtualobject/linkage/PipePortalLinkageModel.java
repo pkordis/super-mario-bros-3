@@ -7,7 +7,7 @@ import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.service.PipePortalService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -41,7 +41,7 @@ public class PipePortalLinkageModel implements PipePortalLinkRulesAware {
 
     private final PipePortalService pipePortalService;
     private final LevelSceneService levelSceneService;
-    private final LevelSceneEditorTabSystem tabSystem;
+    private final LevelSceneTabs levelSceneTabs;
 
     private final Map<String, PipePortal> portalsById = new HashMap<>();
     private final Map<String, String> sceneTitles = new HashMap<>();
@@ -212,7 +212,7 @@ public class PipePortalLinkageModel implements PipePortalLinkRulesAware {
      * new link state. Saving a tab is safe even without this, because the save keeps the stored links.
      */
     private void patchOpenTabs(final Collection<String> ids) {
-        for (final LevelSceneEditorTab tab : tabSystem.getEditorTabs()) {
+        for (final LevelSceneEditorTab tab : levelSceneTabs.getLevelSceneTabs()) {
             if (tab.getPipePortals() == null) {
                 continue;
             }

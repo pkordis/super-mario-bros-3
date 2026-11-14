@@ -6,10 +6,10 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -49,7 +49,7 @@ import static javax.swing.UIManager.getColor;
 public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
     private final EnemyStampService enemyStampService;
     private final PaletteSelectionService paletteSelectionService;
-    private final LevelSceneEditorTabSystem tabSystem;
+    private final LevelSceneTabs levelSceneTabs;
     private final EnemyTilesAssembler enemyTilesAssembler;
 
     private final JPanel enemiesPanel = buildTilesPanel();
@@ -76,7 +76,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         enemyStampService.findAll().forEach(this::addEnemy);
 
         // The active layer can change with the tab, and a new tab starts on Air.
-        tabSystem.addChangeListener(event -> syncEnabledState());
+        levelSceneTabs.addActiveTabListener(event -> syncEnabledState());
         syncEnabledState();
     }
 
@@ -115,7 +115,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
      * no NPC layer to switch to. An armed enemy is released whenever the NPC layer is not the active one.
      */
     public void syncEnabledState() {
-        final LevelSceneEditorTab tab = tabSystem.getActiveTab();
+        final LevelSceneEditorTab tab = levelSceneTabs.getActiveTab();
         final boolean layerExists = hasLayer(tab, OWNING_LAYER);
         final boolean placeable = isLayerActive(tab, OWNING_LAYER);
         for (final EnemyButton button : buttonsByEnemyId.values()) {
@@ -147,7 +147,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         }
         if (buttonsByEnemyId.isEmpty()) {
             return "<html>No enemies yet. Build one from<br>"
-                + "Level Objects &gt; Enemies &gt; Create from Image...</html>";
+                + "Level &gt; Objects &gt; Enemies &gt; Create from Image...</html>";
         }
         return " ";
     }

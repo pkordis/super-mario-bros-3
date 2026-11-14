@@ -8,10 +8,10 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.model.ui.tile.TileGroup;
 import house.x1337.app.smb3.service.TileService;
 import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -46,7 +46,7 @@ import static java.awt.BorderLayout.CENTER;
 @RequiredArgsConstructor
 public final class TilePalettePanel extends JPanel implements ComponentsBuilder {
     private final TileService tileService;
-    private final LevelSceneEditorTabSystem tabSystem;
+    private final LevelSceneTabs levelSceneTabs;
     private final PaletteSelectionService paletteSelectionService;
     private final JPanel tilesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(tilesPanel);
@@ -84,7 +84,7 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
         tileService.getClassifiedTiles().forEach(this::addTile);
 
         // The active layer moves with the tab, and a new tab starts on Air.
-        tabSystem.addChangeListener(event -> syncEnabledState());
+        levelSceneTabs.addActiveTabListener(event -> syncEnabledState());
         syncEnabledState();
     }
 
@@ -129,7 +129,7 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
     }
 
     private LevelSceneLayerType activeLayerType() {
-        final LevelSceneEditorTab tab = tabSystem.getActiveTab();
+        final LevelSceneEditorTab tab = levelSceneTabs.getActiveTab();
         if (tab == null) {
             return null;
         }

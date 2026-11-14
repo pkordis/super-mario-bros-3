@@ -7,7 +7,7 @@ import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.TileRecord;
 import house.x1337.app.smb3.service.LevelObjectService;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.component.CustomDataTablePanel;
+import house.x1337.app.smb3.ui.editor.component.CustomDataTablePanel;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 

@@ -4,7 +4,7 @@ import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.service.PipePortalService;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,7 @@ class PipePortalLinkageWindowTest {
     void prepare() {
         final PipePortalService pipePortalService = mock(PipePortalService.class);
         final LevelSceneService levelSceneService = mock(LevelSceneService.class);
-        final LevelSceneEditorTabSystem tabSystem = mock(LevelSceneEditorTabSystem.class);
+        final LevelSceneTabs levelSceneTabs = mock(LevelSceneTabs.class);
         when(pipePortalService.findAll()).thenReturn(List.of(
             portal("in-1", IN, null),
             portal("out-1", OUT, null),
@@ -46,8 +46,8 @@ class PipePortalLinkageWindowTest {
             portal("out-2", OUT, "in-2")
         ));
         when(levelSceneService.findTitlesById()).thenReturn(Map.of("scene-1", "World 1-1"));
-        when(tabSystem.getEditorTabs()).thenReturn(List.of());
-        model = new PipePortalLinkageModel(pipePortalService, levelSceneService, tabSystem);
+        when(levelSceneTabs.getLevelSceneTabs()).thenReturn(List.of());
+        model = new PipePortalLinkageModel(pipePortalService, levelSceneService, levelSceneTabs);
     }
 
     @Test

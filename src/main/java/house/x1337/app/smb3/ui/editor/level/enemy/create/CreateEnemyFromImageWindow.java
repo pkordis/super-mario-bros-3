@@ -5,7 +5,7 @@ import house.x1337.app.smb3.enumeration.enemy.EnemyType;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.component.CustomDataTablePanel;
+import house.x1337.app.smb3.ui.editor.component.CustomDataTablePanel;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import lombok.extern.slf4j.Slf4j;

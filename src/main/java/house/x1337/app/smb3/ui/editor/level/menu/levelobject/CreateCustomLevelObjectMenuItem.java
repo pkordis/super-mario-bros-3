@@ -2,13 +2,13 @@ package house.x1337.app.smb3.ui.editor.level.menu.levelobject;
 
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.ui.editor.level.levelobject.create.CreateCustomLevelObjectDialog;
-import house.x1337.app.smb3.ui.editor.level.menu.LevelSceneEditorWindowMenuItem;
+import house.x1337.app.smb3.ui.editor.menu.GameEditorWindowMenuItem;
 import jakarta.annotation.PostConstruct;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Singleton
-public class CreateCustomLevelObjectMenuItem extends LevelSceneEditorWindowMenuItem {
+public class CreateCustomLevelObjectMenuItem extends GameEditorWindowMenuItem {
     @PostConstruct
     void init() {
         setText("Create Custom...");

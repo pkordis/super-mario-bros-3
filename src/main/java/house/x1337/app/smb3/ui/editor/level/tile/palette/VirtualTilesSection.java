@@ -3,7 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tile.palette;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.tile.palette.core.WrapLayout;
+import house.x1337.app.smb3.ui.editor.component.WrapLayout;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 

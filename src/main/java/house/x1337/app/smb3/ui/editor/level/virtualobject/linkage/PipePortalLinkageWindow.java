@@ -5,7 +5,7 @@ import house.x1337.app.smb3.enumeration.PipePortalType;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.service.PipePortalService;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -83,7 +83,7 @@ public final class PipePortalLinkageWindow extends JDialog {
             PipePortalLinkageModel.class,
             getBean(PipePortalService.class),
             getBean(LevelSceneService.class),
-            getBean(LevelSceneEditorTabSystem.class)
+            getBean(LevelSceneTabs.class)
         );
         return getBean(PipePortalLinkageWindow.class, owner, model);
     }

@@ -20,7 +20,7 @@ public class LevelObjectsMenu extends JMenu {
 
     @PostConstruct
     void init() {
-        setText("Level Objects");
+        setText("Objects");
         add(buildEditInteractiveMenu());
         addSeparator();
         add(buildEnemiesMenu());

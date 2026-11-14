@@ -5,7 +5,7 @@ import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.service.PipePortalService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,21 +46,21 @@ class PipePortalLinkageModelTest {
 
     private PipePortalService pipePortalService;
     private LevelSceneService levelSceneService;
-    private LevelSceneEditorTabSystem tabSystem;
+    private LevelSceneTabs levelSceneTabs;
     private PipePortalLinkageModel model;
 
     @BeforeEach
     void prepare() {
         pipePortalService = mock(PipePortalService.class);
         levelSceneService = mock(LevelSceneService.class);
-        tabSystem = mock(LevelSceneEditorTabSystem.class);
+        levelSceneTabs = mock(LevelSceneTabs.class);
         when(pipePortalService.findAll())
             .thenAnswer(invocation -> stored.stream().map(PipePortalLinkageModelTest::copy).toList());
         when(levelSceneService.findTitlesById()).thenAnswer(invocation -> new HashMap<>(titles));
-        when(tabSystem.getEditorTabs()).thenReturn(List.of());
+        when(levelSceneTabs.getLevelSceneTabs()).thenReturn(List.of());
         titles.put(WORLD_1, "World 1-1");
         titles.put(BONUS_ROOM, "Bonus room");
-        model = new PipePortalLinkageModel(pipePortalService, levelSceneService, tabSystem);
+        model = new PipePortalLinkageModel(pipePortalService, levelSceneService, levelSceneTabs);
     }
 
     // -------------------------------------------------------------------------
@@ -446,7 +446,7 @@ class PipePortalLinkageModelTest {
         when(first.getPipePortals()).thenReturn(firstTab);
         final LevelSceneEditorTab second = mock(LevelSceneEditorTab.class);
         when(second.getPipePortals()).thenReturn(secondTab);
-        when(tabSystem.getEditorTabs()).thenReturn(List.of(first, second));
+        when(levelSceneTabs.getLevelSceneTabs()).thenReturn(List.of(first, second));
     }
 
     /** Makes the mocked service's link change the stored portals, as the real one changes the database. */

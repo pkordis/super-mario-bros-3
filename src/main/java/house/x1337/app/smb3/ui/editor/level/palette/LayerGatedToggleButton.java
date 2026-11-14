@@ -1,8 +1,8 @@
 package house.x1337.app.smb3.ui.editor.level.palette;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
-import house.x1337.app.smb3.ui.editor.level.menu.scene.level.ActiveLayerMenu;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
+import house.x1337.app.smb3.ui.editor.level.menu.scene.ActiveLayerMenu;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import lombok.AccessLevel;
 import lombok.Getter;
 

@@ -9,8 +9,8 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.model.event.LevelSceneResetRequested;
 import house.x1337.app.smb3.model.event.PipePortalTransitRequested;
 import house.x1337.app.smb3.model.event.PlayerDied;
-import house.x1337.app.smb3.ui.editor.level.pane.MiddlePane;
-import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTabSystem;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.pane.MiddlePane;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -271,7 +271,7 @@ class LevelSceneTesterSessionRestartTest {
         return new LevelSceneTesterSession(
             gameEngine,
             mock(DebuggerPanel.class),
-            mock(LevelSceneEditorTabSystem.class),
+            mock(LevelSceneTabs.class),
             mock(MiddlePane.class)
         );
     }

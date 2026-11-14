@@ -1,6 +1,8 @@
 package house.x1337.app.smb3.ui.editor.level.tile.palette.core;
 
 import house.x1337.app.smb3.enumeration.TileType;
+import house.x1337.app.smb3.ui.editor.component.ScrollableFlowPanel;
+import house.x1337.app.smb3.ui.editor.component.WrapLayout;
 
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
