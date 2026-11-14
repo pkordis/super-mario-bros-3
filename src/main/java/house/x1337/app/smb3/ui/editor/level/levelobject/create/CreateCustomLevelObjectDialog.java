@@ -2,7 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.levelobject.create;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.file.importer.PngFileImporter;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
 import jakarta.annotation.PostConstruct;
 
 import javax.swing.BorderFactory;
@@ -43,7 +43,7 @@ public final class CreateCustomLevelObjectDialog extends JDialog {
     private final JButton importFromPngButton = new JButton("Import Tile from PNG");
     private final JButton selectExistingButton = new JButton("Select existing Tile");
 
-    public CreateCustomLevelObjectDialog(final LevelSceneEditorWindow parent) {
+    public CreateCustomLevelObjectDialog(final GameEditorWindow parent) {
         super(parent);
         this.parentFrame = parent;
     }

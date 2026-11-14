@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -44,7 +45,7 @@ class LevelSceneEditorGridPipePortalLabelTest {
     /** The widest a label may be: a one-tile-wide portal, less its 4 px border on both sides. */
     private static final int ONE_TILE_INNER_WIDTH = TILE_SIZE - 8;
 
-    private final LevelSceneEditorFontCapabilities fontCapabilities = new LevelSceneEditorFontCapabilities() {};
+    private final FontCapabilities fontCapabilities = new FontCapabilities() {};
 
     @Test
     @DisplayName("The baseline centres the text horizontally and vertically in a tall area")

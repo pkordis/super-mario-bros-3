@@ -11,8 +11,8 @@ How generic game configuration is stored, edited and applied (SMB3-50), and the 
 | The settings, one field each, initial value = hardcoded default | `model/settings/GameSettings` |
 | Settings in effect, load at editor start, save | `service/GameSettingsService` (`@Singleton`) |
 | Storage, one record for all settings | `repository/GameSettingsRepository` + `mongo/MongoGameSettingsRepository`, `nitrite/NitriteGameSettingsRepository` |
-| Editor UI | File > Settings... = `ui/editor/level/menu/file/SettingsMenuItem` → modal `SettingsWindow` |
-| Startup load | `LevelSceneEditorRunner.run()`, right after `ConfigurationService.loadPhysics()` |
+| Editor UI | File > Settings... = `ui/editor/menu/file/SettingsMenuItem` → modal `SettingsWindow` |
+| Startup load | `GameEditorRunner.run()`, right after `ConfigurationService.loadPhysics()` |
 
 - **Record:** collection `gameData`, one record `settings`, one field per setting named after it; enums stored by
   constant name, e.g. `{ _id: "settings", timerPace: "STANDARD" }`.

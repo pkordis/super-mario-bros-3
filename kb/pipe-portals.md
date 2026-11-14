@@ -65,7 +65,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 
 ## Editor
 
-- **Palette:** the third `LeftPane` tab, `VirtualObjectsPalettePanel`, holds one `VirtualObjectButton` per
+- **Palette:** the third `LevelScenePalettesPane` tab, `VirtualObjectsPalettePanel`, holds one `VirtualObjectButton` per
   `VirtualObjectType`. The stamp is the real footprint at `TILE_SIZE` (64 px) per cell, transparent, with a 4 px
   border in the type's colour. Buttons are `LayerGatedToggleButton`s owned by the NPC layer, so arming one switches to
   that layer, and leaving it releases the stamp. `ActiveLayerMenu.activate` re-syncs this panel too.
@@ -89,7 +89,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
 
 ## Editor: Pipe Portal Linkage (SMB3-38)
 
-- **Level Objects → Pipe Portal Linkage** (`PipePortalLinkageMenuItem`, last entry) opens
+- **Level → Objects → Pipe Portal Linkage** (`PipePortalLinkageMenuItem`, last entry) opens
   `ui.editor.level.virtualobject.linkage.PipePortalLinkageWindow`. The window only renders
   `PipePortalLinkageModel`, which holds all the behaviour and is tested without Swing.
 - **Two reads per open or refresh:** `reload()` calls `PipePortalService.findAll()` and
@@ -104,7 +104,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   replaces Exit. A portal already in a slot is ignored. A reload empties a slot whose portal is gone or was linked
   meanwhile. **Link** is enabled when both slots hold a pair `isLinkable` allows.
 - **Open tabs follow:** after a link or unlink, every open editor tab's copy of the affected portals takes the stored
-  `linksToId` (`LevelSceneEditorTabSystem.getEditorTabs()`, which walks the tab components, so imported and unsaved
+  `linksToId` (`LevelSceneTabs.getLevelSceneTabs()`, which walks the tab components, so imported and unsaved
   tabs are covered too). Saving would be safe anyway, because `replaceAll` keeps the stored links.
 - **Refusals:** an `IllegalStateException` from the service (e.g. a portal linked meanwhile) is shown as a warning and
   the window re-reads everything.

@@ -5,6 +5,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -39,7 +40,7 @@ import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 @Setter
 @Prototype
 @RequiredArgsConstructor
-public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFontCapabilities {
+public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
     static final Font PIPE_PORTAL_LABEL_FONT = new Font(Font.MONOSPACED, Font.BOLD, 16);
 
     private final Map<Integer, BufferedImage> tileImageCache = new HashMap<>();
@@ -113,6 +114,27 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         tileImageCache.remove(tileId);
     }
 
+    /**
+     * The scene cells a paint must cover to fill {@code clip}, the whole scene when there is no clip. The range never
+     * leaves the scene, even where the panel is stretched past it.
+     */
+    CellRange visibleCells(final Rectangle clip) {
+        final int lastColumn = tab.getColumns() - 1;
+        final int lastRow = tab.getRows() - 1;
+        if (clip == null) {
+            return new CellRange(0, lastColumn, 0, lastRow);
+        }
+        return new CellRange(
+            Math.clamp(clip.x / TILE_SIZE, 0, lastColumn),
+            Math.clamp((clip.x + clip.width - 1) / TILE_SIZE, 0, lastColumn),
+            Math.clamp(clip.y / TILE_SIZE, 0, lastRow),
+            Math.clamp((clip.y + clip.height - 1) / TILE_SIZE, 0, lastRow)
+        );
+    }
+
+    record CellRange(int firstColumn, int lastColumn, int firstRow, int lastRow) {
+    }
+
     @Override
     protected void paintComponent(final Graphics g) {
         super.paintComponent(g);
@@ -120,14 +142,16 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         graphics.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
         graphics.setRenderingHint(KEY_INTERPOLATION, VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-        // Paint the environment layers bottom-to-top, skipping any that are hidden.
+        // Paint the environment layers bottom-to-top, skipping any that are hidden. Only the cells in the clip are
+        // drawn, so a large scene costs no more to repaint than the part on screen.
+        final CellRange visible = visibleCells(graphics.getClipBounds());
         for (final LevelSceneLayer layer : tab.getLayers()) {
             if (!layer.isVisible()) {
                 continue;
             }
             final Tile[][] tiles = layer.getTiles();
-            for (int row = 0; row < tab.getRows(); row++) {
-                for (int col = 0; col < tab.getColumns(); col++) {
+            for (int row = visible.firstRow(); row <= visible.lastRow(); row++) {
+                for (int col = visible.firstColumn(); col <= visible.lastColumn(); col++) {
                     drawTile(graphics, tiles[row][col], col * TILE_SIZE, row * TILE_SIZE);
                 }
             }
@@ -136,11 +160,15 @@ public class LevelSceneEditorGrid extends JPanel implements LevelSceneEditorFont
         // Grid lines
         graphics.setColor(new Color(0, 0, 0, 40));
         graphics.setStroke(new BasicStroke(1f));
-        for (int col = 0; col <= tab.getColumns(); col++) {
-            graphics.drawLine(col * TILE_SIZE, 0, col * TILE_SIZE, tab.getRows() * TILE_SIZE);
+        final int top = visible.firstRow() * TILE_SIZE;
+        final int bottom = (visible.lastRow() + 1) * TILE_SIZE;
+        final int left = visible.firstColumn() * TILE_SIZE;
+        final int right = (visible.lastColumn() + 1) * TILE_SIZE;
+        for (int col = visible.firstColumn(); col <= visible.lastColumn() + 1; col++) {
+            graphics.drawLine(col * TILE_SIZE, top, col * TILE_SIZE, bottom);
         }
-        for (int row = 0; row <= tab.getRows(); row++) {
-            graphics.drawLine(0, row * TILE_SIZE, tab.getColumns() * TILE_SIZE, row * TILE_SIZE);
+        for (int row = visible.firstRow(); row <= visible.lastRow() + 1; row++) {
+            graphics.drawLine(left, row * TILE_SIZE, right, row * TILE_SIZE);
         }
 
         // Rendering-starter indicator — thick blue border on the marked cell

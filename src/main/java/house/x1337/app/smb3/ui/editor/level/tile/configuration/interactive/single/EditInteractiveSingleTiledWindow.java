@@ -6,7 +6,7 @@ import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.LevelObjectService;
 import house.x1337.app.smb3.service.TileService;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
 import jakarta.annotation.PostConstruct;
 
 import javax.swing.DefaultListModel;
@@ -36,7 +36,7 @@ public final class EditInteractiveSingleTiledWindow extends JDialog implements C
     private final JLabel headerLabel = new JLabel();
     private Tile selectedTile;
 
-    public EditInteractiveSingleTiledWindow(final LevelSceneEditorWindow parent) {
+    public EditInteractiveSingleTiledWindow(final GameEditorWindow parent) {
         super(parent);
         final List<Tile> allInteractiveSingle = getBean(TileService.class).getInteractiveSingleTiles();
         final Set<Integer> unclassifiedIds = levelObjectService.getUnclassifiedIds(

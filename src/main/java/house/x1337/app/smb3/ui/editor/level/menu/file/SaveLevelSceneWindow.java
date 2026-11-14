@@ -4,8 +4,9 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.service.LevelSceneService;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
+import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
 import house.x1337.app.smb3.util.factory.LevelSceneEditorTabFactory;
 
 import javax.swing.JButton;
@@ -75,7 +76,7 @@ public final class SaveLevelSceneWindow extends JDialog {
     }
 
     public static SaveLevelSceneWindow launch(
-        final LevelSceneEditorWindow owner,
+        final GameEditorWindow owner,
         final LevelSceneEditorTab activeTab
     ) {
         return getBean(
@@ -210,9 +211,9 @@ public final class SaveLevelSceneWindow extends JDialog {
 
         levelSceneService.save(levelScene);
 
-        // After save, update the tab's persisted ID and refresh the tab title
+        // The tab now holds the stored scene: opening that scene again focuses it, and it shows the new title.
         tab.setSceneId(levelScene.getId());
-        tab.updateTabTitle();
+        getBean(LevelSceneTabs.class).track(tab);
 
         dispose();
     }

@@ -2,8 +2,8 @@ package house.x1337.app.smb3.ui.editor.level.virtualobject.palette;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
-import house.x1337.app.smb3.ui.editor.level.menu.scene.level.ActiveLayerMenu;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
+import house.x1337.app.smb3.ui.editor.level.menu.scene.ActiveLayerMenu;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

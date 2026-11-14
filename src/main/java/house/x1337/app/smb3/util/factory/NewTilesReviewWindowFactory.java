@@ -1,7 +1,7 @@
 package house.x1337.app.smb3.util.factory;
 
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.ui.editor.level.LevelSceneEditorWindow;
+import house.x1337.app.smb3.ui.editor.GameEditorWindow;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.review.NewTilesReviewWindow;
 
@@ -16,7 +16,7 @@ public interface NewTilesReviewWindowFactory {
     ) {
         return getBean(
             NewTilesReviewWindow.class,
-            getBean(LevelSceneEditorWindow.class),
+            getBean(GameEditorWindow.class),
             newTab,
             needReview
         );

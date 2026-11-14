@@ -237,7 +237,7 @@ enemy into `findSuitableAnimator` and throw), the two baked-texture defaults wer
 `AnimatableLevelObject` into **`BakedLayerPainter`**; `AnimatableLevelObject` now just extends it.
 
 **Editor authoring pipeline (added 2026-09):** an enemy is no longer a classified single tile. It is
-authored through `Level Objects > Enemies > Create from Image...`:
+authored through `Level > Objects > Enemies > Create from Image...`:
 
 ```
 PNG (validated as whole 16x16 tiles)  ->  CreateEnemyFromImageWindow
@@ -260,7 +260,7 @@ PNG (validated as whole 16x16 tiles)  ->  CreateEnemyFromImageWindow
 - Nothing is written until Save, so an abandoned import leaves no tiles behind. Saved parts are pushed
   into `TilePalettePanel` immediately (`addTile` is idempotent), so they can be painted at once.
 - **Custom data (SMB3-12):** the dialog has a *Custom Data* key/value section beside the tile grid, the
-  same `CustomDataTablePanel` (`ui/editor/level/component`) the *Create Custom Level Object* dialog uses
+  same `CustomDataTablePanel` (`ui/editor/component`) the *Create Custom Level Object* dialog uses
   for `LevelObjectRecord.data`. It commits a cell still being edited before every read, trims keys and
   values, skips blank keys, and both dialogs refuse to save while a key appears twice. The result is
   `EnemyStamp.data` / `EnemyRecord.data` (`Map<String, Object>`, string values). Documents saved before

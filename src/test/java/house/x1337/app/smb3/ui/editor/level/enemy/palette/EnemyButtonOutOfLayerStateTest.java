@@ -3,8 +3,8 @@ package house.x1337.app.smb3.ui.editor.level.enemy.palette;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.ui.editor.level.menu.scene.level.ActiveLayerMenu;
-import house.x1337.app.smb3.ui.service.PaletteSelectionService;
+import house.x1337.app.smb3.ui.editor.level.menu.scene.ActiveLayerMenu;
+import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
  *
  * <p>The state exists instead of {@code setEnabled(false)} for one reason: a disabled Swing button gets no
  * mouse events, and clicking one of these has to keep working — it is how the user switches to the NPCs
- * layer without a detour through Level Scene &gt; Active Layer.
+ * layer without a detour through Level &gt; Scene &gt; Active Layer.
  */
 class EnemyButtonOutOfLayerStateTest {
     private PaletteSelectionService paletteSelectionService;
