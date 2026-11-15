@@ -28,6 +28,7 @@ import java.util.List;
 import static com.jme3.audio.AudioSource.Status.Playing;
 import static com.jme3.audio.AudioSource.Status.Stopped;
 import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
+import static house.x1337.app.smb3.enumeration.MusicTrack.CURSED_KINGS;
 import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.OVERWORLD;
 import static house.x1337.app.smb3.enumeration.MusicTrack.WORLD_1_GRASS_LAND;
@@ -602,6 +603,59 @@ class SoundPlayerTest {
 
         // Verify
         assertThat(completions).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Asked for the faster version, a track with one streams it from the faster folder")
+    void aFasterTrackStreamsItsFasterFile() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(OVERWORLD, true);
+
+        // Verify
+        assertThat(streamedKeys()).extracting(AudioKey::getName).containsExactly("sound/music/faster/overworld.ogg");
+        assertThat(soundPlayer.getCurrentTrack()).as("Still reported as the track itself").isEqualTo(OVERWORLD);
+        assertThat(soundPlayer.isCurrentTrackFaster()).isTrue();
+        assertThat(lastPlayed().isLooping()).isTrue();
+    }
+
+    @Test
+    @DisplayName("A track without a faster version plays its normal file even when the faster one is asked for")
+    void aTrackWithoutAFasterVersionPlaysNormally() {
+        // Prepare
+        soundPlayer.attach(application);
+
+        // Execute
+        soundPlayer.play(CURSED_KINGS, true);
+
+        // Verify
+        assertThat(streamedKeys()).extracting(AudioKey::getName).containsExactly(CURSED_KINGS.getPath());
+        assertThat(soundPlayer.isCurrentTrackFaster()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Not asked for the faster version, a track plays its normal file, and stopping clears the version")
+    void theNormalVersionByDefault() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(OVERWORLD, true);
+
+        // Execute
+        soundPlayer.play(OVERWORLD);
+        final boolean fasterAfterANormalPlay = soundPlayer.isCurrentTrackFaster();
+        soundPlayer.play(OVERWORLD, true);
+        soundPlayer.stopMusic();
+
+        // Verify
+        assertThat(streamedKeys()).extracting(AudioKey::getName).containsExactly(
+            OVERWORLD.getFasterPath(),
+            OVERWORLD.getPath(),
+            OVERWORLD.getFasterPath()
+        );
+        assertThat(fasterAfterANormalPlay).isFalse();
+        assertThat(soundPlayer.isCurrentTrackFaster()).isFalse();
     }
 
     private List<AudioKey> streamedKeys() {

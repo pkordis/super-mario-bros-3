@@ -34,6 +34,8 @@ import static house.x1337.app.smb3.game.engine.LevelRunStart.FRESH;
 import static house.x1337.app.smb3.game.engine.LevelRunStart.carryOver;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -65,7 +67,7 @@ class LevelMusicTest {
         levelMusic.start(scene(OVERWORLD), FRESH);
 
         // Verify
-        verify(soundPlayer).play(OVERWORLD);
+        verify(soundPlayer).play(OVERWORLD, false);
     }
 
     @Test
@@ -77,6 +79,7 @@ class LevelMusicTest {
         // Verify
         verify(soundPlayer).stopMusic();
         verify(soundPlayer, never()).play(any(MusicTrack.class));
+        verify(soundPlayer, never()).play(any(MusicTrack.class), anyBoolean());
     }
 
     @Test
@@ -89,7 +92,7 @@ class LevelMusicTest {
         levelMusic.start(scene(OVERWORLD), FRESH);
 
         // Verify
-        verify(soundPlayer).play(OVERWORLD);
+        verify(soundPlayer).play(OVERWORLD, false);
     }
 
     @Test
@@ -103,6 +106,7 @@ class LevelMusicTest {
 
         // Verify
         verify(soundPlayer, never()).play(any(MusicTrack.class));
+        verify(soundPlayer, never()).play(any(MusicTrack.class), anyBoolean());
         verify(soundPlayer, never()).stopMusic();
     }
 
@@ -116,7 +120,7 @@ class LevelMusicTest {
         levelMusic.start(scene(UNDERGROUND), carryOver(NORMAL));
 
         // Verify
-        verify(soundPlayer).play(UNDERGROUND);
+        verify(soundPlayer).play(UNDERGROUND, false);
     }
 
     @Test
@@ -142,8 +146,8 @@ class LevelMusicTest {
         levelMusic.start(scene(OVERWORLD), FRESH);
 
         // Verify
-        verify(soundPlayer).play(P_SWITCH);
-        verify(soundPlayer, never()).play(OVERWORLD);
+        verify(soundPlayer).play(P_SWITCH, false);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
     }
 
     @Test
@@ -158,6 +162,7 @@ class LevelMusicTest {
 
         // Verify
         verify(soundPlayer, never()).play(any(MusicTrack.class));
+        verify(soundPlayer, never()).play(any(MusicTrack.class), anyBoolean());
         verify(soundPlayer, never()).stopMusic();
     }
 
@@ -173,7 +178,7 @@ class LevelMusicTest {
         gameEventBus.publish(new PowerSwitchExpired());
 
         // Verify
-        verify(soundPlayer).play(UNDERGROUND);
+        verify(soundPlayer).play(UNDERGROUND, false);
     }
 
     @Test
@@ -189,9 +194,9 @@ class LevelMusicTest {
 
         // Verify
         final InOrder order = inOrder(soundPlayer);
-        order.verify(soundPlayer).play(P_SWITCH);
-        order.verify(soundPlayer).play(OVERWORLD);
-        verify(soundPlayer, times(1)).play(P_SWITCH);
+        order.verify(soundPlayer).play(P_SWITCH, false);
+        order.verify(soundPlayer).play(OVERWORLD, false);
+        verify(soundPlayer, times(1)).play(P_SWITCH, false);
     }
 
     @Test
@@ -225,7 +230,7 @@ class LevelMusicTest {
     }
 
     @Test
-    @DisplayName("The hurry-up jingle plays once, then the scene's track starts again when the jingle has ended")
+    @DisplayName("The hurry-up jingle plays once, then the scene's track starts again, faster, once the jingle ends")
     void theHurryUpJingleResumesTheMusic() {
         // Prepare
         levelMusic.start(scene(OVERWORLD), FRESH);
@@ -234,7 +239,7 @@ class LevelMusicTest {
         // Execute
         gameEventBus.publish(new PlayerTimerHurryUp());
         final boolean playingBeforeTheEnd = levelMusic.isJinglePlaying();
-        verify(soundPlayer, never()).play(OVERWORLD);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
         gameEventBus.publish(new SoundPlayComplete(HURRY_UP));
 
         // Verify
@@ -242,7 +247,7 @@ class LevelMusicTest {
         assertThat(levelMusic.isJinglePlaying()).isFalse();
         final InOrder order = inOrder(soundPlayer);
         order.verify(soundPlayer).play(HURRY_UP);
-        order.verify(soundPlayer).play(OVERWORLD);
+        order.verify(soundPlayer).play(OVERWORLD, true);
         verify(soundPlayer, times(1)).play(HURRY_UP);
     }
 
@@ -260,6 +265,7 @@ class LevelMusicTest {
         // Verify
         verify(soundPlayer).stopMusic();
         verify(soundPlayer, never()).play(any(MusicTrack.class));
+        verify(soundPlayer, never()).play(any(MusicTrack.class), anyBoolean());
     }
 
     @Test
@@ -292,8 +298,8 @@ class LevelMusicTest {
         gameEventBus.publish(new SoundPlayComplete(HURRY_UP));
 
         // Verify
-        verify(soundPlayer).play(P_SWITCH);
-        verify(soundPlayer, never()).play(OVERWORLD);
+        verify(soundPlayer).play(P_SWITCH, true);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
     }
 
     @ParameterizedTest
@@ -310,7 +316,7 @@ class LevelMusicTest {
 
         // Verify
         verify(soundPlayer).play(PLAYER_DOWN);
-        verify(soundPlayer, never()).play(OVERWORLD);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
         verify(soundPlayer, never()).stopMusic();
     }
 
@@ -332,8 +338,8 @@ class LevelMusicTest {
         assertThat(playingBeforeTheEnd).isTrue();
         assertThat(levelMusic.isJinglePlaying()).isFalse();
         verify(soundPlayer).play(COURSE_CLEAR);
-        verify(soundPlayer, never()).play(OVERWORLD);
-        verify(soundPlayer, never()).play(P_SWITCH);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
+        verify(soundPlayer, never()).play(eq(P_SWITCH), anyBoolean());
     }
 
     @Test
@@ -354,7 +360,7 @@ class LevelMusicTest {
         assertThat(levelMusic.isJinglePlaying()).isFalse();
         verify(soundPlayer).play(VICTORY_FANFARE);
         verify(soundPlayer, never()).play(COURSE_CLEAR);
-        verify(soundPlayer, never()).play(OVERWORLD);
+        verify(soundPlayer, never()).play(eq(OVERWORLD), anyBoolean());
     }
 
     @Test
@@ -370,7 +376,119 @@ class LevelMusicTest {
 
         // Verify
         assertThat(levelMusic.isJinglePlaying()).isFalse();
-        verify(soundPlayer).play(ATHLETIC);
+        verify(soundPlayer).play(ATHLETIC, false);
+    }
+
+    @Test
+    @DisplayName("The level is not hurried until the hurry-up jingle has ended")
+    void notHurriedDuringTheJingle() {
+        // Prepare
+        levelMusic.start(scene(OVERWORLD), FRESH);
+
+        // Execute
+        gameEventBus.publish(new PlayerTimerHurryUp());
+        final boolean hurriedDuringTheJingle = levelMusic.isHurried();
+        gameEventBus.publish(new SoundPlayComplete(HURRY_UP));
+
+        // Verify
+        assertThat(hurriedDuringTheJingle).isFalse();
+        assertThat(levelMusic.isHurried()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Once hurried, the P-switch music and the scene's track after it both play faster")
+    void thePowerSwitchStaysFastWhileHurried() {
+        // Prepare
+        hurry(OVERWORLD);
+
+        // Execute
+        gameEventBus.publish(new PowerSwitchActivated());
+        gameEventBus.publish(new PowerSwitchExpired());
+
+        // Verify
+        final InOrder order = inOrder(soundPlayer);
+        order.verify(soundPlayer).play(P_SWITCH, true);
+        order.verify(soundPlayer).play(OVERWORLD, true);
+    }
+
+    @Test
+    @DisplayName("A pipe taken while hurried plays the next scene's track faster")
+    void aCarryOverStaysHurried() {
+        // Prepare
+        hurry(OVERWORLD);
+        when(soundPlayer.getCurrentTrack()).thenReturn(OVERWORLD);
+
+        // Execute
+        levelMusic.start(scene(UNDERGROUND), carryOver(NORMAL));
+
+        // Verify
+        assertThat(levelMusic.isHurried()).isTrue();
+        verify(soundPlayer).play(UNDERGROUND, true);
+    }
+
+    @Test
+    @DisplayName("A pipe taken during the hurry-up jingle cuts it and hurries the next scene's track")
+    void aCarryOverThatCutsTheJingleHurries() {
+        // Prepare
+        levelMusic.start(scene(OVERWORLD), FRESH);
+        gameEventBus.publish(new PlayerTimerHurryUp());
+        when(soundPlayer.getCurrentTrack()).thenReturn(HURRY_UP);
+        clearInvocations(soundPlayer);
+
+        // Execute
+        levelMusic.start(scene(UNDERGROUND), carryOver(NORMAL));
+
+        // Verify
+        assertThat(levelMusic.isJinglePlaying()).isFalse();
+        assertThat(levelMusic.isHurried()).isTrue();
+        verify(soundPlayer).play(UNDERGROUND, true);
+    }
+
+    @Test
+    @DisplayName("A fresh build ends the hurry, so the next attempt plays at normal speed")
+    void aFreshBuildEndsTheHurry() {
+        // Prepare
+        hurry(OVERWORLD);
+
+        // Execute
+        levelMusic.start(scene(OVERWORLD), FRESH);
+
+        // Verify
+        assertThat(levelMusic.isHurried()).isFalse();
+        verify(soundPlayer).play(OVERWORLD, false);
+    }
+
+    @Test
+    @DisplayName("A death ends the hurry")
+    void aDeathEndsTheHurry() {
+        // Prepare
+        hurry(OVERWORLD);
+
+        // Execute
+        gameEventBus.publish(new PlayerDeathStarted(THROE));
+
+        // Verify
+        assertThat(levelMusic.isHurried()).isFalse();
+    }
+
+    @Test
+    @DisplayName("The end-level card ends the hurry")
+    void theCardEndsTheHurry() {
+        // Prepare
+        hurry(OVERWORLD);
+
+        // Execute
+        gameEventBus.publish(new LevelCardCollected(MUSHROOM, false));
+
+        // Verify
+        assertThat(levelMusic.isHurried()).isFalse();
+    }
+
+    private void hurry(final MusicTrack track) {
+        levelMusic.start(scene(track), FRESH);
+        gameEventBus.publish(new PlayerTimerHurryUp());
+        gameEventBus.publish(new SoundPlayComplete(HURRY_UP));
+        clearInvocations(soundPlayer);
     }
 
     private LevelScene scene(final MusicTrack track) {

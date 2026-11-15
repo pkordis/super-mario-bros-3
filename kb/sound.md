@@ -9,7 +9,11 @@ children, closed as won't do). First wired in SMB3-67.
 - `src/main/resources/sound/music/` (32 files): the songs plus the short jingles (hurry up, course clear,
   player down, ...). `MusicTrack` has one constant per file. Each constant also has a label, whether it loops, and a
   `GameContext`: the eight world map songs are `WORLD_*` constants (`WORLD_1_GRASS_LAND`, ...) in `MAP`; the file names
-  stay `grass_land.ogg` and so on. Every other track is in `LEVEL_SCENE`.
+  stay `grass_land.ogg` and so on. `WARP_ZONE` is in `MAP` too since SMB3-77: it is only heard on the warp zone map,
+  so the editor no longer offers it as a scene's music. Every other track is in `LEVEL_SCENE`.
+- `src/main/resources/sound/music/faster/` (12 files, SMB3-77): the faster versions played once a level is hurried,
+  each named like its original. `MusicTrack.isFaster()` marks the tracks that have one and `getFasterPath()` points
+  into this folder. See "Faster music after Hurry Up" below.
 - `src/main/resources/sound/effects/` (30 files). `SoundEffect` has one constant per file. `power_on.ogg` and
   `tail_wag.ogg` were added by the developer after SMB3-67, outside the numbered download. `twirl.ogg` is the world
   map's sound (`MAP`); the raccoon's tail plays `tail_wag.ogg`.
@@ -330,7 +334,8 @@ only: it is not ticked, and is not a `MotionManager`.
 - **Jingles** stop the music and play once. Each ends on its own `SoundPlayComplete`; a track's end that is not the
   jingle in progress is ignored.
   - `PlayerTimerHurryUp`, published by `PlayerTimer.tick()` on the step that brings the time to 100 (never for a
-    run starting at 100 or less, nor through `takeOff`): `HURRY_UP`, then what the level wants, from its start.
+    run starting at 100 or less, nor through `takeOff`): `HURRY_UP`, then what the level wants, from its start and in its
+    faster version (see "Faster music after Hurry Up").
     `hurry_up.ogg` was trimmed to 2.784 s, where its music ends; the original carried a thump and about 2 s of
     200 Hz buzzing after 2.817 s.
   - `PlayerDeathStarted` (both kinds): `PLAYER_DOWN`, then silence until the rebuild. The death ends on its end
@@ -343,6 +348,47 @@ only: it is not ticked, and is not a `MotionManager`.
   purged on `destroy()`. `PowerMeterSound`, `PlayerDeathSequence` and the engine's `LevelCompletion` subscribe there
   too.
 
+## Faster music after Hurry Up (SMB3-77)
+
+**The original (dasm).** `prg026.asm` queues `MUS1_TIMEWARNING` at low time. When that song ends,
+`Music_EndSegment` (`prg031.asm`) sets `Music_RestH_Off = $10` and restarts the held song (`Music2_Hold`).
+`Music_GetRestTicks` reads every note length from `Music_RestH_LUT[Music_RestH_Base + Music_RestH_Off + n]`, a table
+of rows with ever shorter lengths, so the offset moves the song one row down: the same notes, shorter, so a faster
+tempo at the same pitch. `Music_RestH_Base` comes from each segment header (`MusSeg` in `prg028.asm`,
+`Music_Set2B_Headers` and `Music_Set1_Set2A_Headers`). Only Set 2B songs and the Set 2A songs `$09` (Coin Heaven,
+Sky, Warp Zone) and `$0A` (Invincibility) restart this way. `Music_RestH_Off` is cleared only by `Music_StopAll`
+(the player-down jingle ending, all music stopping), so everything queued after the warning stays fast.
+
+**The multipliers** are the ratio of a song's row to the next one, read on the long lengths (96 to 80 for `$30`):
+
+| Base row | Multiplier | Tracks | File made at |
+|---|---|---|---|
+| `$00` | 16/15 (+6.667%) | `WATERWORLD`, `FORTRESS`, `AIRSHIP`, `P_SWITCH`, `COIN_HEAVEN` | 107% (168.2 s) |
+| `$30` | 6/5 (+20%) | `OVERWORLD`, `ATHLETIC`, `HAMMER_BROS` | 120% (150.0 s) |
+| `$40` | 10/9 (+11.111%) | `KOOPA_KIDS` (the Set 2B boss song) | 111% (162.2 s) |
+| `$50` | 9/8 (+12.5%) | `UNDERGROUND` | 113% (159.3 s) |
+| `$70` | 7/6 (+16.667%) | `BOWSER` | 117% (153.8 s) |
+| `$80` | 3/2 (+50%) | `STAR` | 150% (120.0 s) |
+
+The other tracks (King's room, music box, bonus game, ending, the maps, the jingles) have no faster version; the
+warp zone song does in the original, but here it is a map track, so it has none.
+
+**The files.** OpenAL can only change speed and pitch together, so the faster versions were made offline by the
+developer in Audacity 4 (Sliding stretch, or the clip's pitch and speed dialog, both of which keep the pitch), from
+the 180 s originals, as 44.1 kHz stereo Ogg Vorbis. Audacity rounded the speeds to whole percents, so eight files
+are within 0.4% of the multiplier rather than exact (the right-hand column); remaking them with the exact figure
+would close that.
+
+**In the code.**
+- `MusicTrack.isFaster()` and `getFasterPath()` (`sound/music/faster/<file>`).
+- `SoundPlayer.play(track, faster)` streams the faster file when asked, the track has one and it is on the
+  classpath, otherwise the normal one (logging a missing file). `getCurrentTrack()` stays the track;
+  `isCurrentTrackFaster()` tells which version plays. `play(track)` is the normal version.
+- `LevelMusic` is hurried from the end of `HURRY_UP` until a death, the card or a fresh build, and plays every wanted
+  track with `play(wanted, hurried)`: the scene's music, the P-switch music and its return, and a carried-over
+  scene's music. A carried-over build that cuts the hurry-up jingle hurries the level as well, as the original would
+  restart the held song fast. The star music is not played by `LevelMusic` yet; when it is, it goes through the same
+  call.
 ## Background music per scene
 
 `LevelScene.backgroundMusic` / `LevelSceneRecord.backgroundMusic`, a nullable `MusicTrack`; null is no music, and

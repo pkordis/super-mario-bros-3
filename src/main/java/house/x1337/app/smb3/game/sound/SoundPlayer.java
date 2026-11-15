@@ -40,8 +40,8 @@ import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENC
  * on its channel: any effect played there stops it, and it starts again on the first frame the channel is silent,
  * until {@link #stopLoop(SoundEffect)}. Every effect is decoded into memory and trimmed by
  * {@link SoundEffectTrimmer} when an engine attaches, so the first play of each one is as quick as the rest. Music
- * plays one track at a time alongside every channel, looped unless the track is a jingle; it is streamed, with the
- * stream cached so it can rewind to the start.
+ * plays one track at a time alongside every channel, looped unless the track is a jingle, in its normal version or
+ * its faster one; it is streamed, with the stream cached so it can rewind to the start.
  *
  * <p>The effects can be muted, all but a few, through {@link #muteEffectsExcept(SoundEffect...)}: every effect still
  * sounding stops at once, loops included, and until {@link #unmuteEffects()} a muted effect neither plays nor loops.
@@ -77,6 +77,7 @@ public final class SoundPlayer {
     private AssetManager assetManager;
     private AudioNode music;
     private MusicTrack currentTrack;
+    private boolean currentTrackFaster;
     private PlayingJingle jingle;
 
     /**
@@ -222,13 +223,27 @@ public final class SoundPlayer {
      * @param track the track to play
      */
     public void play(final MusicTrack track) {
+        play(track, false);
+    }
+
+    /**
+     * Like {@link #play(MusicTrack)}, but plays the track's faster version when {@code faster} is set and the track
+     * has one ({@link MusicTrack#isFaster()}) whose file is on the classpath; otherwise the normal version. Either
+     * way {@link #getCurrentTrack()} is the track, and {@link #isCurrentTrackFaster()} says which version plays.
+     *
+     * @param track  the track to play
+     * @param faster whether to play its faster version
+     */
+    public void play(final MusicTrack track, final boolean faster) {
         if (!attached) {
             return;
         }
         stopMusic();
         currentTrack = track;
+        currentTrackFaster = faster && track.isFaster() && isOnTheClasspath(track.getFasterPath());
         if (assetManager != null) {
-            final AudioNode node = new AudioNode(assetManager, track.getPath(), Stream);
+            final String path = currentTrackFaster ? track.getFasterPath() : track.getPath();
+            final AudioNode node = new AudioNode(assetManager, path, Stream);
             node.setPositional(false);
             node.setLooping(track.isLooping());
             node.play();
@@ -248,7 +263,16 @@ public final class SoundPlayer {
             music = null;
         }
         currentTrack = null;
+        currentTrackFaster = false;
         jingle = null;
+    }
+
+    private boolean isOnTheClasspath(final String path) {
+        final boolean found = getClass().getClassLoader().getResource(path) != null;
+        if (!found) {
+            log.warn("No faster version at {}: playing the normal one", path);
+        }
+        return found;
     }
 
     /**
@@ -264,6 +288,7 @@ public final class SoundPlayer {
         attached = false;
         music = null;
         currentTrack = null;
+        currentTrackFaster = false;
         jingle = null;
         assetManager = null;
     }
