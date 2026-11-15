@@ -2,6 +2,7 @@ package house.x1337.app.smb3.enumeration;
 
 import house.x1337.app.smb3.game.sound.SoundTrack;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.GameContext.LEVEL_SCENE;
 import static house.x1337.app.smb3.enumeration.GameContext.MAP;
@@ -11,6 +12,7 @@ import static house.x1337.app.smb3.enumeration.SoundChannel.PLAYER;
 import static house.x1337.app.smb3.enumeration.SoundChannel.WORLD_MAP;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.CUTS;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.LOCKS;
+import static house.x1337.app.smb3.enumeration.SoundChannelRule.PLAYS_THROUGH;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENCE;
 
 /**
@@ -23,12 +25,15 @@ import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENC
  *
  * <p>Most effects cut whatever sounds on their channel, themselves included. The 1-up and the airship lock theirs
  * until they end, and the tail wag waits for a silent channel. The time-bonus beep, asked for on every tick, is
- * therefore restarted on every tick and heard as one continuous tone.
+ * therefore restarted on every tick and heard as one continuous tone. The skid, also asked for on every tick, plays
+ * through instead, so it is heard back to back for as long as the skid lasts. It is the same recording as the
+ * {@link #TWIRL}.
  *
  * @see house.x1337.app.smb3.game.sound.SoundPlayer#play(SoundEffect)
  * @see house.x1337.app.smb3.game.sound.SoundPlayer#loop(SoundEffect)
  */
 @Getter
+@RequiredArgsConstructor
 public enum SoundEffect implements SoundTrack {
     AIRSHIP_MOVEMENT("sound/effects/airship_movement.ogg", "Airship Movement", MAP, LEVEL_2, LOCKS),
     BLOCK("sound/effects/block.ogg", "Block", LEVEL_SCENE, PLAYER),
@@ -53,6 +58,7 @@ public enum SoundEffect implements SoundTrack {
     POWER_ON("sound/effects/power_on.ogg", "P-Meter Full", LEVEL_SCENE, PLAYER),
     POWER_UP("sound/effects/power_up.ogg", "Power Up", LEVEL_SCENE, LEVEL_1),
     POWER_UP_BLOCK("sound/effects/power_up_block.ogg", "Power Up (Block)", LEVEL_SCENE, LEVEL_1),
+    SKID("sound/effects/skid.ogg", "Skid", LEVEL_SCENE, LEVEL_2, PLAYS_THROUGH),
     SUPER_JUMP("sound/effects/super_jump.ogg", "Super Jump", LEVEL_SCENE, PLAYER),
     TAIL_WAG("sound/effects/tail_wag.ogg", "Tail Wag", LEVEL_SCENE, LEVEL_1, WAITS_FOR_SILENCE),
     TANOOKI("sound/effects/tanooki.ogg", "Tanooki", LEVEL_SCENE, LEVEL_1),
@@ -67,21 +73,12 @@ public enum SoundEffect implements SoundTrack {
     private final SoundChannel channel;
     private final SoundChannelRule channelRule;
 
-    SoundEffect(final String path, final String label, final GameContext context, final SoundChannel channel) {
-        this(path, label, context, channel, CUTS);
-    }
-
     SoundEffect(
         final String path,
         final String label,
         final GameContext context,
-        final SoundChannel channel,
-        final SoundChannelRule channelRule
+        final SoundChannel channel
     ) {
-        this.path = path;
-        this.label = label;
-        this.context = context;
-        this.channel = channel;
-        this.channelRule = channelRule;
+        this(path, label, context, channel, CUTS);
     }
 }

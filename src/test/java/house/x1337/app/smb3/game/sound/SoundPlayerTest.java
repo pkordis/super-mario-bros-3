@@ -41,6 +41,7 @@ import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_ON;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP;
+import static house.x1337.app.smb3.enumeration.SoundEffect.SKID;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -256,6 +257,44 @@ class SoundPlayerTest {
         // Verify
         verify(audioRenderer).stopSource(stomp);
         assertThat(lastPlayed().getAudioData()).isSameAs(dataOf(KOOPA_SHELL));
+    }
+
+    @Test
+    @DisplayName("The skid plays through: asked for again, or another effect asked for, it carries on to its end")
+    void theSkidPlaysThrough() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(SKID);
+        final AudioNode skid = sounding(lastPlayed());
+
+        // Execute
+        soundPlayer.play(SKID);
+        soundPlayer.play(BREAKING_BLOCK);
+        final List<AudioNode> whileSounding = played();
+        skid.setStatus(Stopped);
+        soundPlayer.play(SKID);
+
+        // Verify
+        assertThat(whileSounding).as("Neither a second skid nor a brick over the first").containsExactly(skid);
+        verify(audioRenderer, never()).stopSource(skid);
+        assertThat(played()).as("The next skid, once the first has ended").hasSize(2);
+        assertThat(lastPlayed().getAudioData()).isSameAs(dataOf(SKID));
+    }
+
+    @Test
+    @DisplayName("A skid cuts a brick sounding on its channel")
+    void theSkidCutsABrick() {
+        // Prepare
+        soundPlayer.attach(application);
+        soundPlayer.play(BREAKING_BLOCK);
+        final AudioNode brick = sounding(lastPlayed());
+
+        // Execute
+        soundPlayer.play(SKID);
+
+        // Verify
+        verify(audioRenderer).stopSource(brick);
+        assertThat(lastPlayed().getAudioData()).isSameAs(dataOf(SKID));
     }
 
     @Test
