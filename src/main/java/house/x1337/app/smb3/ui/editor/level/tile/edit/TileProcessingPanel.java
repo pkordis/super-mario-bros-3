@@ -1,4 +1,4 @@
-package house.x1337.app.smb3.ui.editor.level.tile.review;
+package house.x1337.app.smb3.ui.editor.level.tile.edit;
 
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.game.Coordinates;
@@ -22,7 +22,7 @@ import static java.awt.Cursor.CROSSHAIR_CURSOR;
 import static java.awt.Cursor.getPredefinedCursor;
 
 @Prototype
-public final class NewTileProcessingPanel extends JPanel {
+public final class TileProcessingPanel extends JPanel {
     private static final int PIXEL_SCALE = 10;
     private static final int PANEL_SIZE = TILE_SPRITE_SIZE * PIXEL_SCALE;
     private static final Color CHECKER_LIGHT = new Color(204, 204, 204);

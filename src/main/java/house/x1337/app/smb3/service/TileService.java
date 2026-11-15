@@ -165,6 +165,15 @@ public class TileService implements TilesProvider {
             .toList();
     }
 
+    public List<Tile> getUnresolvedTiles() {
+        return tileCache
+            .values()
+            .stream()
+            .filter(tile -> tile.getType() == null)
+            .sorted(comparing(Tile::getId))
+            .toList();
+    }
+
     public List<Tile> getInteractiveSingleTiles() {
         return tileCache
             .values()

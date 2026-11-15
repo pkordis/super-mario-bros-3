@@ -11,8 +11,11 @@ import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.level.tile.edit.TileContextMenu;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.core.ComponentsBuilder;
 import jakarta.annotation.PostConstruct;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import javax.swing.JLabel;
@@ -47,9 +50,11 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
     private final TileService tileService;
     private final LevelSceneTabs levelSceneTabs;
     private final PaletteSelectionService paletteSelectionService;
+    private final TileContextMenu tileContextMenu;
     private final JPanel tilesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(tilesPanel);
 
+    @Getter(AccessLevel.PACKAGE)
     private final TreeMap<TileType, TileGroup> groups = new TreeMap<>();
     private final Set<Integer> addedTileIds = new HashSet<>();
     private final List<TileButton> buttons = new ArrayList<>();
@@ -96,11 +101,33 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
 
         final TileGroup group = getOrCreateGroup(tile.getType());
         final TileButton button = fromTile(tile);
+        button.setComponentPopupMenu(tileContextMenu.forTile(tile));
         buttons.add(button);
         group.gridPanel().add(button);
         group.gridPanel().revalidate();
         group.gridPanel().repaint();
         syncEnabledState();
+    }
+
+    /**
+     * Shows the tile as it is now: a tile already in the palette is taken out of its old type group, dropping the
+     * group if it empties, and put back with a fresh thumbnail under its current type; any other tile is added.
+     */
+    public void showTile(final Tile tile) {
+        buttons.removeIf(button -> {
+            if (button.getTile().getId() != tile.getId()) {
+                return false;
+            }
+            if (paletteSelectionService.getSelectedButton() == button) {
+                paletteSelectionService.clearSelection();
+            }
+            groups.values().forEach(group -> group.gridPanel().remove(button));
+            return true;
+        });
+        addedTileIds.remove(tile.getId());
+        groups.values().removeIf(group -> group.gridPanel().getComponentCount() == 0);
+        rebuildGroupLayout();
+        addTile(tile);
     }
 
     /**

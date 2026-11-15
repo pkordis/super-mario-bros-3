@@ -7,7 +7,6 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.TileService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
-import house.x1337.app.smb3.ui.editor.level.tile.review.NewTilesReviewWindow;
 import house.x1337.app.smb3.ui.editor.menu.GameEditorWindowMenuItem;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -55,11 +54,7 @@ public class ImportFromPngLevelSceneMenuItem extends GameEditorWindowMenuItem {
                 .toList();
 
             if (!needReview.isEmpty()) {
-                final NewTilesReviewWindow reviewWindow = fromTiles(
-                    needReview,
-                    newTab
-                );
-                reviewWindow.setVisible(true);
+                fromTiles(needReview).setVisible(true);
             }
         } catch (final IllegalArgumentException ex) {
             showMessageDialog(this, ex.getMessage(), "Import Error", ERROR_MESSAGE);
