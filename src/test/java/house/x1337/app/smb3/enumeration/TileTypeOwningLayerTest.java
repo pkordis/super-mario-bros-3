@@ -82,14 +82,19 @@ class TileTypeOwningLayerTest {
         }
     }
 
-    @ParameterizedTest
-    @EnumSource(value = TileType.class, names = {"NULL", "RENDERING_STARTER", "SPAWN_POINT"})
-    @DisplayName("Virtual types are never gated, including when no scene is open")
-    void virtualTypesAreNeverGated(final TileType type) {
+    @Test
+    @DisplayName("The empty cell is the only virtual type")
+    void theEmptyCellIsTheOnlyVirtualType() {
+        assertThat(TileType.getByCategory(VIRTUAL)).containsExactly(TileType.NULL);
+    }
+
+    @Test
+    @DisplayName("The empty cell is never gated, including when no scene is open")
+    void theEmptyCellIsNeverGated() {
         for (final LevelSceneLayerType layer : LevelSceneLayerType.values()) {
-            assertThat(type.isPaintableOn(layer)).as("%s on %s", type, layer).isTrue();
+            assertThat(TileType.NULL.isPaintableOn(layer)).as("On %s", layer).isTrue();
         }
-        assertThat(type.isPaintableOn(null)).as("%s with no scene open", type).isTrue();
+        assertThat(TileType.NULL.isPaintableOn(null)).as("With no scene open").isTrue();
     }
 
     @Test

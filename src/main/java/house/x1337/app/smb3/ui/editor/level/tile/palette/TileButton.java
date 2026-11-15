@@ -30,7 +30,6 @@ public class TileButton extends LayerGatedToggleButton {
         return button;
     }
 
-    /** @return the layer this tile belongs on, or {@code null} for a virtual tile that belongs to none */
     @Override
     public LevelSceneLayerType getOwningLayer() {
         return tile.getType() == null ? null : tile.getType().getLevelSceneLayerOwningType();

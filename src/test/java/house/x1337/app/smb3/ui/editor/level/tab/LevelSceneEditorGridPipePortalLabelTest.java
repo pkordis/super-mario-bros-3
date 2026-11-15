@@ -7,6 +7,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -172,7 +173,7 @@ class LevelSceneEditorGridPipePortalLabelTest {
 
         final BufferedImage image = new BufferedImage(GRID_SIZE * TILE_SIZE, GRID_SIZE * TILE_SIZE, TYPE_INT_ARGB);
         final Graphics2D graphics = image.createGraphics();
-        new LevelSceneEditorGrid(tab).paintComponent(graphics);
+        new LevelSceneEditorGrid(tab, new SpawnPointSprite()).paintComponent(graphics);
         graphics.dispose();
         return image;
     }

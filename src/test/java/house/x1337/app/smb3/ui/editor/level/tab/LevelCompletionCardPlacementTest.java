@@ -68,7 +68,7 @@ class LevelCompletionCardPlacementTest {
         prompt = mock(PipePortalPrompt.class);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PipePortalPrompt.class))

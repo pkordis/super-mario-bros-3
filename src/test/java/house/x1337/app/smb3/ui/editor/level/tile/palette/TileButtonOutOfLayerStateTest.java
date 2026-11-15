@@ -62,11 +62,6 @@ class TileButtonOutOfLayerStateTest {
         assertThat(buttonFor(TileType.SOLID).getOwningLayer()).isEqualTo(STATIC_ENVIRONMENT);
     }
 
-    @Test
-    @DisplayName("A virtual tile belongs to no layer, so it is never gated")
-    void virtualTileHasNoOwningLayer() {
-        assertThat(buttonFor(TileType.SPAWN_POINT).getOwningLayer()).isNull();
-    }
 
     @Test
     @DisplayName("A tile with no type yet reports no layer rather than failing")
@@ -128,18 +123,6 @@ class TileButtonOutOfLayerStateTest {
         assertThat(button.getToolTipText()).isEqualTo("Brick Block");
     }
 
-    @Test
-    @DisplayName("A virtual tile never picks up the out-of-layer note, having no layer to name")
-    void virtualTileTooltipIsLeftAlone() {
-        // Prepare
-        final TileButton button = buttonFor(TileType.SPAWN_POINT).withTooltip("Spawn Point");
-
-        // Execute - even if something marked it, there is no layer to point at
-        button.markOutOfActiveLayer(true);
-
-        // Verify
-        assertThat(button.getToolTipText()).isEqualTo("Spawn Point");
-    }
 
     @Test
     @DisplayName("Picking an off-layer tile switches to its layer, then arms it")

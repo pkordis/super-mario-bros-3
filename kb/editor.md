@@ -12,10 +12,9 @@ next) can plug into.
 |---|---|
 | `ui.editor` | `GameEditorWindow`, `EditorStartup` |
 | `ui.editor.tab` | `EditorTabSystem`, `core.BaseEditorTab`, `core.BaseEditorTabSystem` (close buttons) |
-| `ui.editor.menu` | `EditorMenuBar`, `FileMenu`, `FileMenuContribution`, `TilesMenu`, `GameEditorWindowMenuItem`, `file.SettingsMenuItem`/`SettingsWindow`/`ExitMenuItem`, `tile.ConfigureVirtualTilesMenuItem` |
+| `ui.editor.menu` | `EditorMenuBar`, `FileMenu`, `FileMenuContribution`, `TilesMenu`, `GameEditorWindowMenuItem`, `file.SettingsMenuItem`/`SettingsWindow`/`ExitMenuItem` |
 | `ui.editor.pane` | `EditorContentPane` (the window's content: palettes left, `MiddlePane` right), `MiddlePane` (tabs, plus the right area the tester puts its debugger in) |
 | `ui.editor.component` | Widgets with no level scene concept: `CustomDataTablePanel`, `WrapLayout`, `ScrollableFlowPanel`, `FontCapabilities` |
-| `ui.editor.tile.configuration.virtual` | Virtual tile configuration (only needs `TileService`) |
 | `ui.editor.level.*` | Everything that only works on level scenes |
 
 - **Naming rule:** shell classes have no `LevelScene` prefix. Level scene classes keep it, or a level domain name;
@@ -54,8 +53,7 @@ File                                 rebuilt on every active-tab change
   Settings...
   ---
   Exit
-Tiles
-  Configure Virtual Tiles...
+Tiles                                empty for now (SMB3-75 removed Configure Virtual Tiles...)
 Level
   Scene >
     New Level Scene...  Ctrl+N
@@ -101,12 +99,12 @@ Size), `LevelSceneResizeRefusal` (the error window).
 - **New Level Scene...** asks for the size (16×15 filled in) and opens a blank "Untitled Scene" tab with every layer
   (`LevelSceneTabs.openNew` → `LevelSceneEditorTab.newScene(rows, columns)`).
 - **Set Size...** starts from the active scene's size. The **bottom-left corner stays fixed**: rows are added or
-  removed at the top, columns at the right (`LevelSceneEditorTab.resize`). Every tile row, the spawn point, the
+  removed at the top, columns at the right (`LevelSceneEditorTab.resizeScene`). Every tile row, the spawn point, the
   rendering starter, the card and each pipe portal move down by the rows added (up by the rows removed), so nothing
   moves relative to the ground. The PNG import grid, when the tab has one, gets the same shift and crop.
 - **A shrink over content is refused.** `LevelSceneEditorTab.findContentCutBy(columns, rows)` lists every cell in the
   area that would go: non-empty tiles per layer (the card and pipe portal cells count as the NPC layer's), then the
-  spawn point and the rendering starter, a group each. The error window lists them as `col=… row=…`, in the current
+  spawn point (whichever of its two cells are cut) and the rendering starter, a group each. The error window lists them as `col=… row=…`, in the current
   coordinates, in a scrolling list; OK only closes it and the size stays.
   - An imported scene usually has its Air layer filled with the dominant sky tile everywhere
     (`LevelSceneImportRouter`), so shrinking one is refused until those Air tiles are erased.
@@ -120,7 +118,39 @@ Empties every layer and removes the spawn point, the rendering starter, the card
 afterwards overwrites the stored scene. `newScene` still resets both content and identity. Before SMB3-72 Clear also
 dropped the id, so saving created a second scene.
 
-## 6. Known gaps
+## 6. Spawn point and rendering starter
+
+Since SMB3-75 both are virtual objects, like the level completion card and the pipe portals, and there are no
+virtual tiles any more: `TileType` keeps only `NULL` (the empty cell) in the `VIRTUAL` category, and the VIRTUAL
+palette group, Tiles > Configure Virtual Tiles... and its window are gone.
+
+| `VirtualObjectType` | Colour | Rows x columns | Drawn as |
+|---|---|---|---|
+| `SPAWN_POINT` | `Color.GREEN` | 2 x 1 | the standing player (`SpawnPointSprite`) under a 4 px border |
+| `RENDERING_STARTER` | `Color.BLUE` | 1 x 1 | a 4 px border |
+
+- **One per scene, NPC layer only.** Like the card: a click on the NPC layer places it, placing it again moves it,
+  a right-click on one of its cells removes it, and both are hidden with the NPC layer. Another active layer places
+  and removes nothing. The palette buttons show the footprint only, no sprite.
+- **The spawn point's cells.** The scene stores the spawn point as one cell, the player's upper cell:
+  `LevelScenePlayerCapabilities.initializePosition` puts the player's Y at that cell's top edge, and the feet are
+  32 px lower. So the box covers the stored cell and the one below it, which is where the player appears at the
+  start. A click places the box's lower cell, as for every virtual object, so the stored cell is the clicked row
+  minus one, and a click on the top row places nothing. Example: in a 27-row scene with ground on row 25, the
+  author clicks row 24 and the scene stores row 23; the player starts on rows 23 and 24, feet on the ground.
+- **Bottom-row spawn points are dropped on load.** A stored spawn point on the bottom row has no cell below it.
+  `LevelSceneEditorTabFactory.fromScene` drops it (`LevelSceneEditorTab.spawnPointFits`), so Test Level Scene asks
+  for a new one, and the next save persists the removal. The game itself still reads whatever is stored.
+- **The sprite.** `SpawnPointSprite` reads `sprites/player/mario/level/normal/still.png` (24 x 32 px, the figure
+  14 x 27 px on the left), trims it to its opaque pixels, mirrors it, and draws it at `TILE_SCALE`, centred and
+  standing on the box's bottom edge. The border is drawn over it.
+- **Right-click order** on a cell holding several: the card, the rendering starter, the spawn point, then a pipe
+  portal, the order they are drawn top down.
+- **Stored tile records.** The old virtual tiles were stored in the tile repository (ids 1 and 2, type by name),
+  and a record whose type no longer exists cannot be read. `dev-toolbox/db/delete_virtual_tile_records.py`
+  deletes them from Mongo; run it once before starting the editor on this code (see `kb/dev-toolbox.md`).
+
+## 7. Known gaps
 
 - Test Level Scene can start a second tester session while one runs, by switching back to a level scene tab; the
   editor then holds two tester tabs' worth of state (`LevelSceneTabs` keeps only the last tester tab).

@@ -40,7 +40,6 @@ public class TileService implements TilesProvider {
     private static final int TILE_ID_POOL_START = 1000;
 
     private final Map<Integer, Tile> tileCache = new HashMap<>();
-    private final Map<Integer, Tile> virtualTileCache = new HashMap<>();
     private final Map<String, Tile> tilesBySha256 = new HashMap<>();
     private final Set<Integer> unresolvableTileIds = ConcurrentHashMap.newKeySet();
     private final TileRepository tileRepository;
@@ -53,44 +52,13 @@ public class TileService implements TilesProvider {
             .findAll()
             .forEach(record -> {
                 final Tile tile = record.toTile();
-                if (tile.isVirtual()) {
-                    virtualTileCache.put(tile.getId(), tile);
-                } else {
-                    tileCache.put(tile.getId(), tile);
-                    if (tile.getSha256() != null) {
-                        tilesBySha256.put(tile.getSha256(), tile);
-                    }
-                    nextTileId = max(nextTileId, tile.getId() + 1);
+                tileCache.put(tile.getId(), tile);
+                if (tile.getSha256() != null) {
+                    tilesBySha256.put(tile.getSha256(), tile);
                 }
+                nextTileId = max(nextTileId, tile.getId() + 1);
             });
         log.info("Tile cache initialised with {} entries.", tileCache.size());
-        ensureVirtualTilesExist();
-    }
-
-    private void ensureVirtualTilesExist() {
-        for (final TileType type : TileType.getByCategory(VIRTUAL)) {
-            if (type == TileType.NULL) {
-                continue;
-            }
-            final int id = type.ordinal();
-            if (!virtualTileCache.containsKey(id)) {
-                final TileRecord record = TileRecord.builder()
-                    .id(id)
-                    .type(type)
-                    .build();
-                tileRepository.insert(record);
-                virtualTileCache.put(id, record.toTile());
-                log.info("Created missing virtual tile: {}", type.name());
-            }
-        }
-    }
-
-    public List<Tile> getVirtualTiles() {
-        return virtualTileCache
-            .values()
-            .stream()
-            .sorted(comparing(Tile::getId))
-            .toList();
     }
 
     public TileImportResult importFromImage(final BufferedImage image) {
@@ -173,9 +141,9 @@ public class TileService implements TilesProvider {
         if (cached != null) {
             return Optional.of(cached);
         }
-        // Every empty cell is NULL_TILE, which has no record, and virtual tiles and unclassified ids never resolve
-        // either. Remembering those spares a database round trip per cell when a scene is loaded.
-        if (id == NULL_TILE.getId() || virtualTileCache.containsKey(id) || unresolvableTileIds.contains(id)) {
+        // Every empty cell is NULL_TILE, which has no record, and unclassified ids never resolve either. Remembering
+        // those spares a database round trip per cell when a scene is loaded.
+        if (id == NULL_TILE.getId() || unresolvableTileIds.contains(id)) {
             return Optional.empty();
         }
         final TileRecord tileRecord = tileRepository.findById(id).orElse(null);

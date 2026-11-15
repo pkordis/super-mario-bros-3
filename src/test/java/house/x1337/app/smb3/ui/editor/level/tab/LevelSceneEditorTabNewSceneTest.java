@@ -36,7 +36,7 @@ class LevelSceneEditorTabNewSceneTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),

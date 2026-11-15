@@ -60,7 +60,7 @@ class SetLevelSceneSizeMenuItemTest {
         menuItem.resize(tab, new LevelSceneDimensions(16, 20));
 
         // Verify
-        verify(tab).resize(16, 20);
+        verify(tab).resizeScene(16, 20);
         verify(refusal, never()).show(any(), anyMap());
     }
 
@@ -77,7 +77,7 @@ class SetLevelSceneSizeMenuItemTest {
 
         // Verify
         verify(refusal).show(window, cut);
-        verify(tab, never()).resize(anyInt(), anyInt());
+        verify(tab, never()).resizeScene(anyInt(), anyInt());
     }
 
     @Test
@@ -88,6 +88,6 @@ class SetLevelSceneSizeMenuItemTest {
 
         // Verify
         verify(tab, never()).findContentCutBy(anyInt(), anyInt());
-        verify(tab, never()).resize(anyInt(), anyInt());
+        verify(tab, never()).resizeScene(anyInt(), anyInt());
     }
 }
