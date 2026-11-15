@@ -6,6 +6,7 @@ import house.x1337.app.smb3.service.TileService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemiesPalettePanel;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.level.toolbar.LevelSceneTestRunTarget;
 import house.x1337.app.smb3.ui.editor.tab.EditorTabSystem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +52,10 @@ class LevelSceneMenuEnablementTest {
         activeLayer.init();
         final LayerVisibilityMenu layerVisibility = new LayerVisibilityMenu(levelSceneTabs);
         layerVisibility.init();
-        final TestLevelSceneMenuItem test = new TestLevelSceneMenuItem(levelSceneTabs);
+        final TestLevelSceneMenuItem test = new TestLevelSceneMenuItem(
+            levelSceneTabs,
+            mock(LevelSceneTestRunTarget.class)
+        );
         test.init();
         needingAScene = List.of(clear, setSize, activeLayer, layerVisibility, test);
 

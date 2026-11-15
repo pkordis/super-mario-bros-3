@@ -14,6 +14,7 @@ next) can plug into.
 | `ui.editor.tab` | `EditorTabSystem`, `core.BaseEditorTab`, `core.BaseEditorTabSystem` (close buttons) |
 | `ui.editor.menu` | `EditorMenuBar`, `FileMenu`, `FileMenuContribution`, `TilesMenu`, `GameEditorWindowMenuItem`, `file.SettingsMenuItem`/`SettingsWindow`/`ExitMenuItem` |
 | `ui.editor.pane` | `EditorContentPane` (the window's content: palettes left, `MiddlePane` right), `MiddlePane` (tabs, plus the right area the tester puts its debugger in) |
+| `ui.editor.toolbar` | `EditorToolBar`, `EditorToolBarSection`, `TestRunSection`, `RunButton`, `TestRunTarget` (see the toolbar, section 3) |
 | `ui.editor.component` | Widgets with no level scene concept: `CustomDataTablePanel`, `WrapLayout`, `ScrollableFlowPanel`, `FontCapabilities` |
 | `ui.editor.level.*` | Everything that only works on level scenes |
 
@@ -66,7 +67,7 @@ Level
     Active Layer >                     disabled without an active level scene tab
     Layer Visibility >                 disabled without an active level scene tab
     ---
-    Test Level Scene                   disabled without an active level scene tab
+    Test Level Scene    F9             disabled without an active level scene tab; also the toolbar's Run Level
   Objects >
     Edit Interactive > Single Tiled...
     ---
@@ -84,7 +85,32 @@ Level
   (Save Level Scene). The menu is rebuilt on each active-tab change rather than when it opens, so `Ctrl+S` is only
   bound while Save is in the menu.
 - **Plugging in another editor** (e.g. world maps): a `BaseEditorTab` subclass, a `FileMenuContribution` for its
-  File items, its own root menu in `EditorMenuBar`, and an `EditorStartup` if it reopens anything at start.
+  File items, its own root menu in `EditorMenuBar`, a `TestRunTarget` if its tabs can be run (see the toolbar
+  below), and an `EditorStartup` if it reopens anything at start.
+
+### Toolbar (SMB3-76)
+
+A bar under the menu bar for the items used most, split into sections by intention. `GameEditorWindow` puts
+`toolbar.EditorToolBar` (a `JToolBar`, not floatable) at the top of its content panel, `EditorContentPane` below it.
+
+- **Sections:** each is an `EditorToolBarSection` bean (`getOrder()`, `getTools()`). The bar sorts them by order,
+  lowest first, and puts a separator between each; there are no captions. Adding a section means adding one bean.
+- **Test Run** (`TestRunSection`, order 0) holds `RunButton`, the only section so far. Planned follow-ups: File
+  (Save), Scene (New, Browse, Set Size), Layers (an active-layer selector).
+- **Run button:** runs the active tab through the first `TestRunTarget` bean that `handles` it, and takes that
+  target's label ("Run Level") and a tooltip with the shortcut ("Run Level (F9)"). With no target for the active
+  tab (no tab, the Level Scene Tester tab, any other kind) it reads "Run" and is disabled. It follows every
+  active-tab change through `EditorTabSystem.addChangeListener`.
+- **Run targets:** `TestRunTarget` (`handles(activeTab)`, `getLabel()`, `run(activeTab)`). The level scene one is
+  `level.toolbar.LevelSceneTestRunTarget`, which holds what used to be in `TestLevelSceneMenuItem`: it refuses a
+  scene without a rendering starter or a spawn point with a warning, otherwise starts a `LevelSceneTesterSession`.
+  Level > Scene > Test Level Scene calls the same target. A world map editor adds a target labelled "Run Map".
+- **F9** (`RunButton.SHORTCUT`) is bound on the Run button with `WHEN_IN_FOCUSED_WINDOW`, so it works anywhere in
+  the window. Test Level Scene has it as its accelerator too, which shows it in the menu. Swing hands a window-wide
+  key to component bindings before menu bar accelerators, so the button takes F9 and the menu item never runs a
+  second time; a disabled button does not take it, and the menu item is disabled then as well.
+- **Icon:** `src/main/resources/ui/toolbar/run.png`, a 24 x 24 green play triangle on a transparent background,
+  read once when the button is built. Edit the PNG to restyle it; Swing greys it out itself while disabled.
 
 ## 4. Level scene size
 
