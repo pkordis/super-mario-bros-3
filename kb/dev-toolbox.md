@@ -13,7 +13,7 @@ dev-toolbox/
 ├── video/          # AVI / video file utilities
 ├── image/          # PNG / strip / frame-sequence utilities
 ├── animation/      # Sprite trajectory & offset extraction
-├── audio/          # Waveform analysis (lead-in, tail, clicks)
+├── audio/          # Waveform analysis (lead-in, tail, clicks), lossless Ogg trimming
 └── misc/           # Everything else
 ```
 
@@ -237,6 +237,38 @@ The default report covers:
 
 `--segments` is how the recorded pop after the jump was found: it shows up as a
 second, 13 ms segment.
+
+---
+
+### audio/trim_ogg_end.py
+
+Shortens an Ogg Vorbis file at a given time **without re-encoding** (no ffmpeg or
+Vorbis encoder is needed, only the standard library). The packets past the cut are
+dropped, and the last page is marked as the end of the stream with its granule
+position (the total sample count) set to the cut. The audio that stays is bit for
+bit what it was. Used in SMB3-73 to cut the silence after the level completion
+jingles.
+
+```
+python audio/trim_ogg_end.py --ogg PATH --report
+python audio/trim_ogg_end.py --ogg IN.ogg --out OUT.ogg --end-ms N
+```
+
+| Option | Default | Notes |
+|--------|---------|-------|
+| `--ogg` | required | Ogg Vorbis file to read |
+| `--out` | none | Where to write the shortened file. Without it, only the report is printed |
+| `--end-ms` | none | Where the shortened file ends |
+| `--report` | off | List the pages and their granules |
+
+- Each packet's sample count comes from the two block sizes and the packet's mode
+  bit, assuming libvorbis's usual two modes (0 short, 1 long). The tool checks this
+  against every page's own granule and refuses to write when they disagree.
+- jME's non-streamed load stops exactly at the cut. Its streaming load plays every
+  packet kept, so it may run up to one block (about 23 ms) past the cut.
+- Workflow: find the end of the sound with `analyze_waveform.py` (the "-70 dBFS
+  last at" line), cut a little after it, decode the result with jME again, and
+  check that the kept samples equal the original's and the dropped part is silent.
 
 ---
 

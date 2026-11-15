@@ -202,6 +202,16 @@ the collected card spinning away (SMB3-64): face-on, narrow and edge-on for each
     once per engine; SMB3-68 replaced a 255-tick stand-in). `LevelMusic` plays the jingle itself on
     `LevelCardCollected`. Each bonus step plays `CASINO_BEEP`. Tests call the package-private
     `onSoundPlayComplete` to end the jingle on the tick they choose.
+  - **How long the wait is (SMB3-73).** The ROM's wait is exactly the jingle: `SndCur_Music1` clears when Square 2
+    reaches the segment's `$00` (`Music_EndSegment` → `Music_StopAll`, prg031.asm). `MUS1_COURSECLEAR` is
+    `MS1_20SegHedr` (rest base `$30`, `M12ASegData16`, prg028.asm). Its Square 2 notes, with lengths from
+    `Music_RestH_LUT` row `$30`, are 3 × 12, 24, 3 × 12, 24 + a 24 rest and 48 frames: **192 frames**.
+    `MUS1_BOSSVICTORY` (the triple-match fanfare, `MS1_04SegHedr`, `M12ASegData15`) is 12, 24, 3 × 12, 36, 3 × 12 and
+    96: **240 frames**. The port waits for the end of the Ogg file, and both files carried 1 s of silence after the
+    tune (`course_clear.ogg` 4237.6 ms, sound until 3237.9 ms; `victory_fanfare.ogg` 5027.1 ms, sound until
+    4024.8 ms), so the time bonus started about 60 ticks late after either. Both files are now cut at the end of their
+    sound, 3240 ms and 4030 ms (see `kb/sound.md`): 194 and 242 ticks, the 15 ms lead-in and the last note's release
+    over the tune. `LevelCompletionJingleLengthTest` keeps them within 4 ticks of 192 and 240.
   - The player's sprite X is `floor(X - screen left) & $FF`. `haltRunOff()` sets `PlayerRuntimeState.runOffHalted`,
     and `LevelScenePlayer.updateFrame` then only snapshots the position.
   - Three mixed cards go to the lives payout (SMB3-48, below) when state 5 ends, and a triple match plays the
