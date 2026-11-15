@@ -18,6 +18,7 @@ import house.x1337.app.smb3.ui.editor.level.menu.scene.NewLevelSceneMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.scene.SetLevelSceneSizeMenuItem;
 import house.x1337.app.smb3.ui.editor.level.menu.scene.TestLevelSceneMenuItem;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
+import house.x1337.app.smb3.ui.editor.level.toolbar.LevelSceneTestRunTarget;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -97,7 +98,10 @@ class LevelMenuTest {
         );
         final ActiveLayerMenu activeLayer = new ActiveLayerMenu(levelSceneTabs, mock(EnemiesPalettePanel.class));
         final LayerVisibilityMenu layerVisibility = new LayerVisibilityMenu(levelSceneTabs);
-        final TestLevelSceneMenuItem test = new TestLevelSceneMenuItem(levelSceneTabs);
+        final TestLevelSceneMenuItem test = new TestLevelSceneMenuItem(
+            levelSceneTabs,
+            mock(LevelSceneTestRunTarget.class)
+        );
         items.addAll(List.of(newScene, browse, importFromPng, clear, setSize, activeLayer, layerVisibility, test));
         return new LevelSceneMenu(newScene, browse, importFromPng, clear, setSize, activeLayer, layerVisibility, test);
     }
