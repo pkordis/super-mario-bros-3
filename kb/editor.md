@@ -16,7 +16,7 @@ next) can plug into.
 | `ui.editor.pane` | `EditorContentPane` (the window's content: palettes left, `MiddlePane` right), `MiddlePane` (tabs, plus the right area the tester puts its debugger in) |
 | `ui.editor.toolbar` | `EditorToolBar`, `EditorToolBarSection`, `TestRunSection`, `RunButton`, `TestRunTarget` (see the toolbar, section 3) |
 | `ui.editor.component` | Widgets with no level scene concept: `CustomDataTablePanel`, `WrapLayout`, `ScrollableFlowPanel`, `FontCapabilities` |
-| `ui.editor.level.*` | Everything that only works on level scenes |
+| `ui.editor.level.*` | Everything that only works on level scenes; `level.tile.edit` holds the tile form and its saving (section 7) |
 
 - **Naming rule:** shell classes have no `LevelScene` prefix. Level scene classes keep it, or a level domain name;
   inside `ui.editor.level` the package already says they are level scene code, so names like `TilePalettePanel` or
@@ -54,7 +54,8 @@ File                                 rebuilt on every active-tab change
   Settings...
   ---
   Exit
-Tiles                                empty for now (SMB3-75 removed Configure Virtual Tiles...)
+Tiles
+  Handle Unresolved...                every stored tile without a type, in the review window (SMB3-79)
 Level
   Scene >
     New Level Scene...  Ctrl+N
@@ -176,7 +177,32 @@ palette group, Tiles > Configure Virtual Tiles... and its window are gone.
   and a record whose type no longer exists cannot be read. `dev-toolbox/db/delete_virtual_tile_records.py`
   deletes them from Mongo; run it once before starting the editor on this code (see `kb/dev-toolbox.md`).
 
-## 7. Known gaps
+## 7. Editing tiles (SMB3-79)
+
+- **Where.** Right click on a Tiles palette tile opens its context menu (`TileContextMenu.forTile`, set on each
+  `TileButton` by `TilePalettePanel.addTile`), whose one item, Edit, opens `EditTileWindow` for that tile. Left click
+  still arms the tile. Tiles > Handle Unresolved... opens `NewTilesReviewWindow` with
+  `TileService.getUnresolvedTiles()`, every stored tile without a type, or says there is none.
+- **One form.** `TilePropertiesForm` (ID, Type, Description, the `TileProcessingPanel` pixel editor, Set) serves both
+  windows. Set is enabled only once a type is chosen. `changes()` hands back a `TileChanges` (type, description, the
+  edited pixels). The review window puts its list ("Tiles Without a Type") beside the form and closes once the list is
+  empty; the edit window shows the form alone, is modal, and closes on Set.
+- **One save.** `TileEditing.save` applies the changes, stores the tile (`TileService.updateTile`), shows it in the
+  palette as it now is (`TilePalettePanel.showTile`: out of its old group, which goes if it empties, back in with a
+  fresh button under its type) and refreshes every open level scene tab: `refreshTile`, plus `reRouteImportedLayers`
+  for the tabs whose PNG import holds the tile (re-routing rebuilds a tab's layers from its import, so it is not run
+  on the others). The review window no longer needs the tab it was opened for. `TileWindows` opens every window and
+  dialog of tile editing, so the rest can be tested without them.
+- **The layer move.** When the new type's owning layer (`TileType.getLevelSceneLayerOwningType()`) differs from the
+  old type's, each cell holding the tile in any other layer is cleared to `NULL_TILE` and the same cell of the new
+  layer gets the tile, overwriting what it held. It runs on every stored scene (`LevelSceneService.moveTile`: each
+  record normalized, rewritten and upserted with its `updatedAt` kept, so the scene reopened at start does not change)
+  and on every open tab (`LevelSceneEditorTab.moveTile`). Before anything changes, the author confirms a message with
+  both layers and the cells changed in saved scenes and in open tabs (`countTileCellsOutside`); cancelling changes
+  nothing, not even the type. No confirmation when no cell would move. A type within the same layer moves nothing; a
+  tile getting its first type moves nothing either, as unresolved tiles are never stored in a scene's layers.
+
+## 8. Known gaps
 
 - Test Level Scene can start a second tester session while one runs, by switching back to a level scene tab; the
   editor then holds two tester tabs' worth of state (`LevelSceneTabs` keeps only the last tester tab).

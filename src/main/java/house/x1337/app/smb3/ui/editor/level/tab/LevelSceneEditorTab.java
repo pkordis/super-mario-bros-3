@@ -568,6 +568,67 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         levelSceneEditorGrid.repaint();
     }
 
+    /** Whether the tab was built from a PNG import whose grid holds the tile. */
+    public boolean importsTile(final int tileId) {
+        if (importGrid == null) {
+            return false;
+        }
+        for (final Tile[] row : importGrid) {
+            for (final Tile cell : row) {
+                if (cell != null && cell.getId() == tileId) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public int countTileCellsOutside(final int tileId, final LevelSceneLayerType target) {
+        int cells = 0;
+        for (final LevelSceneLayer layer : layers) {
+            if (layer.getType() == target) {
+                continue;
+            }
+            for (final Tile[] row : layer.getTiles()) {
+                for (final Tile cell : row) {
+                    if (cell != null && cell.getId() == tileId) {
+                        cells++;
+                    }
+                }
+            }
+        }
+        return cells;
+    }
+
+    /**
+     * Moves each cell holding the tile in a layer other than {@code target} into the same cell of {@code target},
+     * overwriting what that cell held, and clears it where it was.
+     */
+    public void moveTile(final Tile tile, final LevelSceneLayerType target) {
+        final Optional<LevelSceneLayer> targetLayer = layers.stream()
+            .filter(layer -> layer.getType() == target)
+            .findFirst();
+        if (targetLayer.isEmpty()) {
+            return;
+        }
+        final Tile[][] targetTiles = targetLayer.get().getTiles();
+        for (final LevelSceneLayer layer : layers) {
+            if (layer.getType() == target) {
+                continue;
+            }
+            final Tile[][] tiles = layer.getTiles();
+            for (int row = 0; row < tiles.length; row++) {
+                for (int column = 0; column < tiles[row].length; column++) {
+                    if (tiles[row][column] != null && tiles[row][column].getId() == tile.getId()) {
+                        tiles[row][column] = NULL_TILE;
+                        targetTiles[row][column] = tile;
+                    }
+                }
+            }
+        }
+        levelSceneEditorGrid.repaint();
+    }
+
     /**
      * Adopts a freshly imported grid and routes its tiles into the per-type layers (see
      * {@link LevelSceneImportRouter}). The grid is retained so the layers can be re-routed as the user
