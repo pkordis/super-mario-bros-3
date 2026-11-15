@@ -11,6 +11,7 @@ import static house.x1337.app.smb3.enumeration.SoundChannel.LEVEL_2;
 import static house.x1337.app.smb3.enumeration.SoundChannel.PLAYER;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.CUTS;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.LOCKS;
+import static house.x1337.app.smb3.enumeration.SoundChannelRule.PLAYS_THROUGH;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENCE;
 import static house.x1337.app.smb3.enumeration.SoundEffect.AIRSHIP_MOVEMENT;
 import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
@@ -29,6 +30,7 @@ import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_ON;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_UP_BLOCK;
+import static house.x1337.app.smb3.enumeration.SoundEffect.SKID;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TAIL_WAG;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TANOOKI;
 import static house.x1337.app.smb3.enumeration.SoundEffect.VINE;
@@ -46,24 +48,25 @@ class SoundEffectChannelTest {
     }
 
     @Test
-    @DisplayName("The rewards and the tail wag share one channel, the noisy sounds another")
+    @DisplayName("The rewards and the tail wag share one channel, the noisy sounds and the skid another")
     void theLevelSoundsShareTheirChannels() {
         // Execute & Verify
         assertThat(List.of(COIN, POWER_UP_BLOCK, VINE, CANNONBALL, CASINO_BEEP, POWER_UP, ONE_UP, TANOOKI, TAIL_WAG))
             .extracting(SoundEffect::getChannel)
             .containsOnly(LEVEL_1);
-        assertThat(List.of(BREAKING_BLOCK, BOWSER_FIREBALL, AIRSHIP_MOVEMENT, HAMMER_BRO_MOVEMENT))
+        assertThat(List.of(BREAKING_BLOCK, BOWSER_FIREBALL, AIRSHIP_MOVEMENT, HAMMER_BRO_MOVEMENT, SKID))
             .extracting(SoundEffect::getChannel)
             .containsOnly(LEVEL_2);
     }
 
     @Test
-    @DisplayName("Only the 1-up and the airship lock, and only the tail wag waits for silence")
+    @DisplayName("Only the 1-up and the airship lock, only the skid plays through, and only the tail wag waits")
     void theRulesOtherThanCutting() {
         // Execute & Verify
         assertThat(withRule(LOCKS)).containsExactly(AIRSHIP_MOVEMENT, ONE_UP);
+        assertThat(withRule(PLAYS_THROUGH)).containsExactly(SKID);
         assertThat(withRule(WAITS_FOR_SILENCE)).containsExactly(TAIL_WAG);
-        assertThat(withRule(CUTS)).hasSize(SoundEffect.values().length - 3);
+        assertThat(withRule(CUTS)).hasSize(SoundEffect.values().length - 4);
     }
 
     private List<SoundEffect> withRule(final SoundChannelRule rule) {

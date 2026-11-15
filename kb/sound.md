@@ -14,9 +14,10 @@ children, closed as won't do). First wired in SMB3-67.
 - `src/main/resources/sound/music/faster/` (12 files, SMB3-77): the faster versions played once a level is hurried,
   each named like its original. `MusicTrack.isFaster()` marks the tracks that have one and `getFasterPath()` points
   into this folder. See "Faster music after Hurry Up" below.
-- `src/main/resources/sound/effects/` (30 files). `SoundEffect` has one constant per file. `power_on.ogg` and
+- `src/main/resources/sound/effects/` (31 files). `SoundEffect` has one constant per file. `power_on.ogg` and
   `tail_wag.ogg` were added by the developer after SMB3-67, outside the numbered download. `twirl.ogg` is the world
-  map's sound (`MAP`); the raccoon's tail plays `tail_wag.ogg`.
+  map's sound (`MAP`); the raccoon's tail plays `tail_wag.ogg`. `skid.ogg` (SMB3-78) is a byte-for-byte copy of
+  `twirl.ogg`: the twirl is the original's skid sound (see "The skid" below).
 - Source: the developer's download in `~/Desktop/SMB3_resources/sounds`, named `NN - Koji Kondo - <Title>.ogg`.
   The rename table (track number to file name) is in the SMB3-67 description. Tracks 01-32 are music, 33-60 effects.
 - `SoundAssetsTest` keeps the enums and the folders one to one.
@@ -83,15 +84,16 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
   |---|---|---|
   | `PLAYER` | Player (square 1) | `JUMP`, `BLOCK`, `ENEMY_STOMP`, `KOOPA_SHELL`, `POWER_DOWN` (pipe and shrink), `FIREBALL`, `POWER_ON`, `SUPER_JUMP` |
   | `LEVEL_1` | Level1 (square 2) | `COIN`, `POWER_UP_BLOCK`, `VINE`, `CANNONBALL` (the P-switch "Wham!"), `CASINO_BEEP`, `POWER_UP`, `ONE_UP`, `TANOOKI`, `TAIL_WAG` |
-  | `LEVEL_2` | Level2 (noise, triangle) | `BREAKING_BLOCK`, `BOWSER_FIREBALL`, `AIRSHIP_MOVEMENT`, `HAMMER_BRO_MOVEMENT` |
+  | `LEVEL_2` | Level2 (noise, triangle) | `BREAKING_BLOCK`, `BOWSER_FIREBALL`, `AIRSHIP_MOVEMENT`, `HAMMER_BRO_MOVEMENT`, `SKID` |
   | `WORLD_MAP` | Map (square 1) | `WORLD_START`, `MOVE_CURSOR`, `LEVEL_START`, `WRONG`, `N_SPADE_CLEAR`, `LEVEL_CLEAR`, `PLAYER_SPIN`, `TWIRL` |
   | `PAUSE` | Pause (square 1) | `PAUSE` |
 
-  `SUPER_JUMP`, `PLAYER_SPIN`, `TWIRL`, `LEVEL_CLEAR` and `N_SPADE_CLEAR` have no clear counterpart (the closest are
-  the frog hop, the map's slide-back skid, the map's poof and the bonus-appears sound); none of them plays in a level
-  yet. Original sounds with no file: the frog hop, the shoe, the boomerang, the skid, the inventory flip.
+  `SUPER_JUMP`, `PLAYER_SPIN`, `LEVEL_CLEAR` and `N_SPADE_CLEAR` have no clear counterpart (the closest are the
+  frog hop, the map's poof and the bonus-appears sound); none of them plays in a level yet. `TWIRL` is the skid
+  (`SND_LEVELSKID`), which the map plays for its slide-back; `SKID` is the same file for the level. Original sounds
+  with no file: the frog hop, the shoe, the boomerang, the inventory flip.
 - **How an effect claims its channel**, `SoundEffect.getChannelRule()`, a `SoundChannelRule`:
-  - `CUTS` (all but three): stops the effect sounding on the channel and starts from its beginning, itself included.
+  - `CUTS` (all but four): stops the effect sounding on the channel and starts from its beginning, itself included.
     This includes `CASINO_BEEP`, which the time bonus asks for on every step, so every tick: in the original
     `DoTimeBonus` queues its 6-frame blip every frame (prg000.asm:611-650), the blip restarts every frame, and the
     bonus is heard as one continuous, re-attacked tone. `casino_beep.ogg` is that blip (0.101 s, 6.1 frames), and it
@@ -103,6 +105,10 @@ Measured on the PCM that jME's own decoder produces (the exact data handed to Op
     cleared every frame. Asked for again, a locking effect restarts. The original ignores that too, but the lives
     payout asks for the next 1-up 48 ticks after the last, exactly the clip's trimmed 0.800 s, and the renderer may
     not have marked the node stopped yet on that tick.
+  - `PLAYS_THROUGH`: `SKID`. Once started it plays to its end and yields to nothing, itself included: asked for again,
+    or another Level 2 effect asked for, while it sounds, the request is dropped. The player asks for it on every
+    skidding tick, so it is heard back to back for as long as the skid lasts, the last one to its end. It cuts a
+    Level 2 effect sounding when it starts (the original's skid replaces a crumble). See "The skid" under Triggers.
   - `WAITS_FOR_SILENCE`: `TAIL_WAG`. It starts only on a silent channel and is dropped otherwise, so not over another
     wag nor over a coin, a power-up or a 1-up (prg028.asm:890-895). The game asks for the wag on every new A press in
     the air and every B press that starts a swipe, with no timer; mashing gives one wag per clip length (the wag
@@ -252,6 +258,7 @@ The mapping (SMB3-68) is a best guess from the file titles; tune it here and in 
 |---|---|---|
 | `JUMP` | `LevelScenePlayerMoveCapable.handleVerticalMovement` | A jump press that starts a jump from the ground. |
 | `TAIL_WAG` | same method; `LevelScenePlayerActionCapable.handleTailAttack` | A mid-air press that wags the tail; a B press that starts a tail swipe. Only on a silent `LEVEL_1` channel (see the channel rules above). (`TWIRL` belongs to the world map and is not played in a level.) |
+| `SKID` | `LevelScenePlayerRuntimeStateAware.refinePlayerState` | Every tick the movement is set to `SKIDDING` (on the ground, at least `PLAYER_SKID_VELOCITY_THRESHOLD` = 2/16 px per tick, holding the opposite direction only). It plays through (see the channel rules), so it repeats back to back while the skid lasts. |
 | `ENEMY_STOMP` | `onCollisionFromAbove` of `Goomba`, `ParaGoomba`, `KoopaParaTroopa`, `KoopaTroopa` | Every stomp that bounces the player, including one that stops a kicked shell. |
 | `KOOPA_SHELL` | `KoopaTroopaShellCapabilities.onKicked` | Every kick: on release, on contact, and the stomp on a resting shell (`kickWithoutPose`). Not when the kick crushes the shell; `crushUpward` plays it instead. |
 | `KOOPA_SHELL` | `onKickedInto`, `onKilledByCarryContact`, each enemy's `onTailAttack`, `KoopaTroopa.onBumpedFromBelow` | One per enemy killed by a kicked shell, a carried shell or the tail, and a Koopa flipped by a bumped block. A ParaGoomba or KoopaParaTroopa delegates to its replacement, which plays it. |
@@ -313,6 +320,22 @@ and `verify(x.getSoundPlayer())` would check one that never played). A `mockStat
 on the shared mock. A mocked `LevelScenePlayer` needs a `getSoundPlayer()` stub only when the test runs the player's
 own code, such as `getHurtBy` or `handleVerticalMovement`.
 
+### The skid (SMB3-78)
+
+- **dasm.** `prg008.asm` (around `PRG008_AE58`) queues `SND_LEVELSKID` into `Sound_QLevel2` on every frame the skid
+  frame is shown: on the ground, not in water, `Player_XVel` outside -1..1 and the opposite direction held. The sound
+  (`SndLev2_Skid` / `SndLev2_SkidCont`, `prg028.asm`) is a 6-frame triangle sweep through `SndLev2_SkidTFreq`. While
+  it sounds `Sound_PlayLevel2` ignores the queue and continues it, so the per-frame request never restarts it, and
+  the next frame after its end starts it again: a skid of N frames plays it about N / 6 times back to back. The world
+  map queues the same sound for its slide-back (`prg011.asm`, `Map_Skid_Counter`), and the 2P Vs mode for its skid
+  frame (`prg009.asm`).
+- **The file.** `twirl.ogg` decoded with jME is 1126.2 ms: 16.3 ms of silence, one burst from 16.3 to 121.9 ms
+  (105.6 ms, peak -9.4 dB), then silence. Frame by frame (zero crossings over 1/60 s) the burst alternates about
+  780, 840, 720, 840 and 780 Hz and dies in the sixth frame, the pattern of `SndLev2_SkidTFreq` (triangle periods 75,
+  67, 74, 66, 73, 71: 736, 822, 746, 835, 756 and 777 Hz). So the twirl is the skid, one burst, and `skid.ogg` is a
+  plain copy: `SoundEffectTrimmer` cuts the silences at load, leaving about 106 ms, 6.3 frames.
+- **In the code.** `SoundEffect.SKID` on `LEVEL_2` with `PLAYS_THROUGH`, played from `refinePlayerState` wherever the
+  movement becomes `SKIDDING`. The original's water exclusion does not apply yet: there is no water.
 ## Level music
 
 `house.x1337.app.smb3.game.sound.LevelMusic` (`@Singleton`) decides what plays during a level. It runs on events

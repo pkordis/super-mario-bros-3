@@ -30,6 +30,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
+import static house.x1337.app.smb3.enumeration.SoundEffect.SKID;
 import static house.x1337.app.smb3.enumeration.SoundEffect.TANOOKI;
 import static house.x1337.app.smb3.game.object.level.KillTallyAware.KILL_TALLY_LADDER;
 import static house.x1337.app.smb3.input.PlayerInputHandler.HANDLER_LEFT;
@@ -127,6 +128,8 @@ public interface LevelScenePlayerRuntimeStateAware
             final boolean inputRight = rawRight && !rawLeft;
             if (isCurrentlySkidding(inputLeft, inputRight)) {
                 runtimeState.setTo(SKIDDING);
+                // Asked for on every skidding tick: it plays through, so it repeats back to back while the skid lasts
+                getSoundPlayer().play(SKID);
             } else if (lowClearance && (inputLeft || inputRight)) {
                 // During low clearance slide, show walk animation only when
                 // a direction is held.

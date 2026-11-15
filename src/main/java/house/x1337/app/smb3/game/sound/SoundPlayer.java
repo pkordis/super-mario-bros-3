@@ -28,6 +28,7 @@ import static com.jme3.audio.AudioData.DataType.Stream;
 import static com.jme3.audio.AudioSource.Status.Playing;
 import static com.jme3.audio.AudioSource.Status.Stopped;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.LOCKS;
+import static house.x1337.app.smb3.enumeration.SoundChannelRule.PLAYS_THROUGH;
 import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENCE;
 
 /**
@@ -35,10 +36,11 @@ import static house.x1337.app.smb3.enumeration.SoundChannelRule.WAITS_FOR_SILENC
  *
  * <p>Effects play on channels ({@link SoundChannel}). A channel sounds one effect at a time and the channels sound
  * together, so a coin and a jump are heard at once but two coins are not. Each effect claims its channel by its
- * {@link SoundChannelRule}: most cut the effect sounding there, a locking one keeps the channel until it ends, and
- * the tail wag waits for silence. A {@link #loop(SoundEffect) loop} is the quietest sound
- * on its channel: any effect played there stops it, and it starts again on the first frame the channel is silent,
- * until {@link #stopLoop(SoundEffect)}. Every effect is decoded into memory and trimmed by
+ * {@link SoundChannelRule}: most cut the effect sounding there, a locking one keeps the channel until it ends, the
+ * skid plays through to its end whoever asks for the channel, itself included, and the tail wag waits for silence.
+ * A {@link #loop(SoundEffect) loop} is the quietest sound on its channel: any effect played there stops it, and it
+ * starts again on the first frame the channel is silent, until {@link #stopLoop(SoundEffect)}. Every effect is
+ * decoded into memory and trimmed by
  * {@link SoundEffectTrimmer} when an engine attaches, so the first play of each one is as quick as the rest. Music
  * plays one track at a time alongside every channel, looped unless the track is a jingle, in its normal version or
  * its faster one; it is streamed, with the stream cached so it can rewind to the start.
@@ -336,7 +338,7 @@ public final class SoundPlayer {
         AudioNode node
     ) {
         boolean yieldsTo(final SoundEffect next) {
-            if (next.getChannelRule() == WAITS_FOR_SILENCE) {
+            if (next.getChannelRule() == WAITS_FOR_SILENCE || effect.getChannelRule() == PLAYS_THROUGH) {
                 return false;
             }
             return next == effect || effect.getChannelRule() != LOCKS;
