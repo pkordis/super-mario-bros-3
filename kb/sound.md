@@ -22,6 +22,31 @@ What the files are (measured in SMB3-67):
 - All 60 are Ogg **Vorbis**, stereo, 44 100 Hz. jME cannot decode Opus, so any file added later must be Vorbis too.
 - The songs are 180 s each; the jingles 3.8-7.4 s.
 
+### Trailing silence in the jingles (SMB3-73)
+
+Every jingle but `hurry_up.ogg` was recorded with about 1 s of silence after the tune (measured on jME's decode with
+`analyze_waveform.py`; every file also starts with 15 ms of lead-in):
+
+| File | Length | Sound until (-70 dBFS) | Status |
+|---|---|---|---|
+| `course_clear.ogg` | 4237.6 ms | 3237.9 ms | cut at 3240 ms (SMB3-73) |
+| `victory_fanfare.ogg` | 5027.1 ms | 4024.8 ms | cut at 4030 ms (SMB3-73) |
+| `player_down.ogg` | 4237.6 ms | 3229.5 ms | not cut yet; the death waits for it (SMB3-68) |
+| `battle_lost.ogg` | 3831.3 ms | 2829.2 ms | not cut yet |
+| `game_over.ogg` | 3819.7 ms | 2832.4 ms | not cut yet |
+| `king_restored.ogg` | 7360.7 ms | 6361.6 ms | not cut yet |
+| `hurry_up.ogg` | 2784.3 ms | 2784.3 ms | no silence |
+
+Anything that waits for a jingle's end (`SoundPlayComplete`) waits through that silence. The cut is made with
+`dev-toolbox/audio/trim_ogg_end.py`, without re-encoding: the Vorbis packets past the cut are dropped and the last
+page's granule (the total sample count) is set to the cut. What stays is bit for bit the same audio, checked by
+comparing the decodes; the part dropped from the two files peaked at -76 and -84 dBFS.
+
+- jME's non-streamed load stops exactly at the granule. Its streaming load (`DataType.Stream`, used for music) plays
+  every packet kept, up to one block further: `course_clear.ogg` streams to 3240.6 ms, `victory_fanfare.ogg` to
+  4050.4 ms.
+- `OggTrackLength` reads the granule, so without an audio renderer the jingles end at 3240 and 4030 ms.
+
 ### What the effect files contain (measured)
 
 Measured on the PCM that jME's own decoder produces (the exact data handed to OpenAL), with
