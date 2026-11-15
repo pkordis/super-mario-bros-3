@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SoundAssetsTest {
     private static final String MUSIC_FOLDER = "sound/music";
+    private static final String FASTER_MUSIC_FOLDER = "sound/music/faster";
     private static final String EFFECTS_FOLDER = "sound/effects";
 
     @Test
@@ -39,6 +40,23 @@ class SoundAssetsTest {
         assertThat(paths).as("One track per constant").hasSize(MusicTrack.values().length);
         assertThat(paths).as("The tracks and the music files").isEqualTo(files);
         assertThat(files).as("Music files").hasSize(32);
+    }
+
+    @Test
+    @DisplayName("Exactly the tracks with a faster version have a file of the same name in the faster folder")
+    void fasterTracksMatchTheFasterFolder() throws IOException, URISyntaxException {
+        // Prepare
+        final Set<String> paths = Arrays.stream(MusicTrack.values())
+            .filter(MusicTrack::isFaster)
+            .map(MusicTrack::getFasterPath)
+            .collect(Collectors.toSet());
+
+        // Execute
+        final Set<String> files = oggFilesIn(FASTER_MUSIC_FOLDER);
+
+        // Verify
+        assertThat(paths).as("The faster tracks and the faster files").isEqualTo(files);
+        assertThat(files).as("Faster files").hasSize(12);
     }
 
     @Test

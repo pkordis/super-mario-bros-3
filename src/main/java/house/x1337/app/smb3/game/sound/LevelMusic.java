@@ -31,13 +31,18 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
  * <p>Three moments play a jingle, which stops the music and plays once:
  * <ul>
  *     <li>the timer stepping down to 100 plays {@link MusicTrack#HURRY_UP}; after it the music the level wants
- *         starts again from its beginning,</li>
+ *         starts again from its beginning, in its faster version,</li>
  *     <li>a death plays {@link MusicTrack#PLAYER_DOWN},</li>
  *     <li>the end-level card plays {@link MusicTrack#COURSE_CLEAR}, or {@link MusicTrack#VICTORY_FANFARE} when it
  *         makes three matching cards.</li>
  * </ul>
  * After the last two the level stays silent until it is built again. While a jingle plays, the P-switch opening or
  * closing only changes what plays once the jingle is over.
+ *
+ * <p>Once the hurry-up jingle has ended the level is hurried: every track it wants plays in its faster version where
+ * there is one ({@link MusicTrack#isFaster()}), the P-switch music and the next scene's music included, until a death,
+ * the card or a fresh build. A carried-over build that cuts the hurry-up jingle hurries the level too. See
+ * {@code kb/sound.md}, "Faster music after Hurry Up".
  *
  * <p>Everything here follows events: a jingle's end is its {@link SoundPlayComplete}, and the P-switch is
  * {@link PowerSwitchActivated} and {@link PowerSwitchExpired}. A window closed by a fresh level build, by a death or
@@ -59,10 +64,12 @@ public final class LevelMusic {
     private boolean powerSwitchOpen;
     private MusicTrack jingle;
     private boolean silenced;
+    private boolean hurried;
 
     /** Listens for the jingles' moments and ends, and for the P-switch. Called once by each engine as it starts. */
     public void subscribe() {
         reset();
+        hurried = false;
         gameEventBus.subscribe(PlayerTimerHurryUp.class, event -> playJingle(HURRY_UP));
         gameEventBus.subscribe(PlayerDeathStarted.class, event -> playJingle(PLAYER_DOWN));
         gameEventBus.subscribe(LevelCardCollected.class, event -> playJingle(
@@ -81,6 +88,7 @@ public final class LevelMusic {
      *                   scene's own
      */
     public void start(final LevelScene levelScene, final LevelRunStart start) {
+        hurried = start.isCarryOver() && (hurried || jingle == HURRY_UP);
         reset();
         sceneTrack = levelScene.getBackgroundMusic();
         powerSwitchOpen = powerSwitchTimeWindow.isActive();
@@ -96,6 +104,10 @@ public final class LevelMusic {
         return jingle != null;
     }
 
+    public boolean isHurried() {
+        return hurried;
+    }
+
     private void reset() {
         jingle = null;
         silenced = false;
@@ -106,11 +118,15 @@ public final class LevelMusic {
         soundPlayer.play(track);
         jingle = track;
         silenced = track != HURRY_UP;
+        hurried = hurried && !silenced;
     }
 
     private void onSoundPlayComplete(final SoundPlayComplete event) {
         if (event.getTrack() != jingle) {
             return;
+        }
+        if (jingle == HURRY_UP) {
+            hurried = true;
         }
         jingle = null;
         if (!silenced) {
@@ -133,7 +149,7 @@ public final class LevelMusic {
         if (wanted == null) {
             soundPlayer.stopMusic();
         } else {
-            soundPlayer.play(wanted);
+            soundPlayer.play(wanted, hurried);
         }
     }
 
