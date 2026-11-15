@@ -15,8 +15,6 @@ import static lombok.AccessLevel.PRIVATE;
 public enum TileType {
     // Virtual
     NULL("null", VIRTUAL, null),
-    RENDERING_STARTER("Rendering Starter", VIRTUAL, null),
-    SPAWN_POINT("Spawn Point", VIRTUAL, null),
 
     // Air
     BACKGROUND_COLOR("Background Color", NON_COLLIDING, AIR),
@@ -67,8 +65,7 @@ public enum TileType {
      *
      * <p>A tile belongs to exactly one layer, and painting it anywhere else is the authoring mistake this
      * guards: brick blocks dropped into the static-environment layer, for instance, are terrain rather
-     * than interactive objects. A virtual type owns no layer — it marks the scene instead of painting into
-     * it — so it is always available.
+     * than interactive objects. The null type, the empty cell, owns no layer, so it is always available.
      *
      * @param activeLayer the layer currently being edited, may be {@code null} when no scene is open
      * @return {@code true} when this type is free to paint

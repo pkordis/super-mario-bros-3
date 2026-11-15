@@ -2,13 +2,11 @@ package house.x1337.app.smb3.ui.editor.menu;
 
 import house.x1337.app.smb3.app.ApplicationTerminator;
 import house.x1337.app.smb3.service.GameSettingsService;
-import house.x1337.app.smb3.service.TileService;
 import house.x1337.app.smb3.ui.editor.level.menu.LevelMenu;
 import house.x1337.app.smb3.ui.editor.level.menu.LevelObjectsMenu;
 import house.x1337.app.smb3.ui.editor.level.menu.LevelSceneMenu;
 import house.x1337.app.smb3.ui.editor.menu.file.ExitMenuItem;
 import house.x1337.app.smb3.ui.editor.menu.file.SettingsMenuItem;
-import house.x1337.app.smb3.ui.editor.menu.tile.ConfigureVirtualTilesMenuItem;
 import house.x1337.app.smb3.ui.editor.tab.EditorTabSystem;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +32,7 @@ class EditorMenuBarTest {
             new ExitMenuItem(mock(ApplicationTerminator.class))
         );
         fileMenu.init();
-        final TilesMenu tilesMenu = new TilesMenu(new ConfigureVirtualTilesMenuItem(mock(TileService.class)));
+        final TilesMenu tilesMenu = new TilesMenu();
         tilesMenu.init();
         final LevelMenu levelMenu = new LevelMenu(mock(LevelSceneMenu.class), mock(LevelObjectsMenu.class));
         final EditorMenuBar menuBar = new EditorMenuBar(fileMenu, tilesMenu, levelMenu);
@@ -48,6 +46,7 @@ class EditorMenuBarTest {
         assertThat(menuBar.getMenu(0).getText()).isEqualTo("File");
         assertThat(menuBar.getMenu(1)).isSameAs(tilesMenu);
         assertThat(menuBar.getMenu(1).getText()).isEqualTo("Tiles");
+        assertThat(menuBar.getMenu(1).getItemCount()).as("The Tiles menu is kept, empty for now").isZero();
         assertThat(menuBar.getMenu(2)).isSameAs(levelMenu);
     }
 }

@@ -40,7 +40,6 @@ import static java.awt.BorderLayout.CENTER;
  * static-environment layer where nothing can break them. Tiles for other layers are greyed rather than
  * disabled, because clicking one is how the user says "switch me to that layer": see
  * {@link LayerGatedToggleButton}, which owns that click flow for this palette and the Enemies one alike.
- * Virtual tiles belong to no layer and are never gated.
  */
 @Singleton
 @RequiredArgsConstructor
@@ -50,7 +49,6 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
     private final PaletteSelectionService paletteSelectionService;
     private final JPanel tilesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(tilesPanel);
-    private final VirtualTilesSection virtualTilesSection;
 
     private final TreeMap<TileType, TileGroup> groups = new TreeMap<>();
     private final Set<Integer> addedTileIds = new HashSet<>();
@@ -80,7 +78,6 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
             }
         });
 
-        tilesPanel.add(virtualTilesSection);
         tileService.getClassifiedTiles().forEach(this::addTile);
 
         // The active layer moves with the tab, and a new tab starts on Air.
@@ -152,7 +149,6 @@ public final class TilePalettePanel extends JPanel implements ComponentsBuilder 
 
     private void rebuildGroupLayout() {
         tilesPanel.removeAll();
-        tilesPanel.add(virtualTilesSection);
         for (final TileGroup group : groups.values()) {
             tilesPanel.add(group.header());
             tilesPanel.add(group.gridPanel());

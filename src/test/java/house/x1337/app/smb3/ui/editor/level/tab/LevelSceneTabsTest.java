@@ -38,7 +38,7 @@ class LevelSceneTabsTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         staticBeanFactory.when(() -> StaticBeanFactory.getBean(EditorTabSystem.class)).thenReturn(editorTabSystem);
         staticBeanFactory.when(() -> StaticBeanFactory.getBean(LevelSceneTabs.class)).thenReturn(levelSceneTabs);

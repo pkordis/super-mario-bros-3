@@ -13,6 +13,7 @@ import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 
 import java.awt.Dimension;
 import java.util.ArrayList;
@@ -110,7 +111,10 @@ public interface LevelSceneEditorTabFactory {
             nonPlayableCharactersLayer
         );
         tab.setRenderingStarter(placedOrNull(levelScene.getRenderingStarter()));
-        tab.setSpawnPoint(placedOrNull(levelScene.getSpawnPoint()));
+        // A spawn point stored on the bottom row has no room for the player's lower cell, so the tab drops it and
+        // Test Level Scene asks for a new one.
+        final Coordinates storedSpawnPoint = placedOrNull(levelScene.getSpawnPoint());
+        tab.setSpawnPoint(storedSpawnPoint != null && tab.spawnPointFits(storedSpawnPoint) ? storedSpawnPoint : null);
         tab.setLevelCompletionCard(placedOrNull(levelScene.getLevelCompletionCard()));
         tab.setSceneTitle(levelScene.getTitle());
         tab.setSceneDescription(levelScene.getDescription());
@@ -251,7 +255,8 @@ public interface LevelSceneEditorTabFactory {
     static LevelSceneEditorGrid forTab(final LevelSceneEditorTab levelSceneEditorTab) {
         return getBean(
             LevelSceneEditorGrid.class,
-            levelSceneEditorTab
+            levelSceneEditorTab,
+            getBean(SpawnPointSprite.class)
         );
     }
 }

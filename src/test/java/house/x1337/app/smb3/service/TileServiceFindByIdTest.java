@@ -11,7 +11,6 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
-import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -50,16 +49,6 @@ class TileServiceFindByIdTest {
         verify(tileRepository, never()).findById(anyInt());
     }
 
-    @Test
-    @DisplayName("A virtual tile resolves to nothing without going to the database")
-    void virtualTilesNeverHitTheDatabase() {
-        // Execute
-        final Optional<Tile> spawnPoint = tileService.findById(SPAWN_POINT.ordinal());
-
-        // Verify
-        assertThat(spawnPoint).isEmpty();
-        verify(tileRepository, never()).findById(anyInt());
-    }
 
     @Test
     @DisplayName("An id with no record is looked up once, then remembered")

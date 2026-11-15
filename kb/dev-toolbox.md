@@ -14,12 +14,13 @@ dev-toolbox/
 ├── image/          # PNG / strip / frame-sequence utilities
 ├── animation/      # Sprite trajectory & offset extraction
 ├── audio/          # Waveform analysis (lead-in, tail, clicks), lossless Ogg trimming
+├── db/             # One-off database clean-ups (pymongo)
 └── misc/           # Everything else
 ```
 
 All tools are self-contained Python scripts. Each one accepts `--help` and documents
 its own options. They have no shared dependencies beyond the standard library and
-`Pillow` (plus `opencv-python` where noted). Install once:
+`Pillow` (plus `opencv-python` where noted, and `pymongo` for `db/`). Install once:
 
 ```
 pip install pillow opencv-python
@@ -269,6 +270,26 @@ python audio/trim_ogg_end.py --ogg IN.ogg --out OUT.ogg --end-ms N
 - Workflow: find the end of the sound with `analyze_waveform.py` (the "-70 dBFS
   last at" line), cut a little after it, decode the result with jME again, and
   check that the kept samples equal the original's and the dropped part is silent.
+
+### db/delete_virtual_tile_records.py
+
+Deletes the stored Rendering Starter and Spawn Point tile records (type `RENDERING_STARTER` or `SPAWN_POINT`,
+ids 1 and 2) from the Mongo `tiles` collection. SMB3-75 turned both into virtual objects and removed the tile
+types, and a stored tile whose type no longer exists cannot be read back, so the editor does not start until
+they are gone. Run it once per database, before starting the editor on the SMB3-75 code.
+
+```
+pip install pymongo
+python db/delete_virtual_tile_records.py            # lists what it would delete
+python db/delete_virtual_tile_records.py --delete   # deletes it
+```
+
+- The connection comes from `src/main/resources/application.properties`, overridden by the git-ignored
+  `application-local.properties` (host, port, database, username, password, `collection.tiles`). The user is
+  authenticated against the database itself, as `MongoDBConfig` does.
+- It matches by type, not by id, and prints every record it finds first.
+- Nitrite is not covered: there is no local `smb3.db` in use. A Nitrite store would need the same two records
+  removed by hand.
 
 ---
 

@@ -72,7 +72,7 @@ public interface GameEngineRenderer extends Application, GameRenderer {
     /**
      * Bakes a single layer's tiles into a {@code (columns × TILE_SPRITE_SIZE)} by
      * {@code (rows × TILE_SPRITE_SIZE)} RGBA texture and wraps it in a level-sized {@link Quad}.
-     * Empty, virtual or non-renderable cells become fully transparent pixels.
+     * Empty or non-renderable cells become fully transparent pixels.
      */
     private Geometry bakeLayerGeometry(
         final LevelScene.LevelSceneLayer layer,
@@ -99,7 +99,7 @@ public interface GameEngineRenderer extends Application, GameRenderer {
                     buffer.put((byte) (argb & 0xFF));
                     buffer.put((byte) ((argb >> 24) & 0xFF));
                 } else {
-                    // Empty / virtual tile — fully transparent pixel
+                    // Empty or non-renderable tile: a fully transparent pixel
                     buffer.put((byte) 0).put((byte) 0).put((byte) 0).put((byte) 0);
                 }
             }

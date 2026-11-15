@@ -48,8 +48,8 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
-import static house.x1337.app.smb3.enumeration.TileType.RENDERING_STARTER;
-import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.RENDERING_STARTER;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.util.factory.LevelSceneEditorTabFactory.forTab;
 import static java.awt.BorderLayout.CENTER;
@@ -67,39 +67,26 @@ public class LevelSceneEditorTab extends BaseEditorTab {
     private static final Comparator<Coordinates> TOP_TO_BOTTOM_LEFT_TO_RIGHT =
         comparingInt(Coordinates::y).thenComparingInt(Coordinates::x);
 
-    private List<LevelSceneLayer> layers;
-    private LevelSceneLayer activeLayer;
-    private int rows;
-    private int columns;
-    /** Where each virtual marker sits; {@code null} while it is not placed. */
-    private Coordinates renderingStarter = null;
-    private Coordinates spawnPoint = null;
-    private Coordinates levelCompletionCard = null;
-    private String sceneTitle = null;
-    private String sceneDescription = null;
-    /** The music the scene plays; {@code null} for none. */
-    private MusicTrack backgroundMusic = null;
-    private String sceneId = null;
-
-    /**
-     * The scene's pipe portals. They are not tiles: they are drawn over the NPC layer and copied to and from
-     * {@code LevelScene.pipePortals} by {@code LevelSceneEditorTabFactory}.
-     */
-    private List<PipePortal> pipePortals = new ArrayList<>();
-
-    /**
-     * Raw {@code Tile[][]} as produced by a PNG import, kept so the layers can be re-routed every time
-     * the user classifies another tile in the review window. {@code null} for scenes not built from an
-     * import.
-     */
-    private Tile[][] importGrid;
-
     private final JLabel statusLabel = new JLabel(" ");
     private final LevelSceneEditorGrid levelSceneEditorGrid = forTab(this);
     private final LevelSceneImportRouter levelSceneImportRouter;
     private final TilePalettePanel tilePalettePanel;
     private final PaletteSelectionService paletteSelectionService;
     private final EnemyLevelSceneGridStamper enemyLevelSceneGridStamper;
+
+    private Coordinates levelCompletionCard = null;
+    private Coordinates renderingStarter = null;
+    private Coordinates spawnPoint = null;
+    private LevelSceneLayer activeLayer;
+    private List<LevelSceneLayer> layers;
+    private List<PipePortal> pipePortals = new ArrayList<>();
+    private MusicTrack backgroundMusic = null;
+    private String sceneDescription = null;
+    private String sceneId = null;
+    private String sceneTitle = null;
+    private Tile[][] importGrid;
+    private int columns;
+    private int rows;
 
     @PostConstruct
     void init() {
@@ -165,8 +152,8 @@ public class LevelSceneEditorTab extends BaseEditorTab {
      * where it is, so shrinking cuts rows at the top and columns at the right.
      *
      * @return the cut cells, in the current coordinates, top to bottom and left to right, grouped by layer label
-     *     (the card and the pipe portals count as the NPC layer's) and then by marker, one group each for the
-     *     spawn point and the rendering starter; empty when nothing would be lost
+     *     (the card and the pipe portals count as the NPC layer's), then one group each for the spawn point and the
+     *     rendering starter; empty when nothing would be lost
      */
     public Map<String, List<Coordinates>> findContentCutBy(final int newColumns, final int newRows) {
         final int cutTopRows = rows - newRows;
@@ -198,8 +185,11 @@ public class LevelSceneEditorTab extends BaseEditorTab {
                 cut.put(layer.getType().getLabel(), cells.stream().sorted(TOP_TO_BOTTOM_LEFT_TO_RIGHT).toList());
             }
         }
-        if (spawnPoint != null && isCut(spawnPoint, newColumns, cutTopRows)) {
-            cut.put(SPAWN_POINT.getLabel(), List.of(spawnPoint));
+        final List<Coordinates> cutSpawnPointCells = spawnPointCells().stream()
+            .filter(cell -> isCut(cell, newColumns, cutTopRows))
+            .toList();
+        if (!cutSpawnPointCells.isEmpty()) {
+            cut.put(SPAWN_POINT.getLabel(), cutSpawnPointCells);
         }
         if (renderingStarter != null && isCut(renderingStarter, newColumns, cutTopRows)) {
             cut.put(RENDERING_STARTER.getLabel(), List.of(renderingStarter));
@@ -217,7 +207,7 @@ public class LevelSceneEditorTab extends BaseEditorTab {
      * its place relative to the ground. Whatever ends up outside the scene is dropped, which is why the size dialog
      * first checks {@link #findContentCutBy(int, int)}.
      */
-    public void resize(final int newColumns, final int newRows) {
+    public void resizeScene(final int newColumns, final int newRows) {
         final int rowShift = newRows - rows;
         for (final LevelSceneLayer layer : layers) {
             layer.setTiles(shiftedTiles(layer.getTiles(), newColumns, newRows, rowShift));
@@ -277,6 +267,23 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         return spawnPoint != null;
     }
 
+    /** The spawn point's cells, upper first; empty while it is not placed. */
+    public List<Coordinates> spawnPointCells() {
+        if (spawnPoint == null) {
+            return List.of();
+        }
+        return List.of(spawnPoint, belowOf(spawnPoint));
+    }
+
+    /** Whether a spawn point stored at {@code upperCell} has both of its cells inside the scene. */
+    public boolean spawnPointFits(final Coordinates upperCell) {
+        return !isOutsideTheScene(upperCell) && !isOutsideTheScene(belowOf(upperCell));
+    }
+
+    private Coordinates belowOf(final Coordinates cell) {
+        return of(cell.x(), cell.y() + 1);
+    }
+
     public boolean hasLevelCompletionCard() {
         return levelCompletionCard != null;
     }
@@ -320,6 +327,8 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             switch (selectedVirtualObject.getCategory()) {
                 case PIPE_PORTAL -> placePipePortal(selectedVirtualObject, cell);
                 case CARD -> placeLevelCompletionCard(cell);
+                case RENDERING_STARTER -> placeRenderingStarter(cell);
+                case SPAWN_POINT -> placeSpawnPoint(cell);
             }
             return;
         }
@@ -332,30 +341,21 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         if (selectedTile == null) {
             return;
         }
-        if (selectedTile.isOfType(RENDERING_STARTER)) {
-            // Virtual tile - do NOT modify the tile grid; just record the position.
-            renderingStarter = cell;
-            levelSceneEditorGrid.repaint();
-            return;
-        }
-        if (selectedTile.isOfType(SPAWN_POINT)) {
-            // Virtual tile - do NOT modify the tile grid; just record the position.
-            spawnPoint = cell;
-            levelSceneEditorGrid.repaint();
-            return;
-        }
         activeLayer.getTiles()[cell.y()][cell.x()] = selectedTile;
         levelSceneEditorGrid.repaint();
     }
 
     /**
-     * Clears a cell of the active layer. On the NPC layer, a cell holding the level completion card or covered by a
-     * pipe portal removes that object instead and leaves the layer's tiles alone. The card is drawn over the portals,
-     * so on a cell holding both the card goes first.
+     * Clears a cell of the active layer. On the NPC layer, a cell holding a virtual object removes that object
+     * instead and leaves the layer's tiles alone. Objects drawn on top go first: the card, then the rendering
+     * starter, then the spawn point, then the pipe portals.
      */
     public void eraseTile(final Coordinates cell) {
         if (!isOutsideTheScene(cell)) {
-            if (removeLevelCompletionCardAt(cell) || removePipePortalAt(cell)) {
+            if (removeLevelCompletionCardAt(cell)
+                || removeRenderingStarterAt(cell)
+                || removeSpawnPointAt(cell)
+                || removePipePortalAt(cell)) {
                 levelSceneEditorGrid.repaint();
                 return;
             }
@@ -438,6 +438,45 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         return true;
     }
 
+    private void placeRenderingStarter(final Coordinates cell) {
+        if (isNpcLayerActive()) {
+            renderingStarter = cell;
+            levelSceneEditorGrid.repaint();
+        }
+    }
+
+    private boolean removeRenderingStarterAt(final Coordinates cell) {
+        if (!isNpcLayerActive() || !cell.equals(renderingStarter)) {
+            return false;
+        }
+        renderingStarter = null;
+        return true;
+    }
+
+    /**
+     * Puts the scene's one spawn point with its lower cell on the clicked one, on the NPC layer only, moving it if
+     * already placed. A click on the top row places nothing, as the upper cell would fall outside the scene.
+     */
+    private void placeSpawnPoint(final Coordinates cell) {
+        final Coordinates upperCell = of(cell.x(), cell.y() - 1);
+        if (isNpcLayerActive() && spawnPointFits(upperCell)) {
+            spawnPoint = upperCell;
+            levelSceneEditorGrid.repaint();
+        }
+    }
+
+    private boolean removeSpawnPointAt(final Coordinates cell) {
+        if (!isNpcLayerActive() || !spawnPointCells().contains(cell)) {
+            return false;
+        }
+        spawnPoint = null;
+        return true;
+    }
+
+    private boolean isNpcLayerActive() {
+        return activeLayer != null && activeLayer.getType() == NON_PLAYABLE_CHARACTERS;
+    }
+
     private Tile[][] staticEnvironmentTiles() {
         if (layers == null) {
             return null;
@@ -475,7 +514,9 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             statusLabel.setText(
                 selectedVirtualObject.getLabel()
                     + "  |  " + selectedVirtualObject.getColumns() + " × " + selectedVirtualObject.getRows() + " tiles"
-                    + "  |  click places its lower-left tile" + pos
+                    + "  |  click places its lower-left tile"
+                    + placementNote(selectedVirtualObject)
+                    + pos
             );
             return;
         }
@@ -493,23 +534,24 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             statusLabel.setText("No tile selected — pick one from the Tiles palette");
             return;
         }
-        if (selectedTile.isOfType(RENDERING_STARTER)) {
-            final String rs = hasRenderingStarter()
-                ? "  |  set at col=" + renderingStarter.x() + " row=" + renderingStarter.y()
-                : "  |  not placed yet";
-            statusLabel.setText("Rendering Starter (virtual)" + rs);
-            return;
-        }
-        if (selectedTile.isOfType(SPAWN_POINT)) {
-            final String sp = hasSpawnPoint()
-                ? "  |  set at col=" + spawnPoint.x() + " row=" + spawnPoint.y()
-                : "  |  not placed yet";
-            statusLabel.setText("Spawn Point (virtual)" + sp);
-            return;
-        }
         final TileType type = selectedTile.getType();
         final String tileName = type != null ? type.getLabel() : "(none)";
         statusLabel.setText("Tile: " + tileName + "  |  " + rows + " rows × " + columns + " columns" + pos);
+    }
+
+    /** Where the rendering starter or the spawn point sits, by its lower-left cell; empty for the other objects. */
+    private String placementNote(final VirtualObjectType type) {
+        return switch (type.getCategory()) {
+            case RENDERING_STARTER -> placedAt(renderingStarter);
+            case SPAWN_POINT -> placedAt(spawnPoint == null ? null : belowOf(spawnPoint));
+            case CARD, PIPE_PORTAL -> "";
+        };
+    }
+
+    private String placedAt(final Coordinates lowerLeft) {
+        return lowerLeft == null
+            ? "  |  not placed yet"
+            : "  |  set at col=" + lowerLeft.x() + " row=" + lowerLeft.y();
     }
 
     /** Whether a grid click has anything to place — a tile, a whole enemy, or a virtual object. */

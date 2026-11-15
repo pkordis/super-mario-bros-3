@@ -27,9 +27,9 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
-import static house.x1337.app.smb3.enumeration.TileType.RENDERING_STARTER;
-import static house.x1337.app.smb3.enumeration.TileType.SPAWN_POINT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VERTICAL;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.RENDERING_STARTER;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,7 +50,7 @@ class LevelSceneEditorTabResizeTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),
@@ -77,7 +77,7 @@ class LevelSceneEditorTabResizeTest {
         final PipePortal portal = portalAt(of(7, 14));
 
         // Execute
-        tab.resize(16, 20);
+        tab.resizeScene(16, 20);
 
         // Verify
         assertThat(tab.getRows()).isEqualTo(20);
@@ -100,7 +100,7 @@ class LevelSceneEditorTabResizeTest {
         tab.setSpawnPoint(of(3, 13));
 
         // Execute
-        tab.resize(30, 15);
+        tab.resizeScene(30, 15);
 
         // Verify
         assertThat(layer(STATIC_ENVIRONMENT).getTiles()).hasDimensions(15, 30);
@@ -119,7 +119,7 @@ class LevelSceneEditorTabResizeTest {
 
         // Execute
         final Map<String, List<Coordinates>> cut = tab.findContentCutBy(16, 15);
-        tab.resize(16, 15);
+        tab.resizeScene(16, 15);
 
         // Verify
         assertThat(cut).isEmpty();
@@ -129,7 +129,7 @@ class LevelSceneEditorTabResizeTest {
     }
 
     @Test
-    @DisplayName("A shrink over content lists the cut cells per layer, the card and portals under NPCs, then markers")
+    @DisplayName("A shrink lists cut cells per layer, the card and portals under NPCs, then spawn point and starter")
     void shrinkingOverContentListsTheCells() {
         // Prepare
         tab.newScene(20, 30);
@@ -153,7 +153,7 @@ class LevelSceneEditorTabResizeTest {
             Map.entry(AIR.getLabel(), List.of(of(0, 2))),
             Map.entry(STATIC_ENVIRONMENT.getLabel(), List.of(of(17, 3), of(25, 10))),
             Map.entry(NON_PLAYABLE_CHARACTERS.getLabel(), npcCells),
-            Map.entry(SPAWN_POINT.getLabel(), List.of(of(1, 1))),
+            Map.entry(SPAWN_POINT.getLabel(), List.of(of(1, 1), of(1, 2))),
             Map.entry(RENDERING_STARTER.getLabel(), List.of(of(29, 0)))
         );
     }

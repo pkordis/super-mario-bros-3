@@ -9,8 +9,9 @@ both (`IN_AND_OUT`). It replaces the ROM's per-tileset enterable-pipe tile ids (
 - `VirtualObjectType` gives the `kind`, the footprint (`rows` × `columns`), the editor border `colour` and a `label`:
   - `PIPE_PORTAL_HORIZONTAL`: 1 × 2, the lip of an upright or upside-down pipe.
   - `PIPE_PORTAL_VERTICAL`: 2 × 1, the lip of a side pipe.
-  - Both are of kind `VirtualObjectKind.PIPE_PORTAL`. The third type, `CARD`, is not a portal and
-    never becomes a `PipePortal`; see `kb/level-completion.md`.
+  - Both are of kind `VirtualObjectKind.PIPE_PORTAL`. The other types, the card (`kb/level-completion.md`) and
+    the spawn point and the rendering starter (`kb/editor.md`, section 6), are not portals and never become a
+    `PipePortal`.
 - `PipePortal` (`model.game.portal`) holds `id`, `description`, `type` (`PipePortalType`), `virtualObjectType`,
   `levelSceneId`, `row` and `column`.
 - **Anchor:** `row` / `column` is always the portal's **lowest leftmost** cell. Row 0 is the top of the scene, so the

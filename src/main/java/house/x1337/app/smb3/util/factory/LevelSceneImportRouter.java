@@ -21,7 +21,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
  *
  * <p>Each tile is routed to the layer named by its {@link TileType#getLevelSceneLayerOwningType()
  * owning layer}. Tiles that are not yet classified ({@code type == null}) or whose type has no
- * owning layer (virtual tiles) are left out, so they can be routed later — "as the user goes" — once a
+ * owning layer (the null type) are left out, so they can be routed later — "as the user goes" — once a
  * type is assigned and {@link #route} is re-run against the same grid.
  *
  * <p>Empty cells are finalised per layer:

@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid.CellRange;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,7 +51,7 @@ class LevelSceneEditorGridClipTest {
         when(tab.getLayers()).thenReturn(List.of(layer));
         when(tab.getColumns()).thenReturn(COLUMNS);
         when(tab.getRows()).thenReturn(ROWS);
-        grid = new LevelSceneEditorGrid(tab);
+        grid = new LevelSceneEditorGrid(tab, new SpawnPointSprite());
     }
 
     @Test

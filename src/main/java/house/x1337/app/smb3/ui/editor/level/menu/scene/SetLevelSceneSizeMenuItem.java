@@ -53,6 +53,6 @@ public class SetLevelSceneSizeMenuItem extends GameEditorWindowMenuItem {
             resizeRefusal.show(getParentFrame(), cutContent);
             return;
         }
-        tab.resize(size.columns(), size.rows());
+        tab.resizeScene(size.columns(), size.rows());
     }
 }

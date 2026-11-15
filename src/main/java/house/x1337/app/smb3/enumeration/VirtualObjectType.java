@@ -7,6 +7,8 @@ import java.awt.Color;
 
 import static house.x1337.app.smb3.enumeration.VirtualObjectCategory.CARD;
 import static house.x1337.app.smb3.enumeration.VirtualObjectCategory.PIPE_PORTAL;
+import static java.awt.Color.BLUE;
+import static java.awt.Color.GREEN;
 import static java.awt.Color.RED;
 import static java.awt.Color.YELLOW;
 
@@ -15,7 +17,9 @@ import static java.awt.Color.YELLOW;
 public enum VirtualObjectType {
     LEVEL_COMPLETION_CARD(CARD, YELLOW, 1, 1, "Level Completion Card"),
     PIPE_PORTAL_HORIZONTAL(PIPE_PORTAL, RED, 1, 2, "Pipe Portal (Horizontal)"),
-    PIPE_PORTAL_VERTICAL(PIPE_PORTAL, RED, 2, 1, "Pipe Portal (Vertical)");
+    PIPE_PORTAL_VERTICAL(PIPE_PORTAL, RED, 2, 1, "Pipe Portal (Vertical)"),
+    RENDERING_STARTER(VirtualObjectCategory.RENDERING_STARTER, BLUE, 1, 1, "Rendering Starter"),
+    SPAWN_POINT(VirtualObjectCategory.SPAWN_POINT, GREEN, 2, 1, "Spawn Point");
 
     private final VirtualObjectCategory category;
     private final Color colour;

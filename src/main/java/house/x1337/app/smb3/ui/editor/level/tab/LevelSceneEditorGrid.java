@@ -1,11 +1,13 @@
 package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.annotation.Prototype;
+import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -30,6 +32,8 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.LEVEL_COMPLETION_CARD;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.RENDERING_STARTER;
+import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Color.BLACK;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
@@ -45,6 +49,7 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
 
     private final Map<Integer, BufferedImage> tileImageCache = new HashMap<>();
     private final LevelSceneEditorTab tab;
+    private final SpawnPointSprite spawnPointSprite;
 
     @PostConstruct
     void init() {
@@ -171,46 +176,54 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
             graphics.drawLine(left, row * TILE_SIZE, right, row * TILE_SIZE);
         }
 
-        // Rendering-starter indicator — thick blue border on the marked cell
-        if (tab.hasRenderingStarter()) {
-            graphics.setColor(new Color(30, 100, 255));
-            graphics.setStroke(new BasicStroke(4f));
-            final int bx = tab.getRenderingStarter().x() * TILE_SIZE + 2;
-            final int by = tab.getRenderingStarter().y() * TILE_SIZE + 2;
-            graphics.drawRect(bx, by, TILE_SIZE - 4, TILE_SIZE - 4);
-        }
-
-        // Spawn-point indicator — thick light-green border on the marked cell
-        if (tab.hasSpawnPoint()) {
-            graphics.setColor(new Color(102, 255, 102));
-            graphics.setStroke(new BasicStroke(4f));
-            final int sx = tab.getSpawnPoint().x() * TILE_SIZE + 2;
-            final int sy = tab.getSpawnPoint().y() * TILE_SIZE + 2;
-            graphics.drawRect(sx, sy, TILE_SIZE - 4, TILE_SIZE - 4);
-        }
-
         drawPipePortals(graphics);
+        drawSpawnPoint(graphics);
+        drawRenderingStarter(graphics);
         drawLevelCompletionCard(graphics);
 
         graphics.dispose();
     }
 
-    /**
-     * Outlines the scene's level completion card on its cell, above the pipe portals. The card belongs to the NPC
-     * layer, so it is hidden along with it.
-     */
-    private void drawLevelCompletionCard(final Graphics2D graphics) {
-        if (!isNpcLayerVisible() || !tab.hasLevelCompletionCard()) {
+    private void drawSpawnPoint(final Graphics2D graphics) {
+        final Coordinates upperCell = tab.getSpawnPoint();
+        if (!isNpcLayerVisible() || upperCell == null) {
             return;
         }
-        graphics.setColor(LEVEL_COMPLETION_CARD.getColour());
-        graphics.setStroke(new BasicStroke(4f));
-        graphics.drawRect(
-            tab.getLevelCompletionCard().x() * TILE_SIZE + 2,
-            tab.getLevelCompletionCard().y() * TILE_SIZE + 2,
-            LEVEL_COMPLETION_CARD.getColumns() * TILE_SIZE - 4,
-            LEVEL_COMPLETION_CARD.getRows() * TILE_SIZE - 4
+        final Rectangle box = cellBox(upperCell, SPAWN_POINT);
+        spawnPointSprite.draw(graphics, box);
+        drawBorder(graphics, SPAWN_POINT.getColour(), box);
+    }
+
+    private void drawRenderingStarter(final Graphics2D graphics) {
+        final Coordinates cell = tab.getRenderingStarter();
+        if (isNpcLayerVisible() && cell != null) {
+            drawBorder(graphics, RENDERING_STARTER.getColour(), cellBox(cell, RENDERING_STARTER));
+        }
+    }
+
+    private void drawLevelCompletionCard(final Graphics2D graphics) {
+        if (isNpcLayerVisible() && tab.hasLevelCompletionCard()) {
+            drawBorder(
+                graphics,
+                LEVEL_COMPLETION_CARD.getColour(),
+                cellBox(tab.getLevelCompletionCard(), LEVEL_COMPLETION_CARD)
+            );
+        }
+    }
+
+    private Rectangle cellBox(final Coordinates topLeft, final VirtualObjectType type) {
+        return new Rectangle(
+            topLeft.x() * TILE_SIZE,
+            topLeft.y() * TILE_SIZE,
+            type.getColumns() * TILE_SIZE,
+            type.getRows() * TILE_SIZE
         );
+    }
+
+    private void drawBorder(final Graphics2D graphics, final Color colour, final Rectangle box) {
+        graphics.setColor(colour);
+        graphics.setStroke(new BasicStroke(4f));
+        graphics.drawRect(box.x + 2, box.y + 2, box.width - 4, box.height - 4);
     }
 
     /**

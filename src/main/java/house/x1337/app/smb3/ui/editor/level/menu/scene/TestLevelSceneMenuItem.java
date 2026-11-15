@@ -32,7 +32,7 @@ public class TestLevelSceneMenuItem extends JMenuItem {
         if (!active.hasRenderingStarter()) {
             showMessageDialog(
                 this,
-                "A Rendering Starter tile must be placed before testing the scene.",
+                "A Rendering Starter must be placed before testing the scene.",
                 "Rendering Starter Required",
                 WARNING_MESSAGE
             );
@@ -41,7 +41,7 @@ public class TestLevelSceneMenuItem extends JMenuItem {
         if (!active.hasSpawnPoint()) {
             showMessageDialog(
                 this,
-                "A Spawn Point tile must be placed before testing the scene.",
+                "A Spawn Point must be placed before testing the scene.",
                 "Spawn Point Required",
                 WARNING_MESSAGE
             );

@@ -3,6 +3,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -95,7 +96,7 @@ class LevelSceneEditorGridLevelCompletionCardTest {
 
         final BufferedImage image = new BufferedImage(GRID_COLUMNS * TILE_SIZE, GRID_ROWS * TILE_SIZE, TYPE_INT_ARGB);
         final Graphics2D graphics = image.createGraphics();
-        new LevelSceneEditorGrid(tab).paintComponent(graphics);
+        new LevelSceneEditorGrid(tab, new SpawnPointSprite()).paintComponent(graphics);
         graphics.dispose();
         return image;
     }
