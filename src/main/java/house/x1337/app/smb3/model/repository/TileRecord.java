@@ -25,4 +25,5 @@ public final class TileRecord implements TileRecordCapabilities, Serializable {
     private String description;
     private int[] originalArgbData;
     private int[] argbData;
+    private Integer levelObjectId;
 }

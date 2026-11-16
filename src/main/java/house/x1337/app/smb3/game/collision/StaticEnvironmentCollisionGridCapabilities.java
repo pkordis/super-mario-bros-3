@@ -18,10 +18,9 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.LevelObjectService;
 
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
@@ -59,21 +58,21 @@ public interface StaticEnvironmentCollisionGridCapabilities {
         final Tile[][] tiles = consolidated.surface();
         final Tile[][] underlayTiles = consolidated.underlay();
 
-        // Collect all non-NULL_TILE ids so we can bulk-fetch their records. Both views contribute: a tile
+        // Collect all non-NULL_TILE tiles so we can bulk-fetch their records. Both views contribute: a tile
         // covered by another appears only in the underlay.
-        final Set<Integer> nonNullIds = new HashSet<>();
+        final Map<Integer, Tile> nonNullTiles = new HashMap<>();
         for (final Tile[][] view : new Tile[][][] {tiles, underlayTiles}) {
             for (final Tile[] row : view) {
                 for (final Tile tile : row) {
                     if (tile != NULL_TILE) {
-                        nonNullIds.add(tile.getId());
+                        nonNullTiles.put(tile.getId(), tile);
                     }
                 }
             }
         }
 
         final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
-        final Map<Integer, LevelObjectRecord> recordsById = levelObjectService.findAllByIds(nonNullIds);
+        final Map<Integer, LevelObjectRecord> recordsById = levelObjectService.findAllByTiles(nonNullTiles.values());
 
         final LevelObject[][] objects = toLevelObjects(gameEngine, tiles, dimensions, recordsById);
         final LevelObject[][] underlayObjects = toLevelObjects(gameEngine, underlayTiles, dimensions, recordsById);
@@ -145,8 +144,6 @@ public interface StaticEnvironmentCollisionGridCapabilities {
                     if (category == COLLIDING || category == ONE_WAY_PLATFORM) {
                         final SolidLevelObject newSolidLevelObject = SolidLevelObject
                             .builder()
-                            .tile(tile)
-                            .type(DUMMY_SOLID_OBJECT)
                             .build();
                         objects[row][col] = newSolidLevelObject;
                     }
@@ -156,7 +153,8 @@ public interface StaticEnvironmentCollisionGridCapabilities {
 
                 objects[row][col] = record.toLevelObject(
                     gameEngine,
-                    of(col, row)
+                    of(col, row),
+                    tile
                 );
                 objects[row][col].configure(new LevelObjectData(record.getData()));
             }

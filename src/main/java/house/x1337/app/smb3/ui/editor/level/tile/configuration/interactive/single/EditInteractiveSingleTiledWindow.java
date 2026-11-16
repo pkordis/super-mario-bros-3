@@ -39,9 +39,7 @@ public final class EditInteractiveSingleTiledWindow extends JDialog implements C
     public EditInteractiveSingleTiledWindow(final GameEditorWindow parent) {
         super(parent);
         final List<Tile> allInteractiveSingle = getBean(TileService.class).getInteractiveSingleTiles();
-        final Set<Integer> unclassifiedIds = levelObjectService.getUnclassifiedIds(
-            allInteractiveSingle.stream().map(Tile::getId).collect(toList())
-        );
+        final Set<Integer> unclassifiedIds = levelObjectService.getUnclassifiedIds(allInteractiveSingle);
         final List<Tile> unclassified = allInteractiveSingle
             .stream()
             .filter(t -> unclassifiedIds.contains(t.getId()))
@@ -80,7 +78,7 @@ public final class EditInteractiveSingleTiledWindow extends JDialog implements C
         }
         setFormEnabled(true);
 
-        final Optional<LevelObjectRecord> existing = levelObjectService.findByTileId(tile.getId());
+        final Optional<LevelObjectRecord> existing = levelObjectService.findByTile(tile);
         descriptionField.setText(existing.map(LevelObjectRecord::getDescription).orElse(""));
 
         final String storedType = existing.map(LevelObjectRecord::getType).orElse(null);

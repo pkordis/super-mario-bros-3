@@ -9,5 +9,5 @@ public interface TileRepository {
     void insert(TileRecord record);
     Iterable<TileRecord> findAll();
     Optional<TileRecord> findById(int id);
-    void updateMetadata(int id, TileType type, String description, int[] argbData);
+    void updateMetadata(int id, TileType type, String description, int[] argbData, Integer levelObjectId);
 }

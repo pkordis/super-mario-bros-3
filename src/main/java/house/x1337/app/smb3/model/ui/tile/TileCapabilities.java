@@ -25,6 +25,7 @@ public sealed interface TileCapabilities permits Tile {
             .description(tile.getDescription())
             .originalArgbData(tile.getOriginalArgbData())
             .argbData(tile.getArgbData())
+            .levelObjectId(tile.getLevelObjectId())
             .build();
     }
 
@@ -66,6 +67,11 @@ public sealed interface TileCapabilities permits Tile {
     default boolean isOfType(final TileType type) {
         final Tile tile = (Tile) this;
         return tile.getType() == type;
+    }
+
+    default boolean isUnresolved() {
+        final Tile tile = (Tile) this;
+        return tile.getType() == null && tile.getLevelObjectId() == null;
     }
 
     default boolean isVirtual() {

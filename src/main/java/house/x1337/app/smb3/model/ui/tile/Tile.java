@@ -19,4 +19,5 @@ public final class Tile implements TileCapabilities {
     private String description;
     private int[] originalArgbData;
     private int[] argbData;
+    private Integer levelObjectId;
 }

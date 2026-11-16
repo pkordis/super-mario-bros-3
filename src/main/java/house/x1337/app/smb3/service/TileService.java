@@ -169,7 +169,16 @@ public class TileService implements TilesProvider {
         return tileCache
             .values()
             .stream()
-            .filter(tile -> tile.getType() == null)
+            .filter(Tile::isUnresolved)
+            .sorted(comparing(Tile::getId))
+            .toList();
+    }
+
+    public List<Tile> getTilesLinkedTo(final int levelObjectId) {
+        return tileCache
+            .values()
+            .stream()
+            .filter(tile -> tile.getLevelObjectId() != null && tile.getLevelObjectId() == levelObjectId)
             .sorted(comparing(Tile::getId))
             .toList();
     }
@@ -184,7 +193,13 @@ public class TileService implements TilesProvider {
     }
 
     public void updateTile(final Tile tile) {
-        tileRepository.updateMetadata(tile.getId(), tile.getType(), tile.getDescription(), tile.getArgbData());
+        tileRepository.updateMetadata(
+            tile.getId(),
+            tile.getType(),
+            tile.getDescription(),
+            tile.getArgbData(),
+            tile.getLevelObjectId()
+        );
         tileCache.put(tile.getId(), tile);
         if (tile.getSha256() != null) {
             tilesBySha256.put(tile.getSha256(), tile);

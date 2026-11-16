@@ -8,6 +8,7 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -114,6 +115,52 @@ class CustomDataTablePanelTest {
 
         // Execute & Verify
         assertThat(panel.duplicateKeys()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Showing new data replaces every row and drops an edit in progress")
+    void showReplacesTheRows() {
+        // Prepare
+        panel.render("Custom Data", Map.of("speed", "fast"));
+        panel.getTable().editCellAt(0, 1);
+
+        // Execute
+        panel.show(Map.of("colour", "red"));
+
+        // Verify
+        assertThat(panel.getData()).containsExactly(entry("colour", "red"));
+        assertThat(panel.getTable().isEditing()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A read-only table has no editable cells and no Add or Remove")
+    void aReadOnlyTableCannotBeChanged() {
+        // Prepare
+        panel.render("Custom Data", Map.of("speed", "fast"));
+
+        // Execute
+        panel.setEditable(false);
+
+        // Verify
+        assertThat(panel.isEditable()).isFalse();
+        assertThat(panel.getTable().isCellEditable(0, 1)).isFalse();
+        assertThat(panel.getAddRowButton().isEnabled()).isFalse();
+        assertThat(panel.getRemoveRowButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A change to the rows is reported")
+    void changesAreReported() {
+        // Prepare
+        final AtomicInteger changes = new AtomicInteger();
+        panel.render("Custom Data", Map.of("speed", "fast"));
+        panel.onChange(changes::incrementAndGet);
+
+        // Execute
+        model().setValueAt("slow", 0, 1);
+
+        // Verify
+        assertThat(changes).hasValue(1);
     }
 
     // -------------------------------------------------------------------------

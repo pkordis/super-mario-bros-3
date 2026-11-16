@@ -12,6 +12,7 @@ public sealed interface TileRecordCapabilities permits TileRecord {
             .description(record.getDescription())
             .originalArgbData(record.getOriginalArgbData())
             .argbData(record.getArgbData())
+            .levelObjectId(record.getLevelObjectId())
             .build();
     }
 }

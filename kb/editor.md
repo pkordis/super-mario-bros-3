@@ -202,6 +202,34 @@ palette group, Tiles > Configure Virtual Tiles... and its window are gone.
   nothing, not even the type. No confirmation when no cell would move. A type within the same layer moves nothing; a
   tile getting its first type moves nothing either, as unresolved tiles are never stored in a scene's layers.
 
+### Linking tiles to level objects (SMB3-80)
+
+- **Many tiles, one object.** A level object (`LevelObjectRecord`) has the id of the tile it was made from. Other
+  tiles, such as the same block in another palette or with a few different pixels, can be linked to it through the
+  nullable `TileRecord.levelObjectId`. Records stored before the field existed read it as `null`.
+- **Lookup.** `LevelObjectService.findByTile` returns the linked record, and falls back to the record with the
+  tile's own id when there is no link or the link names a missing record. `findAllByTiles` (used by the collision
+  grid) and `getUnclassifiedIds` go through it. A single-tiled object is drawn with the pixels of the tile painted in
+  its cell (`LevelObjectRecordCapabilities.toLevelObject(gameEngine, offset, tile)`), so each linked tile keeps its
+  look.
+- **Resolved.** A tile is unresolved (`Tile.isUnresolved`) when it has neither a type nor a link. A re-import of
+  exactly the same pixels reuses the tile by `sha256`, so a linked tile never reaches the review window again, and
+  Handle Unresolved skips it.
+- **The form.** `TilePropertiesForm` shows the id and the pixel editor, then two sections separated by "or", each
+  with a radio button heading it: Tile properties (type, description, Set) and Associate with existing level object
+  (`LevelObjectAssociationPanel`: dropdown, description, data table, Save). Only the selected section is enabled. A
+  linked tile opens on the second one. `TilePropertiesForm.save` saves from whichever is active.
+- **The dropdown.** `- (none)`, then every single-tiled level object once (`getSingleTiledLevelObjects`, by type
+  label, then id). Choosing one shows its description and data, both editable. Left as they are, the button reads
+  Link; once either differs (`LevelObjectAssociationPanel.isModified`, data compared as the table's trimmed text), it
+  reads Create New and Link. With None it reads Unlink, and is only enabled for a linked tile.
+- **Saving** (`TileEditing.associate`). The tile keeps its description and takes the type of the level object's own
+  tile, or Interactive Object - Single when that tile has none. Link stores the level object's id in the tile. Create
+  New and Link stores a new level object under the tile's own id (the chosen object's type, the edited description
+  and data) and links the tile to it; the chosen object is left as it was. If other tiles are linked to the record
+  the new one would replace, the author confirms first. The layer move confirmation and everything after it work as
+  for Set, and the new level object is only stored once both are confirmed. Set in Tile properties clears a link.
+
 ## 8. Known gaps
 
 - Test Level Scene can start a second tester session while one runs, by switching back to a level scene tab; the
