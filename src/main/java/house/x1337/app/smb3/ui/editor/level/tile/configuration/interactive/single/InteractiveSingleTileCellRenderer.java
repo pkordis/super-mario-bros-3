@@ -59,7 +59,7 @@ public final class InteractiveSingleTileCellRenderer extends JPanel implements L
         final String id = sha256 != null ? sha256 : String.valueOf(tile.getId());
         final String shortId = id.length() > 10 ? id.substring(0, 8) + "..." : id;
 
-        final Optional<LevelObjectRecord> record = levelObjectService.findByTileId(tile.getId());
+        final Optional<LevelObjectRecord> record = levelObjectService.findByTile(tile);
         final String objectTypeInfo = record
             .map(r -> r.getType() != null ? labelForName(r.getType()) : "no object type")
             .orElse("no object type");

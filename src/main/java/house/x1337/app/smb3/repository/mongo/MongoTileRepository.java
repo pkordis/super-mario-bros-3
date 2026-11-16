@@ -41,13 +41,20 @@ public class MongoTileRepository implements TileRepository {
     }
 
     @Override
-    public void updateMetadata(final int id, final TileType type, final String description, final int[] argbData) {
+    public void updateMetadata(
+        final int id,
+        final TileType type,
+        final String description,
+        final int[] argbData,
+        final Integer levelObjectId
+    ) {
         tileMongoCollection.updateOne(
             eq("_id", id),
             combine(
                 set("type", type != null ? type.name() : null),
                 set("description", description),
-                set("argbData", argbData)
+                set("argbData", argbData),
+                set("levelObjectId", levelObjectId)
             )
         );
     }

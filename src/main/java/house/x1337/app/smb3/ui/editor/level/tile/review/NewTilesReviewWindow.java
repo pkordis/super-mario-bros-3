@@ -3,7 +3,6 @@ package house.x1337.app.smb3.ui.editor.level.tile.review;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.GameEditorWindow;
-import house.x1337.app.smb3.ui.editor.level.tile.edit.TileEditing;
 import house.x1337.app.smb3.ui.editor.level.tile.edit.TilePropertiesForm;
 import jakarta.annotation.PostConstruct;
 
@@ -16,13 +15,12 @@ import java.util.List;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 /**
- * Lists tiles that still need a type, beside the tile form. Each tile set leaves the list, and the window closes
- * once the list is empty. Opened after a PNG import and by Tiles &gt; Handle Unresolved.
+ * Lists tiles that still need a type, beside the tile form. Each tile set or linked leaves the list, and the window
+ * closes once the list is empty. Opened after a PNG import and by Tiles &gt; Handle Unresolved.
  */
 @Prototype
 public final class NewTilesReviewWindow extends JDialog implements ComponentsBuilder {
     private final TilePropertiesForm form = getBean(TilePropertiesForm.class);
-    private final TileEditing tileEditing = getBean(TileEditing.class);
     private final NewTilesList tileList;
     private final JLabel headerLabel = new JLabel();
     private Tile selectedTile;
@@ -40,7 +38,7 @@ public final class NewTilesReviewWindow extends JDialog implements ComponentsBui
         setResizable(true);
         setContentPane(buildContent(tileList, headerLabel, form));
         form.onSet(this::saveSelectedTile);
-        setMinimumSize(new Dimension(720, 680));
+        setMinimumSize(new Dimension(1180, 860));
         pack();
         setLocationRelativeTo(getParent());
         updateHeader();
@@ -52,7 +50,7 @@ public final class NewTilesReviewWindow extends JDialog implements ComponentsBui
     }
 
     private void saveSelectedTile() {
-        if (selectedTile == null || !tileEditing.save(this, selectedTile, form.changes())) {
+        if (selectedTile == null || !form.save(this, selectedTile)) {
             return;
         }
         final DefaultListModel<Tile> listModel = tileList.getModel();

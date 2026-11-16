@@ -51,26 +51,37 @@ public sealed interface LevelObjectRecordCapabilities permits LevelObjectRecord 
     }
 
     /**
-     * Instantiates a fresh {@link LevelObject} for this record. A single-tiled object is handed the
-     * painted tile's image — its appearance <em>is</em> that tile — while a multi-tiled one is not,
-     * because it is a whole entity whose sprites come from its own assets.
-     *
-     * @throws IllegalArgumentException if the type string cannot be resolved to either enum.
+     * Instantiates a fresh {@link LevelObject} for this record, drawn as the record's own tile. See
+     * {@link #toLevelObject(GameEngine, Coordinates, Tile)}.
      */
     default LevelObject toLevelObject(
         final GameEngine gameEngine,
         final Coordinates offset
     ) {
         final LevelObjectRecord record = (LevelObjectRecord) this;
+        final Tile ownTile = resolveLevelObjectType().isSingleTiled()
+            ? getBean(TileService.class).findById(record.getId()).orElse(null)
+            : null;
+        return toLevelObject(gameEngine, offset, ownTile);
+    }
+
+    /**
+     * Instantiates a fresh {@link LevelObject} for this record. A single-tiled object is drawn with the pixels of
+     * {@code tile}, the tile painted in its cell, so every tile linked to the record keeps its own look. A
+     * multi-tiled one ignores it: its sprites come from its own assets.
+     *
+     * @throws IllegalArgumentException if the type string cannot be resolved to either enum.
+     */
+    default LevelObject toLevelObject(
+        final GameEngine gameEngine,
+        final Coordinates offset,
+        final Tile tile
+    ) {
         final LevelObjectType type = resolveLevelObjectType();
         if (type.isSingleTiled()) {
-            final TileService tileService = getBean(TileService.class);
-            final Optional<Tile> tile = tileService.findById(record.getId());
-            ImageResource imageResource = null;
-
-            if (tile.isPresent()) {
-                imageResource = fromData(tile.get().getArgbData(), TILE_SIZE, TILE_SIZE);
-            }
+            final ImageResource imageResource = tile == null
+                ? null
+                : fromData(tile.getArgbData(), TILE_SIZE, TILE_SIZE);
             final LevelObject newLevelObject = getBean(
                 type.getInstanceType(),
                 gameEngine,

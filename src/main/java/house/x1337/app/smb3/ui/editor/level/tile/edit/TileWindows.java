@@ -36,6 +36,12 @@ public class TileWindows {
             == OK_OPTION;
     }
 
+    /** @return whether the author chose to go ahead */
+    public boolean confirmLevelObjectReplacement(final Component parent, final String message) {
+        return showConfirmDialog(parent, message, "Replace Level Object", OK_CANCEL_OPTION, WARNING_MESSAGE)
+            == OK_OPTION;
+    }
+
     public void sayNoUnresolvedTiles(final Component parent) {
         showMessageDialog(parent, "Every tile has a type.", "No Unresolved Tiles", INFORMATION_MESSAGE);
     }

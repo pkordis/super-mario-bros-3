@@ -16,11 +16,10 @@ import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.SOUTH;
 import static javax.swing.BorderFactory.createEmptyBorder;
 
-/** The tile form for one tile. Set saves it and closes the window; Close leaves it as it was. */
+/** The tile form for one tile. Set or Save saves it and closes the window; Close leaves it as it was. */
 @Prototype
 public final class EditTileWindow extends JDialog {
     private final TilePropertiesForm form = getBean(TilePropertiesForm.class);
-    private final TileEditing tileEditing = getBean(TileEditing.class);
     private final Tile tile;
 
     public EditTileWindow(final GameEditorWindow parent, final Tile tile) {
@@ -48,7 +47,7 @@ public final class EditTileWindow extends JDialog {
 
         form.load(tile);
         form.onSet(() -> {
-            if (tileEditing.save(this, tile, form.changes())) {
+            if (form.save(this, tile)) {
                 dispose();
             }
         });

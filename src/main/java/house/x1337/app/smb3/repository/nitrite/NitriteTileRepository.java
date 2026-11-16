@@ -39,11 +39,18 @@ public class NitriteTileRepository implements TileRepository {
     }
 
     @Override
-    public void updateMetadata(final int id, final TileType type, final String description, final int[] argbData) {
+    public void updateMetadata(
+        final int id,
+        final TileType type,
+        final String description,
+        final int[] argbData,
+        final Integer levelObjectId
+    ) {
         final Document patch = Document.createDocument()
             .put("type", type != null ? type.name() : null)
             .put("description", description)
-            .put("argbData", argbData);
+            .put("argbData", argbData)
+            .put("levelObjectId", levelObjectId);
         tileObjectRepository.getDocumentCollection()
             .update(where("id").eq(id), patch);
     }

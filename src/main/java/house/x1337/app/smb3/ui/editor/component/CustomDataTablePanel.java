@@ -33,10 +33,20 @@ public final class CustomDataTablePanel extends JPanel {
     private static final int KEY_COLUMN = 0;
     private static final int VALUE_COLUMN = 1;
 
-    private final DefaultTableModel model = new DefaultTableModel(new String[] {"Key", "Value"}, 0);
+    private final DefaultTableModel model = new DefaultTableModel(new String[] {"Key", "Value"}, 0) {
+        @Override
+        public boolean isCellEditable(final int row, final int column) {
+            return editable;
+        }
+    };
 
     @Getter(AccessLevel.PACKAGE)
     private final JTable table = new JTable(model);
+    @Getter(AccessLevel.PACKAGE)
+    private final JButton addRowButton = new JButton("Add");
+    @Getter(AccessLevel.PACKAGE)
+    private final JButton removeRowButton = new JButton("Remove");
+    private boolean editable = true;
 
     public CustomDataTablePanel() {
         super(new BorderLayout(8, 8));
@@ -49,7 +59,7 @@ public final class CustomDataTablePanel extends JPanel {
     public void render(final String title, final Map<String, ?> initial) {
         setBorder(createTitledBorder(title));
 
-        initial.forEach((key, value) -> model.addRow(new String[]{key, value == null ? "" : String.valueOf(value)}));
+        show(initial);
 
         table.setRowHeight(24);
         table.getColumnModel().getColumn(KEY_COLUMN).setPreferredWidth(120);
@@ -60,6 +70,30 @@ public final class CustomDataTablePanel extends JPanel {
 
         add(tableScroll, CENTER);
         add(buildButtons(), SOUTH);
+    }
+
+    /** Replaces the rows with {@code data}, dropping any edit in progress. */
+    public void show(final Map<String, ?> data) {
+        final TableCellEditor editor = table.getCellEditor();
+        if (editor != null) {
+            editor.cancelCellEditing();
+        }
+        model.setRowCount(0);
+        data.forEach((key, value) -> model.addRow(new String[]{key, value == null ? "" : String.valueOf(value)}));
+    }
+
+    public void setEditable(final boolean editable) {
+        this.editable = editable;
+        addRowButton.setEnabled(editable);
+        removeRowButton.setEnabled(editable);
+    }
+
+    public boolean isEditable() {
+        return editable;
+    }
+
+    public void onChange(final Runnable action) {
+        model.addTableModelListener(event -> action.run());
     }
 
     public Map<String, Object> getData() {
@@ -106,9 +140,7 @@ public final class CustomDataTablePanel extends JPanel {
 
     private JPanel buildButtons() {
         final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        final JButton addRowButton = new JButton("Add");
         addRowButton.addActionListener(event -> addRow());
-        final JButton removeRowButton = new JButton("Remove");
         removeRowButton.addActionListener(event -> removeSelectedRow());
         buttons.add(addRowButton);
         buttons.add(removeRowButton);

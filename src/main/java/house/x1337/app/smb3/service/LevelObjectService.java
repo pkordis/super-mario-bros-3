@@ -3,9 +3,11 @@ package house.x1337.app.smb3.service;
 import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
+import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.repository.LevelObjectRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +15,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_BLOCK;
+import static java.util.Comparator.comparing;
 
 @Slf4j
 @Singleton
@@ -34,38 +38,39 @@ public class LevelObjectService {
         log.info("Level object cache initialised with {} entries.", cache.size());
     }
 
-    public Optional<LevelObjectRecord> findByTileId(final int tileId) {
-        return Optional.ofNullable(cache.get(tileId));
+    /** The record a tile stands for: the one it is linked to, or else the one with the tile's own id. */
+    public Optional<LevelObjectRecord> findByTile(final Tile tile) {
+        final Integer linkedId = tile.getLevelObjectId();
+        final LevelObjectRecord linked = linkedId == null ? null : cache.get(linkedId);
+        return Optional.ofNullable(linked != null ? linked : cache.get(tile.getId()));
     }
 
-    /**
-     * Returns a map from tile id to {@link LevelObjectRecord} for every id in
-     * {@code tileIds} that has a record in the cache. Ids with no cached record
-     * are silently omitted from the result.
-     */
-    public Map<Integer, LevelObjectRecord> findAllByIds(final Set<Integer> tileIds) {
+    /** @return the record of every tile that has one, by tile id */
+    public Map<Integer, LevelObjectRecord> findAllByTiles(final Collection<Tile> tiles) {
         final Map<Integer, LevelObjectRecord> result = new HashMap<>();
-        for (final int id : tileIds) {
-            final LevelObjectRecord record = cache.get(id);
-            if (record != null) {
-                result.put(id, record);
-            }
+        for (final Tile tile : tiles) {
+            findByTile(tile).ifPresent(record -> result.put(tile.getId(), record));
         }
         return result;
     }
 
-    /**
-     * Returns the subset of {@code tileIds} that have no {@link LevelObjectRecord} in the cache,
-     * or whose cached record has a {@code null} type — i.e. tiles that still need classification.
-     */
-    public Set<Integer> getUnclassifiedIds(final Collection<Integer> tileIds) {
-        return tileIds
+    /** @return the ids of the tiles with no record, or with a record of no type */
+    public Set<Integer> getUnclassifiedIds(final Collection<Tile> tiles) {
+        return tiles
             .stream()
-            .filter(id -> {
-                final LevelObjectRecord record = cache.get(id);
-                return record == null || record.getType() == null;
-            })
+            .filter(tile -> findByTile(tile).map(LevelObjectRecord::getType).isEmpty())
+            .map(Tile::getId)
             .collect(Collectors.toUnmodifiableSet());
+    }
+
+    public List<LevelObjectRecord> getSingleTiledLevelObjects() {
+        return cache
+            .values()
+            .stream()
+            .filter(record -> record.findLevelObjectType().filter(LevelObjectType::isSingleTiled).isPresent())
+            .sorted(comparing((LevelObjectRecord record) -> record.findLevelObjectType().orElseThrow().getLabel())
+                .thenComparing(LevelObjectRecord::getId))
+            .toList();
     }
 
     public void upsert(final LevelObjectRecord record) {

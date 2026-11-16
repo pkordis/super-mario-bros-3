@@ -49,7 +49,7 @@ public class ImportFromPngLevelSceneMenuItem extends GameEditorWindowMenuItem {
 
             final List<Tile> needReview = Arrays.stream(result.grid())
                 .flatMap(Arrays::stream)
-                .filter(t -> t != null && t.getType() == null)
+                .filter(tile -> tile != null && tile.isUnresolved())
                 .distinct()
                 .toList();
 
