@@ -23,10 +23,14 @@ public enum SlopeProfile {
     STEEP_FALLING(0, 16, new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
     STEEP_RISING(16, 0, new int[] {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0});
 
+    static final int GENTLE_DOWNHILL_WALK_ANIMATION_RATE = 96;
     static final int GENTLE_ENEMY_UPHILL_WALK_SPEED = 6;
     static final int GENTLE_PLAYER_PULL = 2;
+    static final int GENTLE_UPHILL_WALK_ANIMATION_RATE = 192;
+    static final int STEEP_DOWNHILL_WALK_ANIMATION_RATE = 64;
     static final int STEEP_ENEMY_UPHILL_WALK_SPEED = 5;
     static final int STEEP_PLAYER_PULL = 3;
+    static final int STEEP_UPHILL_WALK_ANIMATION_RATE = 255;
 
     private final int leftEdgeDepth;
     private final int rightEdgeDepth;
@@ -78,5 +82,15 @@ public enum SlopeProfile {
 
     public int enemyUphillWalkSpeed() {
         return isSteep() ? STEEP_ENEMY_UPHILL_WALK_SPEED : GENTLE_ENEMY_UPHILL_WALK_SPEED;
+    }
+
+    /**
+     * @return how fast an enemy walking that way steps through its walk cycle, in 256ths of a step per tick
+     */
+    public int enemyWalkAnimationRate(final boolean movingRight) {
+        if (isUphillFor(movingRight)) {
+            return isSteep() ? STEEP_UPHILL_WALK_ANIMATION_RATE : GENTLE_UPHILL_WALK_ANIMATION_RATE;
+        }
+        return isSteep() ? STEEP_DOWNHILL_WALK_ANIMATION_RATE : GENTLE_DOWNHILL_WALK_ANIMATION_RATE;
     }
 }

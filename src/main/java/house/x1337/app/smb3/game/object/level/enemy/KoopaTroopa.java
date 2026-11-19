@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManage
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
+import house.x1337.app.smb3.game.object.level.enemy.base.WalkAnimationClock;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -73,6 +74,7 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
     @Accessors(fluent = true)
     private final boolean bouncesOffOtherObjects = true;
     private final KoopaTroopaAnimator animator = getBean(KoopaTroopaAnimator.class);
+    private final WalkAnimationClock walkClock = new WalkAnimationClock();
     private final LevelObjectType type = KOOPA_TROOPA;
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
@@ -103,7 +105,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
     private int wakeUpThrottlePhase;
     private int wakeUpTicks;
     private int walkFrameIndex;
-    private int walkFrameTicks;
 
     /**
      * Only the position may be derived here. An enemy is constructed while {@code GameEngine.setupLevel}
@@ -299,9 +300,9 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         } else {
             velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
 
-            advanceWalkFrame();
             stepWalkHorizontally();
             moveVertically();
+            advanceWalkFrame();
             if (mode == RED) {
                 guardAgainstLedge();
             }
@@ -312,11 +313,11 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
     }
 
     private void advanceWalkFrame() {
-        walkFrameTicks++;
-        if (walkFrameTicks < TICKS_PER_WALK_FRAME) {
+        // A red Koopa Troopa keeps the same pace on a slope.
+        final int rate = mode == RED ? FLAT_WALK_ANIMATION_RATE : walkAnimationRate(facingRight);
+        if (!walkClock.advance(rate)) {
             return;
         }
-        walkFrameTicks = 0;
         walkFrameIndex = (walkFrameIndex + 1) % animator.walkFrameCount(this);
         animator.applyCurrentFrame(this);
     }

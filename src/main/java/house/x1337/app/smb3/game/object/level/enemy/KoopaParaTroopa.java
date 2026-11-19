@@ -9,6 +9,7 @@ import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.enemy.animator.KoopaParaTroopaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
+import house.x1337.app.smb3.game.object.level.enemy.base.WalkAnimationClock;
 import house.x1337.app.smb3.game.object.level.enemy.family.KoopaTroopaBody;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
@@ -48,6 +49,7 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private static final int BODY_CANVAS_HEIGHT_PIXELS = 32;
     private static final int BYTE_MASK = 255;
+    private static final int FLYING_ANIMATION_RATE = 256;
     private static final int WING_HEIGHT_PIXELS = 16;
     public static final int BACK_COLUMN_OFFSET_PIXELS = 8;
     public static final int CEILING_BOUNCE_Y_VELOCITY_FIXED_POINT = 1;
@@ -69,6 +71,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     @Accessors(fluent = true)
     private final boolean bouncesOffOtherObjects = true;
     private final KoopaParaTroopaAnimator animator = getBean(KoopaParaTroopaAnimator.class);
+    private final WalkAnimationClock walkClock = new WalkAnimationClock();
     private final LevelObjectType type = KOOPA_PARATROOPA;
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
@@ -81,7 +84,6 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private KoopaTroopaMode mode = GREEN;
     private PixelPosition position;
     private Reward pendingScoreReward;
-    private boolean animationHalfStep;
     private boolean ceilingContact;
     private boolean expired;
     private boolean facingRight;
@@ -91,7 +93,6 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     private boolean spawnedIntoScene;
     private boolean wingUp;
     private float baseDepth = Z_DEPTH_ENEMY;
-    private int animationClock;
     private int flightDirection;
     private int flightTicks;
     private int flightTimer;
@@ -259,7 +260,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
             flightTimer--;
         }
         updatePose();
-        animationClock = (animationClock + 1) & BYTE_MASK;
+        walkClock.advance(FLYING_ANIMATION_RATE);
         position = position.steppedY(velocity);
         if (flightTimer == 0) {
             accelerateFlight();
@@ -310,19 +311,16 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
 
     private void updatePose() {
         final int walkFrameShift = mode == RED ? FLYING_WALK_FRAME_SHIFT : WALK_FRAME_SHIFT;
-        final int frame = (animationClock >> walkFrameShift) & 1;
+        final int frame = (walkClock.getSteps() >> walkFrameShift) & 1;
         if (frame != walkFrameIndex) {
             walkFrameIndex = frame;
             animator.applyCurrentFrame(this);
         }
-        wingUp = ((animationClock + WING_PHASE_OFFSET) & WING_PHASE_BIT) == 0;
+        wingUp = ((walkClock.getSteps() + WING_PHASE_OFFSET) & WING_PHASE_BIT) == 0;
     }
 
     private void advanceAnimationClock() {
-        animationHalfStep = !animationHalfStep;
-        if (!animationHalfStep) {
-            animationClock = (animationClock + 1) & BYTE_MASK;
-        }
+        walkClock.advance(walkAnimationRate(facingRight));
     }
 
     private void moveVertically() {

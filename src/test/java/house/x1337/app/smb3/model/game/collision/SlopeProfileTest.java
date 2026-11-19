@@ -74,6 +74,29 @@ class SlopeProfileTest {
         assertThat(profile.isUphillFor(true)).as("Uphill to the right").isEqualTo(risesToTheRight);
     }
 
+    Stream<Arguments> walkAnimationRates() {
+        return Stream.of(
+            arguments(STEEP_RISING, 255, 64),
+            arguments(STEEP_FALLING, 64, 255),
+            arguments(GENTLE_RISING_LOW, 192, 96),
+            arguments(GENTLE_RISING_HIGH, 192, 96),
+            arguments(GENTLE_FALLING_HIGH, 96, 192),
+            arguments(GENTLE_FALLING_LOW, 96, 192)
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("walkAnimationRates")
+    @DisplayName("An enemy's walk cycle runs faster uphill and slower downhill, more so on a steep slope")
+    void walkAnimationRates(
+        final SlopeProfile profile,
+        final int movingRight,
+        final int movingLeft
+    ) {
+        assertThat(profile.enemyWalkAnimationRate(true)).as("Moving right").isEqualTo(movingRight);
+        assertThat(profile.enemyWalkAnimationRate(false)).as("Moving left").isEqualTo(movingLeft);
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("rampTypes")
     @DisplayName("Each ramp tile type has its own slope shape")
