@@ -27,6 +27,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SLIDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static house.x1337.app.smb3.enumeration.SoundEffect.POWER_DOWN;
@@ -126,7 +127,9 @@ public interface LevelScenePlayerRuntimeStateAware
             final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
             final boolean inputLeft = rawLeft && !rawRight;
             final boolean inputRight = rawRight && !rawLeft;
-            if (isCurrentlySkidding(inputLeft, inputRight)) {
+            if (runtimeState.isSliding()) {
+                runtimeState.setTo(SLIDING);
+            } else if (isCurrentlySkidding(inputLeft, inputRight)) {
                 runtimeState.setTo(SKIDDING);
                 // Asked for on every skidding tick: it plays through, so it repeats back to back while the skid lasts
                 getSoundPlayer().play(SKID);
@@ -235,11 +238,13 @@ public interface LevelScenePlayerRuntimeStateAware
         runtimeState.startDying();
         runtimeState.setDeathPauseCounter(PLAYER_DEATH_PAUSE_TICKS);
         runtimeState.standUp();
+        runtimeState.stopSliding();
         runtimeState.setPlayerFlyTime(0);
         runtimeState.setPlayerWagCount(0);
         runtimeState.setPlayerTailAttackCountdown(0);
         position.setDX(0);
         position.setDY(PLAYER_DEATH_RISE_Y_VELOCITY);
+        position.setSlopeDrawOffset(0);
         announceDeath(THROE);
     }
 
@@ -264,12 +269,14 @@ public interface LevelScenePlayerRuntimeStateAware
         final PlayerPosition position = getPosition();
         runtimeState.startFallingOffDeath();
         runtimeState.standUp();
+        runtimeState.stopSliding();
         runtimeState.setPlayerFlyTime(0);
         runtimeState.setPlayerWagCount(0);
         runtimeState.setPlayerTailAttackCountdown(0);
         runtimeState.setHurtInvincibilityCounter(0);
         position.setDX(0);
         position.setDY(0);
+        position.setSlopeDrawOffset(0);
         announceDeath(FELL_OFF);
     }
 
@@ -286,6 +293,10 @@ public interface LevelScenePlayerRuntimeStateAware
      */
     default boolean isCarrying() {
         return getRuntimeState().isCarrying();
+    }
+
+    default boolean isSliding() {
+        return getRuntimeState().isSliding();
     }
 
     /**

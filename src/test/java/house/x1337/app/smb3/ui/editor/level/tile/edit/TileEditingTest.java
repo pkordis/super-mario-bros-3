@@ -28,7 +28,7 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_O
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 import static house.x1337.app.smb3.enumeration.TileType.OBJECT_INTERACTIVE_SINGLE;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
-import static house.x1337.app.smb3.enumeration.TileType.SOLID_RAMP;
+import static house.x1337.app.smb3.enumeration.TileType.SOLID_RAMP_STEEP_RISING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,11 +79,11 @@ class TileEditingTest {
         final Tile tile = tile(SOLID);
 
         // Execute
-        final boolean saved = tileEditing.save(null, tile, new TileChanges(SOLID_RAMP, "Slope", null));
+        final boolean saved = tileEditing.save(null, tile, new TileChanges(SOLID_RAMP_STEEP_RISING, "Slope", null));
 
         // Verify
         assertThat(saved).isTrue();
-        assertThat(tile.getType()).isEqualTo(SOLID_RAMP);
+        assertThat(tile.getType()).isEqualTo(SOLID_RAMP_STEEP_RISING);
         assertThat(tile.getDescription()).isEqualTo("Slope");
         verify(tileService).updateTile(tile);
         verify(tilePalettePanel).showTile(tile);
@@ -97,7 +97,7 @@ class TileEditingTest {
     @DisplayName("A type of the same layer moves nothing and asks nothing")
     void aSameLayerTypeMovesNothing() {
         // Execute
-        tileEditing.save(null, tile(SOLID), new TileChanges(SOLID_RAMP, null, null));
+        tileEditing.save(null, tile(SOLID), new TileChanges(SOLID_RAMP_STEEP_RISING, null, null));
 
         // Verify
         verifyNoInteractions(tileWindows);

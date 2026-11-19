@@ -19,6 +19,10 @@ public class PlayerPosition {
     private double prevX;
     private double prevY;
 
+    /** How far below Y to draw the player, so that they glide along a slope. Drawing only. */
+    private double slopeDrawOffset;
+    private double prevSlopeDrawOffset;
+
     /**
      * Snapshots the current position into prevX/prevY. Must be called
      * once at the start of each simulation tick, before physics runs.
@@ -26,6 +30,11 @@ public class PlayerPosition {
     public void snapshotPrevious() {
         prevX = x;
         prevY = y;
+        prevSlopeDrawOffset = slopeDrawOffset;
+    }
+
+    public double getDrawY() {
+        return y + slopeDrawOffset;
     }
 
     public void incrementX() {
@@ -70,7 +79,8 @@ public class PlayerPosition {
 
     public PlayerPosition interpolateBetweenPreviousAndCurrent(final double alpha) {
         final double interpolatedX = getPrevX() + (getX() - getPrevX()) * alpha;
-        final double interpolatedY = getPrevY() + (getY() - getPrevY()) * alpha;
+        final double previousDrawY = getPrevY() + getPrevSlopeDrawOffset();
+        final double interpolatedY = previousDrawY + (getDrawY() - previousDrawY) * alpha;
         final PlayerPosition interpolatedPosition = new PlayerPosition();
         interpolatedPosition.setX(interpolatedX);
         interpolatedPosition.setY(interpolatedY);
@@ -80,7 +90,7 @@ public class PlayerPosition {
     public PlayerPosition toTileUnitBased(final LevelSceneDimensions dimensions) {
         final PlayerPosition tilePosition = new PlayerPosition();
         final double gameX = (getX() / TILE_SPRITE_SIZE);
-        final double gameY = (dimensions.rows() - (getY() / TILE_SPRITE_SIZE));
+        final double gameY = (dimensions.rows() - (getDrawY() / TILE_SPRITE_SIZE));
         tilePosition.setX(gameX);
         tilePosition.setY(gameY);
         return tilePosition;

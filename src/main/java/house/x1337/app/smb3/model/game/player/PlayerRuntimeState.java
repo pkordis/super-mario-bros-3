@@ -19,12 +19,14 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.FALLING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.FLYING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
+import static java.lang.Math.clamp;
 
 @Data
 @Prototype
 public class PlayerRuntimeState implements KillTallyAware {
     public static final int HURT_INVINCIBILITY_TICKS = 113;
     public static final int KICK_POSE_TICKS = 13;
+    public static final int MAX_SLIDE_VELOCITY = 64;
     public static final int NORMAL_TRANSITION_TICKS = 47;
     public static final int PIPE_ENTRY_TICKS = 60;
     public static final int PIPE_EXIT_TICKS_DOWN = 7;
@@ -63,10 +65,37 @@ public class PlayerRuntimeState implements KillTallyAware {
     private int playerTailAttackCountdown;
     private int playerWagCount;
     private int poofCounter;
+    private int slideVelocity;
+    private int slopePull;
     private int turnAroundFaceCounter;
 
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;
+    }
+
+    public boolean isSliding() {
+        return slideVelocity != 0;
+    }
+
+    public void stopSliding() {
+        slideVelocity = 0;
+    }
+
+    /**
+     * Runs one grounded frame of a slide, in sixteenths of a pixel per frame: the slope's pull is added, the speed is
+     * capped at {@value #MAX_SLIDE_VELOCITY} and friction takes one off. A slide that comes to rest is over.
+     */
+    public void advanceSlide() {
+        slideVelocity = clamp(slideVelocity + slopePull, -MAX_SLIDE_VELOCITY, MAX_SLIDE_VELOCITY);
+        slideVelocity -= Integer.signum(slideVelocity);
+    }
+
+    public boolean isOnSlope() {
+        return slopePull != 0;
+    }
+
+    public boolean isWalkingUphill(final double dx) {
+        return slopePull != 0 && dx != 0 && (dx > 0) != (slopePull > 0);
     }
 
     public boolean isTransitioning() {
@@ -106,6 +135,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         enteredPipePortal = portal;
         pipeEntryDirection = direction;
         pipeCountdown = PIPE_ENTRY_TICKS;
+        slideVelocity = 0;
     }
 
     public boolean isEnteringPipe() {

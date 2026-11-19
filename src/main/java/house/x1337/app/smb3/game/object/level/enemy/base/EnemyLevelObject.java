@@ -19,11 +19,15 @@ import house.x1337.app.smb3.service.EnemyStampService;
 import java.util.ArrayList;
 import java.util.List;
 
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
+import static java.lang.Math.round;
 
 public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     EnemyMode getMode();
@@ -210,5 +214,33 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
     @Override
     default void onCollisionWith(final LevelScenePlayer levelScenePlayer) {
         // Deliberately empty - directional response arrives via onCollisionFrom* (see interface Javadoc).
+    }
+
+    default boolean isWinged() {
+        return false;
+    }
+
+    default boolean isGrounded() {
+        return true;
+    }
+
+    /**
+     * A sliding player kills a stompable enemy outright, knocking it away with half the player's speed for 100
+     * points, unless it is a winged enemy off the ground; that one, like an enemy that cannot be stomped, hurts the
+     * player instead. See {@code kb/slopes.md}, "Sliding into enemies".
+     */
+    @Override
+    default void onSlidInto(final LevelScenePlayer levelScenePlayer) {
+        if (!canBeStomped() || (isWinged() && !isGrounded())) {
+            onPlayerOverlap(levelScenePlayer);
+            return;
+        }
+        if (!isHittable()) {
+            return;
+        }
+        final int playerXVelocity = (int) round(levelScenePlayer.getPosition().getDX() * TILE_SPRITE_SIZE);
+        onStruckByKickedObject(getVelocity().x() + (playerXVelocity >> 1));
+        setPendingScoreReward(SCORE_100);
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 }

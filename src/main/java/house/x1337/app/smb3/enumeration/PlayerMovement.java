@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
  *       current movement while the horizontal speed is at least 2/16 px per frame.
  *       Plays the skid sound and shows the braking sprite. The player's
  *       facing orientation is retained (does not flip to input direction).</li>
+ *   <li>{@link #SLIDING} - on the ground, sliding down a slope (Down on a ramp). Drawn with the slide frame.</li>
  *   <li>{@link #JUMPING} - airborne with upward (negative) vertical velocity.</li>
  *   <li>{@link #FALLING} - airborne with downward (positive) vertical velocity.</li>
  *   <li>{@link #FLYING} - airborne via a power-up (e.g. Tanooki / P-Wing).</li>
@@ -38,6 +39,7 @@ public enum PlayerMovement {
     POWER_RUNNING("Power Running"),
     RUNNING("Running"),
     SKIDDING("Skidding"),
+    SLIDING("Sliding"),
     STILL("Still"),
     SWIMMING("Swimming"),
     WALKING("Walking");

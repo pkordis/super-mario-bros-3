@@ -135,7 +135,7 @@ tile on the static environment layer (`PIPE_BODY_PART` does not count), and no o
   `Temp_Var2` is **16 for the left lip cell** and 0 for the right one, because it comes from
   `TILE1_PIPETB2_R - tile` and the left tiles (`$AD`, `$AF`) give odd results. The window is then `Player_X` from
   `16c + 3` to `16c + 12` for a pipe whose left cell is column `c`, for every suit, grounded or airborne.
-- **No slopes:** the ROM also uses the airborne offset on sloped levels (`Level_SlopeEn`); the port has none.
+- **No sloped levels:** the ROM also uses the airborne offset on sloped levels (`Level_SlopeEn`). Here slopes are per ramp tile (`kb/slopes.md`), with no level-wide flag, so the pipe entry ignores them.
 - **State:** `PlayerRuntimeState.startEnteringPipe(portal, direction)` records the `PipePortal` entered and the
   direction held, and loads the countdown; `isEnteringPipe()` tests the portal. The portal is what a future pipe link
   resolves the other end from (by portal id), so neither end of a link has to reference the other.

@@ -19,6 +19,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SLIDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 
@@ -71,6 +72,11 @@ public final class ShrunkAnimator extends BaseLevelScenePlayerAnimator<ShrunkAni
         }
 
         if (renderCarryPose(node, levelScenePlayer, orientation)) {
+            return;
+        }
+
+        if (movement == SLIDING) {
+            renderSlide(node, orientation, assets.slide());
             return;
         }
 

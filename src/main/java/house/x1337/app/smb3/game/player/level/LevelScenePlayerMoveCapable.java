@@ -11,6 +11,8 @@ import static house.x1337.app.smb3.GameConstants.GRAVITY_FAST;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_POWER_SPEED;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_RUN_SPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_UPHILL_RUN_SPEED;
+import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_UPHILL_WALK_SPEED;
 import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_WALK_SPEED;
 import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
@@ -81,13 +83,16 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
             }
         }
 
-        // Determine top speed
+        // Determine top speed. Uphill caps it lower whatever the P-meter says.
         double topSpeed = PLAYER_TOP_WALK_SPEED;
         if (inputRun) {
             topSpeed = PLAYER_TOP_RUN_SPEED;
             if (getPlayerData().getPlayerPower() >= PMETER_LEVELS) {
                 topSpeed = PLAYER_TOP_POWER_SPEED;
             }
+        }
+        if (runtimeState.isWalkingUphill(position.getDX())) {
+            topSpeed = inputRun ? PLAYER_TOP_UPHILL_RUN_SPEED : PLAYER_TOP_UPHILL_WALK_SPEED;
         }
 
         final double accelerationFriction = isLarge() ? 14.0 : 10.0;

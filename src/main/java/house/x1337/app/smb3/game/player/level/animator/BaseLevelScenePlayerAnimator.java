@@ -14,6 +14,7 @@ import lombok.Data;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SLIDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
@@ -96,6 +97,19 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         }
     }
 
+    protected final void renderSlide(
+        final Node node,
+        final PlayerOrientationHorizontal orientation,
+        final Texture slideTexture
+    ) {
+        walkAnimTicks = 0;
+        walkFrameIndex = 0;
+        if (frameChanged(SLIDING, orientation, -1)) {
+            rebuildWithTexture(node, slideTexture, orientation);
+            markRendered(SLIDING, orientation, -1);
+        }
+    }
+
     protected final void renderWalkRun(
         final Node node,
         final LevelScenePlayer levelScenePlayer,
@@ -106,6 +120,10 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
             // The end-level walk-off steps at a fixed quick beat of its own, faster than a walk at its speed
             advanceWalkFrameEvery(RUN_OFF_WALK_TICKS_PER_FRAME);
         } else {
+            // Walking uphill, the legs move one tick faster than the speed alone would have them
+            if (levelScenePlayer.getRuntimeState().isWalkingUphill(levelScenePlayer.getPosition().getDX())) {
+                walkAnimTicks++;
+            }
             advanceWalkAnimation(abs(levelScenePlayer.getPosition().getDX()));
         }
 

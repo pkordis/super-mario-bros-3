@@ -11,6 +11,7 @@ public record NormalAnimatorAssets(
     Texture still,
     Texture skid,
     Texture duck,
+    Texture slide,
     Texture faceForward,
     Texture[] hold,
     Texture jump,

@@ -16,6 +16,7 @@ import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.collision.CollisionProbe;
 import house.x1337.app.smb3.model.game.collision.DirectionalProbes;
 import house.x1337.app.smb3.model.game.collision.ProbeLocation;
+import house.x1337.app.smb3.model.game.collision.SlopeProfile;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.util.GameMath;
@@ -24,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
@@ -33,14 +35,35 @@ import static house.x1337.app.smb3.enumeration.PlayerOrientationVertical.UP;
 import static house.x1337.app.smb3.model.game.Coordinates.fromPlayerOffset;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_PROBES;
+import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.LARGE_SLOPED_PROBES;
 import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_PROBES;
+import static house.x1337.app.smb3.model.game.collision.CollisionOffsets.SMALL_SLOPED_PROBES;
 import static java.lang.Math.floor;
+import static java.lang.Math.floorDiv;
 
+/**
+ * Resolves the players against the scene's static terrain, and answers the terrain queries of everything else that
+ * moves through it. How ramps are walked, and the limits below, are in {@code kb/slopes.md}.
+ *
+ * <p>On a ramp the player is stood on the surface under {@link #SLOPE_FEET_PROBE}: pulled up out of the ground by at
+ * most {@value #SLOPE_CLIMB_LIMIT_PIXELS} pixels (a flat surface only by less than {@value #FLAT_SNAP_LIMIT_PIXELS}),
+ * and, while grounded, pulled down onto ground at most {@value #SLOPE_STICK_PIXELS} pixels below. A player rising no
+ * faster than {@value #SLOPE_LANDING_MIN_Y_VELOCITY} px/frame can already land on one.
+ */
 @Data
 @Slf4j
 @Prototype
 @RequiredArgsConstructor
 public final class StaticEnvironmentCollisionGrid implements GameEngineAware, GameMath {
+    static final double SLOPE_LANDING_MIN_Y_VELOCITY = -1.75;
+    static final int FLAT_SNAP_LIMIT_PIXELS = 6;
+    static final int LEFT_FOOT_X = 4;
+    static final int RIGHT_FOOT_X = 11;
+    static final int SLOPE_CLIMB_LIMIT_PIXELS = 10;
+    static final int SLOPE_STICK_PIXELS = 6;
+    static final int WALKER_SLOPE_CLIMB_LIMIT_PIXELS = 8;
+    static final Coordinates SLOPE_FEET_PROBE = of(8, 32);
+
     private final GameEngine gameEngine;
     private final PowerSwitchTimeWindow powerSwitchTimeWindow;
 
@@ -94,21 +117,24 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
         // The ceiling flag is cleared before anything else
         runtimeState.setHitCeiling(false);
+        runtimeState.setSlopePull(0);
         final boolean playerIsMovingUp = position.getDY() < 0;
         final boolean playerIsLeftHalf = tileModulo(position.getX()) < 8;
+        final boolean nearRamp = isNearRamp(levelScenePlayer);
 
         final CollisionProbe probe = resolveProbe(
             levelScenePlayer,
             playerIsMovingUp,
-            playerIsLeftHalf
+            playerIsLeftHalf,
+            nearRamp
         );
         final ProbeLocation tVert = probe.vertical();
         final ProbeLocation tHoriz = probe.horizontal();
 
-        final boolean solidVert = isSolidVert(levelScenePlayer, tVert, playerIsMovingUp);
+        final boolean solidVert = isSolidVert(levelScenePlayer, tVert, playerIsMovingUp, nearRamp);
 
-        final boolean solidHoriz1 = collidesAtOffset(levelScenePlayer, tHoriz.first());
-        final boolean solidHoriz2 = collidesAtOffset(levelScenePlayer, tHoriz.second());
+        final boolean solidHoriz1 = isWallInFront(levelScenePlayer, tHoriz.first(), playerIsLeftHalf);
+        final boolean solidHoriz2 = isWallInFront(levelScenePlayer, tHoriz.second(), playerIsLeftHalf);
         final boolean oneWayHoriz1 = isOneWayTileFromPlayer(levelScenePlayer, tHoriz.first());
         final boolean oneWayHoriz2 = isOneWayTileFromPlayer(levelScenePlayer, tHoriz.second());
         final boolean solidHoriz = (solidHoriz1 && !oneWayHoriz1) || (solidHoriz2 && !oneWayHoriz2);
@@ -185,6 +211,10 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         }
 
         // Vertical collision
+        final boolean slopeLandingAllowed = position.getDY() >= SLOPE_LANDING_MIN_Y_VELOCITY || !runtimeState.isInAir();
+        if (nearRamp && slopeLandingAllowed && resolveSlopedGround(levelScenePlayer)) {
+            return hitWall;
+        }
         if (position.getDY() >= 0 || !runtimeState.isInAir()) {
             if (solidVert) {
                 final double localY = tileModulo(floor(position.getY()));
@@ -385,13 +415,23 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         }
     }
 
+    /**
+     * Near a ramp, the feet leave the ramp itself to {@link #resolveSlopedGround(LevelScenePlayer)}: only flat ground
+     * under a foot counts here.
+     */
     private boolean isSolidVert(
         final Player player,
         final ProbeLocation tVert,
-        final boolean playerIsMovingUp
+        final boolean playerIsMovingUp,
+        final boolean nearRamp
     ) {
-        final boolean solidVert1 = collidesAtOffset(player, tVert.first());
-        final boolean solidVert2 = collidesAtOffset(player, tVert.second());
+        final boolean feetIgnoreRamps = nearRamp && !playerIsMovingUp;
+        final boolean solidVert1 = feetIgnoreRamps
+            ? collidesIgnoringRampsAtOffset(player, tVert.first())
+            : collidesAtOffset(player, tVert.first());
+        final boolean solidVert2 = feetIgnoreRamps
+            ? collidesIgnoringRampsAtOffset(player, tVert.second())
+            : collidesAtOffset(player, tVert.second());
         final boolean solidVert;
         if (playerIsMovingUp) {
             final boolean oneWayVert1 = isOneWayTileFromPlayer(player, tVert.first());
@@ -410,17 +450,264 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     private CollisionProbe resolveProbe(
         final LevelScenePlayer levelScenePlayer,
         final boolean movingUp,
-        final boolean leftHalf
+        final boolean leftHalf,
+        final boolean nearRamp
     ) {
-        final DirectionalProbes probes = (!levelScenePlayer.isLarge() || levelScenePlayer.getRuntimeState().isDucking())
-            ? SMALL_PROBES
-            : LARGE_PROBES;
+        final boolean small = !levelScenePlayer.isLarge() || levelScenePlayer.getRuntimeState().isDucking();
+        final DirectionalProbes probes = nearRamp
+            ? (small ? SMALL_SLOPED_PROBES : LARGE_SLOPED_PROBES)
+            : (small ? SMALL_PROBES : LARGE_PROBES);
         return probes.resolve(movingUp, leftHalf);
+    }
+
+    // -------------------------------------------------------------------------
+    // Ramps
+    // -------------------------------------------------------------------------
+
+    /**
+     * Whether a ramp lies under the player's feet, or close enough above or below them to be stepped onto this frame.
+     */
+    private boolean isNearRamp(final LevelScenePlayer levelScenePlayer) {
+        final PlayerPosition position = levelScenePlayer.getPosition();
+        final int x = (int) floor(position.getX());
+        final int feetY = (int) floor(position.getY()) + SLOPE_FEET_PROBE.y();
+        final int lastColumn = floorDiv(x + RIGHT_FOOT_X, TILE_SPRITE_SIZE);
+        final int lastRow = floorDiv(feetY + SLOPE_STICK_PIXELS, TILE_SPRITE_SIZE);
+        for (int column = floorDiv(x + LEFT_FOOT_X, TILE_SPRITE_SIZE); column <= lastColumn; column++) {
+            for (int row = floorDiv(feetY - SLOPE_CLIMB_LIMIT_PIXELS, TILE_SPRITE_SIZE); row <= lastRow; row++) {
+                if (isRampAt(of(column, row))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Stands the player on the ground under the centre of their feet, pixel by pixel, climbing onto a ramp's surface
+     * or following it down. See {@code kb/slopes.md}, "Player on a slope".
+     *
+     * @return {@code false} when the ground under the centre is not something this can resolve (too deep to climb
+     *         out of, or no ground at all while airborne), leaving it to the tile-based resolution
+     */
+    private boolean resolveSlopedGround(final LevelScenePlayer levelScenePlayer) {
+        final PlayerPosition position = levelScenePlayer.getPosition();
+        final int centreX = (int) floor(position.getX()) + SLOPE_FEET_PROBE.x();
+        final int feetY = (int) floor(position.getY()) + SLOPE_FEET_PROBE.y();
+        if (isSolidPixelForPlayer(levelScenePlayer, centreX, feetY)) {
+            int surfaceY = feetY;
+            while (isSolidPixelForPlayer(levelScenePlayer, centreX, surfaceY - 1)) {
+                surfaceY--;
+                if (feetY - surfaceY > SLOPE_CLIMB_LIMIT_PIXELS) {
+                    return false;
+                }
+            }
+            if (!isRampPixel(centreX, surfaceY) && feetY - surfaceY >= FLAT_SNAP_LIMIT_PIXELS) {
+                return false;
+            }
+            standOnSlopedGround(levelScenePlayer, centreX, surfaceY);
+            return true;
+        }
+        if (levelScenePlayer.getRuntimeState().isInAir()) {
+            return false;
+        }
+        for (int surfaceY = feetY + 1; surfaceY <= feetY + SLOPE_STICK_PIXELS; surfaceY++) {
+            if (isSolidPixelForPlayer(levelScenePlayer, centreX, surfaceY)) {
+                standOnSlopedGround(levelScenePlayer, centreX, surfaceY);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void standOnSlopedGround(
+        final LevelScenePlayer levelScenePlayer,
+        final int centreX,
+        final int surfaceY
+    ) {
+        final PlayerPosition position = levelScenePlayer.getPosition();
+        final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
+        position.setY(surfaceY - SLOPE_FEET_PROBE.y());
+        position.setDY(0);
+        runtimeState.stop();
+        final Coordinates groundCell = of(floorDiv(centreX, TILE_SPRITE_SIZE), floorDiv(surfaceY, TILE_SPRITE_SIZE));
+        runtimeState.setSlopePull(findSlopeAt(groundCell).map(SlopeProfile::playerPull).orElse(0));
+        dispatchStandingOn(levelScenePlayer, groundCell);
+    }
+
+    private boolean isRampPixel(
+        final int x,
+        final int y
+    ) {
+        return isRampAt(of(floorDiv(x, TILE_SPRITE_SIZE), floorDiv(y, TILE_SPRITE_SIZE)));
+    }
+
+    public boolean isRampAt(final Coordinates cell) {
+        return findSlopeAt(cell).isPresent();
+    }
+
+    public Optional<SlopeProfile> findSlopeAt(final Coordinates cell) {
+        return getLevelObjectAt(cell).findSlopeProfile();
+    }
+
+    /**
+     * Finds the sloped ground a ground walker stands on: a ramp's surface, or the top of flat ground a ramp runs onto,
+     * under pixel column {@code x} in the walker's feet row or the rows either side. It is found up to
+     * {@value #WALKER_SLOPE_CLIMB_LIMIT_PIXELS} pixels above the feet (climbing) or {@code stickPixels} below them
+     * (following the slope down).
+     *
+     * @return the surface's Y in level pixels, or empty when no sloped ground is that close
+     */
+    public OptionalInt findRampSurfaceNear(
+        final int x,
+        final double feetY,
+        final int stickPixels
+    ) {
+        final int column = floorDiv(x, TILE_SPRITE_SIZE);
+        final int feetRow = floorDiv((int) floor(feetY), TILE_SPRITE_SIZE);
+        for (int row = feetRow - 1; row <= feetRow + 1; row++) {
+            final OptionalInt surfaceY = slopedSurfaceAt(of(column, row), x);
+            if (surfaceY.isEmpty()) {
+                continue;
+            }
+            final int y = surfaceY.getAsInt();
+            if (feetY >= y - stickPixels && feetY <= y + WALKER_SLOPE_CLIMB_LIMIT_PIXELS) {
+                return surfaceY;
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    /**
+     * How far below its position to draw an object standing on a ramp, so that it glides along the straight ramp
+     * behind the tile's pixels ({@link SlopeProfile#idealSurfaceDepthAt(double)}) instead of stepping a whole pixel at
+     * a time. Drawing only, collision keeps the whole-pixel surface.
+     *
+     * @param centreX the object's centre, in level pixels with the fraction
+     * @param feetY   the Y of its feet, in level pixels
+     * @return the offset in pixels, or 0 when the feet are not on a ramp's surface
+     */
+    public double findSlopeDrawOffset(
+        final double centreX,
+        final double feetY
+    ) {
+        final int x = (int) floor(centreX);
+        final Coordinates cell = of(floorDiv(x, TILE_SPRITE_SIZE), floorDiv((int) floor(feetY), TILE_SPRITE_SIZE));
+        final double tileTop = cell.y() * (double) TILE_SPRITE_SIZE;
+        return findSlopeAt(cell)
+            .filter(slope -> tileTop + slope.surfaceDepthAt(x) == feetY)
+            .map(slope -> tileTop + slope.idealSurfaceDepthAt(centreX - cell.x() * (double) TILE_SPRITE_SIZE) - feetY)
+            .orElse(0.0);
+    }
+
+    /**
+     * The player's {@link #findSlopeDrawOffset(double, double)}, measured under the centre of their feet, or 0 while
+     * they are in the air.
+     */
+    public double findSlopeDrawOffset(final LevelScenePlayer levelScenePlayer) {
+        if (levelScenePlayer.getRuntimeState().isInAir()) {
+            return 0;
+        }
+        final PlayerPosition position = levelScenePlayer.getPosition();
+        return findSlopeDrawOffset(
+            position.getX() + SLOPE_FEET_PROBE.x(),
+            floor(position.getY()) + SLOPE_FEET_PROBE.y()
+        );
+    }
+
+    private OptionalInt slopedSurfaceAt(
+        final Coordinates cell,
+        final int x
+    ) {
+        final Optional<SlopeProfile> slope = findSlopeAt(cell);
+        if (slope.isPresent()) {
+            final int depth = slope.get().surfaceDepthAt(x);
+            return depth < TILE_SPRITE_SIZE ? OptionalInt.of(cell.y() * TILE_SPRITE_SIZE + depth) : OptionalInt.empty();
+        }
+        final LevelObject levelObject = getLevelObjectAt(cell);
+        final boolean flatGroundBesideARamp = levelObject.isCollidable() && !levelObject.isOneWayPlatform()
+            && (isRampAt(of(cell.x() - 1, cell.y())) || isRampAt(of(cell.x() + 1, cell.y()))
+            || isRampAt(of(cell.x() - 1, cell.y() - 1)) || isRampAt(of(cell.x() + 1, cell.y() - 1)));
+        return flatGroundBesideARamp ? OptionalInt.of(cell.y() * TILE_SPRITE_SIZE) : OptionalInt.empty();
+    }
+
+    /**
+     * Whether the pixel at {@code (x, y)} in level pixels is solid ground for the player: a ramp only at or below its
+     * surface, and the level's sides as {@link #collidesAtOffset(Player, Coordinates)} has them.
+     */
+    private boolean isSolidPixelForPlayer(
+        final Player player,
+        final int x,
+        final int y
+    ) {
+        final Coordinates cell = of(floorDiv(x, TILE_SPRITE_SIZE), floorDiv(y, TILE_SPRITE_SIZE));
+        if (cell.x() < 0) {
+            return true;
+        }
+        if (cell.x() >= dimensions.columns()) {
+            return !(player instanceof final LevelScenePlayer levelScenePlayer && levelScenePlayer.isRunningOff());
+        }
+        if (cell.y() >= dimensions.rows()) {
+            return false;
+        }
+        final LevelObject levelObject = getLevelObjectAt(cell);
+        return levelObject
+            .findSlopeProfile()
+            .map(slope -> slope.isSolidAt(x, y))
+            .orElseGet(levelObject::isCollidable);
+    }
+
+    /**
+     * An in-front probe's test: a tile is a wall unless it can be walked up into from that side. See
+     * {@link #isClimbableFromTheSide(Coordinates, boolean)}.
+     *
+     * @param probingRight whether the probe looks to the player's right
+     */
+    private boolean isWallInFront(
+        final Player player,
+        final Coordinates offset,
+        final boolean probingRight
+    ) {
+        final Coordinates cell = fromPlayerOffset(player, offset);
+        return collidesAtOffset(player, offset) && !isClimbableFromTheSide(cell, probingRight);
+    }
+
+    /**
+     * Whether a walker meeting this solid tile from the side walks up into it instead of against it: a ramp, or ground
+     * that a ramp on that side leads up onto. The second is met from the side when a walker climbs fast enough to sink
+     * into the slope for a frame. Anything else is a wall, even with a ramp on top of it: a step is reached from the
+     * flat, not up a slope.
+     *
+     * @param approachedFromTheLeft whether the walker comes from the tile's left
+     */
+    public boolean isClimbableFromTheSide(
+        final Coordinates cell,
+        final boolean approachedFromTheLeft
+    ) {
+        if (isRampAt(cell)) {
+            return true;
+        }
+        final int sideColumn = approachedFromTheLeft ? cell.x() - 1 : cell.x() + 1;
+        final int edgeFacingTheTile = approachedFromTheLeft ? TILE_SPRITE_SIZE - 1 : 0;
+        return findSlopeAt(of(sideColumn, cell.y()))
+            .map(slope -> slope.surfaceDepthAt(edgeFacingTheTile) < TILE_SPRITE_SIZE / 2)
+            .orElse(false);
+    }
+
+    /**
+     * Like {@link #collidesAtOffset(Player, Coordinates)}, except that a ramp is not solid at all.
+     */
+    private boolean collidesIgnoringRampsAtOffset(
+        final Player player,
+        final Coordinates offset
+    ) {
+        return !isRampAt(fromPlayerOffset(player, offset)) && collidesAtOffset(player, offset);
     }
 
     /**
      * Checks whether the object at the given {@link Coordinates} from the player
-     * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}).
+     * position is solid (i.e. {@link LevelObject#isCollidable()} returns {@code true}). A ramp is solid only at or
+     * below its surface.
      *
      * <p>Unlike the object-facing {@link #isWallOrCeilingSolidTile(Coordinates)}, the level's left and
      * right edges are solid here: the player is held inside the level, the same job a screen-edge clamp
@@ -434,20 +721,12 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final Player player,
         final Coordinates offset
     ) {
-        final Coordinates cell = fromPlayerOffset(player, offset);
-
-        if (cell.x() < 0) {
-            return true; // Left of the level = solid
-        }
-        if (cell.x() >= dimensions.columns()) {
-            // Right of the level = solid, but open to a level player running off it
-            return !(player instanceof final LevelScenePlayer levelScenePlayer && levelScenePlayer.isRunningOff());
-        }
-        if (cell.y() >= dimensions.rows()) {
-            return false; // Below the level = open
-        }
-
-        return getLevelObjectAt(cell).isCollidable();
+        final PlayerPosition position = player.getPosition();
+        return isSolidPixelForPlayer(
+            player,
+            (int) floor(position.getX()) + offset.x(),
+            (int) floor(position.getY()) + offset.y()
+        );
     }
 
     /**

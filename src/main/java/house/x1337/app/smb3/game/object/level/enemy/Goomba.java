@@ -27,8 +27,9 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
+import java.util.OptionalDouble;
+
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
@@ -256,7 +257,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         }
 
         // Facing IS direction
-        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
 
         advanceWalkFrame();
         moveHorizontally();
@@ -303,9 +304,9 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
 
     private void moveVertically() {
         final PixelPosition proposed = position.steppedY(velocity);
-        if (velocity.descending() && isGroundBelow(proposed)) {
-            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
-            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+        final OptionalDouble landingY = velocity.descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isPresent()) {
+            position = position.withY(landingY.getAsDouble());
             velocity = velocity.withY(0);
             grounded = true;
             return;

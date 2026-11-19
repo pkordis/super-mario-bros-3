@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.util.Map;
+import java.util.OptionalDouble;
 
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
@@ -184,6 +185,11 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
     }
 
     @Override
+    public boolean isWinged() {
+        return true;
+    }
+
+    @Override
     public boolean isHittable() {
         return !handedOver;
     }
@@ -215,7 +221,7 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         }
         updatePose();
 
-        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
         stepWalkHorizontally();
         moveVertically();
         applyGravity();
@@ -323,9 +329,9 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         groundContact = false;
         ceilingContact = false;
         final PixelPosition proposed = position.steppedY(velocity);
-        if (velocity.descending() && isGroundBelow(proposed)) {
-            final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
-            restOn((double) feetRow * TILE_SPRITE_SIZE - BODY_SIZE_PIXELS);
+        final OptionalDouble landingY = velocity.descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isPresent()) {
+            restOn(landingY.getAsDouble());
             groundContact = true;
             return;
         }

@@ -10,6 +10,8 @@ import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.motion.FixedPointVelocity;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
+import java.util.OptionalDouble;
+
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
@@ -118,10 +120,10 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
     default void moveShellVertically() {
         final FixedPointVelocity velocity = getVelocity();
         final PixelPosition proposed = getPosition().steppedY(velocity);
-        if (velocity.descending() && isGroundBelow(proposed)) {
+        final OptionalDouble landingY = velocity.descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isPresent()) {
             final int impactYVelocityFixedPoint = velocity.y();
-            final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
-            restOn((double) feetRow * TILE_SPRITE_SIZE - BODY_SIZE_PIXELS);
+            restOn(landingY.getAsDouble());
             dampenLanding(impactYVelocityFixedPoint);
             return;
         }
@@ -338,7 +340,8 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
 
     private boolean moveKickedVertically() {
         final PixelPosition proposed = getPosition().steppedY(getVelocity());
-        if (!getVelocity().descending() || !isGroundBelow(proposed)) {
+        final OptionalDouble landingY = getVelocity().descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isEmpty()) {
             setPosition(proposed);
             setGrounded(false);
             return false;
@@ -346,8 +349,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         if (getVelocity().stationaryX()) {
             setVelocity(getVelocity().withX(rollLaunchXVelocity()));
         }
-        final int feetRow = proposed.plusY(BODY_SIZE_PIXELS).row();
-        setPosition(getPosition().withY((double) feetRow * TILE_SPRITE_SIZE - BODY_SIZE_PIXELS));
+        setPosition(getPosition().withY(landingY.getAsDouble()));
         setGrounded(true);
         return true;
     }

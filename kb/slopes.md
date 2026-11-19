@@ -1,0 +1,157 @@
+# Slopes (ramps) and sliding - Knowledge Base
+
+Everything about walking on ramp tiles and sliding down them (SMB3-81). dasm references are to
+`~/Projects/smb3dasm`; the code names below are this project's.
+
+---
+
+## 1. Ramp shape
+
+A ramp is one of six tile types, one per slope shape. Each type maps to a `SlopeProfile` constant
+(`TileType.findSlopeProfile()`):
+
+| Tile type                        | `SlopeProfile`         | Surface depth per column (left to right)               | dasm shape |
+|----------------------------------|------------------------|--------------------------------------------------------|------------|
+| `SOLID_RAMP_STEEP_RISING`        | `STEEP_RISING`         | 15, 14, 13, ..., 1, 0                                  | `$01`      |
+| `SOLID_RAMP_STEEP_FALLING`       | `STEEP_FALLING`        | 0, 1, 2, ..., 14, 15                                   | `$02`      |
+| `SOLID_RAMP_GENTLE_RISING_LOW`   | `GENTLE_RISING_LOW`    | 15, 14, 14, 13, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8 | `$0C`  |
+| `SOLID_RAMP_GENTLE_RISING_HIGH`  | `GENTLE_RISING_HIGH`   | 7, 6, 6, 5, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0         | `$0D`      |
+| `SOLID_RAMP_GENTLE_FALLING_HIGH` | `GENTLE_FALLING_HIGH`  | 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 7         | `$0E`      |
+| `SOLID_RAMP_GENTLE_FALLING_LOW`  | `GENTLE_FALLING_LOW`   | 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15 | `$0F`  |
+
+- The **surface depth** of a column is how many pixels below the tile's top the ground starts. A pixel is solid at or
+  below it (`SlopeProfile.isSolidAt`).
+- The depths are dasm's `Slope_LUT` floor heights (prg000:62-88, low nibble), copied as they are. The gentle shapes
+  are not an even 2 px per step: each has one 3-column step (columns 3-5 rising, 10-12 falling).
+- Each constant also gives its **straight line**: the depth at the tile's left and right edge (16 to 0 steep rising,
+  16 to 8 and 8 to 0 for the gentle halves, mirrored falling). Drawing follows it (section 5), and direction and
+  steepness come from it: rising to the right when the left edge is deeper, steep when the edges are 16 apart.
+- The tile's pixels play no part. A gentle slope takes two tiles per row (low half, then high half, read in the
+  direction it rises). The fill under a slope stays `SOLID`. Ceiling slopes are not supported.
+- `StaticEnvironmentCollisionGridCapabilities.toLevelObjects` turns a ramp tile into a `RampLevelObject` holding the
+  shape. `LevelObject.findSlopeProfile()` is how the rest of the code asks whether a cell is a ramp.
+
+dasm maps tiles to shapes the same way, through a table: `Level_SlopeSetByQuad` / `Level_SlopeQuad00..C0`
+(prg000:28-60). The shapes floors use are 1 and 2 (45 degrees), `$0C-$0F` (the 22.5 degree halves), 3 (solid) and 7
+(flat ground).
+
+History: the first version read the shape from the tile's transparency (first pixel with alpha >= 128 per column) with
+a single ramp type. It was replaced by the six types so a shape no longer depends on how the art was cut, the depths
+are dasm's own, and a tile whose sky was never cleared cannot silently turn into a plain solid.
+dasm enables slopes per tileset (`LevelInit_EnableSlopes`, prg008:659, Hills and Underground only); here a ramp works
+wherever it is placed.
+
+## 2. Player on a slope
+
+All in `StaticEnvironmentCollisionGrid.handleCollision`. Values in px/frame.
+
+- **When:** `isNearRamp` - a ramp in the feet columns (x+4..x+11) within 10 px above or 6 px below the feet. Otherwise
+  the flat, tile-based resolution runs exactly as before.
+- **Surface:** one probe under the centre of the feet, (8, 32) (`SLOPE_FEET_PROBE`), as dasm's sloped probe table
+  `TileAttrAndQuad_OffsSloped` (prg008:4170) does. Ground is pixel-precise: a ramp pixel is solid at or below its
+  surface depth (`SlopeProfile.isSolidAt`).
+  - Feet inside the ground: the player is pulled up to the surface, at most 10 px (`SLOPE_CLIMB_LIMIT_PIXELS`), and at
+    most 5 px onto flat ground (`FLAT_SNAP_LIMIT_PIXELS`, the flat resolution's own limit).
+  - Feet in the air while grounded: the player is pulled down onto ground up to 6 px below (`SLOPE_STICK_PIXELS`),
+    which is how a downhill walk stays on the surface. dasm does it by stepping a row down (`Slope_CorrectL` = {-1, 16},
+    prg008:5554).
+  - Nothing within reach: the flat resolution decides (a foot on a flat ledge holds the player up; otherwise they fall).
+    Near a ramp, its feet probes ignore ramps, so a foot over a ramp never lands the player on the ramp tile's top.
+  - A player can land on a slope while still rising slowly: Y velocity >= -1.75 (dasm: `>= -$1C`).
+- **In-front probes:** near a ramp they sit higher, at Y+24 and Y+12 (Y+24 and Y+23 small), from dasm's sloped table,
+  so the rise ahead is not a wall. A ramp is never a wall, and neither is solid ground that a ramp on that side leads
+  up onto (`isClimbableFromTheSide`): a walker climbing fast sinks into the slope for a frame and would otherwise meet
+  that ground from the side. A solid tile with a ramp *on top of it* stays a wall from both sides. It is a step reached
+  from the flat, and treating it as climbable let the player walk into it, where the ramp above the head started the
+  emexit push.
+- **Pull:** while grounded on a ramp, `PlayerRuntimeState.slopePull` is set to the slope's pull in sixteenths, signed
+  by the downhill side: 3 steep, 2 gentle (`Slope_PlayerVel_Effect`, prg000:91). The next position step adds it while
+  the player moves (`LevelScenePlayer.updateFrame`), without changing the stored velocity (dasm `PRG008_A8F9`,
+  prg008:1830). A still player does not slip.
+- **Uphill:** moving against the pull (`isWalkingUphill`). The top speed becomes 13/16 walking and 22/16 with B
+  (`PLAYER_TOP_UPHILL_*`; dasm `Player_UphillSpeedVals`, prg008:2317), whatever the P-meter. Acceleration is
+  unchanged, so a faster player slows at the normal deceleration. The run flag is not set, so the P-meter drains
+  (prg008:2353). The walk animation ticks once more per frame (`renderWalkRun`).
+- Jumping is unchanged; the jump force is picked from |X velocity|, so uphill jumps are lower.
+
+## 3. Sliding
+
+`LevelScenePlayerActionCapable.handleSliding`, run right after the collision pass. Velocities in sixteenths.
+
+- **Start:** grounded on a ramp, Down held with neither Left nor Right, not carrying. All modes slide (dasm:
+  `PowerUp_Ability` bit 1, prg000:558, rules out only Frog and Hammer). On flat ground Down still ducks; on a slope Down
+  never ducks (`handleDucking`).
+- **Each grounded frame** (`PlayerRuntimeState.advanceSlide`): slide += pull, clamp to +-64, one toward zero, X
+  velocity = slide (dasm prg008:5985-6056). The slide starts from 0, not from the player's speed. Net +2 a frame on a
+  steep slope, +1 on a gentle one, -1 on the flat: a slide coasts to a stop.
+- **Ends** (`stopSliding`) when the player is airborne (jumping is allowed), holds Left, Right or Up (prg008:3079), is
+  stopped by a wall (prg008:5756), enters a pipe or dies, or the slide reaches 0.
+- **While sliding:** no tail attack (dasm masks B, prg008:1353), no duck, no run flag.
+- **Drawing:** the movement is `SLIDING`, drawn with each mode's `sliding.png` (`renderSlide`). The art in the repo is a
+  placeholder (a copy of the duck frame, the still frame for small).
+
+### Sliding into enemies
+
+`ActiveObjectGrid.dispatchDirectionalPlayerCollision` sends every contact of a sliding player to `onSlidInto`
+instead of the stomp test. `EnemyLevelObject.onSlidInto`:
+
+- Stompable enemies, shells included (still or kicked), are killed with `onStruckByKickedObject`, knocked with their
+  own X velocity plus half the player's (dasm prg000:3682-3729), for 100 points, with the kick sound. No bounce, and
+  the slide goes on.
+- A winged enemy (`isWinged`: Para-Goomba, Koopa Paratroopa) is killed only if `isGrounded`; in the air it hurts the
+  player.
+- An enemy that cannot be stomped (the piranha family) gets its usual `onPlayerOverlap`, which hurts.
+- Getting hurt does not end the slide (dasm never touches `Player_Slide` on a hit).
+
+This follows the ticket, not dasm. In dasm the slide runs the stomp test first (`PRG000_D218`) and kills only when
+that changes the enemy's state: a flyer loses its wings instead (`OCSPECIAL_KILLCHANGETO`, prg004:114), and on flat
+ground the test usually fails, so the player is hurt. dasm's slide kills pay `Score_Get100PlusPts(Kill_Tally)`, but
+the tally resets on every grounded frame (prg008:5944), so 100 each.
+
+## 4. Enemies and power-ups on a slope
+
+The ground probes live in `SlopeFollowingCapable` (`findLandingY`, `isGroundBelow`, `isWallAhead`), shared by
+`GroundWalkingEnemy` (Goomba, Para-Goomba, Koopa Troopa, Koopa Paratroopa and the shell) and `SuperMushroom` (Super
+and 1-Up). In dasm all of them move through the same `Object_Move` / `Object_WorldDetect4` (prg000:3371; the mushroom
+via `ObjNorm_PUpMush` -> `Object_InteractWithWorld`, prg001:1947), so they follow slopes alike. A new object that
+walks the ground implements `SlopeFollowingCapable` and lands through `findLandingY`.
+
+- **Landing** (`findLandingY`): `StaticEnvironmentCollisionGrid.findRampSurfaceNear` looks under the centre column in
+  the feet row and the rows either side for a ramp surface, or the top of flat ground beside a ramp. It is taken from 8
+  px above the feet (climbing, `WALKER_SLOPE_CLIMB_LIMIT_PIXELS`) to a stick distance below them (following the slope
+  down): the whole-pixel X speed plus 1, at least 2 (`MIN_SLOPE_STICK_PIXELS`). dasm follows a slope down by moving the
+  object down by its whole-pixel X speed and detecting again (`Objects_Slope`, prg000:1177-1203). Otherwise the flat
+  landing runs, which now skips ramp cells.
+- **Walls** (`isWallAhead`): `isClimbableFromTheSide` as for the player.
+- **Speed** (`GroundWalkingEnemy.walkSpeedFixedPoint`, enemies only): 8 on the flat and downhill, 6 uphill on a
+  gentle slope, 5 on a steep one (`ObjNorm_GroundTroop` / `GroundTroop_XVel`, prg004:4000-4070). The mushroom keeps
+  its 16 everywhere: its routine sets no slope speed.
+- A red Koopa Troopa stays grounded walking down, so its ledge guard does not turn it at the top of a slope.
+- Shells follow the surface only; their speed is not changed.
+
+Not done: dasm also speeds the walk animation up uphill and slows it downhill (`PRG004_B353`: 255/192/128/96/64 of
+256 a frame from steep uphill to steep downhill).
+
+## 5. Drawing: gliding instead of stepping
+
+The physics keeps dasm's whole-pixel surface: Y snaps to the surface depth of the pixel column under the centre
+(`Player_Y = (Y & $F0) + height`, prg008:5942), so Y moves a whole pixel at a time. dasm also draws X at whole pixels
+on a 256 px wide screen, so there the motion reads as smooth. This project draws X with its fraction and each pixel
+several screen pixels tall, so drawn at the physics Y an object climbs in visible stairs.
+
+So only the drawing follows the **straight ramp behind the tile's pixels** (`SlopeProfile.idealSurfaceDepthAt`): a
+line of 1 px per pixel across (steep) or 1 px per 2 (gentle), from the depth where the ramp meets the ground at its low
+end (16, or 8 for the upper half of a gentle ramp) to where it meets the next tile (0, or 8). The line comes with the shape,
+so the art does not show in the motion, and the lines of neighbouring ramp tiles, the floor
+before them and the top after them all join. This is dasm's own table without its rounding to whole pixels.
+
+`StaticEnvironmentCollisionGrid.findSlopeDrawOffset(centreX, feetY)` returns line minus physics surface when the feet
+are exactly on a ramp's surface under the centre, and 0 otherwise.
+
+- Enemies: `GroundWalkingEnemy.pixelToWorldOffset`, through `SlopeFollowingCapable.slopeDrawOffsetPixels` (0 for a
+  carried shell, which is drawn with its carrier). The mushroom's `positionSprite` uses the same method, except while
+  rising.
+- Player: `PlayerPosition.slopeDrawOffset`, set each tick after the collision pass (`findSlopeDrawOffset(player)`, 0
+  in the air, cleared on death), snapshotted and interpolated with the position, and read through `getDrawY()`.
+- A first attempt interpolated between the pixel columns of the tile's surface. It made things worse: every pixel
+  irregularity, and the gentle slope's two-column steps, showed up as bends in the drawn path.

@@ -11,6 +11,7 @@ public record RaccoonAnimatorAssets(
     Texture still,
     Texture skid,
     Texture duck,
+    Texture slide,
     Texture faceForward,
     Texture[] hold,
     Texture jump,

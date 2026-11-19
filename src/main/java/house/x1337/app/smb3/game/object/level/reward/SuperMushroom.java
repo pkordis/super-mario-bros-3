@@ -12,6 +12,7 @@ import house.x1337.app.smb3.game.object.level.reward.core.PowerUpCollectProtecti
 import house.x1337.app.smb3.game.object.level.reward.core.RewardLevelObject;
 import house.x1337.app.smb3.game.object.level.variant.ConfigurableVariant;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.SlopeFollowingCapable;
 import house.x1337.app.smb3.game.object.level.variant.SuperMushroomVariantData;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.EnumeratedImageResource;
@@ -23,6 +24,8 @@ import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+
+import java.util.OptionalDouble;
 
 import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
@@ -51,8 +54,9 @@ import static java.lang.Math.floor;
  *   <li><b>Move.</b> Gravity (3 per frame, capped at 64) pulls it onto the block it emerged from;
  *       once grounded with no horizontal velocity, it is kicked rolling at a constant 16 (1 px/frame)
  *       <em>away</em> from the player (the direction is chosen when it spawns). It then walks across
- *       the static tile grid: it rests on solid floors and reverses direction when it runs into a
- *       wall.</li>
+ *       the static tile grid: it rests on solid floors, follows ramps up and down (the same terrain probes as the
+ *       ground-walking enemies, {@link SlopeFollowingCapable}) and reverses direction when it runs into a
+ *       wall. Its speed does not change on a slope.</li>
  * </ol>
  *
  * <p>All velocities are 4.4 fixed-point ({@code value/16 == px/frame}), carried in a
@@ -65,7 +69,8 @@ import static java.lang.Math.floor;
 @Data
 @Prototype
 @RequiredArgsConstructor
-public final class SuperMushroom implements RewardLevelObject, ConfigurableVariant<SuperMushroomVariantData> {
+public final class SuperMushroom
+    implements RewardLevelObject, SlopeFollowingCapable, ConfigurableVariant<SuperMushroomVariantData> {
     private static final int RISE_TIMER_INITIAL = 61;
     private static final int RISE_MOVEMENT_THRESHOLD = 45;
     private static final int RISE_PIXEL_INTERVAL_FRAMES = 3;
@@ -217,14 +222,14 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     }
 
     /**
-     * Advances the mushroom vertically; if it would land on a solid tile, aligns its feet to that
-     * tile's top edge and zeroes the fall.
+     * Advances the mushroom vertically; if it would land on the ground, a ramp's surface included, rests its feet
+     * on it and zeroes the fall.
      */
     private void moveVertically() {
         final PixelPosition proposed = position.steppedY(velocity);
-        if (velocity.descending() && isGroundBelow(proposed)) {
-            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
-            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+        final OptionalDouble landingY = velocity.descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isPresent()) {
+            position = position.withY(landingY.getAsDouble());
             velocity = velocity.withY(0);
             grounded = true;
         } else {
@@ -327,7 +332,8 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
     private void positionSprite() {
         final int rows = gameEngine.getLevelScene().getDimensions().rows();
         final float worldX = (float) (position.x() / TILE_SPRITE_SIZE);
-        float worldY = (rows - 1) - (float) (position.y() / TILE_SPRITE_SIZE);
+        final double drawY = rising ? position.y() : position.y() + slopeDrawOffsetPixels(position);
+        float worldY = (rows - 1) - (float) (drawY / TILE_SPRITE_SIZE);
         if (!rising) {
             // Drop the sprite by one logical pixel (1/TILE_SPRITE_SIZE world units): its resting
             // feet are mathematically flush with the tile top, but it rasterises a pixel high,
@@ -396,27 +402,6 @@ public final class SuperMushroom implements RewardLevelObject, ConfigurableVaria
             0f, 1f
         });
         mesh.updateBound();
-    }
-
-    private boolean isWallAhead(final PixelPosition proposed) {
-        final int midRow = position.plusY(SPRITE_SIZE_PIXELS / 2.0).row();
-        final int leadingColumn = velocity.movingRight()
-            ? proposed.plusX(SPRITE_SIZE_PIXELS - 1).column()
-            : proposed.column();
-        // The level's sides are not a wall for the mushroom (the grid reports them open): rather than
-        // about-facing, it keeps rolling off the edge, and its manager deletes it once it is past the
-        // screen's delete edge (the camera is clamped at the level's ends).
-        return gameEngine.getCollisionGrid().isWallOrCeilingSolidTile(of(leadingColumn, midRow));
-    }
-
-    /**
-     * @param proposed the position the mushroom would occupy this frame
-     * @return {@code true} if a solid tile sits under the mushroom's feet there
-     */
-    private boolean isGroundBelow(final PixelPosition proposed) {
-        final int centerColumn = position.plusX(SPRITE_SIZE_PIXELS / 2.0).column();
-        final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
-        return gameEngine.getCollisionGrid().isGroundSolidTile(of(centerColumn, feetRow));
     }
 
     /**
