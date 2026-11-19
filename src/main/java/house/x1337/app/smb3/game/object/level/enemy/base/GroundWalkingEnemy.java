@@ -5,6 +5,8 @@ import house.x1337.app.smb3.model.game.WorldOffset;
 import house.x1337.app.smb3.model.game.collision.SlopeProfile;
 import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
+import java.util.Optional;
+
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floor;
@@ -24,6 +26,7 @@ public interface GroundWalkingEnemy extends EnemyLevelObject, SlopeFollowingCapa
     int BOUNDING_BOX_LEFT_OFFSET = 1;
     int BOUNDING_BOX_TOP_OFFSET = 2;
     int BOUNDING_BOX_WIDTH = 13;
+    int FLAT_WALK_ANIMATION_RATE = 128;
     int GRAVITY_FIXED_POINT = 3;
     int MAX_FALL_FIXED_POINT = 64;
     int NO_HIT_COOLDOWN_TICKS = 0;
@@ -62,13 +65,23 @@ public interface GroundWalkingEnemy extends EnemyLevelObject, SlopeFollowingCapa
     }
 
     default int walkSpeedFixedPoint(final boolean facingRight) {
-        final int centreX = (int) floor(getPosition().x() + BODY_SIZE_PIXELS / 2.0);
-        final int feetY = (int) floor(getPosition().y()) + BODY_SIZE_PIXELS;
-        return getCollisionGrid()
-            .findSlopeAt(of(floorDiv(centreX, TILE_SPRITE_SIZE), floorDiv(feetY, TILE_SPRITE_SIZE)))
+        return findSlopeUnderfoot()
             .filter(slope -> slope.isUphillFor(facingRight))
             .map(SlopeProfile::enemyUphillWalkSpeed)
             .orElse(WALK_SPEED_FIXED_POINT);
+    }
+
+    /**
+     * @return how fast the walk cycle runs for a walker facing that way, in 256ths of a step per tick: faster
+     *         uphill, slower downhill, {@value #FLAT_WALK_ANIMATION_RATE} on the flat or in the air
+     */
+    default int walkAnimationRate(final boolean facingRight) {
+        if (!isGrounded()) {
+            return FLAT_WALK_ANIMATION_RATE;
+        }
+        return findSlopeUnderfoot()
+            .map(slope -> slope.enemyWalkAnimationRate(facingRight))
+            .orElse(FLAT_WALK_ANIMATION_RATE);
     }
 
     /**
@@ -79,5 +92,12 @@ public interface GroundWalkingEnemy extends EnemyLevelObject, SlopeFollowingCapa
         final int centerColumn = getPosition().plusX(BODY_SIZE_PIXELS / 2.0).column();
         final int headRow = proposed.row();
         return getCollisionGrid().isWallOrCeilingSolidTile(of(centerColumn, headRow));
+    }
+
+    private Optional<SlopeProfile> findSlopeUnderfoot() {
+        final int centreX = (int) floor(getPosition().x() + BODY_SIZE_PIXELS / 2.0);
+        final int feetY = (int) floor(getPosition().y()) + BODY_SIZE_PIXELS;
+        return getCollisionGrid()
+            .findSlopeAt(of(floorDiv(centreX, TILE_SPRITE_SIZE), floorDiv(feetY, TILE_SPRITE_SIZE)));
     }
 }

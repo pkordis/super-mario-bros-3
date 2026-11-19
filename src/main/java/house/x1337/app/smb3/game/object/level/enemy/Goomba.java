@@ -11,6 +11,7 @@ import house.x1337.app.smb3.game.object.level.effect.TailAttackFlashMotionManage
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotPredecessor;
 import house.x1337.app.smb3.game.object.level.enemy.base.SlotSuccessor;
+import house.x1337.app.smb3.game.object.level.enemy.base.WalkAnimationClock;
 import house.x1337.app.smb3.game.object.level.enemy.family.GoombaFamilyEnemy;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
@@ -55,13 +56,13 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private static final int BOUNDING_BOX_WIDTH = 13;
     private static final int MAX_FALL_FIXED_POINT = 64;
     private static final int SQUISH_TICKS = 16;
-    private static final int TICKS_PER_WALK_FRAME = 8;
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
     @Accessors(fluent = true)
     private final boolean bouncesOffOtherObjects = true;
     private final GoombaAnimator animator = getBean(GoombaAnimator.class);
+    private final WalkAnimationClock walkClock = new WalkAnimationClock();
     private final LevelObjectType type = GOOMBA;
     private final Dimensions spriteDimensions = SPRITE_DIMENSIONS;
     private final DimensionsPixels boundsPixels = BOUNDS_PIXELS;
@@ -84,7 +85,6 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private int hitCooldownTicks;
     private int squishTicksRemaining;
     private int walkFrameIndex;
-    private int walkFrameTicks;
 
     @PostConstruct
     void init() {
@@ -259,9 +259,9 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         // Facing IS direction
         velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
 
-        advanceWalkFrame();
         moveHorizontally();
         moveVertically();
+        advanceWalkFrame();
         applyGravity();
         positionSprite();
     }
@@ -284,11 +284,9 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     }
 
     private void advanceWalkFrame() {
-        walkFrameTicks++;
-        if (walkFrameTicks < TICKS_PER_WALK_FRAME) {
+        if (!walkClock.advance(walkAnimationRate(facingRight))) {
             return;
         }
-        walkFrameTicks = 0;
         walkFrameIndex = (walkFrameIndex + 1) % animator.walkFrameCount(this);
         animator.applyCurrentFrame(this);
     }

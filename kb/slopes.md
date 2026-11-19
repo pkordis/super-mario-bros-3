@@ -129,8 +129,33 @@ walks the ground implements `SlopeFollowingCapable` and lands through `findLandi
 - A red Koopa Troopa stays grounded walking down, so its ledge guard does not turn it at the top of a slope.
 - Shells follow the surface only; their speed is not changed.
 
-Not done: dasm also speeds the walk animation up uphill and slows it downhill (`PRG004_B353`: 255/192/128/96/64 of
-256 a frame from steep uphill to steep downhill).
+### Walk animation (SMB3-85)
+
+Walkers step through their walk cycle faster uphill and slower downhill. `WalkAnimationClock` adds a **rate** in 256ths
+of a step each tick; a full step advances its step count (wrapping at 256), and every 4 steps the walk frame changes.
+`GroundWalkingEnemy.walkAnimationRate(facingRight)` gives the rate, read after the tick's move:
+
+| Ground under the centre of the feet | Rate (`SlopeProfile.enemyWalkAnimationRate`) | Ticks per walk frame |
+|-------------------------------------|----------------------------------------------|----------------------|
+| steep, uphill                       | 255                                          | about 4              |
+| gentle, uphill                      | 192                                          | 5.3 (5, 5, 6)        |
+| flat, or in the air                 | 128 (`FLAT_WALK_ANIMATION_RATE`)             | 8, as before         |
+| gentle, downhill                    | 96                                           | 10.7 (10, 11, 11)    |
+| steep, downhill                     | 64                                           | 16                   |
+
+dasm (`ObjNorm_GroundTroop`, prg004:4001-4120): after `Object_Move`, `Var7 += PRG004_B353[LRBounce_Vel + 2]` with
+`PRG004_B353` = 255, 192, 128, 96, 64; the carry bumps `Var5`, and the frame is `(Var5 >> 2) & 1`. `LRBounce_Vel` is
+`Slope_ObjectVel_Effect` of the slope the object landed on (-2/2 steep, -1/1 gentle), negated when moving left, so -2
+is steep uphill and +2 steep downhill; `Object_WorldDetect` clears it every move and sets it only on sloped ground
+(prg000:944, 1105-1146).
+
+- Goomba and green Koopa Troopa use the rate (`advanceWalkFrame`). The green Koopa Paratroopa's clock uses it too, wings
+  included, although it is on the ground for one tick per hop. The red flying Paratroopa takes a full step every tick.
+- A red Koopa Troopa keeps the flat rate: dasm's `ObjNorm_RedTroopa` bumps `Var5` every tick and shows
+  `(Var5 >> 3) & 1`. A Para-Goomba keeps its fixed 8 ticks too (`ObjNorm_ParaGoomba`, prg004:3011, frames from the
+  global `Counter_1 >> 3`).
+- dasm uses the same routine for Buzzy Beetle, Spiny and the giant Goomba and green Troopa (prg004:64-87), not yet in
+  the project.
 
 ## 5. Drawing: gliding instead of stepping
 
