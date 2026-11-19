@@ -51,8 +51,9 @@ public interface LevelScenePlayerDataAware extends LevelScenePlayerRuntimeStateA
         final PlayerPosition position = getPosition();
         final PlayerData playerData = getPlayerData();
 
-        // Run flag: set when on ground, holding B, speed >= PLAYER_TOP_RUN_SPEED
+        // Run flag: set when on ground, holding B, speed >= PLAYER_TOP_RUN_SPEED, and neither sliding nor going uphill
         final boolean running = inputRun && !runtimeState.isInAir()
+            && !runtimeState.isSliding() && !runtimeState.isWalkingUphill(position.getDX())
             && abs(position.getDX()) >= PLAYER_TOP_RUN_SPEED - 0.001;
         runtimeState.setRunning(running);
 

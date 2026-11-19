@@ -44,6 +44,7 @@ class RaccoonAnimatorAssetsTest {
         "still.png",
         "rapid_turn.png",
         "ducking.png",
+        "sliding.png",
         FACE_FORWARD_FILENAME,
         "holding_1.png",
         "holding_2.png",

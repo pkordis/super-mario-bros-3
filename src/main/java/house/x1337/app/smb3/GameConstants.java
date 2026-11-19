@@ -216,12 +216,14 @@ public final class GameConstants {
 
     public static final double PLAYER_TOP_WALK_SPEED = 1.5;
     public static final double PLAYER_TOP_RUN_SPEED = 2.5;
+    public static final double PLAYER_TOP_UPHILL_WALK_SPEED = 13.0 / TILE_SPRITE_SIZE;
+    public static final double PLAYER_TOP_UPHILL_RUN_SPEED = 22.0 / TILE_SPRITE_SIZE;
 
     /**
      * The end-level run-off's walk: the horizontal velocity set on every grounded frame of the run-off, 1.25 px
      * per tick, a little under the top walking speed.
      */
-    public static final double PLAYER_END_LEVEL_X_VELOCITY = 20 / 16.0;
+    public static final double PLAYER_END_LEVEL_X_VELOCITY = 20.0 / TILE_SPRITE_SIZE;
     public static final double PLAYER_TOP_POWER_SPEED = 3.5;
 
     /**

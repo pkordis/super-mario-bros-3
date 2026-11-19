@@ -425,8 +425,9 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             runtimeState.setLowClearanceGrace(runtimeState.getLowClearanceGrace() - 1);
         }
 
-        // Advance position
-        position.addToX(clamp(position.getDX(), -4, 4));
+        // Advance position. A slope pulls a moving player downhill on top of their own speed, for the step only.
+        final double slopePull = position.getDX() == 0 ? 0 : runtimeState.getSlopePull() / (double) TILE_SPRITE_SIZE;
+        position.addToX(clamp(position.getDX() + slopePull, -4, 4));
         if (runtimeState.isInAir()) {
             position.addToY(min(4, position.getDY()));
         }
@@ -473,8 +474,12 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             getSoundPlayer().play(BLOCK);
         }
 
+        // The slide drives the horizontal velocity from the ground the collision pass just stood the player on
+        handleSliding(inputHandler, hitSomething);
+
         // Refine the logical state after physics + collision
         refinePlayerState(inputHandler, hitSomething, lowClearance);
+        position.setSlopeDrawOffset(collisionGrid.findSlopeDrawOffset(this));
 
         if (hasTail()) {
             // Tail attack (raccoon/tanooki B press on ground). Big and small

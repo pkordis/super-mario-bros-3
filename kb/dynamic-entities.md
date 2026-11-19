@@ -2332,3 +2332,14 @@ folders' stems are a copy of the plain plant's green stem.
 
 The ceiling fire plants `$A5` / `$A7` (they fire from `Piranha_HideInPipe`, prg005.asm:1635-1667), and
 star, fireball and hammer kills.
+
+## Slopes (SMB3-81, 2026-11)
+
+Ground walkers (Goomba, Para-Goomba, Koopa Troopa, Koopa Paratroopa, the shell) and the Super Mushroom walk on ramp
+tiles through `SlopeFollowingCapable` (`game/object/level`), which `GroundWalkingEnemy` extends and `SuperMushroom`
+implements: `findLandingY` (stand on a ramp's surface, climb onto it, follow it down), `isGroundBelow` (flat ground,
+with the floor-depth limit above) and `isWallAhead` (a ramp, and solid ground a ramp leads up onto, is not a wall; a
+step with a ramp on top is). Every `moveVertically` lands through `findLandingY` instead of computing the tile row
+itself. Only the enemies slow uphill (`GroundWalkingEnemy.walkSpeedFixedPoint`: 8, or 6 / 5 on a gentle / steep
+slope); the mushroom keeps its speed. A sliding player kills the enemies through `EnemyLevelObject.onSlidInto`. The
+details, values and dasm sites are in `kb/slopes.md`, sections 3 and 4.

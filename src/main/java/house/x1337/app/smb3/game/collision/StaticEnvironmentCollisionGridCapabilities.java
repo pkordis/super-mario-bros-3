@@ -10,8 +10,10 @@ import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.RampLevelObject;
 import house.x1337.app.smb3.game.object.level.SolidLevelObject;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.collision.SlopeProfile;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -25,7 +27,6 @@ import java.util.Optional;
 import static house.x1337.app.smb3.GameConstants.EMPTY_LEVEL_OBJECT;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.DUMMY_SOLID_OBJECT;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
 import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
@@ -113,8 +114,8 @@ public interface StaticEnvironmentCollisionGridCapabilities {
     /**
      * Turns one consolidated tile view into its collision objects. A cell becomes an interactive object
      * only when its record names a <b>single-tiled</b> type — that is what a tile-bound object is. Cells
-     * with no tile, no record, or a multi-tiled record fall back to the tile's own category: solid for
-     * {@code COLLIDING}/{@code ONE_WAY_PLATFORM}, {@code EMPTY_LEVEL_OBJECT} otherwise.
+     * with no tile, no record, or a multi-tiled record fall back to the tile's own type: a ramp for a ramp type,
+     * solid for other {@code COLLIDING}/{@code ONE_WAY_PLATFORM} types, {@code EMPTY_LEVEL_OBJECT} otherwise.
      */
     private LevelObject[][] toLevelObjects(
         final GameEngine gameEngine,
@@ -141,7 +142,10 @@ public interface StaticEnvironmentCollisionGridCapabilities {
                     : record.findLevelObjectType();
                 if (levelObjectType.isEmpty() || levelObjectType.get().isMultiTiled()) {
                     final TileType.Category category = tile.getType().getCategory();
-                    if (category == COLLIDING || category == ONE_WAY_PLATFORM) {
+                    final Optional<SlopeProfile> slopeProfile = tileType.findSlopeProfile();
+                    if (slopeProfile.isPresent()) {
+                        objects[row][col] = new RampLevelObject(gameEngine, of(col, row), slopeProfile.get());
+                    } else if (category == COLLIDING || category == ONE_WAY_PLATFORM) {
                         final SolidLevelObject newSolidLevelObject = SolidLevelObject
                             .builder()
                             .build();

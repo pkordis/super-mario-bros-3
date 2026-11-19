@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
+import java.util.OptionalDouble;
 
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
@@ -167,6 +168,11 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
     }
 
     @Override
+    public boolean isWinged() {
+        return true;
+    }
+
+    @Override
     public boolean isHittable() {
         return !deWinged && !tailStruck;
     }
@@ -196,7 +202,7 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         }
 
         // Facing IS direction, as for the ground troop: the X velocity is rederived from facing every frame.
-        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
 
         advanceWalkFrame();
         moveHorizontally();
@@ -319,10 +325,10 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         ceilingContact = false;
         final PixelPosition proposed = position.steppedY(velocity);
 
-        if (velocity.descending() && isGroundBelow(proposed)) {
-            // Align the feet to the tile top it landed on.
-            final int feetRow = proposed.plusY(SPRITE_SIZE_PIXELS).row();
-            position = position.withY((double) feetRow * TILE_SPRITE_SIZE - SPRITE_SIZE_PIXELS);
+        final OptionalDouble landingY = velocity.descending() ? findLandingY(proposed) : OptionalDouble.empty();
+        if (landingY.isPresent()) {
+            // Align the feet to the ground it landed on.
+            position = position.withY(landingY.getAsDouble());
             velocity = velocity.withY(0);
             grounded = true;
             groundContact = true;

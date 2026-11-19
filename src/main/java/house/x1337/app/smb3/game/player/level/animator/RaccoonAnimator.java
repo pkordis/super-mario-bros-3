@@ -25,6 +25,7 @@ import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SKIDDING;
+import static house.x1337.app.smb3.enumeration.PlayerMovement.SLIDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.WALKING;
 import static java.lang.Math.min;
@@ -112,6 +113,11 @@ public final class RaccoonAnimator
             setLastRenderedState(null);
             setLastOrientation(null);
             setLastWalkFrame(-1);
+        }
+
+        if (movement == SLIDING) {
+            renderSlide(node, orientationHorizontal, assets.slide());
+            return;
         }
 
         if (isDucking) {

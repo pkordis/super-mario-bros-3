@@ -43,6 +43,7 @@ class ShrunkAnimatorAssetsTest {
     private static final List<String> EXPECTED_FILENAMES = List.of(
         "still.png",
         "rapid_turn.png",
+        "sliding.png",
         FACE_FORWARD_FILENAME,
         "holding_1.png",
         "holding_2.png",

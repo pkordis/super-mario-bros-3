@@ -444,6 +444,10 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         final ActiveLevelObject object,
         final LevelScenePlayer player
     ) {
+        if (player.isSliding()) {
+            object.onSlidInto(player);
+            return;
+        }
         if (!object.canBeStomped()) {
             // No stomp to tell apart from a side hit, and no bounce to let the player rise out of.
             object.onPlayerOverlap(player);

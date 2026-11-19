@@ -3,8 +3,11 @@ package house.x1337.app.smb3.game.object.level;
 import house.x1337.app.smb3.game.object.GameObject;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.collision.SlopeProfile;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import org.slf4j.Logger;
+
+import java.util.Optional;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -34,6 +37,10 @@ public interface LevelObject extends GameObject {
 
     default boolean isOneWayPlatform() {
         return false;
+    }
+
+    default Optional<SlopeProfile> findSlopeProfile() {
+        return Optional.empty();
     }
 
     default void configure(final LevelObjectData data) {

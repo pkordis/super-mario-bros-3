@@ -1,5 +1,6 @@
 package house.x1337.app.smb3.config.db;
 
+import house.x1337.app.smb3.config.db.mongo.CoordinatesCodec;
 import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
 import house.x1337.app.smb3.model.repository.PipePortalRecord;
 import org.bson.BsonDocument;
@@ -28,7 +29,7 @@ class MongoPipePortalCodecTest {
         // Prepare
         final MongoDBConfig config = new MongoDBConfig();
         final Codec<PipePortalRecord> codec = config
-            .consolidatedCodecRegistry(config.customCodecRegistry(new IntArrayCodec()))
+            .consolidatedCodecRegistry(config.customCodecRegistry(new IntArrayCodec(), new CoordinatesCodec()))
             .get(PipePortalRecord.class);
         final PipePortalRecord original = PipePortalRecord.builder()
             .id("portal-1")
@@ -73,7 +74,7 @@ class MongoPipePortalCodecTest {
         // Prepare
         final MongoDBConfig config = new MongoDBConfig();
         final Codec<PipePortalRecord> codec = config
-            .consolidatedCodecRegistry(config.customCodecRegistry(new IntArrayCodec()))
+            .consolidatedCodecRegistry(config.customCodecRegistry(new IntArrayCodec(), new CoordinatesCodec()))
             .get(PipePortalRecord.class);
         final BsonDocument document = new BsonDocument()
             .append("_id", new BsonString("portal-1"))

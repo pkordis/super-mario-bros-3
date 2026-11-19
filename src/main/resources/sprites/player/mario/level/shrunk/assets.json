@@ -1,6 +1,7 @@
 {
   "still": "still.png",
   "skid": "rapid_turn.png",
+  "slide": "sliding.png",
   "faceForward": "facing_forward.png",
   "hold": ["holding_1.png", "holding_2.png", "holding_1.png", "holding_2.png"],
   "jump": "jumping.png",

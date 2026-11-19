@@ -1,13 +1,26 @@
 package house.x1337.app.smb3.enumeration;
 
+import house.x1337.app.smb3.model.game.collision.SlopeProfile;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.*;
-import static house.x1337.app.smb3.enumeration.TileType.Category.*;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_LAND;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
+import static house.x1337.app.smb3.enumeration.TileType.Category.COLLIDING;
+import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
+import static house.x1337.app.smb3.enumeration.TileType.Category.NON_COLLIDING;
+import static house.x1337.app.smb3.enumeration.TileType.Category.ONE_WAY_PLATFORM;
+import static house.x1337.app.smb3.enumeration.TileType.Category.VIRTUAL;
+import static house.x1337.app.smb3.model.game.collision.SlopeProfile.*;
+import static house.x1337.app.smb3.model.game.collision.SlopeProfile.GENTLE_FALLING_LOW;
 import static lombok.AccessLevel.PRIVATE;
 
 @Getter
@@ -38,8 +51,13 @@ public enum TileType {
     OBJECT_INTERACTIVE_PART("Interactive Object (Multi-tiled)", COLLIDING, INTERACTIVE_OBJECTS),
     PIPE_TERMINATION_PART("Pipe - Termination", COLLIDING, STATIC_ENVIRONMENT),
     PIPE_BODY_PART("Pipe Body", COLLIDING, STATIC_ENVIRONMENT),
-    SOLID("Solid - Flat Ground/Obstacle/Block", COLLIDING, STATIC_ENVIRONMENT),
-    SOLID_RAMP("Solid - Ramp Ground/Obstacle (Uphill/Downhill)", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID("Solid Flat Ground/Obstacle/Block", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_STEEP_RISING("Solid Ramp - Steep rising right", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_STEEP_FALLING("Solid Ramp - Steep falling right", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_GENTLE_RISING_LOW("Solid Ramp - Gentle rising right (Low Half)", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_GENTLE_RISING_HIGH("Solid Ramp - Gentle rising right (High Half)", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_GENTLE_FALLING_HIGH("Solid Ramp - Gentle falling right (High Half)", COLLIDING, STATIC_ENVIRONMENT),
+    SOLID_RAMP_GENTLE_FALLING_LOW("Solid Ramp - Gentle falling right (Low Half)", COLLIDING, STATIC_ENVIRONMENT),
 
     // Enemy
     ENEMY_PART("Enemy (Single or Multi-tiled)", ENEMY, NON_PLAYABLE_CHARACTERS),
@@ -95,5 +113,17 @@ public enum TileType {
             .stream(TileType.values())
             .filter(t -> !list.contains(t.category))
             .toList();
+    }
+
+    public Optional<SlopeProfile> findSlopeProfile() {
+        return Optional.ofNullable(switch (this) {
+            case SOLID_RAMP_STEEP_RISING -> STEEP_RISING;
+            case SOLID_RAMP_STEEP_FALLING -> STEEP_FALLING;
+            case SOLID_RAMP_GENTLE_RISING_LOW -> GENTLE_RISING_LOW;
+            case SOLID_RAMP_GENTLE_RISING_HIGH -> GENTLE_RISING_HIGH;
+            case SOLID_RAMP_GENTLE_FALLING_HIGH -> GENTLE_FALLING_HIGH;
+            case SOLID_RAMP_GENTLE_FALLING_LOW -> GENTLE_FALLING_LOW;
+            default -> null;
+        });
     }
 }

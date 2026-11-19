@@ -2,6 +2,7 @@ package house.x1337.app.smb3.config.db;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
+import house.x1337.app.smb3.config.db.mongo.CoordinatesCodec;
 import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
 import house.x1337.app.smb3.repository.mongo.MongoGameSettingsRepository;
 import house.x1337.app.smb3.repository.mongo.MongoPhysicsRepository;
@@ -29,6 +30,7 @@ class MongoGameDataCollectionWiringTest {
         )
         .withUserConfiguration(MongoDBConfig.class)
         .withBean(IntArrayCodec.class)
+        .withBean(CoordinatesCodec.class)
         .withBean(MongoGameSettingsRepository.class)
         .withBean(MongoPhysicsRepository.class);
 
