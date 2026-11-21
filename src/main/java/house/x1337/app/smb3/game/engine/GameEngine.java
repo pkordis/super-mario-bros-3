@@ -401,6 +401,7 @@ public final class GameEngine extends GameEngineCapabilities {
                 activeObjectGrid.resolveKickedObjectKills();
                 activeObjectGrid.resolveCarriedObjectKills();
                 activeObjectGrid.resolveActiveObjectCollisions(checkedCast(getAllPlayers()));
+                collisionGrid.bumpThePlayersOnBumpedBlocks();
                 motionManagers.forEach(MotionManager::postCollision);
                 levelScene.tick();
                 collisionGrid.tick();

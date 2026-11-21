@@ -284,6 +284,8 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         }
         if (state == KICKED) {
             tickKicked();
+            // A kicked shell is knocked back to rest by a bumped block, as a resting one is
+            reactToBlockBumpBelow();
             return;
         }
 

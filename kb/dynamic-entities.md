@@ -453,8 +453,8 @@ Pinned by `CollisionGridLevelBottomTest`, `PitFallTest`, `CameraStateVisibleBott
 - **NO ledge turn.** A Goomba walks off an edge and falls. The ledge-avoiding about-face belongs to
   `ObjNorm_RedTroopa` (`PRG004_B283`, the `Objects_Var4` branch that applies X velocity twice to undo
   the step) and is never reached by the ground-troop path.
-- **Omitted on purpose:** ceiling bounce (`YVel = $01`) and `Object_HandleBumpUnderneath`. Both need
-  an upward velocity, and the only sources are player interactions, which this port excludes.
+- **Omitted on purpose:** ceiling bounce (`YVel = $01`). `Object_HandleBumpUnderneath` was ported in SMB3-82
+  ("Who reacts to a block bump", at the end of this document).
 
 ### Sprites: an `assets.json` per mode, exactly like the player's suits
 Enemy sprites are **not** injected as `@Value` image resources (a first attempt did that and was
@@ -536,7 +536,7 @@ and it belongs in the animator. The only other Goomba frame in the ROM is the sq
 ### Player interaction is deliberately absent
 `EnemyLevelObject.onCollisionWith` is a documented no-op and enemy managers **never insert into
 `ActiveObjectGrid`** — an enemy currently walks through the player. `Player_HitEnemy`, the squash
-state, stomping and the bump-from-below are the next slice of work. Z is `Z_DEPTH_ENEMY = 0.07f`
+state, stomping and the bump-from-below are the next slice of work (all since done; the bump in SMB3-82). Z is `Z_DEPTH_ENEMY = 0.07f`
 (in front of items at `0.06`, behind the player at `0.1`). Since SMB3-19 that is only the lowest of 64
 per-enemy base depths; see `bug-fixes/enemy-parts-interleaved-across-enemies.md`.
 
@@ -971,9 +971,9 @@ moving the tail first — that would silently make the swing a shield.
 
 - `Object_DeleteOffScreen`, which opens the handler — left to the central enemy expiry (SMB3-3). Only the
   fall-off-the-level expiry the Goomba already has is kept.
-- `Object_HandleBumpUnderneath`, which closes it — the **block-bump** half only, which the port does not
-  model; the same omission the Goomba makes. Its tail call into `Player_HitEnemy` is very much ported —
-  that is the engine's collision pass, and the section above depends on where it sits.
+- `Object_HandleBumpUnderneath`, which closes it, was left out here; its block-bump half was ported in SMB3-82
+  ("Who reacts to a block bump", at the end of this document). Its tail call into `Player_HitEnemy` is very much
+  ported — that is the engine's collision pass, and the section above depends on where it sits.
 - `OBJ_PARAGOOMBAWITHMICROS = $74`, the Micro-Goomba bomber. It shares this body draw and box but has its
   own handler `ObjNorm_ParaGoombaBomber`; the class is left open to it and it is **not** implemented.
 
@@ -1243,9 +1243,10 @@ it. `-$30` is also the left/right bouncer-block figure, so adding bouncers later
 - **Nothing pushes a block bump.** `Object_HandleBumpUnderneath` reads a tile
   (`Object_TileFeet2 == TILEA_BLOCKBUMP_CLEAR`); here the equivalent is polling
   `collisionGrid.isBlockBumpActiveAt(cell)` from `motionUpdate`, the arrangement `SuperMushroom`
-  established. The residency lasts up to ten frames, so the `grounded` test is what stops it re-firing —
+  established. The residency lasts twelve frames (`kb/note-block.md` §2), so the `grounded` test is what stops it re-firing —
   the launch clears `grounded` immediately. Unlike the mushroom's, the enemy path's horizontal direction
-  **is** player-dependent.
+  **is** player-dependent. A note block bouncing up counts as a bump; one sinking under a player does not
+  (`kb/note-block.md`).
 
 ### Art: three quads for the waking shell, which is the ROM's own decomposition
 
@@ -1688,19 +1689,20 @@ back off it at `YVel = $0C` (`prg000.asm:2504-2507`). Two details matter:
   `rollLaunchXVelocity()` is tested directly rather than through a tick. The ROM's guard is for the Ice
   Block and the Bob-omb, both out of scope.
 
-### `Object_BumpOffBlocks` *is* the tail strike, and `Player_BounceObj` has no counterpart
+### `Object_BumpOffBlocks` strikes like the tail, and `Player_BounceObj` is its own dispatch
 
 `prg008.asm:5483`'s own header says it works "like the Player tail-attacked whatever block got hit", and
-that is literally the port: `StaticEnvironmentCollisionGrid.resolveTailAttack(player, x, y)`, the same
-single-tile terrain probe. Bricks break and `?` blocks pop whatever the player's size, which is correct —
+the port uses the same single-tile terrain probe: `StaticEnvironmentCollisionGrid.resolveKickedObjectStrike(player,
+x, y)`, the tail's `resolveTailAttack` lookup with its own dispatch, `LevelObject.onKickedObjectStrike` (which
+defaults to `onTailAttack`). Bricks break and `?` blocks pop whatever the player's size, which is correct —
 a rolling shell is not size-gated.
 
-**`Player_BounceObj` needs nothing written.** It exists in the ROM because a bumped block spawns a bounce
-*object* whose init pushes `Player_YVel` down, and the flag suppresses that when an object rather than the
-player caused the bump (`ObjInit_BounceDU`, `prg001.asm:978-986`). Nothing on this project's block-bump
-path touches player velocity at all — the downward push a player gets from bumping a block comes out of
-their own ceiling collision — so a shell-triggered block cannot bounce the player, by construction rather
-than by a flag. Pinned by a test so it stays that way.
+**`Player_BounceObj` is the separate dispatch.** It exists in the ROM because a bumped block spawns a bounce
+*object* whose init pushes `Player_YVel` down to +2.0 and marks the player airborne, and the flag suppresses that
+when an object rather than the player caused the bump (`ObjInit_BounceDU`, `prg001.asm:975-986`). Until SMB3-82 the
+port had no push at all (it was taken to come from the ceiling collision, which gives only 1/16). Now
+`Block` pushes the player (`LevelScenePlayer.bounceOffBumpedBlock()`) for a head or tail strike that bounces it and
+not for `onKickedObjectStrike`. See `kb/note-block.md` §1. Pinned by `BlockBumpPushTest` and `KoopaTroopaKickTest`.
 
 ### The kill chain: `Score_Get100PlusPts` is a ladder, not a doubling
 
@@ -2343,3 +2345,85 @@ step with a ramp on top is). Every `moveVertically` lands through `findLandingY`
 itself. Only the enemies slow uphill (`GroundWalkingEnemy.walkSpeedFixedPoint`: 8, or 6 / 5 on a gentle / steep
 slope); the mushroom keeps its speed. A sliding player kills the enemies through `EnemyLevelObject.onSlidInto`. The
 details, values and dasm sites are in `kb/slopes.md`, sections 3 and 4.
+
+---
+
+## Who reacts to a block bump (research, SMB3-82)
+
+The research behind SMB3-82, which ported the reactions of every class the port has; the last table says how.
+
+### The routine
+
+`Object_HandleBumpUnderneath` (prg000.asm:3602-3660). Every caller also uses it as its player collision, because
+without a bump it jumps on to `Player_HitEnemy` (3608).
+
+- It returns at once if any of the object's sprites is off-screen (3603-3604): no bump and no player collision that
+  frame.
+- A bump is `Object_TileFeet2 == TILEA_BLOCKBUMP_CLEAR`. `Object_TileFeet2` is one global byte written only by
+  `Object_GetAttrAndMoveTiles` (prg000:1345): the feet tile while YVel ≥ 0, the head tile while rising (1328-1345).
+  Nothing checks that the object is grounded. Several handlers call the routine before their own world detection and
+  so test the previous detection's tile ("stale" below).
+- Bumped: YVel = -$30, XVel = -8 or +8 away from the player (`PRG000_D16B`, prg000:3592, side from
+  `Level_ObjCalcXDiffs`, 6447-6457), `FlipBits = SPR_VFLIP` (an assignment, so the facing is wiped).
+- Without `OA3_DIESHELLED`: killed (`OBJSTATE_KILLED`, it falls off the screen upside down) and a flat 100 points
+  (`Score_Get100PlusPts` with A = 0, prg000:692-697). The CollideJumpTable "change to" entry is never read on this
+  path, which is why a bumped Para-Goomba dies with its wings instead of losing them.
+- With `OA3_DIESHELLED`: a CollideJumpTable entry in $08xx-$0Fxx changes the object ID and pays 100 points
+  (3640-3658); then `Object_SetShellState` (state Shelled, Timer3 = $FF, prg000:4030-4037). A $0000 entry pays nothing.
+
+### Objects
+
+| Object | ID | Reaches it (site) | Outcome | Conditions |
+|---|---|---|---|---|
+| Goomba | $72 | `ObjNorm_GroundTroop` → `PRG004_AF1A` (prg004:4149 → 3125) | killed, 100 | not while halted (4004-4007), not while walking out of a Goomba pipe (Var1 ≠ 0, 4045-4055) |
+| Para-Goomba | $73 | prg004:3125, every frame, mid-hop too | killed, 100, wings and all | not halted (3014-3017) |
+| Para-Goomba dropping Micro-Goombas | $74 | prg004:3220 | killed, 100 | not halted |
+| Big Goomba | $7C | prg004:4149 | killed, 100 | as the Goomba |
+| Green / red Koopa Troopa, big red | $6C / $6D / $7B | 4149 / 3860 | shelled, no score | |
+| Hopping green Para-Troopa, big | $6E / $7E | 4149 | becomes $6C / $7A, 100, shelled | |
+| Flying Para-Troopas | $6F / $80 | no (`Player_HitEnemy`, prg004:3986 / 3936) | none | |
+| Buzzy Beetle, Spiny | $70 / $71 | 4149 | shelled, no score | |
+| Piranha Plants, Venus Fire Traps | $A0-$A7 | no | none | |
+| Bob-omb, lit Bob-omb | $55 / $50 | prg003:1413 | killed, 100 | walking state only (1343) |
+| Hammer, Boomerang, Fire, Heavy Bro | $81 / $82 / $87 / $86 | prg004:1170, 904/910, 1856, 2167/2299/2318 | killed, 100 | various; Boomerang and Fire Bro stale |
+| Spiny egg, dud egg | $84 / $85 | prg004:2624 / 2544 | killed, 100 | |
+| Rocky Wrench | $AD | prg005:2155 | killed, 100 (its comment says 200; unverified) | stale |
+| Chargin' Cheep Cheep, Buster Beetle, Spike | $3B / $40 / $29 | prg002:5133 / 946 / 2803 | killed, 100 | |
+| Twirling Buzzy / Spiny | $68 / $69 | prg003:1068 | killed, 100 | stale |
+| Freed Chain Chomp, Fire Snake, Pile Driver Micro-Goomba | $4F / $59 / $6B | prg003:4879 / 5912 / 821 | killed, 100 | |
+| Lakitu, Dry Bones, chained Chain Chomp, Fire Chomp, Blooper with kids, Micro-Goomba (special object) | | no | none | |
+| Goomba in Kuribo's Shoe | $2B | own test (prg002:3337-3348) | hops (YVel -$38), not killed | |
+| Boom Boom | $4B / $4C | prg003:2805 | killed, 100, then turns into the ? ball (2042-2058); unverified in play | |
+
+**Shells.** `ObjState_Shelled` (prg000:2241) and `ObjState_Kicked` (prg000:2586) call it too: a resting or a
+**kicked** shell bumped from below gets -$30, ±8 away from the player, is flipped upside down, goes back to Shelled with
+its wake-up timer reset, no points. A kicked shell stops sliding. Held, squashed and killed objects never call it.
+
+**Power-ups** use `Object_InteractWithWorld` (prg001:1947-2027) instead: YVel = -$30 at prg001:1979-1991, no kill, no
+score, and an about-face when bit 3 of X disagrees with the sign of XVel. Mushroom, 1-Up, Starman (which also bounces
+-$40 on every landing) and Fire Flower (hops straight up, XVel 0). Not while rising out of the block. The Super Leaf
+never detects the world, so it does not react.
+
+**The player** standing on a bumped block gets YVel = -$30 (prg007:28-102), the same tile test.
+
+### In the port (SMB3-82)
+
+| Class | Reaction | Where |
+|---|---|---|
+| `Goomba` | killed, flat `SCORE_100`, `EnemyKnockMotion(Direction)`: upside down at once, thrown -$30 / ±8 away from the closest player on the next tick; `KOOPA_SHELL`, as for the Koopa | `Goomba.onBumpedFromBelow`, polled at the end of `motionUpdate` |
+| `ParaGoomba` | killed outright: hands its slot to a `Goomba`, which dies as above; on the ground and in the air, the head tested while rising | `ParaGoomba.onBumpedFromBelow` |
+| `KoopaTroopa`, kicked | back to a resting shell, upside down, as a resting one; no points | `KoopaTroopa.motionUpdate`, after `tickKicked` |
+| `KoopaTroopa` walking or resting, `KoopaParaTroopa` hopper, `SuperMushroom` | as before | |
+| the player | DY = -3.0, airborne | `StaticEnvironmentCollisionGrid.bumpThePlayersOnBumpedBlocks` → `LevelScenePlayer.getBumpedFromBelow` |
+
+- **Which tile.** `GroundWalkingEnemy.isOnABumpedBlock(rising)` tests the cell at the body's centre column under the
+  feet, or at the head when the tick's move went up, as `Object_TileFeet2` holds. The Goombas test it with no
+  grounded gate, as the original does; the Koopa Troopa and the Para-Troopa keep their grounded and landing gates.
+- **The player** is tested once a tick, after every motion manager has updated and before their `postCollision`
+  (`GameEngine.simpleUpdate`), so it sees a bump spawned by any manager on that tick, and the last tick of a bounce.
+  Feet centre `(8, 32)`, as `Player_DoLavaDonutArrowBounce` reads it. Not while dying or in a pipe. The original only
+  sets `Player_YVel`; the port also marks a grounded player airborne, or the velocity would not move them.
+- **Not ported:** the off-screen gate (`Object_AnySprOffscreen`), the Goomba-pipe exit (no Goomba pipes here), and the
+  objects the port does not have.
+- Pinned by `GoombaFamilyBlockBumpTest`, `KoopaTroopaKickTest#aBumpedBlockStopsAKickedShell` and
+  `CollisionGridPlayerBumpTest`.

@@ -19,6 +19,14 @@ public interface LevelObject extends GameObject {
         // Do nothing by default
     }
 
+    /**
+     * A kicked object ran into this tile from the side. It strikes like a tail attack unless a tile tells the two
+     * apart; {@code levelScenePlayer} is the player closest to the strike.
+     */
+    default void onKickedObjectStrike(final LevelScenePlayer levelScenePlayer) {
+        onTailAttack(levelScenePlayer);
+    }
+
     default void onCollisionFromBelow(final LevelScenePlayer leveelScenePlayer) {
         // Do nothing by default
     }
@@ -33,6 +41,10 @@ public interface LevelObject extends GameObject {
 
     default boolean isCollidable() {
         return true;
+    }
+
+    default boolean isPassableForPlayers() {
+        return false;
     }
 
     default boolean isOneWayPlatform() {

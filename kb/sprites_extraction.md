@@ -196,6 +196,7 @@ index 5 in the score table = 100 pts.
 |---------------------|-------------------------------------------------------|---------------------------------------|
 | Question block      | `sprites/object/block/question/frame_0..3.png`        | 4-frame animation                     |
 | Empty block         | `sprites/object/block/empty/frame_0.png`              | Single frame                          |
+| Note block          | `sprites/object/block/note/frame_0..3.png`            | chr096/098/100/102, frame 3 = frame 1; see `kb/note-block.md` |
 | Plain brick         | `sprites/object/brick/plain/frame_0..3.png`           | 4 frames + fragment                   |
 | Brick poof          | `sprites/object/brick/poof_1..4.png`                  | 4-frame destruction anim              |
 | Small Mario (level) | `sprites/player/mario/level/shrunk/`                  | Multiple frames                       |

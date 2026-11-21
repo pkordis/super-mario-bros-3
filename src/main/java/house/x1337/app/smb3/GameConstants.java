@@ -257,6 +257,8 @@ public final class GameConstants {
      * it well past a normal jump, which is what lets a chain of stomps climb.
      */
     public static final double PLAYER_STOMP_BOUNCE_Y_VELOCITY = -4.0;
+    public static final double PLAYER_BLOCK_BUMP_Y_VELOCITY = 2.0;
+    public static final double PLAYER_BUMPED_FROM_BELOW_Y_VELOCITY = -3.0;
 
     /**
      * Upward velocity the death throe launches with, {@code -64/16} px/frame — the player pops up before

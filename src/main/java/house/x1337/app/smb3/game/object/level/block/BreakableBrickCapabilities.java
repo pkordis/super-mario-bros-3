@@ -21,6 +21,7 @@ public interface BreakableBrickCapabilities extends AnimatableLevelObject, GameE
             smashBrick(levelScenePlayer);
         } else {
             bumpBrick();
+            levelScenePlayer.bounceOffBumpedBlock();
         }
     }
 

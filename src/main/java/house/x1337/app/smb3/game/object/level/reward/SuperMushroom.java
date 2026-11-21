@@ -241,7 +241,7 @@ public final class SuperMushroom
     /**
      * Reacts to the block the mushroom is resting on being bumped from below this tick. Only fires
      * while grounded — a launched mushroom is airborne and off the tile, so it will not re-trigger
-     * until it lands again, by which point the 10-frame bounce is long over. The launch is a fixed
+     * until it lands again, by which point the bounce is long over. The launch is a fixed
      * upward velocity; the horizontal direction is <em>not</em> player-dependent (that is the enemy
      * path).
      */

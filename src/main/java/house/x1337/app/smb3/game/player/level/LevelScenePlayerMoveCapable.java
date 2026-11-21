@@ -7,15 +7,7 @@ import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 
-import static house.x1337.app.smb3.GameConstants.GRAVITY_FAST;
-import static house.x1337.app.smb3.GameConstants.GRAVITY_SLOW;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_POWER_SPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_RUN_SPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_UPHILL_RUN_SPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_UPHILL_WALK_SPEED;
-import static house.x1337.app.smb3.GameConstants.PLAYER_TOP_WALK_SPEED;
-import static house.x1337.app.smb3.GameConstants.PMETER_LEVELS;
-import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.GameConstants.*;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.JUMPING;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
 import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
@@ -34,6 +26,25 @@ import static java.lang.Math.floor;
 import static java.lang.Math.min;
 
 public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
+    /**
+     * Pushes the player down and off the ground after their head or tail made a block bounce. A block bounced by a
+     * kicked object does not push anyone.
+     */
+    default void bounceOffBumpedBlock() {
+        getPosition().setDY(PLAYER_BLOCK_BUMP_Y_VELOCITY);
+        if (!getRuntimeState().isInAir()) {
+            getRuntimeState().fall();
+        }
+    }
+
+    /** Throws the player up off the block bumped from below under their feet. */
+    default void getBumpedFromBelow() {
+        getPosition().setDY(PLAYER_BUMPED_FROM_BELOW_Y_VELOCITY);
+        if (!getRuntimeState().isInAir()) {
+            getRuntimeState().setTo(JUMPING);
+        }
+    }
+
     default void handleHorizontalMovement(final PlayerInputHandler inputHandler) {
         final boolean rawLeft = inputHandler.isActive(HANDLER_LEFT);
         final boolean rawRight = inputHandler.isActive(HANDLER_RIGHT);
@@ -136,16 +147,21 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
     }
 
     default void handleVerticalMovement(final PlayerInputHandler inputHandler) {
-        final boolean jumpHit = inputHandler.consumePress(HANDLER_JUMP);
-        final boolean jumpHeld = inputHandler.isActive(HANDLER_JUMP);
         final PlayerRuntimeState runtimeState = getRuntimeState();
         final PlayerOrientation orientation = getOrientation();
         final PlayerPosition position = getPosition();
+        final boolean jumpPressed = inputHandler.consumePress(HANDLER_JUMP);
+        // A press while riding a note block boosts its launch instead of jumping or wagging
+        if (jumpPressed && runtimeState.isRidingNoteBlock()) {
+            runtimeState.setNoteBlockBoosted(true);
+        }
+        final boolean jumpHit = jumpPressed && !runtimeState.isRidingNoteBlock();
+        final boolean jumpHeld = inputHandler.isActive(HANDLER_JUMP);
 
         if (jumpHit) {
             if (!runtimeState.isInAir()) {
                 final int dx = min(3, (int) floor(abs(position.getDX())));
-                position.setDY(GameConstants.JUMP_FORCE[dx]);
+                position.setDY(JUMP_FORCE[dx]);
                 runtimeState.setTo(JUMPING);
                 runtimeState.setPlayerWagCount(0);
                 getSoundPlayer().play(JUMP);
@@ -166,7 +182,12 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
         }
 
         if (runtimeState.isInAir()) {
-            if (position.getDY() < -2 && jumpHeld) {
+            // Holding the jump slows the rise, except straight after a note block launch, until it is slow anyway
+            final boolean risingFast = position.getDY() < -2;
+            if (!risingFast) {
+                runtimeState.setSlowGravityBlocked(false);
+            }
+            if (risingFast && jumpHeld && !runtimeState.isSlowGravityBlocked()) {
                 position.addToDY(GRAVITY_SLOW / TILE_SPRITE_SIZE);
             } else {
                 position.addToDY(GRAVITY_FAST / TILE_SPRITE_SIZE);

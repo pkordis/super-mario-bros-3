@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
 import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
+import house.x1337.app.smb3.game.object.level.OneWayPlatformLevelObject;
 import house.x1337.app.smb3.game.object.level.RampLevelObject;
 import house.x1337.app.smb3.game.object.level.SolidLevelObject;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
@@ -114,8 +115,9 @@ public interface StaticEnvironmentCollisionGridCapabilities {
     /**
      * Turns one consolidated tile view into its collision objects. A cell becomes an interactive object
      * only when its record names a <b>single-tiled</b> type — that is what a tile-bound object is. Cells
-     * with no tile, no record, or a multi-tiled record fall back to the tile's own type: a ramp for a ramp type,
-     * solid for other {@code COLLIDING}/{@code ONE_WAY_PLATFORM} types, {@code EMPTY_LEVEL_OBJECT} otherwise.
+     * with no tile, no record, or a multi-tiled record fall back to the tile's own type: a ramp for a ramp type, a
+     * jump-through platform for a {@code ONE_WAY_PLATFORM} type, solid for other {@code COLLIDING} types,
+     * {@code EMPTY_LEVEL_OBJECT} otherwise.
      */
     private LevelObject[][] toLevelObjects(
         final GameEngine gameEngine,
@@ -145,7 +147,9 @@ public interface StaticEnvironmentCollisionGridCapabilities {
                     final Optional<SlopeProfile> slopeProfile = tileType.findSlopeProfile();
                     if (slopeProfile.isPresent()) {
                         objects[row][col] = new RampLevelObject(gameEngine, of(col, row), slopeProfile.get());
-                    } else if (category == COLLIDING || category == ONE_WAY_PLATFORM) {
+                    } else if (category == ONE_WAY_PLATFORM) {
+                        objects[row][col] = new OneWayPlatformLevelObject(gameEngine, of(col, row));
+                    } else if (category == COLLIDING) {
                         final SolidLevelObject newSolidLevelObject = SolidLevelObject
                             .builder()
                             .build();

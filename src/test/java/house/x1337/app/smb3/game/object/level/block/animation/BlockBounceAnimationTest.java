@@ -28,6 +28,7 @@ import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,8 +44,8 @@ class BlockBounceAnimationTest {
     private static final Coordinates BLOCK_OFFSET = of(2, 3);
     private static final float BLOCK_WORLD_Y = ROWS - 1 - BLOCK_OFFSET.y();
 
-    /** Sprite-pixel height above the block's own cell after each tick, tick 1 first. */
-    private static final int[] TRACED_BOUNCE_HEIGHTS = {0, 4, 7, 9, 10, 10, 9, 7, 4, 0};
+    /** Sprite-pixel height above the block's own cell after each tick, tick 1 first; the next tick ends it. */
+    private static final int[] TRACED_BOUNCE_HEIGHTS = {0, 0, 4, 7, 9, 10, 10, 9, 7, 4, 0};
 
     /** Colour written into the block's cell before the bounce borrows it. */
     private static final byte TILE_MARKER = (byte) 123;
@@ -80,11 +81,15 @@ class BlockBounceAnimationTest {
             assertThat(sprite.getLocalTranslation().getX()).isEqualTo((float) BLOCK_OFFSET.x());
             assertThat(sprite.getLocalTranslation().getZ()).isEqualTo(Z_DEPTH_BRICK_BLOCK_BOUNCE);
 
-            final boolean lastTick = tick == TRACED_BOUNCE_HEIGHTS.length - 1;
-            assertThat(animation.isExpired())
-                .as("the bounce runs for exactly %d ticks", TRACED_BOUNCE_HEIGHTS.length)
-                .isEqualTo(lastTick);
+            assertThat(animation.isExpired()).as("still bouncing after tick %d", tick + 1).isFalse();
+            assertThat(animation.isBackInPlace())
+                .as("back in place after tick %d", tick + 1)
+                .isEqualTo(tick == TRACED_BOUNCE_HEIGHTS.length - 1);
         }
+        animation.tick();
+        assertThat(animation.isExpired())
+            .as("the bounce ends on tick %d", TRACED_BOUNCE_HEIGHTS.length + 1)
+            .isTrue();
     }
 
     @Test
@@ -124,9 +129,9 @@ class BlockBounceAnimationTest {
         // Execute
         final BrickBlockBounceAnimation animation = new BrickBlockBounceAnimation(
             gameEngine,
-            animator,
             BLOCK_OFFSET
         );
+        animation.configure(animator);
 
         // Verify
         verify(animator).pauseAt(BLOCK_OFFSET);
