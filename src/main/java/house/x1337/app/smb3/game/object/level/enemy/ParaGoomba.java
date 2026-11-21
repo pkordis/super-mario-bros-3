@@ -203,11 +203,16 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
 
         // Facing IS direction, as for the ground troop: the X velocity is rederived from facing every frame.
         velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
+        final boolean rising = velocity.rising();
 
         advanceWalkFrame();
         moveHorizontally();
         moveVertically();
         applyFloatingGravity();
+        if (isOnABumpedBlock(rising)) {
+            onBumpedFromBelow();
+            return;
+        }
         advanceRefaceClock();
         advanceWingClock();
 
@@ -227,6 +232,17 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
             .findClosestPlayerTo(position.x(), position.y())
             .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0 >= center)
             .orElse(false);
+    }
+
+    /**
+     * A block bumped from below kills the Para-Goomba outright, mid-hop too, rather than taking its wings: the Goomba
+     * that takes over the slot dies as a bumped Goomba does.
+     */
+    private void onBumpedFromBelow() {
+        // tailStruck is the family's "already finished" latch, whatever finished it.
+        tailStruck = true;
+        replaceWithGroundGoomba(NO_HIT_COOLDOWN_TICKS).onBumpedFromBelow();
+        setExpired(true);
     }
 
     private Goomba replaceWithGroundGoomba(final int hitCooldownTicks) {

@@ -8,9 +8,9 @@ import house.x1337.app.smb3.model.game.Coordinates;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.EMPTY_BLOCK;
 
 @Singleton
@@ -21,15 +21,22 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
 
     @Override
     public void update() {
-        final Iterator<EmptyBlockBounceAnimation> iterator = activeBounces.iterator();
-        while (iterator.hasNext()) {
-            final EmptyBlockBounceAnimation anim = iterator.next();
+        // A bounce that ends here stays listed until postCollision, so it still counts as a bump for the whole tick
+        // whatever order the managers run in.
+        for (final EmptyBlockBounceAnimation anim : activeBounces) {
+            if (anim.isExpired()) {
+                continue;
+            }
             anim.tick();
             if (anim.isExpired()) {
                 anim.detach();
-                iterator.remove();
             }
         }
+    }
+
+    @Override
+    public void postCollision() {
+        activeBounces.removeIf(EmptyBlockBounceAnimation::isExpired);
     }
 
     public void spawnBounce(
@@ -41,7 +48,8 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
                 return;
             }
         }
-        activeBounces.add(new EmptyBlockBounceAnimation(
+        activeBounces.add(getBean(
+            EmptyBlockBounceAnimation.class,
             gameEngine,
             offset,
             emptyBlockTileResource
@@ -51,7 +59,7 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
     @Override
     public boolean isBlockBumpActiveAt(final Coordinates cell) {
         for (final EmptyBlockBounceAnimation bounce : activeBounces) {
-            if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
+            if (bounce.getOffset().equals(cell)) {
                 return true;
             }
         }
@@ -64,7 +72,10 @@ public final class EmptyBlockBounceMotionManager implements BlockMotionManager {
      */
     @Override
     public void reset() {
-        activeBounces.forEach(EmptyBlockBounceAnimation::detach);
+        activeBounces
+            .stream()
+            .filter(bounce -> !bounce.isExpired())
+            .forEach(EmptyBlockBounceAnimation::detach);
         activeBounces.clear();
     }
 }

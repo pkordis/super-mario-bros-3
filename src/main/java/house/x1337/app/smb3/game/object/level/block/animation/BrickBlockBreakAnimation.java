@@ -3,6 +3,7 @@ package house.x1337.app.smb3.game.object.level.block.animation;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.texture.Texture;
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.Dimensions;
@@ -14,8 +15,8 @@ import static com.jme3.material.RenderState.FaceCullMode.Off;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_FRAGMENT;
 
-// TODO: abstract
 @Getter
+@Prototype
 public final class BrickBlockBreakAnimation implements GameRenderer {
     private static final double UPPER_INITIAL_Y_VELOCITY = 5.0 / TILE_SPRITE_SIZE;
     private static final double LOWER_INITIAL_Y_VELOCITY = 2.0 / TILE_SPRITE_SIZE;

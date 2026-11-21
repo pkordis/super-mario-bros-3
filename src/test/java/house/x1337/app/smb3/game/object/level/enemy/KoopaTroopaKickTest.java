@@ -392,9 +392,8 @@ class KoopaTroopaKickTest {
     @Test
     @DisplayName("A rolling shell reverses at a wall and bumps whatever block was there")
     void theRollingShellReversesAtAWallAndBumpsTheBlock() {
-        // On wall contact the shell bumps the block, then about-faces. The bump is routed through the
-        // terrain tail-strike probe because a shell bumping a block from the side is the same hit as a
-        // tail strike on it.
+        // On wall contact the shell bumps the block, then about-faces. The bump uses the tail strike's
+        // single-tile terrain probe, but its own dispatch, since only the tail pushes the player.
         // Prepare - a wall two columns along, and a player for the block to award to
         solidColumn(SHELL_COLUMN + 2);
         final LevelScenePlayer blockOwner = playerAt(SHELL_X - 40, RIGHT, 0);
@@ -406,18 +405,36 @@ class KoopaTroopaKickTest {
 
         // Verify
         assertThat(troopa.getVelocity().x()).as("heading back the way it came").isNegative();
-        verify(collisionGrid, times(1)).resolveTailAttack(any(), anyDouble(), anyDouble());
+        verify(collisionGrid, times(1)).resolveKickedObjectStrike(any(), anyDouble(), anyDouble());
         assertThat(troopa.getPosition().x())
             .as("never inside the wall")
             .isLessThan((SHELL_COLUMN + 2) * (double) TILE_SPRITE_SIZE);
     }
 
     @Test
+    @DisplayName("A kicked shell rolling over a bumped block is knocked back to rest, upside down, and pays nothing")
+    void aBumpedBlockStopsAKickedShell() {
+        // Prepare
+        final KoopaTroopa troopa = kickedShell(true);
+        tick(troopa, 2);
+        when(collisionGrid.isBlockBumpActiveAt(any())).thenReturn(true);
+
+        // Execute
+        tick(troopa, 1);
+
+        // Verify
+        assertThat(troopa.getState()).isEqualTo(SHELLED);
+        assertThat(troopa.isUpsideDown()).isTrue();
+        assertThat(troopa.getVelocity().y()).as("knocked up").isEqualTo(-48);
+        assertThat(Math.abs(troopa.getVelocity().x())).as("and sideways, slowly").isEqualTo(8);
+        assertThat(troopa.getPendingScoreReward()).isNull();
+    }
+
+    @Test
     @DisplayName("A shell-triggered block does not bounce the player")
     void aShellTriggeredBlockLeavesThePlayerAlone() {
-        // A bumped block can push the player down, and that push must be suppressed when an object
-        // caused the bump. Nothing on this project's block-bump path writes player velocity at all,
-        // so the equivalent holds by construction - pinned here so it stays that way.
+        // A block bounced by the player's head or tail pushes the player down; one bounced by a kicked
+        // object must not. The shell's strike has its own dispatch, which blocks answer without the push.
         // Prepare
         solidColumn(SHELL_COLUMN + 2);
         final LevelScenePlayer blockOwner = playerAt(SHELL_X - 40, RIGHT, 0);
@@ -430,7 +447,7 @@ class KoopaTroopaKickTest {
 
         // Verify
         assertThat(blockOwner.getPosition().getDY()).as("untouched by the bump the shell caused").isZero();
-        verify(collisionGrid, times(1)).resolveTailAttack(any(), anyDouble(), anyDouble());
+        verify(collisionGrid, times(1)).resolveKickedObjectStrike(any(), anyDouble(), anyDouble());
     }
 
     // -------------------------------------------------------------------------

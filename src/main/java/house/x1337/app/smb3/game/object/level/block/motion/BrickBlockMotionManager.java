@@ -5,11 +5,14 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.GameObjectAnimatorSingleTiled;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBounceAnimation;
 import house.x1337.app.smb3.game.object.level.block.animation.BrickBlockBreakAnimation;
+import house.x1337.app.smb3.game.object.level.block.animation.NoteBlockBounceAnimation;
 import house.x1337.app.smb3.model.game.Coordinates;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 
 @Singleton
 public final class BrickBlockMotionManager implements BlockMotionManager {
@@ -29,16 +32,22 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
             }
         }
 
-        // Update bounce animations
-        final Iterator<BrickBlockBounceAnimation> bounceIterator = activeBounces.iterator();
-        while (bounceIterator.hasNext()) {
-            final BrickBlockBounceAnimation anim = bounceIterator.next();
+        // Update bounce animations. A bounce that ends here stays listed until postCollision, so it still counts as
+        // a bump for the whole tick whatever order the managers run in.
+        for (final BrickBlockBounceAnimation anim : activeBounces) {
+            if (anim.isExpired()) {
+                continue;
+            }
             anim.tick();
             if (anim.isExpired()) {
                 anim.detach();
-                bounceIterator.remove();
             }
         }
+    }
+
+    @Override
+    public void postCollision() {
+        activeBounces.removeIf(BrickBlockBounceAnimation::isExpired);
     }
 
     public void spawnBreak(
@@ -50,7 +59,7 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
                 return;
             }
         }
-        activeBreaks.add(new BrickBlockBreakAnimation(gameEngine, offset));
+        activeBreaks.add(getBean(BrickBlockBreakAnimation.class, gameEngine, offset));
     }
 
     public void spawnBounce(
@@ -64,13 +73,15 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
                 return;
             }
         }
-        activeBounces.add(new BrickBlockBounceAnimation(gameEngine, animator, offset));
+        final BrickBlockBounceAnimation animation = getBean(BrickBlockBounceAnimation.class, gameEngine, offset);
+        animation.configure(animator);
+        activeBounces.add(animation);
     }
 
     @Override
     public boolean isBlockBumpActiveAt(final Coordinates cell) {
         for (final BrickBlockBounceAnimation bounce : activeBounces) {
-            if (!bounce.isExpired() && bounce.getOffset().equals(cell)) {
+            if (bounce.getOffset().equals(cell)) {
                 return true;
             }
         }
@@ -85,7 +96,10 @@ public final class BrickBlockMotionManager implements BlockMotionManager {
     public void reset() {
         activeBreaks.forEach(BrickBlockBreakAnimation::detach);
         activeBreaks.clear();
-        activeBounces.forEach(BrickBlockBounceAnimation::detach);
+        activeBounces
+            .stream()
+            .filter(bounce -> !bounce.isExpired())
+            .forEach(BrickBlockBounceAnimation::detach);
         activeBounces.clear();
     }
 }

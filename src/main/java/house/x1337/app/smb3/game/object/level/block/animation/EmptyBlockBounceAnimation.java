@@ -1,6 +1,7 @@
 package house.x1337.app.smb3.game.object.level.block.animation;
 
 import com.jme3.texture.Texture;
+import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.animation.base.BlockBounceAnimation;
 import house.x1337.app.smb3.model.ImageResource;
@@ -12,6 +13,7 @@ import lombok.Getter;
  * empty-block tile itself, shared through the {@link ImageResource} its manager keeps.
  */
 @Getter
+@Prototype
 public final class EmptyBlockBounceAnimation extends BlockBounceAnimation {
     private final ImageResource imageResource;
 

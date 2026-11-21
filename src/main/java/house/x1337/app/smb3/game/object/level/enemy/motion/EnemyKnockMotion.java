@@ -24,6 +24,21 @@ public final class EnemyKnockMotion {
     private boolean upsideDown;
 
     /**
+     * The death a block bumped from below deals: already upside down, and thrown on the next tick.
+     *
+     * @param knockDirection the side the knock comes from, the closest player's
+     */
+    public EnemyKnockMotion(final Direction knockDirection) {
+        this(new FixedPointVelocity(
+            knockDirection.getValue() * KNOCK_X_VELOCITY_FIXED_POINT,
+            BUMP_LAUNCH_Y_VELOCITY_FIXED_POINT
+        ));
+        launchDelayTicks = 0;
+        upsideDown = true;
+        velocity = knockLaunchVelocity;
+    }
+
+    /**
      * The death a tail strike or a bouncer deals.
      *
      * @param knockDirection the side the strike came from

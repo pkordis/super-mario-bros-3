@@ -15,9 +15,11 @@ import house.x1337.app.smb3.game.object.level.AnimatableLevelObject;
 import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.RewardDispensingLevelObject;
 import house.x1337.app.smb3.game.object.level.block.animator.BrickBlockAnimator;
+import house.x1337.app.smb3.game.object.level.block.animator.NoteBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.animator.QuestionBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.animator.SwitchBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
+import house.x1337.app.smb3.game.object.level.block.motion.NoteBlockBounceMotionManager;
 import house.x1337.app.smb3.game.object.level.effect.PoofMotionManager;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.game.time.PowerSwitchTimeWindow;
@@ -34,13 +36,16 @@ import java.nio.ByteBuffer;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
+import static house.x1337.app.smb3.enumeration.BlockType.BRICK_BLOCK_NO_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.BRICK_BLOCK_WITH_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.BRICK_SWITCH_BLOCK_SPAWNER;
+import static house.x1337.app.smb3.enumeration.BlockType.NOTE_BLOCK_NO_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_BLOCK;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_SPAWNER;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 
@@ -61,11 +66,14 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
  *       blocks whose contents are a {@link SwitchBlock} (P-Switch). They behave exactly like a
  *       question block, except the "reward" is placed into the cell directly above instead of being
  *       launched (see {@link #onSwitchBlockDispensed}). The two differ only in the look they wear.</li>
+ *   <li><b>{@code NOTE_BLOCK_NO_REWARD}</b> — note block: it bounces up whenever it is struck from below or from the
+ *       side, and never breaks or empties. A player landing on it sinks with it and is launched back up
+ *       ({@link NoteBlockBounceMotionManager}).</li>
  * </ul>
  *
  * <p>The look/shimmer is selected by {@link #getAnimator()}, which resolves whichever animator declares
  * support for this block's {@link #type}; whether a hit dispenses a reward or breaks the block is
- * selected purely by {@link #hasReward()}. Both derive from {@link #blockType}, which is injected at
+ * selected by {@link #hasReward()}, the note block aside. Both derive from {@link #blockType}, which is injected at
  * instantiation (see {@code LevelObjectRecordCapabilities#toLevelObject}).
  */
 @Slf4j
@@ -75,7 +83,11 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
 public class Block implements AnimatableLevelObject, BreakableBrickCapabilities, RewardDispensingLevelObject {
     private final QuestionBlockAnimator questionBlockAnimator = getBean(QuestionBlockAnimator.class);
     private final BrickBlockAnimator brickBlockAnimator = getBean(BrickBlockAnimator.class);
+    private final NoteBlockAnimator noteBlockAnimator = getBean(NoteBlockAnimator.class);
     private final CoinRewardMotionManager coinRewardMotionManager = getBean(CoinRewardMotionManager.class);
+    private final NoteBlockBounceMotionManager noteBlockBounceMotionManager = getBean(
+        NoteBlockBounceMotionManager.class
+    );
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
     private final LevelObjectService levelObjectService = getBean(LevelObjectService.class);
 
@@ -110,8 +122,13 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
 
     @Override
     public void onCollisionFromBelow(final LevelScenePlayer levelScenePlayer) {
-        if (hasReward()) {
+        if (isNoteBlock()) {
+            // The bump sound is the head hit's own, which the player plays
+            bounceNoteBlockUp();
+            levelScenePlayer.bounceOffBumpedBlock();
+        } else if (hasReward()) {
             hit(levelScenePlayer);
+            levelScenePlayer.bounceOffBumpedBlock();
         } else {
             hitBrickFromBelow(levelScenePlayer);
         }
@@ -119,14 +136,35 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
 
     @Override
     public void onTailAttack(final LevelScenePlayer levelScenePlayer) {
-        if (isCoinSubstituted()) {
+        if (strikeFromTheSide(levelScenePlayer)) {
+            levelScenePlayer.bounceOffBumpedBlock();
+        }
+    }
+
+    @Override
+    public void onKickedObjectStrike(final LevelScenePlayer levelScenePlayer) {
+        strikeFromTheSide(levelScenePlayer);
+    }
+
+    /**
+     * A player landing on a note block sinks with it and is launched back up. Landing again while the block still
+     * bounces, or landing on a second note block during the ride, does nothing.
+     */
+    @Override
+    public void onCollisionFromAbove(final LevelScenePlayer levelScenePlayer) {
+        if (!isNoteBlock()
+            || levelScenePlayer.getRuntimeState().isRidingNoteBlock()
+            || noteBlockBounceMotionManager.isBounceActiveAt(offset)) {
             return;
         }
-        if (hasReward()) {
-            hit(levelScenePlayer);
-        } else {
-            smashBrick(levelScenePlayer);
-        }
+        noteBlockBounceMotionManager.spawnBounceDown(gameEngine, offset, getAnimator(), levelScenePlayer);
+        getSoundPlayer().play(BLOCK);
+    }
+
+    /** A sinking note block lets the player riding it sink with it. */
+    @Override
+    public boolean isPassableForPlayers() {
+        return isNoteBlock() && noteBlockBounceMotionManager.isSinkingAt(offset);
     }
 
     /**
@@ -295,22 +333,54 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
         );
     }
 
+    /**
+     * A tail or a kicked object strikes the block from the side: a note block or a reward block bounces, a breakable
+     * brick breaks.
+     *
+     * @return whether the block bounced
+     */
+    private boolean strikeFromTheSide(final LevelScenePlayer levelScenePlayer) {
+        if (isNoteBlock()) {
+            bounceNoteBlockUp();
+            getSoundPlayer().play(BLOCK);
+            return true;
+        }
+        if (isCoinSubstituted()) {
+            return false;
+        }
+        if (hasReward()) {
+            hit(levelScenePlayer);
+            return true;
+        }
+        smashBrick(levelScenePlayer);
+        return false;
+    }
+
+    private boolean isNoteBlock() {
+        return blockType == NOTE_BLOCK_NO_REWARD;
+    }
+
+    private void bounceNoteBlockUp() {
+        noteBlockBounceMotionManager.spawnBounceUp(gameEngine, offset, getAnimator());
+    }
+
     private boolean isCoinSubstituted() {
-        return !hasReward() && powerSwitchTimeWindow.isActive();
+        return blockType == BRICK_BLOCK_NO_REWARD && powerSwitchTimeWindow.isActive();
     }
 
     /**
-     * The animator wearing this flavour's look: the shimmering "?" for the question-block family, the
-     * plain brick for everything else. Exposed because {@link BreakableBrickCapabilities} has to retire this tile
-     * from whichever animator paints it.
+     * The animator wearing this flavour's look. Exposed because {@link BreakableBrickCapabilities} has to retire this
+     * tile from whichever animator paints it.
      *
      * @return the animator this block is registered with
      */
     @Override
     public GameObjectAnimatorSingleTiled<Block> getAnimator() {
-        return blockType.isAnyOf(QUESTION_BLOCK, QUESTION_SWITCH_BLOCK_SPAWNER)
-            ? questionBlockAnimator
-            : brickBlockAnimator;
+        return switch (blockType) {
+            case QUESTION_BLOCK, QUESTION_SWITCH_BLOCK_SPAWNER -> questionBlockAnimator;
+            case NOTE_BLOCK_NO_REWARD -> noteBlockAnimator;
+            case BRICK_BLOCK_NO_REWARD, BRICK_BLOCK_WITH_REWARD, BRICK_SWITCH_BLOCK_SPAWNER -> brickBlockAnimator;
+        };
     }
 
     private void bakeTileToTexture(

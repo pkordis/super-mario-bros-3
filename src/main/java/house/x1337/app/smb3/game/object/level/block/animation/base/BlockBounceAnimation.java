@@ -16,8 +16,8 @@ import static house.x1337.app.smb3.GameConstants.Z_DEPTH_BRICK_BLOCK_BOUNCE;
 public abstract class BlockBounceAnimation extends GameObjectAnimationSingleTiled {
     private static final Dimensions BOUNCE_SPRITE_DIMENSIONS = Dimensions.fullTile("AnimatingObjectDimensions");
     private static final int[] BOUNCE_VELOCITY = {
-        0,   // 0  — not used (object destroyed before this frame)
-        -64, // 1  — falling: -4 px/frame
+        0,   // 0  — not used
+        -64, // 1  — falling: -4 px/frame (the block is back in place; only a rider uses it)
         -64, // 2  — falling: -4 px/frame
         -48, // 3  — falling: -3 px/frame
         -32, // 4  — falling: -2 px/frame
@@ -33,6 +33,7 @@ public abstract class BlockBounceAnimation extends GameObjectAnimationSingleTile
     private double yOffset = 0.0;
     private int bumpPosition = INITIAL_BUMP_POSITION;
     private int currentVelocity = 0;
+    private boolean started = false;
     private boolean expired = false;
 
     protected BlockBounceAnimation(
@@ -46,27 +47,37 @@ public abstract class BlockBounceAnimation extends GameObjectAnimationSingleTile
     }
     protected abstract Texture generateSpriteTexture(final GameEngine gameEngine);
 
+    public boolean isSinking() {
+        return false;
+    }
+
+    /** Whether the block is back in place, with only the tick that ends the bounce left. */
+    public boolean isBackInPlace() {
+        return started && bumpPosition == 0 && !expired;
+    }
+
+    /** Advances the bounce by one tick. See {@code kb/note-block.md}, "Bounce timeline". */
     public final void tick() {
         if (expired) {
             return;
         }
+        if (!started) {
+            started = true;
+            return;
+        }
+        if (bumpPosition == 0) {
+            expired = true;
+            return;
+        }
 
-        // 1. Apply CURRENT velocity (set by previous frame's lookup)
-        yOffset += currentVelocity * FIXED_POINT_TO_GAME_UNITS;
-
-        // 2. Update sprite position
+        // Apply the velocity looked up on the previous tick; a sinking block runs the curve upside down
+        final int upwardVelocity = isSinking() ? -currentVelocity : currentVelocity;
+        yOffset += upwardVelocity * FIXED_POINT_TO_GAME_UNITS;
         updatePosition();
 
-        // 3. Look up NEW velocity from table for NEXT frame
+        // Look up the velocity for the next tick
         currentVelocity = BOUNCE_VELOCITY[bumpPosition];
-
-        // 4. Decrement position counter
         bumpPosition--;
-
-        // 5. Check for completion (at pos=0, object is destroyed before next tick)
-        if (bumpPosition <= 0) {
-            expired = true;
-        }
     }
 
     @Override

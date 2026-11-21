@@ -63,6 +63,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
     static final int SLOPE_STICK_PIXELS = 6;
     static final int WALKER_SLOPE_CLIMB_LIMIT_PIXELS = 8;
     static final Coordinates SLOPE_FEET_PROBE = of(8, 32);
+    static final Coordinates FEET_CENTRE_PROBE = of(8, 32);
 
     private final GameEngine gameEngine;
     private final PowerSwitchTimeWindow powerSwitchTimeWindow;
@@ -314,15 +315,38 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final double probeX,
         final double probeY
     ) {
+        findProbedObject(probeX, probeY).ifPresent(object -> object.onTailAttack(levelScenePlayer));
+    }
+
+    /**
+     * Dispatches {@link LevelObject#onKickedObjectStrike} to the single tile containing a kicked object's probe point,
+     * the same lookup {@link #resolveTailAttack} makes.
+     *
+     * @param closestPlayer the player closest to the kicked object
+     */
+    public void resolveKickedObjectStrike(
+        final LevelScenePlayer closestPlayer,
+        final double probeX,
+        final double probeY
+    ) {
+        findProbedObject(probeX, probeY).ifPresent(object -> object.onKickedObjectStrike(closestPlayer));
+    }
+
+    private Optional<LevelObject> findProbedObject(
+        final double probeX,
+        final double probeY
+    ) {
         final Coordinates probedCell = of(
             (int) floor(probeX / TILE_SPRITE_SIZE),
             (int) floor(probeY / TILE_SPRITE_SIZE)
         );
         final LevelObject object = getLevelObjectAt(probedCell);
-        if (object != EMPTY_LEVEL_OBJECT) {
-            bumpProbeY = (int) floor(probeY);
-            object.onTailAttack(levelScenePlayer);
+        if (object == EMPTY_LEVEL_OBJECT) {
+            return Optional.empty();
         }
+        // A coin out of the struck block launches from the probe's height
+        bumpProbeY = (int) floor(probeY);
+        return Optional.of(object);
     }
 
 
@@ -633,7 +657,8 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
 
     /**
      * Whether the pixel at {@code (x, y)} in level pixels is solid ground for the player: a ramp only at or below its
-     * surface, and the level's sides as {@link #collidesAtOffset(Player, Coordinates)} has them.
+     * surface, a tile not while it lets players through, and the level's sides as
+     * {@link #collidesAtOffset(Player, Coordinates)} has them.
      */
     private boolean isSolidPixelForPlayer(
         final Player player,
@@ -654,7 +679,7 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         return levelObject
             .findSlopeProfile()
             .map(slope -> slope.isSolidAt(x, y))
-            .orElseGet(levelObject::isCollidable);
+            .orElseGet(() -> levelObject.isCollidable() && !levelObject.isPassableForPlayers());
     }
 
     /**
@@ -834,6 +859,21 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
             }
         }
         return Optional.ofNullable(closest);
+    }
+
+    /**
+     * Throws up every player whose feet are on a block bumped from below. Called once all the motion managers have
+     * updated, so it sees every bump of this tick whichever manager runs it.
+     */
+    public void bumpThePlayersOnBumpedBlocks() {
+        for (final Player player : gameEngine.getAllPlayers()) {
+            if (player instanceof final LevelScenePlayer levelScenePlayer
+                && !levelScenePlayer.getRuntimeState().isDying()
+                && !levelScenePlayer.getRuntimeState().isInPipe()
+                && isBlockBumpActiveAt(fromPlayerOffset(levelScenePlayer, FEET_CENTRE_PROBE))) {
+                levelScenePlayer.getBumpedFromBelow();
+            }
+        }
     }
 
     public boolean isBlockBumpActiveAt(final Coordinates cellOffset) {

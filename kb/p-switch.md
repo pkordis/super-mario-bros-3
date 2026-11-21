@@ -297,8 +297,8 @@ other block's reward — `Block.configure` reads it, nothing is hardcoded per fl
   `Block.configure` resolves its type with
   `Enum.valueOf(LevelObjectTypeSingleTiled.class, blockType.name())`. A missing
   counterpart throws at configure time.
-- **`Block.getAnimator()` duplicates the type→animator mapping.** It is a ternary on
-  `blockType`, while registration at level load goes through
+- **`Block.getAnimator()` duplicates the type→animator mapping.** It is a `switch` on
+  `blockType` (the note block has its own, `NoteBlockAnimator`, see `kb/note-block.md`), while registration at level load goes through
   `GameObjectAnimator.Registry.findSuitableAnimator(type)` driven by each animator's own
   `getSupportedTypes()`. If the two disagree, `hit()`'s `unregisterAt` reaches an
   animator that never held the block and the real one keeps repainting the tile forever

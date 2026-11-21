@@ -94,6 +94,18 @@ public interface GroundWalkingEnemy extends EnemyLevelObject, SlopeFollowingCapa
         return getCollisionGrid().isWallOrCeilingSolidTile(of(centerColumn, headRow));
     }
 
+    /**
+     * Whether a block bumped from below is under the enemy's feet, or over its head while it rises.
+     *
+     * @param rising whether the enemy moved up on this tick's move
+     */
+    default boolean isOnABumpedBlock(final boolean rising) {
+        final PixelPosition position = getPosition();
+        final int centerColumn = position.plusX(BODY_SIZE_PIXELS / 2.0).column();
+        final int row = rising ? position.row() : position.plusY(BODY_SIZE_PIXELS).row();
+        return getCollisionGrid().isBlockBumpActiveAt(of(centerColumn, row));
+    }
+
     private Optional<SlopeProfile> findSlopeUnderfoot() {
         final int centreX = (int) floor(getPosition().x() + BODY_SIZE_PIXELS / 2.0);
         final int feetY = (int) floor(getPosition().y()) + BODY_SIZE_PIXELS;

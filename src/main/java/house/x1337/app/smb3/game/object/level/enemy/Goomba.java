@@ -36,6 +36,7 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeMultiTiled.GOOMBA;
+import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.SoundEffect.ENEMY_STOMP;
 import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static house.x1337.app.smb3.game.object.level.enemy.motion.EnemyKnockMotion.Direction.LEFT;
@@ -258,12 +259,34 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
 
         // Facing IS direction
         velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
+        final boolean rising = velocity.rising();
 
         moveHorizontally();
         moveVertically();
         advanceWalkFrame();
         applyGravity();
+        if (isOnABumpedBlock(rising)) {
+            onBumpedFromBelow();
+            return;
+        }
         positionSprite();
+    }
+
+    /** A block bumped from below kills the Goomba for a flat 100 points, thrown away from the closest player. */
+    public void onBumpedFromBelow() {
+        whamMotion = new EnemyKnockMotion(isClosestPlayerOnTheLeft() ? LEFT : RIGHT);
+        pendingScoreReward = SCORE_100;
+        getSoundPlayer().play(KOOPA_SHELL);
+        positionSprite();
+    }
+
+    private boolean isClosestPlayerOnTheLeft() {
+        final double center = position.x() + SPRITE_SIZE_PIXELS / 2.0;
+        return gameEngine
+            .getCollisionGrid()
+            .findClosestPlayerTo(position.x(), position.y())
+            .map(closestPlayer -> closestPlayer.getPosition().getX() + SPRITE_SIZE_PIXELS / 2.0 < center)
+            .orElse(false);
     }
 
     private void tickSquish() {

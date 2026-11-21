@@ -49,9 +49,12 @@ public class PlayerRuntimeState implements KillTallyAware {
     private PlayerMovement movement = STILL;
     private boolean ducking;
     private boolean hitCeiling;
+    private boolean noteBlockBoosted;
+    private boolean ridingNoteBlock;
     private boolean running;
     private boolean runningOffLevel;
     private boolean runOffHalted;
+    private boolean slowGravityBlocked;
     private boolean wasCarrying;
     private int deathPauseCounter;
     private int flyTimeToggle;

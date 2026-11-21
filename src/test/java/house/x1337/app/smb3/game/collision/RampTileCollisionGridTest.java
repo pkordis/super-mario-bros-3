@@ -21,6 +21,7 @@ import java.util.Map;
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
+import static house.x1337.app.smb3.enumeration.TileType.PANEL_WALKABLE_TOP;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID;
 import static house.x1337.app.smb3.enumeration.TileType.SOLID_RAMP_GENTLE_RISING_LOW;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -76,6 +77,23 @@ class RampTileCollisionGridTest {
 
         // Verify
         assertThat(grid.findSlopeAt(of(0, 0))).contains(GENTLE_RISING_LOW);
+    }
+
+    @Test
+    @DisplayName("A walkable panel top is a jump-through platform: ground from above, open to heads and sides")
+    void aWalkablePanelTopIsAJumpThroughPlatform() {
+        // Prepare
+        final LevelScene levelScene = sceneWith(tile(3, PANEL_WALKABLE_TOP));
+        final GameEngine gameEngine = mock(GameEngine.class);
+        when(gameEngine.getLevelScene()).thenReturn(levelScene);
+
+        // Execute
+        final StaticEnvironmentCollisionGrid grid = levelScene.toCollisionGrid(gameEngine);
+
+        // Verify
+        assertThat(grid.getLevelObjectAt(of(0, 0)).isOneWayPlatform()).isTrue();
+        assertThat(grid.isGroundSolidTile(of(0, 0))).as("Ground to whatever lands on it").isTrue();
+        assertThat(grid.isWallOrCeilingSolidTile(of(0, 0))).as("Open to heads and sides").isFalse();
     }
 
     @Test

@@ -364,7 +364,7 @@ public interface KoopaTroopaShellCapabilities extends KoopaTroopaBody, Carriable
         getSoundPlayer().play(BLOCK);
         collisionGrid
             .findClosestPlayerTo(position.x(), position.y())
-            .ifPresent(player -> collisionGrid.resolveTailAttack(player, probeX, probeY));
+            .ifPresent(player -> collisionGrid.resolveKickedObjectStrike(player, probeX, probeY));
     }
 
     private void advanceSpinFrame() {

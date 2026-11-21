@@ -85,6 +85,25 @@ class CollisionGridTailAttackTest {
     }
 
     @Test
+    @DisplayName("A kicked object's strike reaches the probed tile as a kicked-object strike, not a tail attack")
+    void aKickedObjectStrikeHasItsOwnDispatch() {
+        // Prepare
+        final LevelObject brick = collidableMock();
+        final LevelObject[][] objects = emptyGrid();
+        objects[4][3] = brick;
+        final LevelScenePlayer player = playerProbingAt(53, 70.5);
+        final StaticEnvironmentCollisionGrid grid = gridFor(objects);
+
+        // Execute
+        grid.resolveKickedObjectStrike(player, 53, 70.5);
+
+        // Verify
+        verify(brick).onKickedObjectStrike(player);
+        verify(brick, never()).onTailAttack(player);
+        assertThat(grid.getBumpProbeY()).isEqualTo(70);
+    }
+
+    @Test
     @DisplayName("A strike records the probe's Y, floored, which a coin out of the block launches from")
     void aStrikeRecordsTheProbeY() {
         // Prepare
