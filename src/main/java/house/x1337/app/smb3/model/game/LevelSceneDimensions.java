@@ -2,6 +2,10 @@ package house.x1337.app.smb3.model.game;
 
 import com.jme3.scene.shape.Quad;
 
+import java.awt.Dimension;
+
+import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
+
 /**
  * Encapsulates the grid dimensions of a level scene.
  *
@@ -11,5 +15,9 @@ import com.jme3.scene.shape.Quad;
 public record LevelSceneDimensions(int columns, int rows) {
     public Quad toQuad() {
         return new Quad(columns, rows);
+    }
+
+    public Dimension toPixels() {
+        return new Dimension(columns * TILE_SIZE, rows * TILE_SIZE);
     }
 }

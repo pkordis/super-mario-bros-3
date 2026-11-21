@@ -92,6 +92,10 @@ public enum TileType {
         return levelSceneLayerOwningType == null || levelSceneLayerOwningType == activeLayer;
     }
 
+    public boolean isInteractiveObject() {
+        return this == OBJECT_INTERACTIVE_SINGLE || this == OBJECT_INTERACTIVE_PART;
+    }
+
     public static TileType fromLabel(final String label) {
         for (final TileType t : TileType.values()) {
             if (t.getLabel().equals(label)) return t;

@@ -16,7 +16,6 @@ import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
@@ -26,7 +25,6 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
-import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.round;
 
 public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
@@ -141,41 +139,9 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
             return List.of();
         }
         return getBean(EnemyStampService.class)
-            .findByRenderingStarterTileId(tiles[anchor.y()][anchor.x()].getId())
-            .map(stamp -> stampCells(stamp, anchor, tiles))
+            .findPlacementAt(tiles, anchor)
+            .map(placement -> placement.heldCells(tiles))
             .orElseGet(() -> List.of(anchor));
-    }
-
-    /**
-     * Maps a stamp's own grid onto the level, around the cell its anchor was painted in. A cell is
-     * included only when the layer still holds that exact part, so a stamp that was painted over, or
-     * that reaches off the edge of the level, erases nothing it does not own.
-     */
-    private static List<Coordinates> stampCells(
-        final EnemyStamp stamp,
-        final Coordinates anchor,
-        final Tile[][] tiles
-    ) {
-        final List<Coordinates> cells = new ArrayList<>();
-        for (int row = 0; row < stamp.getRows(); row++) {
-            for (int column = 0; column < stamp.getColumns(); column++) {
-                final Tile part = stamp.tileAt(of(column, row));
-                if (part == null || !part.isRenderable()) {
-                    continue;
-                }
-                final int levelRow = anchor.y() + row - stamp.getRenderingStarter().y();
-                final int levelColumn = anchor.x() + column - stamp.getRenderingStarter().x();
-                if (levelRow < 0 || levelRow >= tiles.length
-                    || levelColumn < 0 || levelColumn >= tiles[levelRow].length) {
-                    continue;
-                }
-                if (tiles[levelRow][levelColumn].getId() != part.getId()) {
-                    continue;
-                }
-                cells.add(of(levelColumn, levelRow));
-            }
-        }
-        return cells;
     }
 
     /**

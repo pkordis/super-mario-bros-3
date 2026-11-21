@@ -40,8 +40,7 @@ class SetLevelSceneSizeMenuItemTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory.when(() -> StaticBeanFactory.getBean(GameEditorWindow.class)).thenReturn(window);
-        when(tab.getColumns()).thenReturn(16);
-        when(tab.getRows()).thenReturn(15);
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(16, 15));
         menuItem = new SetLevelSceneSizeMenuItem(mock(LevelSceneTabs.class), new LevelSceneSizeRules(), refusal);
     }
 
@@ -69,7 +68,7 @@ class SetLevelSceneSizeMenuItemTest {
     void refusesWhenContentIsCut() {
         // Prepare
         final Map<String, List<Coordinates>> cut = Map.of("Static Environment", List.of(of(20, 3)));
-        when(tab.getColumns()).thenReturn(24);
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(24, 24));
         when(tab.findContentCutBy(16, 15)).thenReturn(cut);
 
         // Execute

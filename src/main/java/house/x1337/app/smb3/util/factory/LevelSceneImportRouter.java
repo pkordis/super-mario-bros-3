@@ -4,6 +4,7 @@ import house.x1337.app.smb3.annotation.Singleton;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.values;
 
 /**
  * Distributes the flat {@code Tile[][]} grid produced by a PNG import across the level-scene layers.
@@ -38,9 +40,14 @@ import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 public final class LevelSceneImportRouter {
     private static final int AIR_DOMINANCE_THRESHOLD_PERCENT = 60;
 
-    public List<LevelSceneLayer> route(final Tile[][] grid, final int rows, final int columns) {
+    public List<LevelSceneLayer> route(
+        final Tile[][] grid,
+        final LevelSceneDimensions levelSceneDimensions
+    ) {
+        final int rows = levelSceneDimensions.rows();
+        final int columns = levelSceneDimensions.columns();
         final Map<LevelSceneLayerType, Tile[][]> matrices = new EnumMap<>(LevelSceneLayerType.class);
-        for (final LevelSceneLayerType type : LevelSceneLayerType.values()) {
+        for (final LevelSceneLayerType type : values()) {
             matrices.put(type, new Tile[rows][columns]);
         }
 
@@ -80,7 +87,7 @@ public final class LevelSceneImportRouter {
     }
 
     private static List<LevelSceneLayerType> orderedTypes() {
-        final List<LevelSceneLayerType> types = new ArrayList<>(List.of(LevelSceneLayerType.values()));
+        final List<LevelSceneLayerType> types = new ArrayList<>(List.of(values()));
         types.sort(Comparator.comparingInt(LevelSceneLayerType::getOrder));
         return types;
     }

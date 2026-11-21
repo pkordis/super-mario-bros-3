@@ -2,7 +2,9 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyTilesAssembler;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,8 +87,7 @@ class LevelSceneEditorGridLevelCompletionCardTest {
 
     private static BufferedImage paint(final boolean npcLayerVisible, final boolean hasCard) {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
-        when(tab.getRows()).thenReturn(GRID_ROWS);
-        when(tab.getColumns()).thenReturn(GRID_COLUMNS);
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(GRID_COLUMNS, GRID_ROWS));
         when(tab.getRenderingStarter()).thenReturn(null);
         when(tab.getSpawnPoint()).thenReturn(null);
         when(tab.getLayers()).thenReturn(List.of(layer(AIR, true), layer(NON_PLAYABLE_CHARACTERS, npcLayerVisible)));
@@ -96,7 +97,7 @@ class LevelSceneEditorGridLevelCompletionCardTest {
 
         final BufferedImage image = new BufferedImage(GRID_COLUMNS * TILE_SIZE, GRID_ROWS * TILE_SIZE, TYPE_INT_ARGB);
         final Graphics2D graphics = image.createGraphics();
-        new LevelSceneEditorGrid(tab, new SpawnPointSprite()).paintComponent(graphics);
+        new LevelSceneEditorGrid(tab, new SpawnPointSprite(), new EnemyTilesAssembler()).paintComponent(graphics);
         graphics.dispose();
         return image;
     }

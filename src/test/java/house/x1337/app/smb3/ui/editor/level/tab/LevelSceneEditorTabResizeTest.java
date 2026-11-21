@@ -5,8 +5,10 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -50,13 +52,14 @@ class LevelSceneEditorTabResizeTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             new PaletteSelectionService(),
-            mock(EnemyLevelSceneGridStamper.class)
+            mock(EnemyLevelSceneGridStamper.class),
+            mock(EnemyStampService.class)
         );
     }
 
@@ -80,8 +83,7 @@ class LevelSceneEditorTabResizeTest {
         tab.resizeScene(16, 20);
 
         // Verify
-        assertThat(tab.getRows()).isEqualTo(20);
-        assertThat(tab.getColumns()).isEqualTo(16);
+        assertThat(tab.getLevelSceneDimensions()).isEqualTo(new LevelSceneDimensions(16, 20));
         assertThat(tab.getLayers()).allSatisfy(layer -> assertThat(layer.getTiles()).hasDimensions(20, 16));
         assertThat(layer(STATIC_ENVIRONMENT).getTiles()[19][2]).isSameAs(tile);
         assertThat(layer(STATIC_ENVIRONMENT).getTiles()[14][2]).isSameAs(NULL_TILE);
@@ -182,8 +184,7 @@ class LevelSceneEditorTabResizeTest {
         assertThat(tab.getSceneTitle()).isEqualTo("World 1-1");
         assertThat(tab.getSceneDescription()).isEqualTo("The first level");
         assertThat(tab.getBackgroundMusic()).isEqualTo(music);
-        assertThat(tab.getRows()).isEqualTo(15);
-        assertThat(tab.getColumns()).isEqualTo(16);
+        assertThat(tab.getLevelSceneDimensions()).isEqualTo(new LevelSceneDimensions(16, 15));
         assertThat(tab.getLayers()).allSatisfy(layer -> assertThat(
             Arrays.stream(layer.getTiles()).flatMap(Arrays::stream)
         ).as("%s tiles", layer.getType().getLabel()).containsOnly(NULL_TILE));

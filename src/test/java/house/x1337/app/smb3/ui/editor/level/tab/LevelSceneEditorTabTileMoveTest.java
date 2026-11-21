@@ -3,7 +3,9 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -45,13 +47,14 @@ class LevelSceneEditorTabTileMoveTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             new PaletteSelectionService(),
-            mock(EnemyLevelSceneGridStamper.class)
+            mock(EnemyLevelSceneGridStamper.class),
+            mock(EnemyStampService.class)
         );
         // One row of four cells: the tile twice on the terrain, once over a brick
         final List<LevelSceneLayer> ordered = new ArrayList<>();
@@ -59,8 +62,7 @@ class LevelSceneEditorTabTileMoveTest {
         ordered.add(layer(STATIC_ENVIRONMENT, tile, ground, tile, NULL_TILE));
         ordered.add(layer(INTERACTIVE_OBJECTS, NULL_TILE, NULL_TILE, brick, tile));
         tab.setLayers(ordered);
-        tab.setRows(1);
-        tab.setColumns(4);
+        tab.setLevelSceneDimensions(new LevelSceneDimensions(4, 1));
     }
 
     @AfterEach

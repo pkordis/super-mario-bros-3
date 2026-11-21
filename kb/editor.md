@@ -230,8 +230,74 @@ palette group, Tiles > Configure Virtual Tiles... and its window are gone.
   the new one would replace, the author confirms first. The layer move confirmation and everything after it work as
   for Set, and the new level object is only stored once both are confirmed. Set in Tile properties clears a link.
 
-## 8. Known gaps
+## 8. Enemies and objects on the grid (SMB3-83)
+
+Nothing records which object owns which cell: a stamped enemy is just its part tiles in the NPC layer, and the save
+format is unchanged. Every footprint is worked out from the layer data, as the game does.
+
+### Removing an enemy
+
+- **A right click on any part removes the whole enemy** (`LevelSceneEditorTab.eraseTile` → `removeEnemyAt`, NPC
+  layer only, after the virtual objects). `EnemyStampService.findPlacementHolding(layer, cell)` looks, for every
+  stamp holding the clicked tile at part (pc, pr), at the renderer cell `cell - (pc, pr) + renderingStarter`; a
+  candidate counts when the layer holds the stamp's rendering starter part there. Every cell that still holds one of
+  that placement's parts (`EnemyPlacement.heldCells`) becomes `NULL_TILE`, so the parts go from the layer data, the
+  save, and the game's baked NPC layer.
+- **Ties:** parts are de-duplicated by sha256, so two stamps can share a part, or a rendering starter. The placement
+  whose parts are all in place wins (`EnemyPlacement.isWhole`, parts off the scene not counted), then the one with
+  the most parts in place, then the first in `EnemyStampService.findAll` order.
+- **Orphan parts** (no rendering starter part where it should be, e.g. left by a removal before SMB3-83) are not
+  repaired; a right click clears that cell only. A click on an empty cell inside an enemy's grid removes nothing.
+- **Shared with the game.** `EnemyLevelObject.erasePlacementFromBakedTexture` uses the same lookup
+  (`findPlacementAt(layer, rendererCell)` and `heldCells`) to take a spawned enemy's parts out of the baked texture.
+  Before SMB3-83 it took the first stamp with that rendering starter tile.
+
+### Hover preview
+
+`PlacementPreview`, owned by `LevelSceneEditorGrid`. While a palette item is selected, the item is drawn at 50%
+alpha (`AlphaComposite.SRC_OVER`) on the cell under the pointer, exactly where a left click would place it:
+
+| Selected | Shown | Layer |
+|---|---|---|
+| Tile | the tile on the cell | only one it `isPaintableOn` |
+| Enemy | the assembled stamp (`EnemyTilesAssembler.assemble`, cached per stamp), its rendering starter part on the cell | NPC |
+| Spawn point | the sprite and green border on the cell and the one above; nothing on the top row | NPC |
+| Pipe portal | the red border, the cell as its lower-left one (top row `y - rows + 1`) | NPC |
+| Card, rendering starter | the yellow / blue border on the cell | NPC |
+
+- Nothing shows outside the scene, while the active layer is hidden, or once the pointer has left the grid
+  (`mouseExited`). It is painted after the virtual objects and clipped to the scene.
+- **Repaints:** `refreshPreview()` repaints the union of the area last painted and the new one, only. It runs when
+  the hovered cell changes (`mouseMoved`, `mouseDragged`, `mousePressed`), when the selection changes
+  (`PaletteSelectionService.addSelectionListener`, registered by the tab in `init` and removed in `onClose`), and when
+  the active layer changes (`LevelSceneEditorTab.setActiveLayer`). Moving inside one cell repaints nothing.
+- An enemy's ramp offset (SMB3-84) is not in the preview yet.
+
+### Overlapping objects are refused
+
+- **Objects:** enemies, by their whole grid, empty parts included (`EnemyPlacement.bounds`), on the NPC layer; and
+  interactive objects (`TileType.isInteractiveObject`: `OBJECT_INTERACTIVE_SINGLE` / `_PART`), one cell each, on the
+  Interactive Objects layer. A multi-tiled level object will block with its whole footprint once it can be placed.
+- **The rule:** anything placed on one of those two layers, an enemy stamp or a tile, is refused when its footprint
+  (the stamp's whole grid, or the one cell) overlaps an object of that layer (`LevelSceneEditorTab.refusesOverlap`).
+  Enemies are found by `EnemyStampService.findPlacementsOverlapping(layer, area)`: for each stamp, every rendering
+  starter cell whose grid could reach the area is checked for the stamp's rendering starter part. To replace an
+  object, remove it first with a right click.
+- **Not objects:** Air, the decoration layers and Static Environment still overwrite, and so do orphan enemy parts.
+  Virtual objects keep their own rules (one per scene, `PipePortalPlacementRules`).
+- **Feedback** (`BlockerFlash`): a 4 px border of black and yellow diagonal stripes (a `TexturePaint`, 4 px stripes)
+  just inside each blocker's box, painted last. On for 250 ms, off for 250 ms, for 2 seconds, driven by a
+  `javax.swing.Timer`; the blink state is read off the clock, so it stays exact whatever the timer's lag. A new
+  refusal adds its blockers and restarts the 2 seconds.
+- **Drags:** `mousePressed` starts a gesture. Within it, each blocker blinks at most once, and an object placed
+  during the gesture (`LevelSceneEditorGrid.notePlacement`) never blinks: dragging an enemy across the grid is
+  refused where it would overlap the copies just stamped, without flashing them.
+
+## 9. Known gaps
 
 - Test Level Scene can start a second tester session while one runs, by switching back to a level scene tab; the
   editor then holds two tester tabs' worth of state (`LevelSceneTabs` keeps only the last tester tab).
 - Growing a scene leaves the new Air cells empty; it does not extend an imported scene's sky.
+- A right-button drag probably paints instead of erasing: `MouseEvent.getButton()` is normally `NOBUTTON` during a
+  drag (`SwingUtilities.isRightMouseButton(e)` would fix it). A right click only erases while a palette item is
+  selected (`handle` returns early). Both noted on SMB3-83, not verified at runtime.

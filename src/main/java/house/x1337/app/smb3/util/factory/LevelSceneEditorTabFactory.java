@@ -8,20 +8,20 @@ import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
+import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyTilesAssembler;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 
-import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
-import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.DECORATIONS_AIR;
@@ -38,8 +38,7 @@ public interface LevelSceneEditorTabFactory {
         final LevelSceneEditorGrid grid = tab.getLevelSceneEditorGrid();
         final int rows = result.rows();
         final int columns = result.columns();
-        tab.setRows(rows);
-        tab.setColumns(columns);
+        tab.setLevelSceneDimensions(new LevelSceneDimensions(columns, rows));
         // Distribute the imported tiles across the per-type layers; already-resolved tiles land in
         // their owning layer now, the rest follow as the user classifies them (see review window).
         tab.applyImportedLayers(result.grid());
@@ -66,10 +65,7 @@ public interface LevelSceneEditorTabFactory {
         levelScene.setTitle(editor.getSceneTitle());
         levelScene.setDescription(editor.getSceneDescription());
         levelScene.setBackgroundMusic(editor.getBackgroundMusic());
-        levelScene.setDimensions(new LevelSceneDimensions(
-            editor.getColumns(),
-            editor.getRows()
-        ));
+        levelScene.setDimensions(editor.getLevelSceneDimensions());
         for (final LevelSceneLayer layer : layers) {
             final LevelSceneLayer copy = copyLevelSceneLayer(layer);
             switch (layer.getType()) {
@@ -93,8 +89,7 @@ public interface LevelSceneEditorTabFactory {
         final LevelSceneEditorGrid grid = tab.getLevelSceneEditorGrid();
         final int columns = levelScene.getDimensions().columns();
         final int rows = levelScene.getDimensions().rows();
-        tab.setRows(rows);
-        tab.setColumns(columns);
+        tab.setLevelSceneDimensions(new LevelSceneDimensions(columns, rows));
         final LevelSceneLayer airLayer = copyLevelSceneLayer(levelScene, AIR);
         final LevelSceneLayer airDecorationsLayer = copyLevelSceneLayer(levelScene, DECORATIONS_AIR);
         final LevelSceneLayer landDecorationsLayer = copyLevelSceneLayer(levelScene, DECORATIONS_LAND);
@@ -231,7 +226,7 @@ public interface LevelSceneEditorTabFactory {
         final LevelSceneEditorTab tab,
         final LevelSceneEditorGrid grid
     ) {
-        grid.setPreferredSize(new Dimension(tab.getColumns() * TILE_SIZE, tab.getRows() * TILE_SIZE));
+        grid.setPreferredSize(tab.getLevelSceneDimensions().toPixels());
         grid.revalidate();
         grid.repaint();
         tab.updateStatus(null);
@@ -243,7 +238,8 @@ public interface LevelSceneEditorTabFactory {
             getBean(LevelSceneImportRouter.class),
             getBean(TilePalettePanel.class),
             getBean(PaletteSelectionService.class),
-            getBean(EnemyLevelSceneGridStamper.class)
+            getBean(EnemyLevelSceneGridStamper.class),
+            getBean(EnemyStampService.class)
         );
     }
 
@@ -256,7 +252,8 @@ public interface LevelSceneEditorTabFactory {
         return getBean(
             LevelSceneEditorGrid.class,
             levelSceneEditorTab,
-            getBean(SpawnPointSprite.class)
+            getBean(SpawnPointSprite.class),
+            getBean(EnemyTilesAssembler.class)
         );
     }
 }
