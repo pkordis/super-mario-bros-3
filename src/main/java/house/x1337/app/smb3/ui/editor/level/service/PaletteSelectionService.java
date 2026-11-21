@@ -10,22 +10,44 @@ import house.x1337.app.smb3.ui.editor.level.tile.palette.TileButton;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton;
 import lombok.Getter;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 @Singleton
 public class PaletteSelectionService {
+    private final List<Runnable> selectionListeners = new CopyOnWriteArrayList<>();
+
     @Getter
     private LayerGatedToggleButton selectedButton = null;
 
     public void select(final LayerGatedToggleButton button) {
-        clearSelection();
+        release();
         selectedButton = button;
         button.markSelected(true);
+        selectionListeners.forEach(Runnable::run);
     }
 
     public void clearSelection() {
-        if (selectedButton != null) {
-            selectedButton.markSelected(false);
-            selectedButton = null;
+        if (release()) {
+            selectionListeners.forEach(Runnable::run);
         }
+    }
+
+    public void addSelectionListener(final Runnable listener) {
+        selectionListeners.add(listener);
+    }
+
+    public void removeSelectionListener(final Runnable listener) {
+        selectionListeners.remove(listener);
+    }
+
+    private boolean release() {
+        if (selectedButton == null) {
+            return false;
+        }
+        selectedButton.markSelected(false);
+        selectedButton = null;
+        return true;
     }
 
     public Tile getSelectedTile() {

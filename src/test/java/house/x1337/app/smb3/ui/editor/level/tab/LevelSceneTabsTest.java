@@ -2,6 +2,7 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.service.LevelSceneService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
@@ -38,7 +39,7 @@ class LevelSceneTabsTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         staticBeanFactory.when(() -> StaticBeanFactory.getBean(EditorTabSystem.class)).thenReturn(editorTabSystem);
         staticBeanFactory.when(() -> StaticBeanFactory.getBean(LevelSceneTabs.class)).thenReturn(levelSceneTabs);
@@ -112,7 +113,8 @@ class LevelSceneTabsTest {
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             new PaletteSelectionService(),
-            mock(EnemyLevelSceneGridStamper.class)
+            mock(EnemyLevelSceneGridStamper.class),
+            mock(EnemyStampService.class)
         );
         tab.setSceneId(sceneId);
         return tab;

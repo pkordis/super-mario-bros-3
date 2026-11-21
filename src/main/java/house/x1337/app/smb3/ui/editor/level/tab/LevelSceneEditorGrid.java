@@ -3,21 +3,21 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.MultiTileArea;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
+import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyTilesAssembler;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import javax.swing.JPanel;
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -26,7 +26,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
@@ -40,30 +43,49 @@ import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
 import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+import static java.lang.Math.clamp;
 
 @Setter
 @Prototype
-@RequiredArgsConstructor
-public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
+public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, GridBoxDrawing {
     static final Font PIPE_PORTAL_LABEL_FONT = new Font(Font.MONOSPACED, Font.BOLD, 16);
 
     private final Map<Integer, BufferedImage> tileImageCache = new HashMap<>();
     private final LevelSceneEditorTab tab;
     private final SpawnPointSprite spawnPointSprite;
+    private final PlacementPreview placementPreview;
+    private final BlockerFlash blockerFlash;
+    @Setter(AccessLevel.NONE)
+    private Coordinates hoveredCell;
+    @Setter(AccessLevel.NONE)
+    private MultiTileArea paintedPreviewArea;
+
+    public LevelSceneEditorGrid(
+        final LevelSceneEditorTab tab,
+        final SpawnPointSprite spawnPointSprite,
+        final EnemyTilesAssembler enemyTilesAssembler
+    ) {
+        this.tab = tab;
+        this.spawnPointSprite = spawnPointSprite;
+        placementPreview = new PlacementPreview(tab, spawnPointSprite, enemyTilesAssembler, this::imageOf);
+        blockerFlash = new BlockerFlash(this::repaint, System::currentTimeMillis);
+    }
 
     @PostConstruct
     void init() {
-        setPreferredSize(new Dimension(tab.getColumns() * TILE_SIZE, tab.getRows() * TILE_SIZE));
-        setBackground(new Color(123, 198, 255));
+        setBackground(new Color(255, 255, 255));
 
         final MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(final MouseEvent e) {
+                blockerFlash.beginGesture();
+                hover(cellUnder(e));
                 handle(e);
             }
 
             @Override
             public void mouseDragged(final MouseEvent e) {
+                hover(cellUnder(e));
                 // A pipe portal opens a dialog per placement, so every virtual object is placed on a press only.
                 if (tab.isPlacingVirtualObject()) {
                     return;
@@ -73,7 +95,13 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
 
             @Override
             public void mouseMoved(final MouseEvent e) {
+                hover(cellUnder(e));
                 tab.updateStatus(cellUnder(e));
+            }
+
+            @Override
+            public void mouseExited(final MouseEvent e) {
+                hover(null);
             }
 
             private void handle(final MouseEvent e) {
@@ -98,6 +126,42 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
         return of(e.getX() / TILE_SIZE, e.getY() / TILE_SIZE);
     }
 
+    private void hover(final Coordinates cell) {
+        if (Objects.equals(cell, hoveredCell)) {
+            return;
+        }
+        hoveredCell = cell;
+        refreshPreview();
+    }
+
+    /** Repaints the preview's old and new area, after the hovered cell, the selection or the active layer changed. */
+    public void refreshPreview() {
+        final MultiTileArea area = hoveredCell == null ? null : placementPreview.areaAt(hoveredCell).orElse(null);
+        Stream.of(paintedPreviewArea, area)
+            .filter(Objects::nonNull)
+            .map(this::pixelBox)
+            .reduce(Rectangle::union)
+            .ifPresent(this::repaint);
+        paintedPreviewArea = area;
+    }
+
+    public void refusePlacement(final List<MultiTileArea> blockers) {
+        blockerFlash.refuse(blockers);
+    }
+
+    /** Records an object placed during the current press and drag, which then never blinks as a blocker. */
+    public void notePlacement(final MultiTileArea placed) {
+        blockerFlash.notePlaced(placed);
+    }
+
+    public void dispose() {
+        blockerFlash.stop();
+    }
+
+    private BufferedImage imageOf(final Tile tile) {
+        return tileImageCache.computeIfAbsent(tile.getId(), id -> tile.toImage());
+    }
+
     private void drawTile(
         final Graphics2D graphics,
         final Tile tile,
@@ -107,8 +171,7 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
         if (tile == null || tile == NULL_TILE) {
             return;
         }
-        final BufferedImage cachedImage = tileImageCache.computeIfAbsent(tile.getId(), id -> tile.toImage());
-        graphics.drawImage(cachedImage, x, y, TILE_SIZE, TILE_SIZE, null);
+        graphics.drawImage(imageOf(tile), x, y, TILE_SIZE, TILE_SIZE, null);
     }
 
     /**
@@ -124,16 +187,16 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
      * leaves the scene, even where the panel is stretched past it.
      */
     CellRange visibleCells(final Rectangle clip) {
-        final int lastColumn = tab.getColumns() - 1;
-        final int lastRow = tab.getRows() - 1;
+        final int lastColumn = tab.getLevelSceneDimensions().columns() - 1;
+        final int lastRow = tab.getLevelSceneDimensions().rows() - 1;
         if (clip == null) {
             return new CellRange(0, lastColumn, 0, lastRow);
         }
         return new CellRange(
-            Math.clamp(clip.x / TILE_SIZE, 0, lastColumn),
-            Math.clamp((clip.x + clip.width - 1) / TILE_SIZE, 0, lastColumn),
-            Math.clamp(clip.y / TILE_SIZE, 0, lastRow),
-            Math.clamp((clip.y + clip.height - 1) / TILE_SIZE, 0, lastRow)
+            clamp(clip.x / TILE_SIZE, 0, lastColumn),
+            clamp((clip.x + clip.width - 1) / TILE_SIZE, 0, lastColumn),
+            clamp(clip.y / TILE_SIZE, 0, lastRow),
+            clamp((clip.y + clip.height - 1) / TILE_SIZE, 0, lastRow)
         );
     }
 
@@ -180,6 +243,10 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
         drawSpawnPoint(graphics);
         drawRenderingStarter(graphics);
         drawLevelCompletionCard(graphics);
+        if (hoveredCell != null) {
+            placementPreview.paint(graphics, hoveredCell);
+        }
+        blockerFlash.paint(graphics);
 
         graphics.dispose();
     }
@@ -218,12 +285,6 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities {
             type.getColumns() * TILE_SIZE,
             type.getRows() * TILE_SIZE
         );
-    }
-
-    private void drawBorder(final Graphics2D graphics, final Color colour, final Rectangle box) {
-        graphics.setColor(colour);
-        graphics.setStroke(new BasicStroke(4f));
-        graphics.drawRect(box.x + 2, box.y + 2, box.width - 4, box.height - 4);
     }
 
     /**

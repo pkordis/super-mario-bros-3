@@ -97,6 +97,7 @@ class LevelSceneEditorTabFactoryPipePortalsTest {
             .build();
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getLevelSceneEditorGrid()).thenReturn(mock(LevelSceneEditorGrid.class));
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(4, 4));
         stubNewTab(tab);
 
         // Execute
@@ -123,7 +124,7 @@ class LevelSceneEditorTabFactoryPipePortalsTest {
             .when(() -> StaticBeanFactory.getBean(EnemyLevelSceneGridStamper.class))
             .thenReturn(mock(EnemyLevelSceneGridStamper.class));
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any(), any()))
             .thenReturn(tab);
     }
 
@@ -131,8 +132,7 @@ class LevelSceneEditorTabFactoryPipePortalsTest {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getLayers()).thenReturn(List.of());
         when(tab.getSceneId()).thenReturn("scene-1");
-        when(tab.getColumns()).thenReturn(4);
-        when(tab.getRows()).thenReturn(4);
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(4, 4));
         when(tab.getPipePortals()).thenReturn(portals);
         return tab;
     }

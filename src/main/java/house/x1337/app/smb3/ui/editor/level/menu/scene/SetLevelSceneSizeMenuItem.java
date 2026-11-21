@@ -37,7 +37,7 @@ public class SetLevelSceneSizeMenuItem extends GameEditorWindowMenuItem {
                 "Set Level Scene Size"
             )
             .configure(
-                new LevelSceneDimensions(tab.getColumns(), tab.getRows()),
+                tab.getLevelSceneDimensions(),
                 sizeRules
             )
             .ask()
@@ -45,7 +45,7 @@ public class SetLevelSceneSizeMenuItem extends GameEditorWindowMenuItem {
     }
 
     void resize(final LevelSceneEditorTab tab, final LevelSceneDimensions size) {
-        if (size.columns() == tab.getColumns() && size.rows() == tab.getRows()) {
+        if (size.equals(tab.getLevelSceneDimensions())) {
             return;
         }
         final Map<String, List<Coordinates>> cutContent = tab.findContentCutBy(size.columns(), size.rows());

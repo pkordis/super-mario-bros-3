@@ -4,6 +4,7 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
@@ -163,8 +164,7 @@ class BackgroundMusicStorageTest {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getLayers()).thenReturn(List.of());
         when(tab.getSceneId()).thenReturn("scene-1");
-        when(tab.getRows()).thenReturn(ROWS);
-        when(tab.getColumns()).thenReturn(COLUMNS);
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
         when(tab.getPipePortals()).thenReturn(List.of());
         when(tab.getBackgroundMusic()).thenReturn(track);
         return tab;
@@ -174,6 +174,7 @@ class BackgroundMusicStorageTest {
     private LevelSceneEditorTab newTab() {
         final LevelSceneEditorTab tab = mock(LevelSceneEditorTab.class);
         when(tab.getLevelSceneEditorGrid()).thenReturn(mock(LevelSceneEditorGrid.class));
+        when(tab.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(COLUMNS, ROWS));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(LevelSceneImportRouter.class))
             .thenReturn(mock(LevelSceneImportRouter.class));
@@ -187,7 +188,7 @@ class BackgroundMusicStorageTest {
             .when(() -> StaticBeanFactory.getBean(EnemyLevelSceneGridStamper.class))
             .thenReturn(mock(EnemyLevelSceneGridStamper.class));
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any(), any()))
             .thenReturn(tab);
         return tab;
     }

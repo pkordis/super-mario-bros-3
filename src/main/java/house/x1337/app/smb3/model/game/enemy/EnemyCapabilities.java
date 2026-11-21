@@ -49,6 +49,10 @@ public sealed interface EnemyCapabilities permits EnemyStamp {
         return renderingStarterTile().getId();
     }
 
+    default EnemyPlacement placedAt(final Coordinates rendererCell) {
+        return new EnemyPlacement((EnemyStamp) this, rendererCell);
+    }
+
     /**
      * @param tileId the tile id to look for
      * @return {@code true} if any of this enemy's parts is that tile — its anchor or any other cell

@@ -5,8 +5,10 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -74,7 +76,7 @@ class PipePortalPlacementTest {
         prompt = mock(PipePortalPrompt.class);
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         staticBeanFactory
             .when(() -> StaticBeanFactory.getBean(PaletteSelectionService.class))
@@ -90,10 +92,10 @@ class PipePortalPlacementTest {
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             paletteSelectionService,
-            mock(EnemyLevelSceneGridStamper.class)
+            mock(EnemyLevelSceneGridStamper.class),
+            mock(EnemyStampService.class)
         );
-        tab.setRows(ROWS);
-        tab.setColumns(COLUMNS);
+        tab.setLevelSceneDimensions(new LevelSceneDimensions(COLUMNS, ROWS));
         final List<LevelSceneLayer> ordered = new ArrayList<>();
         for (final LevelSceneLayerType type : List.of(AIR, STATIC_ENVIRONMENT, NON_PLAYABLE_CHARACTERS)) {
             final LevelSceneLayer layer = LevelSceneLayer.builder().type(type).visible(true).tiles(empty()).build();

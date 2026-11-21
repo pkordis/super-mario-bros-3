@@ -57,7 +57,7 @@ class SpawnPointLoadingTest {
             .when(() -> StaticBeanFactory.getBean(EnemyLevelSceneGridStamper.class))
             .thenReturn(mock(EnemyLevelSceneGridStamper.class));
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any(), any()))
             .thenReturn(target);
     }
 
@@ -69,6 +69,9 @@ class SpawnPointLoadingTest {
     @Test
     @DisplayName("A spawn point with room for both cells opens where it was stored")
     void aFittingSpawnPointIsKept() {
+        // Prepare
+        when(target.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(3, 4));
+
         // Execute
         LevelSceneEditorTabFactory.fromScene(scene(3, 4));
 
@@ -79,6 +82,9 @@ class SpawnPointLoadingTest {
     @Test
     @DisplayName("A spawn point stored on the bottom row is dropped")
     void aBottomRowSpawnPointIsDropped() {
+        // Prepare
+        when(target.getLevelSceneDimensions()).thenReturn(new LevelSceneDimensions(3, ROWS - 1));
+
         // Execute
         LevelSceneEditorTabFactory.fromScene(scene(3, ROWS - 1));
 

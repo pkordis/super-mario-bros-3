@@ -9,9 +9,11 @@ import house.x1337.app.smb3.game.level.pipe.PipePortalPlacementRules;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.MultiTileArea;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -27,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +57,8 @@ import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.SOUTH;
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.util.Comparator.comparingInt;
 import static javax.swing.BorderFactory.createEmptyBorder;
 
@@ -63,7 +66,7 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 @Prototype
 @RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class LevelSceneEditorTab extends BaseEditorTab {
+public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapabilities {
     private static final Comparator<Coordinates> TOP_TO_BOTTOM_LEFT_TO_RIGHT =
         comparingInt(Coordinates::y).thenComparingInt(Coordinates::x);
 
@@ -73,10 +76,13 @@ public class LevelSceneEditorTab extends BaseEditorTab {
     private final TilePalettePanel tilePalettePanel;
     private final PaletteSelectionService paletteSelectionService;
     private final EnemyLevelSceneGridStamper enemyLevelSceneGridStamper;
+    private final EnemyStampService enemyStampService;
+    private final Runnable previewRefresher = levelSceneEditorGrid::refreshPreview;
 
     private Coordinates levelCompletionCard = null;
     private Coordinates renderingStarter = null;
     private Coordinates spawnPoint = null;
+    private LevelSceneDimensions levelSceneDimensions;
     private LevelSceneLayer activeLayer;
     private List<LevelSceneLayer> layers;
     private List<PipePortal> pipePortals = new ArrayList<>();
@@ -85,15 +91,12 @@ public class LevelSceneEditorTab extends BaseEditorTab {
     private String sceneId = null;
     private String sceneTitle = null;
     private Tile[][] importGrid;
-    private int columns;
-    private int rows;
 
     @PostConstruct
     void init() {
         setLayout(new BorderLayout());
 
-        rows = VIEWPORT_TILES_Y;
-        columns = VIEWPORT_TILES_X;
+        levelSceneDimensions = new LevelSceneDimensions(VIEWPORT_TILES_X, VIEWPORT_TILES_Y);
         initLayers();
 
         final JScrollPane scrollPane = new JScrollPane(levelSceneEditorGrid);
@@ -106,12 +109,17 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         add(scrollPane, CENTER);
         add(statusLabel, SOUTH);
 
+        paletteSelectionService.addSelectionListener(previewRefresher);
         updateStatus(null);
     }
 
+    public void setActiveLayer(final LevelSceneLayer activeLayer) {
+        this.activeLayer = activeLayer;
+        levelSceneEditorGrid.refreshPreview();
+    }
+
     public void newScene(final int newRows, final int newCols) {
-        rows = newRows;
-        columns = newCols;
+        levelSceneDimensions = new LevelSceneDimensions(newCols, newRows);
         initLayers();
         resetContent();
         resetIdentity();
@@ -156,13 +164,13 @@ public class LevelSceneEditorTab extends BaseEditorTab {
      *     rendering starter; empty when nothing would be lost
      */
     public Map<String, List<Coordinates>> findContentCutBy(final int newColumns, final int newRows) {
-        final int cutTopRows = rows - newRows;
+        final int cutTopRows = levelSceneDimensions.rows() - newRows;
         final Map<String, List<Coordinates>> cut = new LinkedHashMap<>();
         for (final LevelSceneLayer layer : layers) {
             final Set<Coordinates> cells = new LinkedHashSet<>();
             final Tile[][] tiles = layer.getTiles();
-            for (int row = 0; row < rows; row++) {
-                for (int column = 0; column < columns; column++) {
+            for (int row = 0; row < levelSceneDimensions.rows(); row++) {
+                for (int column = 0; column < levelSceneDimensions.columns(); column++) {
                     final Tile tile = tiles[row][column];
                     if (tile != null && tile != NULL_TILE && isCut(of(column, row), newColumns, cutTopRows)) {
                         cells.add(of(column, row));
@@ -208,15 +216,14 @@ public class LevelSceneEditorTab extends BaseEditorTab {
      * first checks {@link #findContentCutBy(int, int)}.
      */
     public void resizeScene(final int newColumns, final int newRows) {
-        final int rowShift = newRows - rows;
+        final int rowShift = newRows - levelSceneDimensions.rows();
         for (final LevelSceneLayer layer : layers) {
             layer.setTiles(shiftedTiles(layer.getTiles(), newColumns, newRows, rowShift));
         }
         if (importGrid != null) {
             importGrid = shiftedTiles(importGrid, newColumns, newRows, rowShift);
         }
-        rows = newRows;
-        columns = newColumns;
+        levelSceneDimensions = new LevelSceneDimensions(newColumns, newRows);
         renderingStarter = shiftedCell(renderingStarter, rowShift);
         spawnPoint = shiftedCell(spawnPoint, rowShift);
         levelCompletionCard = shiftedCell(levelCompletionCard, rowShift);
@@ -234,12 +241,12 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         final int rowShift
     ) {
         final Tile[][] shifted = emptyTiles(newRows, newColumns);
-        for (int row = Math.max(0, rowShift); row < newRows; row++) {
+        for (int row = max(0, rowShift); row < newRows; row++) {
             final int sourceRow = row - rowShift;
-            if (sourceRow >= rows) {
+            if (sourceRow >= levelSceneDimensions.rows()) {
                 break;
             }
-            System.arraycopy(tiles[sourceRow], 0, shifted[row], 0, Math.min(columns, newColumns));
+            System.arraycopy(tiles[sourceRow], 0, shifted[row], 0, min(levelSceneDimensions.columns(), newColumns));
         }
         return shifted;
     }
@@ -253,7 +260,7 @@ public class LevelSceneEditorTab extends BaseEditorTab {
     }
 
     private void refreshSize() {
-        levelSceneEditorGrid.setPreferredSize(new Dimension(columns * TILE_SIZE, rows * TILE_SIZE));
+        levelSceneEditorGrid.setPreferredSize(levelSceneDimensions.toPixels());
         levelSceneEditorGrid.revalidate();
         levelSceneEditorGrid.repaint();
         updateStatus(null);
@@ -298,7 +305,7 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             .map(type -> LevelSceneLayer.builder()
                 .type(type)
                 .visible(true)
-                .tiles(emptyTiles(rows, columns))
+                .tiles(emptyTiles(levelSceneDimensions.rows(), levelSceneDimensions.columns()))
                 .build())
             .toList());
         activeLayer = layers.stream()
@@ -341,21 +348,27 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         if (selectedTile == null) {
             return;
         }
+        final MultiTileArea placed = new MultiTileArea(cell);
+        if (refusesOverlap(placed)) {
+            return;
+        }
         activeLayer.getTiles()[cell.y()][cell.x()] = selectedTile;
+        levelSceneEditorGrid.notePlacement(placed);
         levelSceneEditorGrid.repaint();
     }
 
     /**
      * Clears a cell of the active layer. On the NPC layer, a cell holding a virtual object removes that object
      * instead and leaves the layer's tiles alone. Objects drawn on top go first: the card, then the rendering
-     * starter, then the spawn point, then the pipe portals.
+     * starter, then the spawn point, then the pipe portals. A cell holding an enemy's part removes the whole enemy.
      */
     public void eraseTile(final Coordinates cell) {
         if (!isOutsideTheScene(cell)) {
             if (removeLevelCompletionCardAt(cell)
                 || removeRenderingStarterAt(cell)
                 || removeSpawnPointAt(cell)
-                || removePipePortalAt(cell)) {
+                || removePipePortalAt(cell)
+                || removeEnemyAt(cell)) {
                 levelSceneEditorGrid.repaint();
                 return;
             }
@@ -365,7 +378,9 @@ public class LevelSceneEditorTab extends BaseEditorTab {
     }
 
     private boolean isOutsideTheScene(final Coordinates cell) {
-        return cell.y() < 0 || cell.y() >= rows || cell.x() < 0 || cell.x() >= columns;
+        return cell.y() < 0 || cell.y() >= levelSceneDimensions.rows()
+            || cell.x() < 0
+            || cell.x() >= levelSceneDimensions.columns();
     }
 
     /** Whether a virtual object is armed, which places on a click only, never on a drag. */
@@ -389,7 +404,7 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             .build();
         final PipePortalPrompt prompt = getBean(PipePortalPrompt.class);
         final Optional<String> broken = PipePortalPlacementRules.validate(
-            new LevelSceneDimensions(columns, rows),
+            levelSceneDimensions,
             staticEnvironmentTiles(),
             pipePortals,
             candidate
@@ -473,10 +488,6 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         return true;
     }
 
-    private boolean isNpcLayerActive() {
-        return activeLayer != null && activeLayer.getType() == NON_PLAYABLE_CHARACTERS;
-    }
-
     private Tile[][] staticEnvironmentTiles() {
         if (layers == null) {
             return null;
@@ -486,20 +497,6 @@ public class LevelSceneEditorTab extends BaseEditorTab {
             .findFirst()
             .map(LevelSceneLayer::getTiles)
             .orElse(null);
-    }
-
-    /**
-     * Stamps a whole enemy onto the NPC layer, the clicked cell taking the enemy's rendering starter (see
-     * {@link EnemyLevelSceneGridStamper}). Refuses to write anywhere but the NPC layer — the palette only arms
-     * an enemy once that layer is active (switching to it on the click if need be) and releases it when the
-     * layer moves away, and this keeps that true even if an enemy is armed by some other path.
-     */
-    private void stampEnemy(final EnemyStamp enemy, final Coordinates cell) {
-        if (activeLayer == null || activeLayer.getType() != NON_PLAYABLE_CHARACTERS) {
-            return;
-        }
-        enemyLevelSceneGridStamper.stamp(activeLayer.getTiles(), enemy, cell);
-        levelSceneEditorGrid.repaint();
     }
 
     /**
@@ -536,6 +533,8 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         }
         final TileType type = selectedTile.getType();
         final String tileName = type != null ? type.getLabel() : "(none)";
+        final int rows = levelSceneDimensions.rows();
+        final int columns = levelSceneDimensions.columns();
         statusLabel.setText("Tile: " + tileName + "  |  " + rows + " rows × " + columns + " columns" + pos);
     }
 
@@ -656,7 +655,7 @@ public class LevelSceneEditorTab extends BaseEditorTab {
         }
         final LevelSceneLayerType activeType = (activeLayer != null) ? activeLayer.getType() : AIR;
 
-        final List<LevelSceneLayer> routed = levelSceneImportRouter.route(importGrid, rows, columns);
+        final List<LevelSceneLayer> routed = levelSceneImportRouter.route(importGrid, levelSceneDimensions);
         for (final LevelSceneLayer layer : routed) {
             final Boolean visible = visibilityByType.get(layer.getType());
             if (visible != null) {
@@ -679,6 +678,8 @@ public class LevelSceneEditorTab extends BaseEditorTab {
 
     @Override
     public void onClose() {
+        paletteSelectionService.removeSelectionListener(previewRefresher);
+        levelSceneEditorGrid.dispose();
         getBean(LevelSceneTabs.class).forget(this);
     }
 }

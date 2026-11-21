@@ -4,6 +4,7 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
+import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
@@ -36,13 +37,14 @@ class LevelSceneEditorTabNewSceneTest {
     void prepare() {
         staticBeanFactory = mockStatic(StaticBeanFactory.class);
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorGrid.class), any(), any(), any()))
             .thenReturn(mock(LevelSceneEditorGrid.class));
         tab = new LevelSceneEditorTab(
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             new PaletteSelectionService(),
-            mock(EnemyLevelSceneGridStamper.class)
+            mock(EnemyLevelSceneGridStamper.class),
+            mock(EnemyStampService.class)
         );
     }
 
