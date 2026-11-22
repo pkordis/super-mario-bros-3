@@ -60,4 +60,14 @@ public interface LevelSceneLayerCapabilities extends LevelSceneEditorGridCapabil
         setActiveLayer(levelSceneLayer);
         getLevelSceneEditorGrid().repaint();
     }
+
+    /**
+     * Adopts a freshly imported grid and routes its tiles into the per-type layers (see
+     * {@link LevelSceneImportRouter}). The grid is retained so the layers can be re-routed as the user
+     * classifies more tiles.
+     */
+    default void applyImportedLayers(final Tile[][] grid) {
+        setImportGrid(grid);
+        reRouteImportedLayers();
+    }
 }

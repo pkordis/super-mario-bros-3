@@ -17,9 +17,9 @@ import java.util.function.LongSupplier;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 
 /**
- * Blinks a black and yellow striped border around the objects that blocked a placement. During one press and drag,
- * each object blinks at most once, and an object placed in the same gesture never does. See kb/editor.md,
- * "Overlapping objects are refused".
+ * Blinks a black and yellow striped border around refused placements: the objects that blocked one, or the box of
+ * one a placement rule refused. It knows nothing of why. During one press and drag, each box blinks at most once, and
+ * an object placed in the same gesture never does. See kb/editor.md, "Overlapping objects are refused".
  */
 final class BlockerFlash implements GridBoxDrawing {
     static final int PHASE_MILLIS = 250;

@@ -5,6 +5,7 @@ import house.x1337.app.smb3.game.object.level.LevelObjectType;
 import house.x1337.app.smb3.game.object.level.block.GiantBrickBlock;
 import house.x1337.app.smb3.game.object.level.block.GiantEmptyBlock;
 import house.x1337.app.smb3.game.object.level.enemy.Goomba;
+import house.x1337.app.smb3.game.object.level.enemy.GoombaPipe;
 import house.x1337.app.smb3.game.object.level.enemy.KoopaParaTroopa;
 import house.x1337.app.smb3.game.object.level.enemy.KoopaTroopa;
 import house.x1337.app.smb3.game.object.level.enemy.ParaGoomba;
@@ -24,6 +25,7 @@ public enum LevelObjectTypeMultiTiled implements LevelObjectType {
 
     // Enemies
     GOOMBA("Goomba", Goomba.class),
+    GOOMBA_PIPE_RIGHT_NORMAL("Goomba dispensed by pipe (from left to right)", GoombaPipe.class),
     KOOPA_PARATROOPA("Koopa Paratroopa", KoopaParaTroopa.class),
     KOOPA_TROOPA("Koopa Troopa", KoopaTroopa.class),
     PARA_GOOMBA("Para-Goomba", ParaGoomba.class),

@@ -460,7 +460,8 @@ public final class LevelCompletion implements GameEngineAware {
     }
 
     private static boolean isInNoSlot(final ActiveLevelObject object) {
-        return (object instanceof final EnemyLevelObject enemy && !enemy.isSpawnedIntoScene())
+        return (object instanceof final EnemyLevelObject enemy
+            && (!enemy.isSpawnedIntoScene() || enemy.isSlotless()))
             || (object instanceof final RewardLevelObject reward && reward.isCollected());
     }
 

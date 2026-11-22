@@ -2403,6 +2403,86 @@ level (`1-2.png`, a capture taken during play) showed why that could not match:
 The 1-2 placements in dasm (`PRG/objects/1-2.asm`): Goomba (32, 24), (83, 23) inside the hill under a ramp,
 (85, 16) in the air, (107, 22), (108, 23), (126, 24); Para-Goomba (57, 21), (97, 20).
 
+## Goomba pipe - `CFIRE_GOOMBAPIPE_L` / `_R` (SMB3-87, 2026-11)
+
+A side pipe that keeps sending Goombas out. In dasm it is one of the "cannon fire" generators, with one id per output
+side; both run `CFire_GoombaPipe` (prg007:5757), and the dispenser sits on the lower cell of the pipe's lip. Here only
+the right output exists so far: `EnemyType.GOOMBA_PIPE_RIGHT`, a stamp placed on the cell beside the lip
+(`kb/editor.md`, "Goomba pipe placement"). Its Goombas come out of the cell left of it, which for a pipe opening to the
+right is the lip, so they start where the original's do.
+
+### Where it lives
+
+- `GoombaPipe` (`game/object/level/enemy`), runtime type `LevelObjectTypeMultiTiled.GOOMBA_PIPE_RIGHT_NORMAL`, driven by
+  `GoombaPipeMotionManager`. It is an `EnemyLevelObject` so `EnemySpawner` spawns it from its placement like any
+  enemy, through the scroll look-ahead, but it has no sprite, is never hittable (so it never enters the broad phase)
+  and never hurts the player.
+- **Never deleted off screen** (`GoombaPipeMotionManager.isExemptFromDeletionOffScreen`), as in dasm: it keeps its
+  rhythm until the scene is rebuilt. Its placement stays spawned, so it is never spawned twice.
+- **Not an object slot** (`EnemyLevelObject.isSlotless`, true): taking the level completion card sweeps the
+  objects into coins (`LevelCompletion.clearTheObjects`), and the dispenser is left out of that sweep, as cannon fires
+  are in dasm.
+- It works on its anchor cell. The editor only places it exactly on a cell, so it has no offset in the cell.
+
+### Rate
+
+- The timer starts at 96 ticks (`CannonFire_Init`, prg005:5375; every cannon fire but the 4-way) and counts down once
+  per tick (`CannonFire_DrawAndUpdate`).
+- When it reaches 0, a pulse: the timer is reloaded with 112, and a pulse counter steps. Every fourth pulse
+  (`counter & 3 == 0`) dispenses nothing. The dasm comment says "1:4 ticks proceed", but the code skips 1 pulse in 4.
+- So Goombas come out on the dispenser's 96th, 208th and 320th update, nothing on the 432nd, then 544, 656, 768,
+  nothing on 880, 992, and so on: three Goombas 112 ticks (about 1.9 s) apart, then a 224-tick gap.
+- The reload and the step come before every other check, so a pulse whose Goomba is refused (below) is spent.
+- Nothing runs while gameplay is halted (the engine only calls `updateWhileHalted`) or once the level completion card
+  is taken (`LevelCompletion.isUnderway`), matching `CannonFire_UpdateAndDraw`'s `Player_HaltGame | EndCard_Flag` check.
+
+### Each Goomba
+
+- **Direction:** always to the right, from the type; the terrain is not read in game.
+- **Player side:** `Level_ObjCalcXDiffs` (prg000) compares the player's X with the Goomba's start X. Going right,
+  a Goomba comes out only when player X >= start X (going left, in the original, only when player X < start X).
+  Otherwise it is discarded (`PRG007_BD7B`). The Goombas always come out walking towards the player. The closest
+  player is used.
+- **Start:** the cell left of the dispenser's (the lip): X is its left edge, Y its top edge minus 3
+  (`SPAWN_RISE_PIXELS`), so the Goomba's feet are 3 px above the cell's bottom. It faces right
+  (`Goomba_InitFlipBits`) and skips the face-the-player of a
+  spawn (`ObjInit_GroundTroop` is not run). Normal palette (`SPR_PAL3`), no placement of its own: once stomped or
+  deleted off screen it never comes back. It is handed over with `ActiveObjectGrid.spawnEnemy`.
+- **Not ported:** the free-slot check (`PrepareNewObjectOrAbort`, prg007:6236), as the project has no slot limit, and
+  the 8-slot cannon fire table.
+
+### The slide out of the pipe
+
+The dispenser sets the Goomba's `Var1` to 40. While it is above 0, `ObjNorm_GroundTroop` (prg004, after
+`PRG004_B384`) only decrements it, applies the X velocity (8/16 px a tick in the facing direction), steps the
+animation counter `Var5` by 1 (frame = `Var5 >> 2 & 1`, so a new frame every 4 ticks, twice the walk rate), draws and
+checks the player. No gravity, no world collision, no bouncing off other enemies, so it passes through the lip.
+
+- `Goomba.slideOutOfAPipe(start, towardsTheRight)` starts the 40 ticks; `tickPipeSlide` moves it 20 px in total and
+  advances the walk clock at twice `FLAT_WALK_ANIMATION_RATE`. From the lip cell it ends 4 px clear of the lip on
+  either side.
+- During the slide `bouncesOffOtherObjects()` is false, and the off-screen delete and the player collision still
+  apply. A stomp or a strike during the slide works as usual.
+- **Exit effect (not from dasm):** during the slide the Goomba's depth is `Z_DEPTH_ENEMY_IN_PIPE`, below the static
+  environment layer's, so the lip covers it and it visibly comes out of the pipe. Depth alone is not enough: sprites
+  are built in the `Translucent` bucket (`GameRenderer.fromTexture`), which jME draws after the `Transparent` bucket
+  the tile layers are in, so a sprite covers every layer whatever its Z. The Z order only applies inside one bucket.
+  So the sliding Goomba's sprite is moved to `Transparent` as well (`Goomba.positionSprite`), as the pipe plants' parts
+  always are, and goes back to `Translucent` once the slide ends or it is defeated, at its normal depth. Every other
+  sprite (rewards, fireballs, other enemies) stays in `Translucent`, in front of the layers.
+
+### Testing
+
+`GoombaPipeTest` (rhythm, start cell, player side, card taken, exemptions, halt), `GoombaPipeSlideTest` (20 px, no
+terrain, double-rate frames, depth, fall after), `EnemyApplicationRulesTest` and `LevelSceneEditorTabGoombaPipeTest`
+(editor rules and refusals).
+
+### dasm references
+
+`CFire_GoombaPipe`, `Goomba_InitFlipBits` (prg007:5755-5841); `CannonFire_UpdateAndDraw` / `CannonFire_DrawAndUpdate`
+(prg007:5443-5499); `CannonFire_Init` (prg005:5375); `Level_ObjCalcXDiffs` (prg000); `ObjNorm_GroundTroop`,
+`GroundTroop_XVel` (prg004:3994-4055). Example placements: `PRG/objects/1-2.asm`, `7-3.asm`.
+
 ---
 ## Who reacts to a block bump (research, SMB3-82)
 
