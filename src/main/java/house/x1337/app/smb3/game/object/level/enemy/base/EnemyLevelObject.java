@@ -44,6 +44,10 @@ public interface EnemyLevelObject extends ActiveLevelObject {
         return false;
     }
 
+    default boolean isSlotless() {
+        return false;
+    }
+
     default Reward getPendingScoreReward() {
         return null;
     }

@@ -132,6 +132,7 @@ public final class GameConstants {
 
     public static final float Z_STEP_BETWEEN_LAYERS = 0.01f;
     public static final float Z_DEPTH_PIPE_PLANT = 0.025f;
+    public static final float Z_DEPTH_ENEMY_IN_PIPE = 0.025f;
     public static final float Z_DEPTH_POOF = 0.045f;
     public static final float Z_DEPTH_BRICK_BLOCK_BOUNCE = 0.05f;
     public static final float Z_DEPTH_ITEM_REWARD = 0.06f;

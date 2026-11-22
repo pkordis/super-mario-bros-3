@@ -271,7 +271,7 @@ alpha (`AlphaComposite.SRC_OVER`) on the cell under the pointer, exactly where a
   (`TileType.isInteractiveObject`: `OBJECT_INTERACTIVE_SINGLE` / `_PART`), one cell each, on the Interactive Objects
   layer. A multi-tiled level object will block with its whole footprint once it can be placed.
 - **The rule:** anything placed on one of those two layers is refused when its box overlaps an object of that layer
-  by at least one level pixel (`MultiTileAreaCapabilities.refusesOverlap`, on `PixelArea`s). That covers an enemy
+  by at least one level pixel (`PixelAreaCapabilities.refusesOverlap`, on `PixelArea`s). That covers an enemy
   placed on a cell (its whole grid), a tile painted on either layer (its cell), and a nudge of the selected enemy
   (section 9), which ignores the enemy being moved. Boxes that only touch do not overlap. To replace an object, remove
   it first with a right click.
@@ -342,6 +342,35 @@ Cancel discards everything. Save (`EnemyStampEditing.save`):
   (`LevelSceneEditorGrid.invalidateTile`).
 - A new rendering starter does not move placed enemies: a placement is the pixel of the rendering starter, so the
   enemy's picture is drawn around the new part from then on. In game the enemy's sprite still starts on that pixel.
+
+### Goomba pipe placement (SMB3-87)
+
+`EnemyType.GOOMBA_PIPE_RIGHT` ("Goomba dispensed by pipe (from left to right)") is the stamp for the invisible Goomba
+dispenser (`kb/dynamic-entities.md`, "Goomba pipe"). Its stamp is 2 rows high; the author picks its parts from an
+image like any enemy, and in game they are a marker only. It sends its Goombas to the right, whatever the terrain.
+
+- **On the grid, not on a pixel:** `EnemyType.isPlacedOnTheGrid()`. With a Goomba pipe armed, the preview and a click
+  snap to the cell under the pointer, as with Ctrl held for other enemies. The dispenser works on its cell, and the
+  rules below are about cells, so a pixel offset would mean nothing.
+- **Rules** (`EnemyApplicationRules.validateApplication`, implemented by `EnemyStamp`, against the static environment
+  tiles). Every other type passes. For a Goomba pipe, with its rendering starter on cell (x, y):
+  1. the placement is exactly on the cell (offset 0, 0);
+  2. (x - 1, y) or (x + 1, y) is a `PIPE_TERMINATION_PART` tile: the stamp sits beside a pipe's lip, either cell of
+     it, on either side;
+  3. (x, y) is not a `PIPE_BODY_PART` tile.
+  No pipe portal is needed: the pipes Goombas come out of are usually not enterable.
+- **Where the Goombas come out:** from the cell left of the rendering starter, which for a pipe opening to the right is
+  its lip, as in the original game (the original stores the dispenser on the lip cell itself). The rules also accept
+  a stamp left of a lip; there the Goombas come out of the cell further left and walk towards the pipe. A
+  left-dispensing type would be needed for pipes opening to the left.
+- **Refusal:** nothing is written and the box the stamp would have covered blinks, through the same `BlockerFlash`
+  as overlap refusals (section 8), checked before the overlap rule. In one press and drag a box blinks once, so
+  dragging over the same refused cell blinks it once. Nudging a placed Goomba pipe is always refused (rule 1), with its
+  would-be box blinking. The blink does not say which rule failed.
+- `BlockerFlash` takes pixel boxes and knows nothing of the reason. Since SMB3-83 came first, it was built there and is
+  reused here, reached through `LevelSceneEditorGrid.refusePlacement`. Pipe portals keep their modal warning.
+- **Renamed during SMB3-87:** the type was first called `GOOMBA_PIPE`, with a rule requiring a vertical pipe portal on
+  the lip and a direction read from the pipe body. A stamp saved under the old name needs its `enemyType` updated.
 ## 10. Known gaps
 
 - An enemy part shown in the Tiles palette (parts are added there when an enemy is created in the session) keeps

@@ -26,12 +26,14 @@ import house.x1337.app.smb3.model.service.LevelObjectData;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.Accessors;
 
 import java.util.OptionalDouble;
 
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
+import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 import static house.x1337.app.smb3.GameConstants.PLAYER_STOMP_BOUNCE_Y_VELOCITY;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
+import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY_IN_PIPE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.GoombaMode.NORMAL;
@@ -56,12 +58,12 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private static final int BOUNDING_BOX_TOP_OFFSET = 2;
     private static final int BOUNDING_BOX_WIDTH = 13;
     private static final int MAX_FALL_FIXED_POINT = 64;
+    private static final int PIPE_SLIDE_TICKS = 40;
+    private static final int PIPE_SLIDE_WALK_ANIMATION_RATE = 2 * FLAT_WALK_ANIMATION_RATE;
     private static final int SQUISH_TICKS = 16;
     private static final DimensionsPixels BOUNDS_PIXELS = new DimensionsPixels(BOUNDING_BOX_WIDTH, BOUNDING_BOX_HEIGHT);
     private static final Dimensions SPRITE_DIMENSIONS = Dimensions.fullTile("Goomba");
 
-    @Accessors(fluent = true)
-    private final boolean bouncesOffOtherObjects = true;
     private final GoombaAnimator animator = getBean(GoombaAnimator.class);
     private final WalkAnimationClock walkClock = new WalkAnimationClock();
     private final LevelObjectType type = GOOMBA;
@@ -84,6 +86,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
     private boolean squished;
     private float baseDepth = Z_DEPTH_ENEMY;
     private int hitCooldownTicks;
+    private int pipeSlideTicksRemaining;
     private int squishTicksRemaining;
     private int walkFrameIndex;
 
@@ -111,6 +114,34 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         this.adoptedSlot = true;
     }
 
+    /**
+     * Starts the Goomba at {@code start}, sliding out of a side pipe towards the given side: for a while it only moves
+     * sideways and animates, drawn behind the pipe, with no gravity, no terrain and no bouncing off other objects.
+     * See kb/dynamic-entities.md, "Goomba pipe".
+     */
+    public void slideOutOfAPipe(
+        final PixelPosition start,
+        final boolean towardsTheRight
+    ) {
+        position = start;
+        facingRight = towardsTheRight;
+        pipeSlideTicksRemaining = PIPE_SLIDE_TICKS;
+    }
+
+    public boolean isSlidingOutOfAPipe() {
+        return pipeSlideTicksRemaining > 0 && !isDefeated();
+    }
+
+    @Override
+    public boolean bouncesOffOtherObjects() {
+        return !isSlidingOutOfAPipe();
+    }
+
+    @Override
+    public float getBaseDepth() {
+        return isSlidingOutOfAPipe() ? Z_DEPTH_ENEMY_IN_PIPE : baseDepth;
+    }
+
     @Override
     public AxisAlignedBoundingBox getBounds() {
         return AxisAlignedBoundingBox.ofSize(
@@ -125,7 +156,7 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
             return;
         }
         spawnedIntoScene = true;
-        if (!adoptedSlot) {
+        if (!adoptedSlot && !isSlidingOutOfAPipe()) {
             faceClosestPlayer();
         }
 
@@ -254,13 +285,18 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
             return;
         }
 
+        if (isSlidingOutOfAPipe()) {
+            tickPipeSlide();
+            return;
+        }
+
         // Facing IS direction
         velocity = velocity.directedX(facingRight, walkSpeedFixedPoint(facingRight));
         final boolean rising = velocity.rising();
 
         moveHorizontally();
         moveVertically();
-        advanceWalkFrame();
+        advanceWalkFrame(walkAnimationRate(facingRight));
         applyGravity();
         if (isOnABumpedBlock(rising)) {
             onBumpedFromBelow();
@@ -303,8 +339,16 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         positionSprite();
     }
 
-    private void advanceWalkFrame() {
-        if (!walkClock.advance(walkAnimationRate(facingRight))) {
+    private void tickPipeSlide() {
+        pipeSlideTicksRemaining--;
+        velocity = velocity.directedX(facingRight, WALK_SPEED_FIXED_POINT);
+        position = position.steppedX(velocity);
+        advanceWalkFrame(PIPE_SLIDE_WALK_ANIMATION_RATE);
+        positionSprite();
+    }
+
+    private void advanceWalkFrame(final int rate) {
+        if (!walkClock.advance(rate)) {
             return;
         }
         walkFrameIndex = (walkFrameIndex + 1) % animator.walkFrameCount(this);
@@ -342,6 +386,10 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         if (worldOffset == null) {
             return;
         }
+
+        // Sprites are drawn after the tile layers whatever their depth. Only in the layers' bucket does the depth put
+        // the sliding Goomba behind the pipe, as for the pipe plants; every other sprite stays in front of the layers.
+        spriteGeometry.setQueueBucket(isSlidingOutOfAPipe() ? Transparent : Translucent);
 
         // A tail-struck Goomba is drawn vertically flipped. The quad's origin is
         // its bottom-left corner, so a negative Y scale mirrors it about that edge and hangs it below the

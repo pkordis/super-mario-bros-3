@@ -6,6 +6,7 @@ import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.PixelArea;
 import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
 
 import java.util.List;
@@ -14,12 +15,13 @@ import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 
 /**
  * The enemies placed in the NPC layer: placing, selecting, nudging and removing them, each by its pixel box. See
  * kb/editor.md, "Enemy placements".
  */
-public interface EnemyStampCapabilities extends MultiTileAreaCapabilities {
+public interface EnemyStampCapabilities extends PixelAreaCapabilities {
     EnemyStampService getEnemyStampService();
     List<LevelSceneLayer> getLayers();
     EnemyPlacement getSelectedEnemyPlacement();
@@ -101,17 +103,30 @@ public interface EnemyStampCapabilities extends MultiTileAreaCapabilities {
         placeEnemy(enemy, enemy.placedAt(cell));
     }
 
+    default Tile[][] staticEnvironmentTiles() {
+        final List<LevelSceneLayer> layers = getLayers();
+        if (layers == null) {
+            return null;
+        }
+        return layers.stream()
+            .filter(layer -> layer.getType() == STATIC_ENVIRONMENT)
+            .findFirst()
+            .map(LevelSceneLayer::getTiles)
+            .orElse(null);
+    }
+
     /**
      * Places a whole enemy on the NPC layer at {@code placement}'s pixel, and selects it. Refuses a placement whose
      * rendering starter is outside the scene, and to place anywhere but the NPC layer: the palette only arms an enemy
-     * once that layer is active, and this keeps that true even if an enemy is armed by some other path.
+     * once that layer is active, and this keeps that true even if an enemy is armed by some other path. A placement
+     * the stamp's own rules refuse has its box blink, and one over another enemy has that enemy blink.
      */
     default void placeEnemy(final EnemyStamp enemy, final EnemyPlacement placement) {
         if (!isNpcLayerActive() || !enemy.isWellFormed() || isOutsideTheScene(placement)) {
             return;
         }
         final PixelArea bounds = enemy.boundsOf(placement);
-        if (refusesOverlap(bounds)) {
+        if (refusesApplication(enemy, placement, bounds) || refusesOverlap(bounds)) {
             return;
         }
         findEnemyPlacements().add(placement);
@@ -122,7 +137,7 @@ public interface EnemyStampCapabilities extends MultiTileAreaCapabilities {
 
     /**
      * Moves the selected enemy by ({@code dx}, {@code dy}) level pixels. Refused when its rendering starter would
-     * leave the scene, or its box would overlap another enemy, which then blinks.
+     * leave the scene, when the stamp's rules refuse the new place, or when its box would overlap another enemy.
      *
      * @return whether it moved
      */
@@ -134,8 +149,12 @@ public interface EnemyStampCapabilities extends MultiTileAreaCapabilities {
             return false;
         }
         final EnemyPlacement moved = selected.movedBy(dx, dy);
-        final Optional<PixelArea> bounds = boundsOf(moved);
-        if (bounds.isEmpty() || isOutsideTheScene(moved) || refusesOverlap(bounds.get(), selected)) {
+        final Optional<EnemyStamp> stamp = findStampOf(moved);
+        if (stamp.isEmpty() || isOutsideTheScene(moved)) {
+            return false;
+        }
+        final PixelArea bounds = stamp.get().boundsOf(moved);
+        if (refusesApplication(stamp.get(), moved, bounds) || refusesOverlap(bounds, selected)) {
             return false;
         }
         placements.set(index, moved);
@@ -144,10 +163,38 @@ public interface EnemyStampCapabilities extends MultiTileAreaCapabilities {
         return true;
     }
 
+    private boolean refusesApplication(
+        final EnemyStamp enemy,
+        final EnemyPlacement placement,
+        final PixelArea bounds
+    ) {
+        if (enemy.validateApplication(staticEnvironmentTiles(), placement)) {
+            return false;
+        }
+        getLevelSceneEditorGrid().refusePlacement(List.of(bounds));
+        return true;
+    }
+
     default boolean isOutsideTheScene(final EnemyPlacement placement) {
         final LevelSceneDimensions dimensions = getLevelSceneDimensions();
         return placement.x() < 0 || placement.y() < 0
             || placement.x() >= dimensions.columns() * TILE_SPRITE_SIZE
             || placement.y() >= dimensions.rows() * TILE_SPRITE_SIZE;
+    }
+
+    default String enemyPlacementNote(final Coordinates enemyPixel) {
+        return enemyPixel == null
+            ? "  |  click places its rendering starter"
+            : "  |  click places its rendering starter at x=" + enemyPixel.x() + " y=" + enemyPixel.y()
+            + " (Ctrl: on the cell)";
+    }
+
+    /** The selected enemy's position in level pixels, and how to nudge it; empty while none is selected. */
+    default String selectedEnemyNote() {
+        final EnemyPlacement selectedEnemyPlacement = getSelectedEnemyPlacement();
+        return selectedEnemyPlacement == null
+            ? ""
+            : "  |  selected enemy at x=" + selectedEnemyPlacement.x() + " y=" + selectedEnemyPlacement.y()
+            + " (arrows: 1 px, Shift: 4 px)";
     }
 }

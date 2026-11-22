@@ -49,7 +49,6 @@ import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_Y;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.AIR;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.STATIC_ENVIRONMENT;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.RENDERING_STARTER;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
@@ -65,7 +64,7 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 @Prototype
 @RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTileCapabilities {
+public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneEditorCapabilities {
     private static final Comparator<Coordinates> TOP_TO_BOTTOM_LEFT_TO_RIGHT =
         comparingInt(Coordinates::y).thenComparingInt(Coordinates::x);
 
@@ -268,29 +267,9 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
         updateStatus(null);
     }
 
-    public boolean hasRenderingStarter() {
-        return renderingStarter != null;
-    }
-
-    public boolean hasSpawnPoint() {
-        return spawnPoint != null;
-    }
-
-    /** The spawn point's cells, upper first; empty while it is not placed. */
-    public List<Coordinates> spawnPointCells() {
-        if (spawnPoint == null) {
-            return List.of();
-        }
-        return List.of(spawnPoint, spawnPoint.getOneBelow());
-    }
-
     /** Whether a spawn point stored at {@code upperCell} has both of its cells inside the scene. */
     public boolean spawnPointFits(final Coordinates upperCell) {
         return !isOutsideTheScene(upperCell) && !isOutsideTheScene(upperCell.getOneBelow());
-    }
-
-    private Coordinates belowOf(final Coordinates cell) {
-        return of(cell.x(), cell.y() + 1);
     }
 
     public boolean hasLevelCompletionCard() {
@@ -316,15 +295,14 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
             .orElseThrow();
     }
 
-    public void paintTile(final Coordinates cell) {
-        paintTile(cell, null);
-    }
-
     /**
      * Places the armed palette item on {@code cell}. An armed enemy goes on {@code enemyPixel}, the level pixel for
      * the top-left of its rendering starter part, or exactly on the cell when that is {@code null}.
      */
-    public void paintTile(final Coordinates cell, final Coordinates enemyPixel) {
+    public void paintTile(
+        final Coordinates cell,
+        final Coordinates enemyPixel
+    ) {
         if (isOutsideTheScene(cell)) {
             return;
         }
@@ -358,11 +336,6 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
         levelSceneEditorGrid.repaint();
     }
 
-    public void eraseTile(final Coordinates cell) {
-        final int half = TILE_SPRITE_SIZE / 2;
-        eraseAt(cell, of(cell.x() * TILE_SPRITE_SIZE + half, cell.y() * TILE_SPRITE_SIZE + half));
-    }
-
     /**
      * Clears a cell of the active layer, the click falling on {@code levelPixel} inside it. On the NPC layer, a
      * virtual object or an enemy there is removed instead and the layer's tiles are left alone. Objects drawn on
@@ -382,14 +355,6 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
             activeLayer.getTiles()[cell.y()][cell.x()] = NULL_TILE;
             levelSceneEditorGrid.repaint();
         }
-    }
-
-    private boolean isOutsideTheScene(final Coordinates cell) {
-        return isOutside(cell, levelSceneDimensions);
-    }
-
-    private boolean isOutside(final Coordinates cell, final LevelSceneDimensions dimensions) {
-        return cell.y() < 0 || cell.y() >= dimensions.rows() || cell.x() < 0 || cell.x() >= dimensions.columns();
     }
 
     /** Whether a virtual object is armed, which places on a click only, never on a drag. */
@@ -497,17 +462,6 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
         return true;
     }
 
-    private Tile[][] staticEnvironmentTiles() {
-        if (layers == null) {
-            return null;
-        }
-        return layers.stream()
-            .filter(layer -> layer.getType() == STATIC_ENVIRONMENT)
-            .findFirst()
-            .map(LevelSceneLayer::getTiles)
-            .orElse(null);
-    }
-
     /**
      * @param cell the cell under the mouse, or {@code null} when there is none to report
      */
@@ -557,49 +511,9 @@ public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTile
         );
     }
 
-    private String enemyPlacementNote(final Coordinates enemyPixel) {
-        return enemyPixel == null
-            ? "  |  click places its rendering starter"
-            : "  |  click places its rendering starter at x=" + enemyPixel.x() + " y=" + enemyPixel.y()
-                + " (Ctrl: on the cell)";
-    }
-
-    /** The selected enemy's position in level pixels, and how to nudge it; empty while none is selected. */
-    private String selectedEnemyNote() {
-        return selectedEnemyPlacement == null
-            ? ""
-            : "  |  selected enemy at x=" + selectedEnemyPlacement.x() + " y=" + selectedEnemyPlacement.y()
-                + " (arrows: 1 px, Shift: 4 px)";
-    }
-
-    /** Where the rendering starter or the spawn point sits, by its lower-left cell; empty for the other objects. */
-    private String placementNote(final VirtualObjectType type) {
-        return switch (type.getCategory()) {
-            case RENDERING_STARTER -> placedAt(renderingStarter);
-            case SPAWN_POINT -> placedAt(spawnPoint == null ? null : spawnPoint.getOneBelow());
-            case CARD, PIPE_PORTAL -> "";
-        };
-    }
-
-    private String placedAt(final Coordinates lowerLeft) {
-        return lowerLeft == null
-            ? "  |  not placed yet"
-            : "  |  set at col=" + lowerLeft.x() + " row=" + lowerLeft.y();
-    }
-
     /** Whether a grid click has anything to place — a tile, a whole enemy, or a virtual object. */
     public boolean hasPlaceableSelection() {
         return paletteSelectionService.hasSelection();
-    }
-
-    /**
-     * Adopts a freshly imported grid and routes its tiles into the per-type layers (see
-     * {@link LevelSceneImportRouter}). The grid is retained so the layers can be re-routed as the user
-     * classifies more tiles.
-     */
-    public void applyImportedLayers(final Tile[][] grid) {
-        importGrid = grid;
-        reRouteImportedLayers();
     }
 
     @Override

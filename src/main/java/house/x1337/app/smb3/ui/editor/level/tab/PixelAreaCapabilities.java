@@ -15,7 +15,7 @@ import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floorDiv;
 
-public interface MultiTileAreaCapabilities {
+public interface PixelAreaCapabilities {
     LevelSceneDimensions getLevelSceneDimensions();
     LevelSceneEditorGrid getLevelSceneEditorGrid();
     LevelSceneLayer getActiveLayer();

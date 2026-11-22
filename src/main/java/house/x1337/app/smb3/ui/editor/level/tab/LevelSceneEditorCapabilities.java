@@ -1,7 +1,9 @@
 package house.x1337.app.smb3.ui.editor.level.tab;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
-import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.enumeration.VirtualObjectType;
+import house.x1337.app.smb3.game.level.scene.LevelScene;
+import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 
@@ -10,10 +12,17 @@ import java.util.List;
 import java.util.Optional;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-public interface LevelSceneTileCapabilities extends LevelSceneLayerCapabilities {
+public interface LevelSceneEditorCapabilities extends LevelSceneLayerCapabilities {
+    Coordinates getRenderingStarter();
+    Coordinates getSpawnPoint();
+    void eraseAt(Coordinates cell, Coordinates of);
+    void paintTile(Coordinates cell, Coordinates enemyPixel);
+
     default Tile[][] emptyTiles(
         final int rows,
         final int cols
@@ -64,15 +73,15 @@ public interface LevelSceneTileCapabilities extends LevelSceneLayerCapabilities 
      * overwriting what that cell held, and clears it where it was.
      */
     default void moveTile(final Tile tile, final LevelSceneLayerType target) {
-        final List<LevelSceneLayer> layers = getLayers();
-        final Optional<LevelSceneLayer> targetLayer = layers.stream()
+        final List<LevelScene.LevelSceneLayer> layers = getLayers();
+        final Optional<LevelScene.LevelSceneLayer> targetLayer = layers.stream()
             .filter(layer -> layer.getType() == target)
             .findFirst();
         if (targetLayer.isEmpty()) {
             return;
         }
         final Tile[][] targetTiles = targetLayer.get().getTiles();
-        for (final LevelSceneLayer layer : layers) {
+        for (final LevelScene.LevelSceneLayer layer : layers) {
             if (layer.getType() == target) {
                 continue;
             }
@@ -89,9 +98,29 @@ public interface LevelSceneTileCapabilities extends LevelSceneLayerCapabilities 
         getLevelSceneEditorGrid().repaint();
     }
 
+    default void eraseTile(final Coordinates cell) {
+        final int half = TILE_SPRITE_SIZE / 2;
+        eraseAt(cell, of(cell.x() * TILE_SPRITE_SIZE + half, cell.y() * TILE_SPRITE_SIZE + half));
+    }
+
+    default boolean isOutsideTheScene(final Coordinates cell) {
+        return isOutside(cell, getLevelSceneDimensions());
+    }
+
+    default boolean isOutside(
+        final Coordinates cell,
+        final LevelSceneDimensions dimensions
+    ) {
+        return cell.y() < 0 || cell.y() >= dimensions.rows() || cell.x() < 0 || cell.x() >= dimensions.columns();
+    }
+
+    default void paintTile(final Coordinates cell) {
+        paintTile(cell, null);
+    }
+
     default int countTileCellsOutside(final int tileId, final LevelSceneLayerType target) {
         int cells = 0;
-        for (final LevelSceneLayer layer : getLayers()) {
+        for (final LevelScene.LevelSceneLayer layer : getLayers()) {
             if (layer.getType() == target) {
                 continue;
             }
@@ -106,6 +135,23 @@ public interface LevelSceneTileCapabilities extends LevelSceneLayerCapabilities 
         return cells;
     }
 
+    default String placedAt(final Coordinates lowerLeft) {
+        return lowerLeft == null
+            ? "  |  not placed yet"
+            : "  |  set at col=" + lowerLeft.x() + " row=" + lowerLeft.y();
+    }
+
+    /** Where the rendering starter or the spawn point sits, by its lower-left cell; empty for the other objects. */
+    default String placementNote(final VirtualObjectType type) {
+        final Coordinates renderingStarter = getRenderingStarter();
+        final Coordinates spawnPoint = getSpawnPoint();
+        return switch (type.getCategory()) {
+            case RENDERING_STARTER -> placedAt(renderingStarter);
+            case SPAWN_POINT -> placedAt(spawnPoint == null ? null : spawnPoint.getOneBelow());
+            case CARD, PIPE_PORTAL -> "";
+        };
+    }
+
     /**
      * Refreshes the rendering of a tile whose pixel data changed (e.g. after classification),
      * invalidating its cached image and repainting the grid.
@@ -114,5 +160,22 @@ public interface LevelSceneTileCapabilities extends LevelSceneLayerCapabilities 
         final LevelSceneEditorGrid levelSceneEditorGrid = getLevelSceneEditorGrid();
         levelSceneEditorGrid.invalidateTile(tile.getId());
         levelSceneEditorGrid.repaint();
+    }
+
+    default boolean hasRenderingStarter() {
+        return getRenderingStarter() != null;
+    }
+
+    default boolean hasSpawnPoint() {
+        return getSpawnPoint() != null;
+    }
+
+    /** The spawn point's cells, upper first; empty while it is not placed. */
+    default List<Coordinates> spawnPointCells() {
+        final Coordinates spawnPoint = getSpawnPoint();
+        if (spawnPoint == null) {
+            return List.of();
+        }
+        return List.of(spawnPoint, spawnPoint.getOneBelow());
     }
 }

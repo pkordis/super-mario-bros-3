@@ -6,6 +6,7 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.PixelArea;
 import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
+import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
@@ -157,13 +158,15 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
 
     /**
      * Where an armed enemy goes for the pointer of {@code e}: the pointer in the middle of its rendering starter part,
-     * to the level pixel, or with Ctrl held exactly on the cell. {@code null} while no enemy is armed.
+     * to the level pixel, or exactly on the cell with Ctrl held or for a stamp placed on the grid. {@code null} while
+     * no enemy is armed.
      */
     private Coordinates enemyPixelUnder(final MouseEvent e) {
-        if (tab.getPaletteSelectionService().getSelectedEnemy() == null) {
+        final EnemyStamp armed = tab.getPaletteSelectionService().getSelectedEnemy();
+        if (armed == null) {
             return null;
         }
-        if (e.isControlDown()) {
+        if (e.isControlDown() || (armed.getEnemyType() != null && armed.getEnemyType().isPlacedOnTheGrid())) {
             final Coordinates cell = cellUnder(e);
             return of(cell.x() * TILE_SPRITE_SIZE, cell.y() * TILE_SPRITE_SIZE);
         }
