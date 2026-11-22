@@ -27,6 +27,7 @@ public enum LevelObjectTypeSingleTiled implements LevelObjectType, LevelObjectVa
     BRICK_SWITCH_BLOCK_SPAWNER("Switch Block Spawner - Brick (spawns the P)", Block.class, V_NONE),
     EMPTY_BLOCK("Empty Block (solid/used)", EmptyBlock.class, V_NONE),
     NOTE_BLOCK_NO_REWARD("Note Block (bouncy - no reward)", Block.class, V_NONE),
+    NOTE_BLOCK_WITH_REWARD("Note Block with Reward (bouncy)", Block.class, V_NONE),
     PRESSED_SWITCH_BLOCK("Switch Block - pressed (spent)", PressedSwitchBlock.class, V_NONE),
     QUESTION_BLOCK("Question Block", Block.class, V_NONE),
     QUESTION_SWITCH_BLOCK_SPAWNER("Switch Block Spawner - Question (spawns the P)", Block.class, V_NONE),

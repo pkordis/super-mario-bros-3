@@ -7,6 +7,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.BlockType;
 import house.x1337.app.smb3.enumeration.ItemType;
 import house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled;
+import house.x1337.app.smb3.enumeration.RewardDispenseSide;
 import house.x1337.app.smb3.enumeration.SoundEffect;
 import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.GameEngine;
@@ -40,10 +41,13 @@ import static house.x1337.app.smb3.enumeration.BlockType.BRICK_BLOCK_NO_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.BRICK_BLOCK_WITH_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.BRICK_SWITCH_BLOCK_SPAWNER;
 import static house.x1337.app.smb3.enumeration.BlockType.NOTE_BLOCK_NO_REWARD;
+import static house.x1337.app.smb3.enumeration.BlockType.NOTE_BLOCK_WITH_REWARD;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_BLOCK;
 import static house.x1337.app.smb3.enumeration.BlockType.QUESTION_SWITCH_BLOCK_SPAWNER;
 import static house.x1337.app.smb3.enumeration.ItemType.COIN_SINGLE;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
+import static house.x1337.app.smb3.enumeration.RewardDispenseSide.ABOVE;
+import static house.x1337.app.smb3.enumeration.RewardDispenseSide.BELOW;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
 import static house.x1337.app.smb3.enumeration.SoundEffect.BLOCK;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
@@ -69,6 +73,9 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
  *   <li><b>{@code NOTE_BLOCK_NO_REWARD}</b> — note block: it bounces up whenever it is struck from below or from the
  *       side, and never breaks or empties. A player landing on it sinks with it and is launched back up
  *       ({@link NoteBlockBounceMotionManager}).</li>
+ *   <li><b>{@code NOTE_BLOCK_WITH_REWARD}</b> — a note block that dispenses its reward the first time it is struck,
+ *       above it when struck from below or from the side and below it when landed on, and is a plain note block from
+ *       then on. See {@code kb/note-block.md}, "Reward note blocks".</li>
  * </ul>
  *
  * <p>The look/shimmer is selected by {@link #getAnimator()}, which resolves whichever animator declares
@@ -125,6 +132,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
         if (isNoteBlock()) {
             // The bump sound is the head hit's own, which the player plays
             bounceNoteBlockUp();
+            dispenseNoteBlockReward(levelScenePlayer, ABOVE);
             levelScenePlayer.bounceOffBumpedBlock();
         } else if (hasReward()) {
             hit(levelScenePlayer);
@@ -158,6 +166,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
             return;
         }
         noteBlockBounceMotionManager.spawnBounceDown(gameEngine, offset, getAnimator(), levelScenePlayer);
+        dispenseNoteBlockReward(levelScenePlayer, BELOW);
         getSoundPlayer().play(BLOCK);
     }
 
@@ -240,7 +249,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
         emptyBlock.triggerBounce(gameEngine);
 
         // Step 5: Dispense the reward based on configured type.
-        dispenseReward(levelScenePlayer);
+        dispenseReward(levelScenePlayer, ABOVE);
     }
 
     /**
@@ -329,6 +338,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
             QUESTION_BLOCK,
             BRICK_BLOCK_WITH_REWARD,
             BRICK_SWITCH_BLOCK_SPAWNER,
+            NOTE_BLOCK_WITH_REWARD,
             QUESTION_SWITCH_BLOCK_SPAWNER
         );
     }
@@ -342,6 +352,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     private boolean strikeFromTheSide(final LevelScenePlayer levelScenePlayer) {
         if (isNoteBlock()) {
             bounceNoteBlockUp();
+            dispenseNoteBlockReward(levelScenePlayer, ABOVE);
             getSoundPlayer().play(BLOCK);
             return true;
         }
@@ -357,7 +368,21 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     }
 
     private boolean isNoteBlock() {
-        return blockType == NOTE_BLOCK_NO_REWARD;
+        return blockType.isAnyOf(NOTE_BLOCK_NO_REWARD, NOTE_BLOCK_WITH_REWARD);
+    }
+
+    /** A note block that still holds its reward gives it up, and is a plain note block from then on. */
+    private void dispenseNoteBlockReward(
+        final LevelScenePlayer levelScenePlayer,
+        final RewardDispenseSide side
+    ) {
+        if (blockType != NOTE_BLOCK_WITH_REWARD) {
+            return;
+        }
+        dispenseReward(levelScenePlayer, side);
+        blockType = NOTE_BLOCK_NO_REWARD;
+        type = LevelObjectTypeSingleTiled.NOTE_BLOCK_NO_REWARD;
+        reward = null;
     }
 
     private void bounceNoteBlockUp() {
@@ -378,7 +403,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     public GameObjectAnimatorSingleTiled<Block> getAnimator() {
         return switch (blockType) {
             case QUESTION_BLOCK, QUESTION_SWITCH_BLOCK_SPAWNER -> questionBlockAnimator;
-            case NOTE_BLOCK_NO_REWARD -> noteBlockAnimator;
+            case NOTE_BLOCK_NO_REWARD, NOTE_BLOCK_WITH_REWARD -> noteBlockAnimator;
             case BRICK_BLOCK_NO_REWARD, BRICK_BLOCK_WITH_REWARD, BRICK_SWITCH_BLOCK_SPAWNER -> brickBlockAnimator;
         };
     }

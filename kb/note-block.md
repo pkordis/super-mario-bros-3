@@ -7,8 +7,9 @@ it sinks with it and is launched back up; a jump pressed during the ride doubles
 SMB3-82 also aligned two things every bouncing block shares with the original: the bounce timeline (§2) and the push
 a player gets from a block they bounced (§1).
 
-Out of scope (SMB3-82 decisions): the item note blocks (`TILEA_NOTEFLOWER`/`LEAF`/`STAR`), the invisible note block,
-the coin-heaven launcher, the green note block (`TILEA_GNOTE`), and the two-bounce limit of §6.
+Out of scope (SMB3-82 decisions): the invisible note block, the coin-heaven launcher, the green note block
+(`TILEA_GNOTE`), and the two-bounce limit of §6. The item note blocks (`TILEA_NOTEFLOWER`/`LEAF`/`STAR`) came with
+SMB3-90, see §8.
 
 Values are px/frame; positive DY is down.
 
@@ -100,6 +101,7 @@ are for a bounce up; a sinking note block runs them negated.
 | Bounce runner, ride, launch | `game/object/level/block/motion/NoteBlockBounceMotionManager` |
 | Bounce timeline | `BlockBounceAnimation.tick()`, `isBackInPlace()`; `isSinking()` flips the curve |
 | Bounce sprite | `game/object/level/block/animation/NoteBlockBounceAnimation` |
+| Reward note block (§8) | `Block.dispenseNoteBlockReward`, `RewardDispenseSide`, `SuperMushroom`/`SuperLeaf.dropOutOfTheBlockBelow` |
 | Idle frames, P-Switch freeze | `game/object/level/block/animator/NoteBlockAnimator` |
 | Pass-through for players | `LevelObject.isPassableForPlayers()` (default `false`, so Mockito mocks of `LevelObject` stay solid) |
 | Push off a bounced block | `LevelScenePlayerMoveCapable.bounceOffBumpedBlock()`, `GameConstants.PLAYER_BLOCK_BUMP_Y_VELOCITY` |
@@ -107,7 +109,7 @@ are for a bounce up; a sinking note block runs them negated.
 | Boost press, heavy rise | `LevelScenePlayerMoveCapable.handleVerticalMovement`; flags on `PlayerRuntimeState` |
 
 Tests: `NoteBlockTest`, `NoteBlockBounceMotionManagerTest`, `NoteBlockAnimatorTest`, `NoteBlockRideMovementTest`,
-`BlockBumpPushTest`, `BlockBounceAnimationTest`, `CollisionGridPassableTileTest`, `CollisionGridTailAttackTest`.
+`BlockBumpPushTest`, `BlockBounceAnimationTest`, `CollisionGridPassableTileTest`, `CollisionGridTailAttackTest`, and for §8\n`NoteBlockRewardTest`, `SuperMushroomDropTest`, `SuperLeafDropTest`.
 
 ## 5. dasm findings
 
@@ -184,3 +186,61 @@ is a bump block.
 colours of the shipped `frame_0.png`: matching chr096's tiles against it gives an exact bijection, index 0 →
 transparent, 1 → black, 2 → white `(252, 252, 252)` (method in `kb/sprites_extraction.md` §8). They match the images
 attached to SMB3-82.
+
+## 8. Reward note blocks (SMB3-90)
+
+`BlockType.NOTE_BLOCK_WITH_REWARD` (`LevelObjectTypeSingleTiled.NOTE_BLOCK_WITH_REWARD`, the original's item note
+blocks). It is a note block in every respect of §1 and §2: same animator, same bounce, same ride, same push. The
+`reward` attribute is the one of the other reward blocks (`ItemType`, a coin by default).
+
+### Which side the reward comes out of
+
+`RewardDispenseSide` is passed down `RewardDispensingLevelObject.dispenseReward`:
+
+| Struck by | Bounce | Side | Where |
+|---|---|---|---|
+| The player's head | up | `ABOVE` | `Block.onCollisionFromBelow` |
+| A tail | up | `ABOVE` | `strikeFromTheSide` |
+| A kicked shell | up | `ABOVE` | `strikeFromTheSide` |
+| The player landing on it | down (the ride) | `BELOW` | `Block.onCollisionFromAbove` |
+
+`ABOVE` is what the question and brick blocks always do and is unchanged (`Block.hit` passes it). A coin and a
+P-Switch ignore the side: they appear above the block either way. Only the mushrooms (Super, 1-Up) and the leaf
+change with `BELOW`.
+
+### What comes out below
+
+- **Mushroom** (`SuperMushroom.dropOutOfTheBlockBelow`): placed 8 px into its block (the cell's top plus 8), shown
+  whole, not rising and with no 16-frame hold. It falls from 1 px/frame with the usual gravity, lands on the ground
+  under the block and walks away from the player as usual. The collect protection is the usual 16 frames. Only the
+  lower half is below the block, so it is drawn overlapping the sinking block for the first frames; it is in front of
+  the bounce sprite (`Z_DEPTH_ITEM_REWARD` over `Z_DEPTH_BRICK_BLOCK_BOUNCE`).
+- **Leaf** (`SuperLeaf.dropOutOfTheBlockBelow`): placed 12 px into its block with a Y velocity of 4 sixteenths, which
+  grows by one a tick. It falls for 7 ticks (about 3.7 px) and then flutters as a leaf from the top does.
+- The block is a plain note block as soon as the reward is out (`Block.dispenseNoteBlockReward`): `blockType`, `type`
+  and `reward` change in place, so the same block keeps its animator registration and a second strike gives nothing.
+  It is not replaced by an empty block.
+
+### dasm
+
+- `LATP_Notes` = 0, 1, 2, 3 for `TILEA_NOTE`..`TILEA_NOTESTAR`: none, fire flower, leaf, star (prg008:4833).
+  `LATR_Notes` = `$40` for all of them (prg008:4863), and `Bounce_TileReplacements[4]` = `CHNGTILE_TONOTEBLOCK`
+  (prg001:1018): the block is a plain note block again at the end of the bounce, an empty block never.
+- Hit enable %0011, anytime (prg008:4918): the two vertical detects, whatever the player's Y speed. A tail or a kicked
+  shell has its own hit bit, %1111, and forces the up direction.
+- The power-up appears at bounce position 10, the first update of the bounce object (`ObjNorm_BounceDU`, prg001:1032).
+  For a bounce down (`Objects_Var2` = 0) its Y is the block's plus 8, for one up the block's minus 1.
+- A mushroom, with `Player_BounceDir` = 0, gets Y velocity `$10` and no `Objects_Timer`: with the timer unset,
+  `PowerUp_DoRaise` has nothing to do (`ObjInit_PUpMush`, prg001:1686; the star is the same, prg001:1569). Facing up it
+  gets Y velocity -`$38` and `Objects_Timer` = `$3D`, which is the slow rise. `Objects_Timer2` = `$10` either way.
+- A leaf: `Leaf_YVels[0]` = `$04` and `Leaf_TimerVals[0]` = 8, spawn offset `$0C` (prg001:2417-2423). `ObjNorm_SuperLeaf`
+  moves it by its Y velocity and adds one while the timer runs, then flutters. The timer is decremented before the
+  handler, so the first tick after the spawn tick already counts: 7 falling ticks, the 8th flutters.
+- Not ported: the star and the fire flower (neither is in the project), and the two-bounce limit of §6.
+
+### Known edge
+
+A mushroom only lands on a floor while its tracked Y is less than 4 px into the tile row (`SlopeFollowingCapable`). When
+the row under the note block is solid it starts 8 px into the block's row, so it is not landed on at once and falls on
+through the floor. The original has the same depth limit (kb/dynamic-entities.md, "Object_WorldDetect4's floor-depth
+limit"). A note block set directly on the ground has no room below it for the reward.
