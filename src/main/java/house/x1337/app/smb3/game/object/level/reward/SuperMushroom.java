@@ -74,6 +74,8 @@ public final class SuperMushroom
     private static final int RISE_TIMER_INITIAL = 61;
     private static final int RISE_MOVEMENT_THRESHOLD = 45;
     private static final int RISE_PIXEL_INTERVAL_FRAMES = 3;
+    private static final int DROP_SPAWN_Y_OFFSET_PIXELS = 8;
+    private static final int DROP_Y_VELOCITY_FIXED_POINT = 16;
     private static final int SPAWN_Y_OFFSET_PIXELS = -1;
     private static final int X_MOVE_SPEED_FIXED_POINT = 16;
     private static final int GRAVITY_FIXED_POINT = 3;
@@ -127,6 +129,21 @@ public final class SuperMushroom
         gameEngine.getRootNode().attachChild(spriteGeometry);
         // Start the emerge with the sprite fully hidden; tickRise reveals it a pixel at a time.
         clipToEmergedPortion();
+        positionSprite();
+    }
+
+    /**
+     * Starts the mushroom out of the bottom of its block instead of the top: it appears in the lower half of the block,
+     * not rising and not hidden, and falls out, to walk away once it lands.
+     */
+    public void dropOutOfTheBlockBelow() {
+        rising = false;
+        riseTimer = 0;
+        position = PixelPosition
+            .ofTile(offset)
+            .plusY(DROP_SPAWN_Y_OFFSET_PIXELS);
+        velocity = velocity.withY(DROP_Y_VELOCITY_FIXED_POINT);
+        restoreFullSprite();
         positionSprite();
     }
 

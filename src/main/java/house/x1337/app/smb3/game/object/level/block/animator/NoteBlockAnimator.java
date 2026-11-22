@@ -13,6 +13,7 @@ import java.util.List;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.NOTE_BLOCK_NO_REWARD;
+import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.NOTE_BLOCK_WITH_REWARD;
 
 /**
  * Animates the note blocks. Like the P-Switch, they have three distinct images played A-B-C-B, so {@code frame_3.png}
@@ -23,7 +24,8 @@ import static house.x1337.app.smb3.enumeration.LevelObjectTypeSingleTiled.NOTE_B
 public final class NoteBlockAnimator extends GameObjectAnimatorSingleTiled<Block> {
     private final PowerSwitchTimeWindow powerSwitchTimeWindow = getBean(PowerSwitchTimeWindow.class);
     private final List<LevelObjectType> supportedTypes = List.of(
-        NOTE_BLOCK_NO_REWARD
+        NOTE_BLOCK_NO_REWARD,
+        NOTE_BLOCK_WITH_REWARD
     );
     private final int ticksPerFrame = 8;
 

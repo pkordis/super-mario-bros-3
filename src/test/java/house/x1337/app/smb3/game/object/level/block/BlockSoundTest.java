@@ -40,6 +40,7 @@ import static com.jme3.texture.image.ColorSpace.sRGB;
 import static com.jme3.util.BufferUtils.createByteBuffer;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.INTERACTIVE_OBJECTS;
+import static house.x1337.app.smb3.enumeration.RewardDispenseSide.ABOVE;
 import static house.x1337.app.smb3.enumeration.SoundEffect.CANNONBALL;
 import static house.x1337.app.smb3.enumeration.SoundEffect.COIN;
 import static house.x1337.app.smb3.enumeration.SoundEffect.ONE_UP;
@@ -159,7 +160,7 @@ class BlockSoundTest {
             .thenReturn(mock(SuperLeafMotionManager.class));
 
         // Execute
-        dispenser.onSuperLeafDispensed(player);
+        dispenser.onSuperLeafDispensed(player, ABOVE);
 
         // Verify
         verify(soundPlayer, never()).play(any(SoundEffect.class));
@@ -180,7 +181,7 @@ class BlockSoundTest {
             .thenReturn(mock(SuperMushroomMotionManager.class));
 
         // Execute
-        dispenser.onSuperMushroomDispensed(player, mushroomType);
+        dispenser.onSuperMushroomDispensed(player, mushroomType, ABOVE);
 
         // Verify
         verify(soundPlayer, times(1)).play(POWER_UP_BLOCK);
@@ -210,8 +211,8 @@ class BlockSoundTest {
         final RewardDispensingLevelObject dispenser = mock(RewardDispensingLevelObject.class);
         when(dispenser.getOffset()).thenReturn(OFFSET);
         when(dispenser.getSoundPlayer()).thenReturn(soundPlayer);
-        doCallRealMethod().when(dispenser).onSuperLeafDispensed(any());
-        doCallRealMethod().when(dispenser).onSuperMushroomDispensed(any(), any());
+        doCallRealMethod().when(dispenser).onSuperLeafDispensed(any(), any());
+        doCallRealMethod().when(dispenser).onSuperMushroomDispensed(any(), any(), any());
         return dispenser;
     }
 

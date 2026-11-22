@@ -29,6 +29,9 @@ import static house.x1337.app.smb3.model.game.motion.FixedPointVelocity.STILL;
 @Prototype
 @RequiredArgsConstructor
 public final class SuperLeaf implements RewardLevelObject {
+    private static final int DROP_INITIAL_Y_VELOCITY_FIXED_POINT = 4;
+    private static final int DROP_SPAWN_Y_OFFSET_PIXELS = 12;
+    private static final int DROP_TICKS = 7;
     private static final int INITIAL_Y_VELOCITY_FIXED_POINT = -32;
     private static final int SPAWN_Y_OFFSET_PIXELS = -14;
     private static final int X_VELOCITY_STEP_FIXED_POINT = 2;
@@ -58,6 +61,7 @@ public final class SuperLeaf implements RewardLevelObject {
     private boolean collected;
     private boolean facingRight;
     private boolean rising = true;
+    private int dropTicksRemaining;
     private int oscillationDirectionCounter;
     private PixelPosition position;
     private FixedPointVelocity velocity = STILL;
@@ -86,6 +90,14 @@ public final class SuperLeaf implements RewardLevelObject {
         }
 
         collectProtection.tick();
+
+        if (dropTicksRemaining > 0) {
+            dropTicksRemaining--;
+            position = position.steppedY(velocity);
+            velocity = velocity.plusY(1);
+            updateFacingAndPosition();
+            return;
+        }
 
         if (rising) {
             position = position.steppedY(velocity);
@@ -116,6 +128,20 @@ public final class SuperLeaf implements RewardLevelObject {
         position = position.stepped(velocity);
 
         updateFacingAndPosition();
+    }
+
+    /**
+     * Starts the leaf out of the bottom of its block instead of the top: it falls from the lower half of the block,
+     * speeding up, and then flutters as usual.
+     */
+    public void dropOutOfTheBlockBelow() {
+        rising = false;
+        position = PixelPosition
+            .ofTile(offset)
+            .plusY(DROP_SPAWN_Y_OFFSET_PIXELS);
+        velocity = new FixedPointVelocity(0, DROP_INITIAL_Y_VELOCITY_FIXED_POINT);
+        dropTicksRemaining = DROP_TICKS;
+        positionSprite();
     }
 
     /**
