@@ -120,7 +120,9 @@ class RampTileCollisionGridTest {
         tiles[0][0] = tile;
         final LevelScene levelScene = new LevelScene();
         levelScene.setDimensions(new LevelSceneDimensions(2, 1));
-        levelScene.setStaticEnvironmentLayer(new LevelScene.LevelSceneLayer(STATIC_ENVIRONMENT, true, tiles));
+        levelScene.setStaticEnvironmentLayer(
+            LevelScene.LevelSceneLayer.builder().type(STATIC_ENVIRONMENT).visible(true).tiles(tiles).build()
+        );
         return levelScene;
     }
 

@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.ui.editor.level.tab;
 
-import house.x1337.app.smb3.model.game.MultiTileArea;
+import house.x1337.app.smb3.model.game.PixelArea;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * blocker in a press and drag.
  */
 class BlockerFlashTest {
-    private static final MultiTileArea ENEMY = new MultiTileArea(1, 1, 2, 2);
-    private static final MultiTileArea BRICK = new MultiTileArea(4, 0, 1, 1);
+    private static final PixelArea ENEMY = new PixelArea(16, 16, 32, 32);
+    private static final PixelArea BRICK = new PixelArea(64, 0, 16, 16);
 
     private final AtomicLong clock = new AtomicLong(10_000);
     private final List<Rectangle> repainted = new ArrayList<>();

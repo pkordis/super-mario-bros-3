@@ -2,6 +2,7 @@ package house.x1337.app.smb3.model.game;
 
 import java.util.Optional;
 
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
@@ -28,6 +29,15 @@ public record MultiTileArea(
         return cell.x() >= column && cell.x() <= lastColumn() && cell.y() >= row && cell.y() <= lastRow();
     }
 
+    public PixelArea toPixelArea() {
+        return new PixelArea(
+            column * TILE_SPRITE_SIZE,
+            row * TILE_SPRITE_SIZE,
+            columns * TILE_SPRITE_SIZE,
+            rows * TILE_SPRITE_SIZE
+        );
+    }
+
     public boolean intersects(final MultiTileArea other) {
         return column <= other.lastColumn()
             && other.column <= lastColumn()
@@ -35,7 +45,6 @@ public record MultiTileArea(
             && other.row <= lastRow();
     }
 
-    /** The part of this rectangle inside a scene of {@code sceneColumns} by {@code sceneRows}, if any. */
     public Optional<MultiTileArea> clippedTo(final LevelSceneDimensions levelSceneDimensions) {
         final int firstColumn = max(column, 0);
         final int firstRow = max(row, 0);

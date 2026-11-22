@@ -132,7 +132,6 @@ public final class KoopaParaTroopa implements KoopaTroopaBody, SlotPredecessor {
         gameEngine.getRootNode().attachChild(spriteGeometry);
         gameEngine.getRootNode().attachChild(wingGeometry);
 
-        erasePlacementFromBakedTexture();
         positionSprite();
     }
 

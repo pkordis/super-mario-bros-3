@@ -110,10 +110,6 @@ public final class ParaGoomba implements GoombaFamilyEnemy, SlotPredecessor {
         gameEngine.getRootNode().attachChild(spriteGeometry);
         gameEngine.getRootNode().attachChild(leftWingGeometry);
         gameEngine.getRootNode().attachChild(rightWingGeometry);
-
-        // The whole stamp an author painted, not just the anchor cell: the wing cells sit a row above
-        // the body and a column either side of it, and would otherwise stay baked where it was placed.
-        erasePlacementFromBakedTexture();
         positionSprite();
     }
 

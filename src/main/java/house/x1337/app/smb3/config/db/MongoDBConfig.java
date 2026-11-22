@@ -10,6 +10,7 @@ import com.mongodb.client.MongoDatabase;
 import house.x1337.app.smb3.config.db.mongo.CoordinatesCodec;
 import house.x1337.app.smb3.config.db.mongo.IntArrayCodec;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.repository.EnemyPlacementRecord;
 import house.x1337.app.smb3.model.repository.EnemyRecord;
 import house.x1337.app.smb3.model.repository.LevelObjectRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
@@ -108,6 +109,7 @@ public class MongoDBConfig {
                     .register(TileRecord.class)
                     .register(LevelSceneRecord.class)
                     .register(LevelSceneRecord.LevelSceneLayerData.class)
+                    .register(EnemyPlacementRecord.class)
                     .register(LevelObjectRecord.class)
                     .register(EnemyRecord.class)
                     .register(PipePortalRecord.class)

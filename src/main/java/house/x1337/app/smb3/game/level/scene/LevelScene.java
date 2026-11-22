@@ -6,6 +6,7 @@ import house.x1337.app.smb3.enumeration.MusicTrack;
 import house.x1337.app.smb3.game.camera.LevelSceneVibration;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import lombok.AllArgsConstructor;
@@ -56,5 +57,7 @@ public final class LevelScene implements LevelSceneCapabilities {
         private LevelSceneLayerType type;
         private boolean visible;
         private Tile[][] tiles;
+        @Builder.Default
+        private List<EnemyPlacement> enemyPlacements = new ArrayList<>();
     }
 }

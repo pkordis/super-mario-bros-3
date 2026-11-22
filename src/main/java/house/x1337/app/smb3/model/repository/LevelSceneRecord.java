@@ -12,6 +12,7 @@ import org.dizitart.no2.repository.annotations.Entity;
 import org.dizitart.no2.repository.annotations.Id;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 @Entity(
@@ -43,5 +44,6 @@ public final class LevelSceneRecord implements Serializable {
     public static final class LevelSceneLayerData implements Serializable {
         private LevelSceneLayerType type;
         private int[] tileIds;
+        private List<EnemyPlacementRecord> enemyPlacements;
     }
 }

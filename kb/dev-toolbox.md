@@ -271,6 +271,28 @@ python audio/trim_ogg_end.py --ogg IN.ogg --out OUT.ogg --end-ms N
   last at" line), cut a little after it, decode the result with jME again, and
   check that the kept samples equal the original's and the dropped part is silent.
 
+### db/clear_npc_enemy_tiles.py
+
+Backs up the stored level scenes, then clears the enemy part tiles from their NPC layer: every NPC cell holding a
+tile of type `ENEMY_PART` becomes 0, the empty cell; other NPC tiles are kept. Since SMB3-84 an enemy is a placement
+in the NPC layer's `enemyPlacements` list, and part tiles no longer spawn anything, so run this once per database on
+the SMB3-84 code, then place the enemies again in the editor.
+
+```
+pip install pymongo
+python db/clear_npc_enemy_tiles.py                          # lists what it would clear, per scene
+python db/clear_npc_enemy_tiles.py --title W01-L02-S01      # only that scene (repeatable)
+python db/clear_npc_enemy_tiles.py --apply                  # writes the backup, then clears
+python db/clear_npc_enemy_tiles.py --restore <backup.json>  # puts the backed-up scenes back
+```
+
+- The connection comes from the same properties files as the other `db/` tools (`collection.level-scenes` and
+  `collection.tiles` for the collection names).
+- `--apply` writes the whole documents of the scenes it will change to `~/smb3-db-backups/levelScenes-<time>.json`
+  (MongoDB extended JSON, every field kept; `--backup-dir` changes the folder) before it changes anything, and prints
+  the restore command.
+- It only rewrites `layers.NON_PLAYABLE_CHARACTERS.tileIds`; the rest of each scene is untouched.
+- Nitrite is not covered, as for the other `db/` tools.
 ### db/delete_virtual_tile_records.py
 
 Deletes the stored Rendering Starter and Spawn Point tile records (type `RENDERING_STARTER` or `SPAWN_POINT`,

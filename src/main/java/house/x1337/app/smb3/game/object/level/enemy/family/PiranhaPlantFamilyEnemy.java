@@ -84,8 +84,6 @@ public interface PiranhaPlantFamilyEnemy extends EnemyLevelObject, CastCapable {
             setStemGeometry(castedAnimator.buildStemSprite(this));
             getGameEngine().getRootNode().attachChild(getSpriteGeometry());
             getGameEngine().getRootNode().attachChild(getStemGeometry());
-
-            erasePlacementFromBakedTexture();
             positionPlantSprites();
         } else {
             throw new IllegalStateException(

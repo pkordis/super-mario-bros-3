@@ -1,77 +1,31 @@
 package house.x1337.app.smb3.model.game.enemy;
 
-import house.x1337.app.smb3.model.game.MultiTileArea;
 import house.x1337.app.smb3.model.game.Coordinates;
-import house.x1337.app.smb3.model.ui.tile.Tile;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 
-/** An enemy stamp placed in a layer, its rendering starter part on {@code rendererCell}. */
-public record EnemyPlacement(EnemyStamp stamp, Coordinates rendererCell) {
-    /** The stamp's whole grid around the renderer cell, empty parts included. */
-    public MultiTileArea bounds() {
-        final Coordinates renderingStarter = stamp.getRenderingStarter();
-        return new MultiTileArea(
-            rendererCell.x() - renderingStarter.x(),
-            rendererCell.y() - renderingStarter.y(),
-            stamp.getColumns(),
-            stamp.getRows()
-        );
+/**
+ * An enemy placed in a level scene: its stamp, and where the top-left pixel of its rendering starter part is, in
+ * level pixels. The editor draws the enemy there and the game spawns it there. See kb/editor.md, "Enemy placements".
+ */
+public record EnemyPlacement(
+    String stampId,
+    int x,
+    int y
+) {
+    public Coordinates rendererCell() {
+        return of(floorDiv(x, TILE_SPRITE_SIZE), floorDiv(y, TILE_SPRITE_SIZE));
     }
 
-    /**
-     * The layer cells that still hold this placement's parts. A part that was painted over, or that falls off the
-     * layer, owns nothing, so clearing these cells never touches anything else.
-     */
-    public List<Coordinates> heldCells(final Tile[][] layer) {
-        final List<Coordinates> cells = new ArrayList<>();
-        final MultiTileArea bounds = bounds();
-        for (int partRow = 0; partRow < stamp.getRows(); partRow++) {
-            for (int partColumn = 0; partColumn < stamp.getColumns(); partColumn++) {
-                final Tile part = stamp.tileAt(of(partColumn, partRow));
-                final Coordinates cell = of(bounds.column() + partColumn, bounds.row() + partRow);
-                final Tile held = tileAt(layer, cell);
-                if (isPartOf(part) && held != null && held.getId() == part.getId()) {
-                    cells.add(cell);
-                }
-            }
-        }
-        return cells;
+    /** How far, in pixels, the rendering starter sits right of and below the top-left of its cell. */
+    public Coordinates offsetInCell() {
+        return of(floorMod(x, TILE_SPRITE_SIZE), floorMod(y, TILE_SPRITE_SIZE));
     }
 
-    /** Whether every part that falls inside the layer is still in place. */
-    public boolean isWhole(final Tile[][] layer) {
-        int partsInLayer = 0;
-        final MultiTileArea bounds = bounds();
-        for (int partRow = 0; partRow < stamp.getRows(); partRow++) {
-            for (int partColumn = 0; partColumn < stamp.getColumns(); partColumn++) {
-                final Coordinates cell = of(bounds.column() + partColumn, bounds.row() + partRow);
-                if (isPartOf(stamp.tileAt(of(partColumn, partRow))) && isInside(layer, cell)) {
-                    partsInLayer++;
-                }
-            }
-        }
-        return heldCells(layer).size() == partsInLayer;
-    }
-
-    private boolean isPartOf(final Tile tile) {
-        return tile != null && !tile.isVirtual();
-    }
-
-    private Tile tileAt(
-        final Tile[][] layer,
-        final Coordinates cell
-    ) {
-        return isInside(layer, cell) ? layer[cell.y()][cell.x()] : null;
-    }
-
-    private boolean isInside(
-        final Tile[][] layer,
-        final Coordinates cell
-    ) {
-        return cell.y() >= 0 && cell.y() < layer.length && cell.x() >= 0 && cell.x() < layer[cell.y()].length;
+    public EnemyPlacement movedBy(final int dx, final int dy) {
+        return new EnemyPlacement(stampId, x + dx, y + dy);
     }
 }

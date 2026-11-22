@@ -8,6 +8,7 @@ import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.ui.editor.component.ScrollableFlowPanel;
 import house.x1337.app.smb3.ui.editor.component.WrapLayout;
+import house.x1337.app.smb3.ui.editor.level.enemy.edit.EnemyContextMenu;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneTabs;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import javax.swing.JPopupMenu;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -157,6 +159,41 @@ class EnemiesPalettePanelSyncTest {
         assertThat(button.isOutOfActiveLayer()).isTrue();
     }
 
+    @Test
+    @DisplayName("An entry has the enemy context menu, and once the enemy is edited it arms the edited copy")
+    void anEditedEnemyIsArmedFromItsEntry() {
+        // Prepare
+        final LevelSceneLayer npc = layer(NON_PLAYABLE_CHARACTERS);
+        tabWith(npc, npc);
+        final EnemyContextMenu menu = mock(EnemyContextMenu.class);
+        final JPopupMenu popup = new JPopupMenu();
+        when(menu.forEnemy(any())).thenReturn(popup);
+        final EnemiesPalettePanel panel = new EnemiesPalettePanel(
+            mock(EnemyStampService.class),
+            paletteSelectionService,
+            tabSystem,
+            menu
+        );
+        panel.addEnemy(enemy());
+        final EnemyButton button = createdButtons.getLast();
+        final EnemyStamp edited = EnemyStamp
+            .builder()
+            .id("goomba")
+            .enemyType(GOOMBA_NORMAL)
+            .tiles(new Tile[][] {{NULL_TILE, NULL_TILE}})
+            .renderingStarter(of(1, 0))
+            .build();
+
+        // Execute
+        panel.addEnemy(edited);
+        button.doClick();
+
+        // Verify
+        assertThat(button.getComponentPopupMenu()).isSameAs(popup);
+        assertThat(createdButtons).as("The entry is reused, not added again").hasSize(1);
+        assertThat(paletteSelectionService.getSelectedEnemy()).isSameAs(edited);
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
@@ -167,7 +204,7 @@ class EnemiesPalettePanelSyncTest {
             mock(EnemyStampService.class),
             paletteSelectionService,
             tabSystem,
-            mock(EnemyTilesAssembler.class)
+            mock(EnemyContextMenu.class)
         );
     }
 

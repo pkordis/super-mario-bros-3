@@ -4,7 +4,6 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.service.LevelSceneService;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.editor.tab.EditorTabSystem;
@@ -113,7 +112,6 @@ class LevelSceneTabsTest {
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             new PaletteSelectionService(),
-            mock(EnemyLevelSceneGridStamper.class),
             mock(EnemyStampService.class)
         );
         tab.setSceneId(sceneId);

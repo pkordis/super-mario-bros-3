@@ -4,6 +4,7 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord.LevelSceneLayerData;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
@@ -13,7 +14,8 @@ import static house.x1337.app.smb3.GameConstants.NULL_TILE;
  * have a layer missing. After normalization the record's layer map contains an entry for every
  * {@link LevelSceneLayerType} and each layer holds a complete flattened {@code rows * columns} grid.
  * Any gap — a missing layer type or a missing cell — is filled with the {@code NULL_TILE} id
- * ({@code 0}), so an empty layer is represented by an all-zero array rather than {@code null}.
+ * ({@code 0}), so an empty layer is represented by an all-zero array rather than {@code null}. A layer's enemy
+ * placements are kept, an empty list when it has none.
  */
 public interface LevelSceneRecordNormalizer {
     default LevelSceneRecord normalize(final LevelSceneRecord record) {
@@ -38,6 +40,9 @@ public interface LevelSceneRecordNormalizer {
             builder.layer(type.name(), LevelSceneLayerData.builder()
                 .type(type)
                 .tileIds(tileIds)
+                .enemyPlacements(existing != null && existing.getEnemyPlacements() != null
+                    ? new ArrayList<>(existing.getEnemyPlacements())
+                    : new ArrayList<>())
                 .build());
         }
         return builder.build();
@@ -54,5 +59,3 @@ public interface LevelSceneRecordNormalizer {
         return normalized;
     }
 }
-
-

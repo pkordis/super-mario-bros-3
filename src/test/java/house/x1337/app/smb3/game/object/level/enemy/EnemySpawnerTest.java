@@ -13,7 +13,9 @@ import house.x1337.app.smb3.game.sound.SoundPlayer;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.service.LevelObjectData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
@@ -30,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
@@ -38,6 +39,7 @@ import static house.x1337.app.smb3.game.object.level.enemy.placement.EnemyDepthA
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -47,23 +49,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Pins the runtime half of enemy placement: a level places an enemy by painting its {@code ENEMY_PART}
- * tiles, anchored by the enemy's rendering-starter tile ({@code EnemyStamper}), and this spawner turns
- * that anchor back into a live {@link Goomba} handed to the manager that drives it.
- *
- * <p>Guards the fix for the disconnect that left a placed Goomba frozen: the spawner used to resolve
- * placements through {@code LevelObjectService}, which has no record for an {@code ENEMY_PART} tile, so
- * no enemy was ever created and the stamped tiles just sat there. Also pins that the per-level reset of
- * the enemy animators' scene-bound assets happens here — not in a motion manager, which owns behaviour
- * and physics rather than drawing.
+ * Pins the runtime half of enemy placement: a level places an enemy as its stamp and the pixel its rendering
+ * starter starts on, and this spawner turns that placement into a live {@link Goomba} on that pixel, handed to the
+ * manager that drives it. Also pins that the per-level reset of the enemy animators' scene-bound assets happens here,
+ * not in a motion manager, which owns behaviour and physics rather than drawing.
  *
  * <p>And pins the placement lifecycle (SMB3-3), spawning by scroll: the first tick spawns the opening
  * screen, after that the one look-ahead column picked by the last scroll direction spawns, a live enemy
  * leaving the screen releases its placement to spawn again, and a dead one keeps it spent.
  */
 class EnemySpawnerTest {
-    private static final int ROWS = 3;
-    private static final int COLUMNS = 40;
     private static final int ANCHOR_TILE_ID = 42;
     private static final int PLACED_ROW = 1;
     private static final int PLACED_COLUMN = 2;
@@ -76,7 +71,7 @@ class EnemySpawnerTest {
     private EnemyStampService enemyStampService;
     private GameEngine gameEngine;
     private StubGoombaMotionManager goombaMotionManager;
-    private Tile[][] tiles;
+    private List<EnemyPlacement> placements;
     private EnemySpawner enemySpawner;
 
     @BeforeEach
@@ -89,11 +84,11 @@ class EnemySpawnerTest {
 
         final LevelScene levelScene = mock(LevelScene.class);
         final LevelScene.LevelSceneLayer layer = mock(LevelScene.LevelSceneLayer.class);
-        tiles = emptyLayer(ROWS, COLUMNS);
+        placements = new ArrayList<>();
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         when(gameEngine.getCameraState()).thenReturn(cameraState);
         when(levelScene.getNonPlayableCharactersLayer()).thenReturn(layer);
-        when(layer.getTiles()).thenReturn(tiles);
+        when(layer.getEnemyPlacements()).thenReturn(placements);
         // The spawner routes a placed enemy to the manager owning its type, found among the engine's
         // motion managers. doReturn bypasses the wildcard capture on List<? extends MotionManager<?>>.
         doReturn(List.of(goombaMotionManager)).when(gameEngine).getMotionManagers();
@@ -335,7 +330,7 @@ class EnemySpawnerTest {
         enemySpawner.spawn();
         givenTheScreenAt(0);
         enemySpawner.spawnPlacementsComingIntoView();
-        tiles[PLACED_ROW][PLACED_COLUMN] = NULL_TILE;
+        placements.clear();
         goombaMotionManager.getActiveInstances().clear();
         enemySpawner.spawn();
 
@@ -384,12 +379,14 @@ class EnemySpawnerTest {
     }
 
     @Test
-    @DisplayName("An enemy tile that anchors no enemy spawns nothing")
-    void anEnemyTileThatAnchorsNoEnemySpawnsNothing() {
-        // Prepare - an enemy-category tile the editor left unclassified: no record anchors it
-        tiles[0][0] = enemyPartTile(99);
-        when(enemyStampService.findByRenderingStarterTileId(99)).thenReturn(Optional.empty());
-        when(enemyStampService.isEnemyPartTile(99)).thenReturn(false);
+    @DisplayName("A placement whose stamp is gone, or unusable, spawns nothing")
+    void aPlacementWithoutAUsableStampSpawnsNothing() {
+        // Prepare - one stamp deleted since, one that lost its grid
+        placements.add(new EnemyPlacement("deleted", PLACED_COLUMN * TILE_SPRITE_SIZE, 0));
+        placements.add(new EnemyPlacement("broken", PLACED_COLUMN * TILE_SPRITE_SIZE, TILE_SPRITE_SIZE));
+        when(enemyStampService.findById("deleted")).thenReturn(Optional.empty());
+        when(enemyStampService.findById("broken"))
+            .thenReturn(Optional.of(EnemyStamp.builder().id("broken").enemyType(GOOMBA_NORMAL).build()));
         givenTheScreenAt(0);
 
         // Execute
@@ -467,23 +464,84 @@ class EnemySpawnerTest {
         assertThat(configuredData()).containsOnly(entry(MODE_ATTRIBUTE, GOOMBA_NORMAL.getMode().name()));
     }
 
+    @Test
+    @DisplayName("An enemy spawns on the exact pixel it was placed on, inside its cell, and so does every respawn")
+    void anEnemySpawnsOnItsPlacedPixel() {
+        // Prepare - real Goombas, so the position they start at is observable; 5 px right of and 7 px into column 18
+        givenAPlacedGoombaAt(18 * TILE_SPRITE_SIZE + 5, PLACED_ROW * TILE_SPRITE_SIZE + 7, Map.of());
+        staticBeanFactory
+            .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, at(18)))
+            .thenAnswer(invocation -> realGoombaAt(at(18)));
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+        enemySpawner.spawnPlacementsComingIntoView();
+        givenTheScreenAt(16);
+
+        // Execute - spawned at the look-ahead, deleted alive, spawned again
+        enemySpawner.spawnPlacementsComingIntoView();
+        final Goomba first = goombaMotionManager.getActiveInstances().removeFirst();
+        enemySpawner.releasePlacementOf(first);
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        final Goomba second = goombaMotionManager.getActiveInstances().getFirst();
+        for (final PixelPosition position : List.of(first.getPosition(), second.getPosition())) {
+            assertThat(position.x()).as("X").isCloseTo(18 * TILE_SPRITE_SIZE + 5, within(1e-9));
+            assertThat(position.y()).as("Y").isCloseTo(PLACED_ROW * TILE_SPRITE_SIZE + 7, within(1e-9));
+        }
+    }
+
+    @Test
+    @DisplayName("An enemy placed on its cell's top-left pixel is not moved within the cell")
+    void anEnemyOnItsCellIsNotMoved() {
+        // Prepare
+        givenAPlacedGoombaAt(PLACED_COLUMN);
+        enemySpawner.spawn();
+        givenTheScreenAt(0);
+
+        // Execute
+        enemySpawner.spawnPlacementsComingIntoView();
+
+        // Verify
+        verify(goombaMotionManager.getActiveInstances().getFirst()).shiftPosition(of(0, 0));
+    }
+
     // -------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------
 
-    /** Paints a Goomba's anchor in the given column of the NPC layer; each spawn from it builds a new Goomba. */
+    /** Places a Goomba on the given column's cell; each spawn from it builds a new Goomba. */
     private void givenAPlacedGoombaAt(final int column) {
         givenAPlacedGoombaAt(column, Map.of());
     }
 
     /** As {@link #givenAPlacedGoombaAt(int)}, for a Goomba stamp carrying the given custom data. */
     private void givenAPlacedGoombaAt(final int column, final Map<String, Object> data) {
-        tiles[PLACED_ROW][column] = enemyPartTile(ANCHOR_TILE_ID);
-        final EnemyStamp stamp = EnemyStamp.builder().id("goomba-1").enemyType(GOOMBA_NORMAL).data(data).build();
-        when(enemyStampService.findByRenderingStarterTileId(ANCHOR_TILE_ID)).thenReturn(Optional.of(stamp));
+        givenAPlacedGoombaAt(column * TILE_SPRITE_SIZE, PLACED_ROW * TILE_SPRITE_SIZE, data);
+    }
+
+    /** Places a Goomba with its rendering starter on the given level pixel. */
+    private void givenAPlacedGoombaAt(final int x, final int y, final Map<String, Object> data) {
+        placements.add(new EnemyPlacement("goomba-1", x, y));
+        final EnemyStamp stamp = EnemyStamp
+            .builder()
+            .id("goomba-1")
+            .enemyType(GOOMBA_NORMAL)
+            .tiles(new Tile[][] {{enemyPartTile(ANCHOR_TILE_ID)}})
+            .renderingStarter(of(0, 0))
+            .data(data)
+            .build();
+        when(enemyStampService.findById("goomba-1")).thenReturn(Optional.of(stamp));
+        final Coordinates cell = of(Math.floorDiv(x, TILE_SPRITE_SIZE), Math.floorDiv(y, TILE_SPRITE_SIZE));
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, at(column)))
+            .when(() -> StaticBeanFactory.getBean(Goomba.class, gameEngine, cell))
             .thenAnswer(invocation -> mock(Goomba.class));
+    }
+
+    private Goomba realGoombaAt(final Coordinates cell) {
+        final Goomba goomba = new Goomba(gameEngine, cell);
+        goomba.init();
+        return goomba;
     }
 
     /** The attributes the one spawned Goomba was configured with. */
@@ -542,11 +600,4 @@ class EnemySpawnerTest {
             .build();
     }
 
-    private static Tile[][] emptyLayer(final int rows, final int columns) {
-        final Tile[][] tiles = new Tile[rows][columns];
-        for (final Tile[] row : tiles) {
-            Arrays.fill(row, NULL_TILE);
-        }
-        return tiles;
-    }
 }

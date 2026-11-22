@@ -37,8 +37,11 @@ import static house.x1337.app.smb3.enumeration.VirtualObjectType.PIPE_PORTAL_VER
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyType.GOOMBA_NORMAL;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
+import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
+import static java.awt.event.MouseEvent.BUTTON1;
 import static java.awt.event.MouseEvent.MOUSE_EXITED;
 import static java.awt.event.MouseEvent.MOUSE_MOVED;
+import static java.awt.event.MouseEvent.MOUSE_PRESSED;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -128,6 +131,47 @@ class LevelSceneEditorGridPreviewTest {
     }
 
     @Test
+    @DisplayName("An armed enemy follows the pointer to the level pixel, and with Ctrl held snaps to the cell")
+    void enemyFollowsThePointerPixel() {
+        // Prepare - a one-tile enemy
+        when(selection.getSelectedEnemy()).thenReturn(oneTileEnemy());
+        activate(NON_PLAYABLE_CHARACTERS);
+        final BufferedImage before = paint();
+
+        // Execute - the pointer on editor pixel (100, 140), which is level pixel (25, 35) in cell (1, 2)
+        pointerAt(100, 140, 0);
+        final BufferedImage free = paint();
+        pointerAt(100, 140, CTRL_DOWN_MASK);
+        final BufferedImage snapped = paint();
+
+        // Verify - free, the pointer is in the middle of the part: level pixels (17, 27) to (32, 42)
+        assertThat(isHalfRed(free.getRGB(68, 108), before.getRGB(68, 108))).as("Its top-left").isTrue();
+        assertThat(free.getRGB(67, 108)).as("Left of it").isEqualTo(before.getRGB(67, 108));
+        assertThat(isHalfRed(free.getRGB(131, 171), before.getRGB(131, 171))).as("Its bottom-right").isTrue();
+        assertThat(free.getRGB(132, 171)).as("Right of it").isEqualTo(before.getRGB(132, 171));
+        assertThat(isHalfRed(snapped.getRGB(64, 128), before.getRGB(64, 128))).as("Snapped top-left").isTrue();
+        assertThat(snapped.getRGB(63, 128)).as("Left of the cell").isEqualTo(before.getRGB(63, 128));
+        assertThat(snapped.getRGB(128, 191)).as("Right of the cell").isEqualTo(before.getRGB(128, 191));
+        verify(tab).updateStatus(of(1, 2), of(17, 27));
+    }
+
+    @Test
+    @DisplayName("A click places the armed enemy on the pixel its preview showed")
+    void aClickPlacesTheEnemyOnThePreviewedPixel() {
+        // Prepare
+        when(selection.getSelectedEnemy()).thenReturn(oneTileEnemy());
+        when(tab.hasPlaceableSelection()).thenReturn(true);
+        activate(NON_PLAYABLE_CHARACTERS);
+
+        // Execute
+        grid.getMouseListeners()[0]
+            .mousePressed(new MouseEvent(grid, MOUSE_PRESSED, 0, 0, 100, 140, 1, false, BUTTON1));
+
+        // Verify
+        verify(tab).paintTile(of(1, 2), of(17, 27));
+    }
+
+    @Test
     @DisplayName("A spawn point shows above the hovered cell, and nothing on the top row")
     void spawnPointShowsAboveTheHoveredCell() {
         // Prepare
@@ -205,6 +249,20 @@ class LevelSceneEditorGridPreviewTest {
 
     private void activate(final LevelSceneLayerType type) {
         when(tab.getActiveLayer()).thenReturn(layers.get(type));
+    }
+
+    private EnemyStamp oneTileEnemy() {
+        return EnemyStamp
+            .builder()
+            .id("goomba")
+            .enemyType(GOOMBA_NORMAL)
+            .tiles(new Tile[][] {{redTile(ENEMY_PART)}})
+            .renderingStarter(of(0, 0))
+            .build();
+    }
+
+    private void pointerAt(final int x, final int y, final int modifiers) {
+        grid.getMouseMotionListeners()[0].mouseMoved(new MouseEvent(grid, MOUSE_MOVED, 0, modifiers, x, y, 0, false));
     }
 
     private void moveTo(final Coordinates cell) {
