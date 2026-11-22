@@ -8,7 +8,6 @@ import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
@@ -185,10 +184,7 @@ class BackgroundMusicStorageTest {
             .when(() -> StaticBeanFactory.getBean(PaletteSelectionService.class))
             .thenReturn(mock(PaletteSelectionService.class));
         staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(EnemyLevelSceneGridStamper.class))
-            .thenReturn(mock(EnemyLevelSceneGridStamper.class));
-        staticBeanFactory
-            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any(), any()))
+            .when(() -> StaticBeanFactory.getBean(eq(LevelSceneEditorTab.class), any(), any(), any(), any()))
             .thenReturn(tab);
         return tab;
     }

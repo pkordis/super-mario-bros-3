@@ -1,6 +1,6 @@
 package house.x1337.app.smb3.ui.editor.level.tab;
 
-import house.x1337.app.smb3.model.game.MultiTileArea;
+import house.x1337.app.smb3.model.game.PixelArea;
 
 import javax.swing.Timer;
 import java.awt.Graphics2D;
@@ -28,8 +28,8 @@ final class BlockerFlash implements GridBoxDrawing {
     private static final int STRIPE_BLACK = 0xFF000000;
     private static final int STRIPE_YELLOW = 0xFFFFD800;
 
-    private final Set<MultiTileArea> flashing = new LinkedHashSet<>();
-    private final Set<MultiTileArea> settledThisGesture = new HashSet<>();
+    private final Set<PixelArea> flashing = new LinkedHashSet<>();
+    private final Set<PixelArea> settledThisGesture = new HashSet<>();
     private final TexturePaint stripes = stripes();
     private final Consumer<Rectangle> repainter;
     private final LongSupplier clock;
@@ -46,14 +46,14 @@ final class BlockerFlash implements GridBoxDrawing {
         settledThisGesture.clear();
     }
 
-    void notePlaced(final MultiTileArea placed) {
+    void notePlaced(final PixelArea placed) {
         settledThisGesture.add(placed);
     }
 
     /** Blinks the blockers not yet refused or placed in this gesture, restarting the blink. */
-    void refuse(final Collection<MultiTileArea> blockers) {
+    void refuse(final Collection<PixelArea> blockers) {
         boolean anyNew = false;
-        for (final MultiTileArea blocker : blockers) {
+        for (final PixelArea blocker : blockers) {
             if (settledThisGesture.add(blocker)) {
                 flashing.add(blocker);
                 anyNew = true;
@@ -67,7 +67,7 @@ final class BlockerFlash implements GridBoxDrawing {
         repaintFlashing();
     }
 
-    Set<MultiTileArea> getFlashing() {
+    Set<PixelArea> getFlashing() {
         return Set.copyOf(flashing);
     }
 
@@ -88,7 +88,7 @@ final class BlockerFlash implements GridBoxDrawing {
         if (!isOn()) {
             return;
         }
-        for (final MultiTileArea blocker : flashing) {
+        for (final PixelArea blocker : flashing) {
             drawBorder(graphics, stripes, pixelBox(blocker));
         }
     }

@@ -13,9 +13,9 @@ import house.x1337.app.smb3.game.object.level.enemy.animator.EnemyAnimator;
 import house.x1337.app.smb3.game.object.level.enemy.motion.EnemyMotionManager;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.service.LevelObjectData;
-import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
 import house.x1337.app.smb3.util.CastCapable;
 import lombok.Getter;
@@ -32,11 +32,9 @@ import java.util.stream.Stream;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.enumeration.TileType.Category.ENEMY;
 import static house.x1337.app.smb3.enumeration.enemy.EnemyMode.MODE_ATTRIBUTE;
 import static house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager.SPAWN_LOOK_AHEAD_LEFT_PIXELS;
 import static house.x1337.app.smb3.game.object.level.ActiveLevelObjectMotionManager.SPAWN_LOOK_AHEAD_RIGHT_PIXELS;
-import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.lang.Math.floor;
 import static java.lang.Math.floorDiv;
 import static java.util.Collections.unmodifiableMap;
@@ -49,8 +47,8 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
     private final Animator.Registry animatorRegistry = getBean(Animator.Registry.class);
     private final EnemyStampService enemyStampService = getBean(EnemyStampService.class);
     private final EnemyDepthAllocator depthAllocator = new EnemyDepthAllocator();
-    private final List<EnemyPlacement> placements = new ArrayList<>();
-    private final Map<EnemyLevelObject, EnemyPlacement> placementsByEnemy = new IdentityHashMap<>();
+    private final List<PlacedEnemy> placements = new ArrayList<>();
+    private final Map<EnemyLevelObject, PlacedEnemy> placementsByEnemy = new IdentityHashMap<>();
     private final GameEngine gameEngine;
 
     private boolean openingScreenSpawned;
@@ -70,18 +68,11 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         openingScreenSpawned = false;
 
         final LevelScene.LevelSceneLayer layer = gameEngine.getLevelScene().getNonPlayableCharactersLayer();
-        if (layer == null || layer.getTiles() == null) {
+        if (layer == null || layer.getEnemyPlacements() == null) {
             return;
         }
-
-        final Tile[][] tiles = layer.getTiles();
-        for (int row = 0; row < tiles.length; row++) {
-            for (int column = 0; column < tiles[row].length; column++) {
-                recordPlacementAt(tiles[row][column], of(column, row));
-            }
-        }
+        layer.getEnemyPlacements().forEach(this::record);
     }
-
     public void spawnPlacementsComingIntoView() {
         if (placements.isEmpty()) {
             return;
@@ -112,7 +103,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
 
     /** Spawns every placement in the column that has no instance out in the level. */
     private void spawnColumn(final int column) {
-        for (final EnemyPlacement placement : placements) {
+        for (final PlacedEnemy placement : placements) {
             if (placement.column() == column && !placement.isSpawned()) {
                 spawnFrom(placement);
             }
@@ -126,7 +117,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      * @param enemy the instance being thrown away; one without a placement is ignored
      */
     public void releasePlacementOf(final EnemyLevelObject enemy) {
-        final EnemyPlacement placement = placementsByEnemy.remove(enemy);
+        final PlacedEnemy placement = placementsByEnemy.remove(enemy);
         if (placement != null) {
             placement.release();
         }
@@ -151,7 +142,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         final EnemyLevelObject predecessor,
         final EnemyLevelObject successor
     ) {
-        final EnemyPlacement placement = placementsByEnemy.remove(predecessor);
+        final PlacedEnemy placement = placementsByEnemy.remove(predecessor);
         if (placement != null) {
             placementsByEnemy.put(successor, placement);
         }
@@ -167,34 +158,23 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         spawnEnemy(enemy);
     }
 
-    /**
-     * Records the enemy an author placed on this cell, if any. A level places an enemy by painting its
-     * {@code ENEMY_PART} tiles, anchored by the enemy's <em>rendering-starter</em> tile
-     * ({@code EnemyStamper}); this is the runtime half of that placement, so it keys on the same anchor.
-     *
-     * <p>The anchor tile identifies the {@link EnemyStamp} through
-     * {@link EnemyStampService#findByRenderingStarterTileId(int)}, and the record's {@link EnemyType} names
-     * both the runtime {@link LevelObjectType} to instantiate and the {@code EnemyMode} the author picked.
-     *
-     * <p>A non-anchor part of a multi-tile enemy resolves to no record here and places nothing: it is
-     * drawn by the layer but the whole actor is spawned once, from its anchor.
-     */
-    private void recordPlacementAt(
-        final Tile tile,
-        final Coordinates cell
-    ) {
-        if (!tile.isRenderable()) {
+    /** Records an enemy the author placed; one whose stamp is gone or unusable places nothing and is logged. */
+    private void record(final EnemyPlacement placement) {
+        final Optional<EnemyStamp> stamp = enemyStampService
+            .findById(placement.stampId())
+            .filter(EnemyStamp::isWellFormed);
+        if (stamp.isEmpty()) {
+            log.warn("Enemy placement at x={}, y={} names no usable stamp ({}); nothing spawned.",
+                placement.x(), placement.y(), placement.stampId());
             return;
         }
-        final Optional<EnemyStamp> enemy = enemyStampService.findByRenderingStarterTileId(tile.getId());
-        if (enemy.isEmpty()) {
-            warnAboutUnclassifiedEnemyTile(enemyStampService, tile, cell);
-            return;
-        }
-        final EnemyStamp stamp = enemy.orElseThrow();
-        placements.add(new EnemyPlacement(stamp.getEnemyType(), cell, dataOf(stamp)));
+        placements.add(new PlacedEnemy(
+            stamp.get().getEnemyType(),
+            placement.rendererCell(),
+            dataOf(stamp.get()),
+            placement.offsetInCell()
+        ));
     }
-
     private static Map<String, Object> dataOf(final EnemyStamp stamp) {
         return stamp.getData() == null ? Map.of() : unmodifiableMap(new HashMap<>(stamp.getData()));
     }
@@ -209,7 +189,7 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
      * <em>last</em> under {@code MODE_ATTRIBUTE}, so the type is the single source of truth for the mode:
      * a stored {@code mode} entry, which the editor refuses to save anyway, never overrides it.
      */
-    private void spawnFrom(final EnemyPlacement placement) {
+    private void spawnFrom(final PlacedEnemy placement) {
         final EnemyType enemyType = placement.getEnemyType();
         final LevelObjectType type = enemyType.getLevelObjectType();
         final LevelObject levelObject = getBean(type.getInstanceType(), gameEngine, placement.getAnchor());
@@ -217,35 +197,12 @@ public final class EnemySpawner implements GameEngineAware, CastCapable {
         data.put(MODE_ATTRIBUTE, enemyType.getMode().name());
         levelObject.configure(new LevelObjectData(data));
         if (levelObject instanceof final EnemyLevelObject enemyLevelObject) {
+            enemyLevelObject.shiftPosition(placement.getOffsetInCell());
             enemyLevelObject.setBaseDepth(depthAllocator.next());
             spawnEnemy(enemyLevelObject);
             placement.markSpawned();
             placementsByEnemy.put(enemyLevelObject, placement);
         }
-    }
-
-    /**
-     * A tile the editor classified as an enemy tile, but which anchors no enemy, silently would not
-     * spawn. Say so instead — unless it is a non-anchor part of a known enemy, which is drawn by the
-     * layer and spawned from its anchor, so it is expected to resolve to nothing here.
-     */
-    private void warnAboutUnclassifiedEnemyTile(
-        final EnemyStampService enemyStampService,
-        final Tile tile,
-        final Coordinates cell
-    ) {
-        if (tile.getType() == null || tile.getType().getCategory() != ENEMY) {
-            return;
-        }
-        if (enemyStampService.isEnemyPartTile(tile.getId())) {
-            return;
-        }
-        log.warn(
-            "Enemy tile (id={}) at row={}, column={} anchors no enemy; nothing spawned.",
-            tile.getId(),
-            cell.y(),
-            cell.x()
-        );
     }
 
     /**

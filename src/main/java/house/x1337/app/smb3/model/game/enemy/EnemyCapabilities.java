@@ -1,7 +1,11 @@
 package house.x1337.app.smb3.model.game.enemy;
 
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.PixelArea;
 import house.x1337.app.smb3.model.ui.tile.Tile;
+
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.model.game.Coordinates.of;
 
 /**
  * An {@link EnemyStamp}'s behaviour — the enemy counterpart of {@code TileCapabilities}.
@@ -49,8 +53,25 @@ public sealed interface EnemyCapabilities permits EnemyStamp {
         return renderingStarterTile().getId();
     }
 
+    /** The stamp placed with its rendering starter part on {@code rendererCell}, exactly on the cell. */
     default EnemyPlacement placedAt(final Coordinates rendererCell) {
-        return new EnemyPlacement((EnemyStamp) this, rendererCell);
+        return placedAtPixel(of(rendererCell.x() * TILE_SPRITE_SIZE, rendererCell.y() * TILE_SPRITE_SIZE));
+    }
+
+    /** The stamp placed with the top-left of its rendering starter part on {@code levelPixel}. */
+    default EnemyPlacement placedAtPixel(final Coordinates levelPixel) {
+        return new EnemyPlacement(((EnemyStamp) this).getId(), levelPixel.x(), levelPixel.y());
+    }
+
+    /** The pixels {@code placement} of this stamp covers: its whole grid, empty parts included. */
+    default PixelArea boundsOf(final EnemyPlacement placement) {
+        final Coordinates renderingStarter = ((EnemyStamp) this).getRenderingStarter();
+        return new PixelArea(
+            placement.x() - renderingStarter.x() * TILE_SPRITE_SIZE,
+            placement.y() - renderingStarter.y() * TILE_SPRITE_SIZE,
+            getColumns() * TILE_SPRITE_SIZE,
+            getRows() * TILE_SPRITE_SIZE
+        );
     }
 
     /**

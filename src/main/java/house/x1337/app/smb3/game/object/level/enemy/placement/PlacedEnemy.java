@@ -9,10 +9,11 @@ import java.util.Map;
 
 @Getter
 @RequiredArgsConstructor
-final class EnemyPlacement {
+final class PlacedEnemy {
     private final EnemyType enemyType;
     private final Coordinates anchor;
     private final Map<String, Object> data;
+    private final Coordinates offsetInCell;
     private boolean spawned;
 
     int column() {

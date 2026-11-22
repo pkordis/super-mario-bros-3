@@ -1,15 +1,19 @@
 package house.x1337.app.smb3.repository.nitrite;
 
 import house.x1337.app.smb3.config.db.NitriteJacksonMapper;
+import house.x1337.app.smb3.model.repository.EnemyPlacementRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
+import house.x1337.app.smb3.model.repository.LevelSceneRecord.LevelSceneLayerData;
 import org.dizitart.no2.Nitrite;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
+import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.MusicTrack.ATHLETIC;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +63,26 @@ class NitriteLevelSceneRepositoryTest {
 
         // Verify
         assertThat(titles).hasSize(2).containsEntry("scene-1", "1-1").containsEntry("scene-2", null);
+    }
+
+    @Test
+    @DisplayName("The NPC layer's enemy placements are stored on the scene document and read back")
+    void storesTheEnemyPlacements() {
+        // Prepare
+        final LevelSceneRecord withEnemies = record("scene-1", "1-2");
+        withEnemies.setLayers(Map.of(NON_PLAYABLE_CHARACTERS.name(), LevelSceneLayerData.builder()
+            .type(NON_PLAYABLE_CHARACTERS)
+            .tileIds(new int[] {0})
+            .enemyPlacements(List.of(new EnemyPlacementRecord("goomba", 1719, 367)))
+            .build()));
+        repository.upsert(withEnemies);
+
+        // Execute
+        final LevelSceneRecord read = repository.findById("scene-1").orElseThrow();
+
+        // Verify
+        assertThat(read.getLayers().get(NON_PLAYABLE_CHARACTERS.name()).getEnemyPlacements())
+            .containsExactly(new EnemyPlacementRecord("goomba", 1719, 367));
     }
 
     @Test

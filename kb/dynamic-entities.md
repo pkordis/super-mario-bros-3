@@ -195,6 +195,9 @@ and no player**. Consequences, all of them non-negotiable:
   being constructed). `findClosestPlayerTo` in particular.
 
 ### Placement path (tile -> entity), and the placement-marker erase
+> **Superseded by SMB3-84** (section "Enemy placements in pixels"): enemies are no longer painted as tiles or
+> baked into the NPC layer, and the spawner reads the NPC layer's placement list. Kept for the history.
+
 Enemies are painted in the editor as a tile on the **`NON_PLAYABLE_CHARACTERS` layer** and classified
 as **`LevelObjectTypeMultiTiled.GOOMBA`**. Two rules follow, and they are the structural core of the
 whole enemy path:
@@ -527,11 +530,13 @@ moved down to `RewardLevelObject`, and `EnemyLevelObject` defaults `getBounds()`
 `goomba_left.png` / `goomba_right.png`, 16×16 each (single tile). The ROM's two normal frames are
 mirrored art, which is why `GoombaAnimator` cycles frames and applies **no** quad flip for facing: the
 `SPR_HFLIP` facing and the `Objects_Frame` toggle mirror the same tiles, so they are visually
-interchangeable. `GoombaAnimatorAssetsTest` pins it (and pins the descriptor's filenames, loaded
+interchangeable. `GoombaAnimatorAssetsTest` pins it above the bottom row (and pins the descriptor's filenames, loaded
 through the real loader with a recording sprite loader — no asset manager needed). If a future mode's
 art breaks the mirror, facing becomes a real flip (leaf-style `setLocalScale(-1,1,1)` + `+quadWidth`)
 and it belongs in the animator. The only other Goomba frame in the ROM is the squashed one
 (`Objects_Frame = 3`, V-flipped by `ObjState_Squashed` `PRG000_D07E`) — stomp response, no asset yet.
+The bottom row, where the feet meet the ground, is drawn for each frame on its own and need not mirror: since SMB3-84
+the normal Goomba's two frames both leave pixels 7-10 of that row clear, while the red Goomba's mirror them.
 
 ### Player interaction is deliberately absent
 `EnemyLevelObject.onCollisionWith` is a documented no-op and enemy managers **never insert into
@@ -555,6 +560,10 @@ de-duplication, ENEMY_PART typing, row-major grid, lower-left default anchor) an
 ---
 
 ## Enemy placement → runtime spawn bridge (fixed 2026-09)
+
+> **Superseded by SMB3-84** (section "Enemy placements in pixels"): enemies are no longer painted as tiles or
+> baked into the NPC layer, and the spawner reads the NPC layer's placement list. Kept for the history.
+
 
 **Bug that froze placed enemies.** A placed Goomba rendered but never moved because the two
 halves of enemy placement were disconnected:
@@ -2348,6 +2357,53 @@ details, values and dasm sites are in `kb/slopes.md`, sections 3 and 4.
 
 ---
 
+## Enemy placements in pixels (SMB3-84, 2026-11)
+
+An enemy starts exactly where the author placed it, to the level pixel, in the editor and in the game, on every
+respawn too. The editor side is `kb/editor.md`, section 9.
+
+### What is stored
+
+The NPC layer holds a list of `EnemyPlacement`s (`model/game/enemy`): the stamp id, and the level pixel (`x`, `y`)
+where the top-left of the stamp's rendering starter part is. Its cell is `rendererCell()` (the pixel divided by 16,
+rounding down) and `offsetInCell()` is the 0-15 pixel offset inside it. Enemies are no longer `ENEMY_PART` tiles in
+the layer, so nothing resolves an enemy from tile ids any more.
+
+### Spawning
+
+`EnemySpawner.spawn` reads `getNonPlayableCharactersLayer().getEnemyPlacements()`. Each placement whose stamp is
+found and well formed becomes a `PlacedEnemy` (the spawner's own record: type, anchor cell, data, offset in cell);
+one without a usable stamp is skipped with a warning. `spawnFrom` builds the enemy on its anchor cell as before (its
+`init` puts it on `PixelPosition.ofTile(anchor)`, plus the pipe offset for the piranha family), then calls
+`EnemyLevelObject.shiftPosition(offsetInCell)`. A respawn goes through `spawnFrom` again, so it starts on the same
+pixel. The anchor (`getOffset()`) stays the cell: spawning by column and the score popups use it.
+
+Enemies are no longer baked into the NPC layer texture, so `erasePlacementFromBakedTexture` and its footprint lookup
+are gone, and `EnemyLevelObject` no longer extends `BakedLayerPainter`.
+
+There is no snapping or landing step: an enemy placed in the air falls, one placed inside the ground is in the
+ground. The author tunes the start in the editor and a test run.
+
+### Why pixels: the World 1-2 investigation
+
+SMB3-84 first shifted a walker by a fixed half tile on and next to ramps. Comparing World 1-2 with a 1x map of the
+level (`1-2.png`, a capture taken during play) showed why that could not match:
+
+- dasm stores objects on the 16 px grid only. `Level_ObjectsSpawnByScroll` (prg005:5118-5144) sets X = column x 16
+  and Y = row x 16 from the level's object list; `ObjInit_GroundTroop` (prg004:3753) only faces the player.
+- Goombas and Para-Goombas (probe group 1, `OTDO_G1R1`, prg000:177: feet probe at X + 8, Y + 16) then fall and land on
+  the surface under their centre (`Object_HitGround`, slope height from `Slope_LUT`): 8 px into a steep ramp, 3, 4,
+  11 or 12 px into the gentle halves. X never changes.
+- In the map, the flat-ground Goombas and both red Para-Goombas sit exactly on their dasm cells, but the four slope
+  Goombas have already walked 9 to 17 px down or up the slope. Each of the six is exactly on the surface under its
+  centre. Their sprites start at (1317, 354), (1345, 294), (1695, 343) and (1719, 367).
+- Fixed 8 px steps reach neither those positions nor the gentle-slope depths. A free pixel position reaches all of
+  them, so placement became pixel-precise and the half-tile rule was dropped.
+
+The 1-2 placements in dasm (`PRG/objects/1-2.asm`): Goomba (32, 24), (83, 23) inside the hill under a ramp,
+(85, 16) in the air, (107, 22), (108, 23), (126, 24); Para-Goomba (57, 21), (97, 20).
+
+---
 ## Who reacts to a block bump (research, SMB3-82)
 
 The research behind SMB3-82, which ported the reactions of every class the port has; the last table says how.

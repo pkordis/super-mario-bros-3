@@ -10,11 +10,12 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.MultiTileArea;
+import house.x1337.app.smb3.model.game.PixelArea;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.PipePortalDetails;
@@ -33,7 +34,6 @@ import java.awt.Font;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,6 +43,7 @@ import java.util.Set;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_X;
 import static house.x1337.app.smb3.GameConstants.VIEWPORT_TILES_Y;
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
@@ -57,8 +58,6 @@ import static java.awt.BorderLayout.CENTER;
 import static java.awt.BorderLayout.SOUTH;
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static java.util.Comparator.comparingInt;
 import static javax.swing.BorderFactory.createEmptyBorder;
 
@@ -66,7 +65,7 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 @Prototype
 @RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapabilities {
+public class LevelSceneEditorTab extends BaseEditorTab implements LevelSceneTileCapabilities {
     private static final Comparator<Coordinates> TOP_TO_BOTTOM_LEFT_TO_RIGHT =
         comparingInt(Coordinates::y).thenComparingInt(Coordinates::x);
 
@@ -75,13 +74,13 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
     private final LevelSceneImportRouter levelSceneImportRouter;
     private final TilePalettePanel tilePalettePanel;
     private final PaletteSelectionService paletteSelectionService;
-    private final EnemyLevelSceneGridStamper enemyLevelSceneGridStamper;
     private final EnemyStampService enemyStampService;
     private final Runnable previewRefresher = levelSceneEditorGrid::refreshPreview;
 
     private Coordinates levelCompletionCard = null;
     private Coordinates renderingStarter = null;
     private Coordinates spawnPoint = null;
+    private EnemyPlacement selectedEnemyPlacement = null;
     private LevelSceneDimensions levelSceneDimensions;
     private LevelSceneLayer activeLayer;
     private List<LevelSceneLayer> layers;
@@ -135,6 +134,7 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
             for (final Tile[] row : layer.getTiles()) {
                 Arrays.fill(row, NULL_TILE);
             }
+            layer.getEnemyPlacements().clear();
         }
         resetContent();
         levelSceneEditorGrid.repaint();
@@ -142,6 +142,7 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
     }
 
     private void resetContent() {
+        selectedEnemyPlacement = null;
         renderingStarter = null;
         spawnPoint = null;
         levelCompletionCard = null;
@@ -160,7 +161,8 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
      * where it is, so shrinking cuts rows at the top and columns at the right.
      *
      * @return the cut cells, in the current coordinates, top to bottom and left to right, grouped by layer label
-     *     (the card and the pipe portals count as the NPC layer's), then one group each for the spawn point and the
+     *     (the card, the pipe portals and the enemies, by their rendering starter, count as the NPC layer's), then one
+     *     group each for the spawn point and the
      *     rendering starter; empty when nothing would be lost
      */
     public Map<String, List<Coordinates>> findContentCutBy(final int newColumns, final int newRows) {
@@ -178,6 +180,11 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
                 }
             }
             if (layer.getType() == NON_PLAYABLE_CHARACTERS) {
+                for (final EnemyPlacement enemy : layer.getEnemyPlacements()) {
+                    if (isCut(enemy.rendererCell(), newColumns, cutTopRows)) {
+                        cells.add(enemy.rendererCell());
+                    }
+                }
                 if (levelCompletionCard != null && isCut(levelCompletionCard, newColumns, cutTopRows)) {
                     cells.add(levelCompletionCard);
                 }
@@ -220,6 +227,15 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
         for (final LevelSceneLayer layer : layers) {
             layer.setTiles(shiftedTiles(layer.getTiles(), newColumns, newRows, rowShift));
         }
+        final LevelSceneDimensions resized = new LevelSceneDimensions(newColumns, newRows);
+        for (final LevelSceneLayer layer : layers) {
+            layer.setEnemyPlacements(new ArrayList<>(layer.getEnemyPlacements()
+                .stream()
+                .map(enemy -> enemy.movedBy(0, rowShift * TILE_SPRITE_SIZE))
+                .filter(enemy -> !isOutside(enemy.rendererCell(), resized))
+                .toList()));
+        }
+        selectedEnemyPlacement = null;
         if (importGrid != null) {
             importGrid = shiftedTiles(importGrid, newColumns, newRows, rowShift);
         }
@@ -234,24 +250,10 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
         refreshSize();
     }
 
-    private Tile[][] shiftedTiles(
-        final Tile[][] tiles,
-        final int newColumns,
-        final int newRows,
+    private Coordinates shiftedCell(
+        final Coordinates cell,
         final int rowShift
     ) {
-        final Tile[][] shifted = emptyTiles(newRows, newColumns);
-        for (int row = max(0, rowShift); row < newRows; row++) {
-            final int sourceRow = row - rowShift;
-            if (sourceRow >= levelSceneDimensions.rows()) {
-                break;
-            }
-            System.arraycopy(tiles[sourceRow], 0, shifted[row], 0, min(levelSceneDimensions.columns(), newColumns));
-        }
-        return shifted;
-    }
-
-    private Coordinates shiftedCell(final Coordinates cell, final int rowShift) {
         if (cell == null) {
             return null;
         }
@@ -279,12 +281,12 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
         if (spawnPoint == null) {
             return List.of();
         }
-        return List.of(spawnPoint, belowOf(spawnPoint));
+        return List.of(spawnPoint, spawnPoint.getOneBelow());
     }
 
     /** Whether a spawn point stored at {@code upperCell} has both of its cells inside the scene. */
     public boolean spawnPointFits(final Coordinates upperCell) {
-        return !isOutsideTheScene(upperCell) && !isOutsideTheScene(belowOf(upperCell));
+        return !isOutsideTheScene(upperCell) && !isOutsideTheScene(upperCell.getOneBelow());
     }
 
     private Coordinates belowOf(final Coordinates cell) {
@@ -314,18 +316,15 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
             .orElseThrow();
     }
 
-    private static Tile[][] emptyTiles(
-        final int rows,
-        final int cols
-    ) {
-        final Tile[][] t = new Tile[rows][cols];
-        for (final Tile[] row : t) {
-            Arrays.fill(row, NULL_TILE);
-        }
-        return t;
+    public void paintTile(final Coordinates cell) {
+        paintTile(cell, null);
     }
 
-    public void paintTile(final Coordinates cell) {
+    /**
+     * Places the armed palette item on {@code cell}. An armed enemy goes on {@code enemyPixel}, the level pixel for
+     * the top-left of its rendering starter part, or exactly on the cell when that is {@code null}.
+     */
+    public void paintTile(final Coordinates cell, final Coordinates enemyPixel) {
         if (isOutsideTheScene(cell)) {
             return;
         }
@@ -341,14 +340,16 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
         }
         final EnemyStamp selectedEnemy = paletteSelectionService.getSelectedEnemy();
         if (selectedEnemy != null) {
-            stampEnemy(selectedEnemy, cell);
+            placeEnemy(selectedEnemy, enemyPixel == null
+                ? selectedEnemy.placedAt(cell)
+                : selectedEnemy.placedAtPixel(enemyPixel));
             return;
         }
         final Tile selectedTile = paletteSelectionService.getSelectedTile();
         if (selectedTile == null) {
             return;
         }
-        final MultiTileArea placed = new MultiTileArea(cell);
+        final PixelArea placed = new MultiTileArea(cell).toPixelArea();
         if (refusesOverlap(placed)) {
             return;
         }
@@ -357,18 +358,24 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
         levelSceneEditorGrid.repaint();
     }
 
-    /**
-     * Clears a cell of the active layer. On the NPC layer, a cell holding a virtual object removes that object
-     * instead and leaves the layer's tiles alone. Objects drawn on top go first: the card, then the rendering
-     * starter, then the spawn point, then the pipe portals. A cell holding an enemy's part removes the whole enemy.
-     */
     public void eraseTile(final Coordinates cell) {
+        final int half = TILE_SPRITE_SIZE / 2;
+        eraseAt(cell, of(cell.x() * TILE_SPRITE_SIZE + half, cell.y() * TILE_SPRITE_SIZE + half));
+    }
+
+    /**
+     * Clears a cell of the active layer, the click falling on {@code levelPixel} inside it. On the NPC layer, a
+     * virtual object or an enemy there is removed instead and the layer's tiles are left alone. Objects drawn on
+     * top go first: the card, then the rendering starter, then the spawn point, then the pipe portals, then the
+     * topmost enemy whose box holds the pixel.
+     */
+    public void eraseAt(final Coordinates cell, final Coordinates levelPixel) {
         if (!isOutsideTheScene(cell)) {
             if (removeLevelCompletionCardAt(cell)
                 || removeRenderingStarterAt(cell)
                 || removeSpawnPointAt(cell)
                 || removePipePortalAt(cell)
-                || removeEnemyAt(cell)) {
+                || removeEnemyAt(levelPixel)) {
                 levelSceneEditorGrid.repaint();
                 return;
             }
@@ -378,9 +385,11 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
     }
 
     private boolean isOutsideTheScene(final Coordinates cell) {
-        return cell.y() < 0 || cell.y() >= levelSceneDimensions.rows()
-            || cell.x() < 0
-            || cell.x() >= levelSceneDimensions.columns();
+        return isOutside(cell, levelSceneDimensions);
+    }
+
+    private boolean isOutside(final Coordinates cell, final LevelSceneDimensions dimensions) {
+        return cell.y() < 0 || cell.y() >= dimensions.rows() || cell.x() < 0 || cell.x() >= dimensions.columns();
     }
 
     /** Whether a virtual object is armed, which places on a click only, never on a drag. */
@@ -503,6 +512,14 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
      * @param cell the cell under the mouse, or {@code null} when there is none to report
      */
     public void updateStatus(final Coordinates cell) {
+        updateStatus(cell, null);
+    }
+
+    /**
+     * @param cell       the cell under the mouse, or {@code null} when there is none to report
+     * @param enemyPixel where a click would place the armed enemy, or {@code null} when there is none
+     */
+    public void updateStatus(final Coordinates cell, final Coordinates enemyPixel) {
         final String pos = (cell != null && cell.x() >= 0 && cell.y() >= 0)
             ? "  |  col=" + cell.x() + "  row=" + cell.y()
             : "";
@@ -522,27 +539,44 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
             statusLabel.setText(
                 "Enemy: " + selectedEnemy.getEnemyType().getLabel()
                     + "  |  " + selectedEnemy.getColumns() + " × " + selectedEnemy.getRows() + " tiles"
-                    + "  |  click places its rendering starter" + pos
+                    + enemyPlacementNote(enemyPixel) + pos + selectedEnemyNote()
             );
             return;
         }
         final Tile selectedTile = paletteSelectionService.getSelectedTile();
         if (selectedTile == null) {
-            statusLabel.setText("No tile selected — pick one from the Tiles palette");
+            statusLabel.setText("No tile selected — pick one from the Tiles palette" + selectedEnemyNote());
             return;
         }
         final TileType type = selectedTile.getType();
         final String tileName = type != null ? type.getLabel() : "(none)";
         final int rows = levelSceneDimensions.rows();
         final int columns = levelSceneDimensions.columns();
-        statusLabel.setText("Tile: " + tileName + "  |  " + rows + " rows × " + columns + " columns" + pos);
+        statusLabel.setText(
+            "Tile: " + tileName + "  |  " + rows + " rows × " + columns + " columns" + pos + selectedEnemyNote()
+        );
+    }
+
+    private String enemyPlacementNote(final Coordinates enemyPixel) {
+        return enemyPixel == null
+            ? "  |  click places its rendering starter"
+            : "  |  click places its rendering starter at x=" + enemyPixel.x() + " y=" + enemyPixel.y()
+                + " (Ctrl: on the cell)";
+    }
+
+    /** The selected enemy's position in level pixels, and how to nudge it; empty while none is selected. */
+    private String selectedEnemyNote() {
+        return selectedEnemyPlacement == null
+            ? ""
+            : "  |  selected enemy at x=" + selectedEnemyPlacement.x() + " y=" + selectedEnemyPlacement.y()
+                + " (arrows: 1 px, Shift: 4 px)";
     }
 
     /** Where the rendering starter or the spawn point sits, by its lower-left cell; empty for the other objects. */
     private String placementNote(final VirtualObjectType type) {
         return switch (type.getCategory()) {
             case RENDERING_STARTER -> placedAt(renderingStarter);
-            case SPAWN_POINT -> placedAt(spawnPoint == null ? null : belowOf(spawnPoint));
+            case SPAWN_POINT -> placedAt(spawnPoint == null ? null : spawnPoint.getOneBelow());
             case CARD, PIPE_PORTAL -> "";
         };
     }
@@ -559,76 +593,6 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
     }
 
     /**
-     * Refreshes the rendering of a tile whose pixel data changed (e.g. after classification),
-     * invalidating its cached image and repainting the grid.
-     */
-    public void refreshTile(final Tile tile) {
-        levelSceneEditorGrid.invalidateTile(tile.getId());
-        levelSceneEditorGrid.repaint();
-    }
-
-    /** Whether the tab was built from a PNG import whose grid holds the tile. */
-    public boolean importsTile(final int tileId) {
-        if (importGrid == null) {
-            return false;
-        }
-        for (final Tile[] row : importGrid) {
-            for (final Tile cell : row) {
-                if (cell != null && cell.getId() == tileId) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    public int countTileCellsOutside(final int tileId, final LevelSceneLayerType target) {
-        int cells = 0;
-        for (final LevelSceneLayer layer : layers) {
-            if (layer.getType() == target) {
-                continue;
-            }
-            for (final Tile[] row : layer.getTiles()) {
-                for (final Tile cell : row) {
-                    if (cell != null && cell.getId() == tileId) {
-                        cells++;
-                    }
-                }
-            }
-        }
-        return cells;
-    }
-
-    /**
-     * Moves each cell holding the tile in a layer other than {@code target} into the same cell of {@code target},
-     * overwriting what that cell held, and clears it where it was.
-     */
-    public void moveTile(final Tile tile, final LevelSceneLayerType target) {
-        final Optional<LevelSceneLayer> targetLayer = layers.stream()
-            .filter(layer -> layer.getType() == target)
-            .findFirst();
-        if (targetLayer.isEmpty()) {
-            return;
-        }
-        final Tile[][] targetTiles = targetLayer.get().getTiles();
-        for (final LevelSceneLayer layer : layers) {
-            if (layer.getType() == target) {
-                continue;
-            }
-            final Tile[][] tiles = layer.getTiles();
-            for (int row = 0; row < tiles.length; row++) {
-                for (int column = 0; column < tiles[row].length; column++) {
-                    if (tiles[row][column] != null && tiles[row][column].getId() == tile.getId()) {
-                        tiles[row][column] = NULL_TILE;
-                        targetTiles[row][column] = tile;
-                    }
-                }
-            }
-        }
-        levelSceneEditorGrid.repaint();
-    }
-
-    /**
      * Adopts a freshly imported grid and routes its tiles into the per-type layers (see
      * {@link LevelSceneImportRouter}). The grid is retained so the layers can be re-routed as the user
      * classifies more tiles.
@@ -636,38 +600,6 @@ public class LevelSceneEditorTab extends BaseEditorTab implements EnemyStampCapa
     public void applyImportedLayers(final Tile[][] grid) {
         importGrid = grid;
         reRouteImportedLayers();
-    }
-
-    /**
-     * Re-routes the retained import grid into the layers. Called as the user classifies tiles so newly
-     * typed tiles move to their owning layer and the AIR auto-fill is recomputed. No-op for scenes not
-     * built from an import.
-     */
-    public void reRouteImportedLayers() {
-        if (importGrid == null) {
-            return;
-        }
-        final Map<LevelSceneLayerType, Boolean> visibilityByType = new EnumMap<>(LevelSceneLayerType.class);
-        if (layers != null) {
-            for (final LevelSceneLayer layer : layers) {
-                visibilityByType.put(layer.getType(), layer.isVisible());
-            }
-        }
-        final LevelSceneLayerType activeType = (activeLayer != null) ? activeLayer.getType() : AIR;
-
-        final List<LevelSceneLayer> routed = levelSceneImportRouter.route(importGrid, levelSceneDimensions);
-        for (final LevelSceneLayer layer : routed) {
-            final Boolean visible = visibilityByType.get(layer.getType());
-            if (visible != null) {
-                layer.setVisible(visible);
-            }
-        }
-        layers = routed;
-        activeLayer = routed.stream()
-            .filter(layer -> layer.getType() == activeType)
-            .findFirst()
-            .orElse(routed.getFirst());
-        levelSceneEditorGrid.repaint();
     }
 
     @Override

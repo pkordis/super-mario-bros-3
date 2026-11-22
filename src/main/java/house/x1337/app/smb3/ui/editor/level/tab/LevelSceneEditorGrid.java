@@ -3,8 +3,9 @@ package house.x1337.app.smb3.ui.editor.level.tab;
 import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
-import house.x1337.app.smb3.model.game.MultiTileArea;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.PixelArea;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.ui.editor.component.FontCapabilities;
@@ -14,7 +15,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.Setter;
 
+import javax.swing.AbstractAction;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -22,6 +25,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -32,33 +36,47 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
+import static house.x1337.app.smb3.GameConstants.TILE_SCALE;
 import static house.x1337.app.smb3.GameConstants.TILE_SIZE;
+import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.LEVEL_COMPLETION_CARD;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.RENDERING_STARTER;
 import static house.x1337.app.smb3.enumeration.VirtualObjectType.SPAWN_POINT;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.Color.BLACK;
+import static java.awt.event.InputEvent.SHIFT_DOWN_MASK;
+import static java.awt.event.KeyEvent.VK_DOWN;
+import static java.awt.event.KeyEvent.VK_ESCAPE;
+import static java.awt.event.KeyEvent.VK_LEFT;
+import static java.awt.event.KeyEvent.VK_RIGHT;
+import static java.awt.event.KeyEvent.VK_UP;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
 import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 import static java.lang.Math.clamp;
+import static javax.swing.KeyStroke.getKeyStroke;
 
 @Setter
 @Prototype
 public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, GridBoxDrawing {
     static final Font PIPE_PORTAL_LABEL_FONT = new Font(Font.MONOSPACED, Font.BOLD, 16);
+    static final int COARSE_NUDGE_PIXELS = 4;
+    static final Color SELECTED_ENEMY = new Color(0, 200, 255);
 
     private final Map<Integer, BufferedImage> tileImageCache = new HashMap<>();
     private final LevelSceneEditorTab tab;
     private final SpawnPointSprite spawnPointSprite;
+    private final EnemyImages enemyImages;
     private final PlacementPreview placementPreview;
     private final BlockerFlash blockerFlash;
     @Setter(AccessLevel.NONE)
     private Coordinates hoveredCell;
     @Setter(AccessLevel.NONE)
-    private MultiTileArea paintedPreviewArea;
+    private Coordinates hoveredEnemyPixel;
+    @Setter(AccessLevel.NONE)
+    private Rectangle paintedPreviewBox;
 
     public LevelSceneEditorGrid(
         final LevelSceneEditorTab tab,
@@ -67,25 +85,32 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
     ) {
         this.tab = tab;
         this.spawnPointSprite = spawnPointSprite;
-        placementPreview = new PlacementPreview(tab, spawnPointSprite, enemyTilesAssembler, this::imageOf);
+        enemyImages = new EnemyImages(enemyTilesAssembler);
+        placementPreview = new PlacementPreview(tab, spawnPointSprite, enemyImages, this::imageOf);
         blockerFlash = new BlockerFlash(this::repaint, System::currentTimeMillis);
     }
 
     @PostConstruct
     void init() {
         setBackground(new Color(255, 255, 255));
+        setFocusable(true);
+        bindNudgeKeys();
 
         final MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(final MouseEvent e) {
+                requestFocusInWindow();
                 blockerFlash.beginGesture();
-                hover(cellUnder(e));
+                hover(e);
+                if (e.getButton() != MouseEvent.BUTTON3) {
+                    tab.selectEnemyAt(levelPixelUnder(e));
+                }
                 handle(e);
             }
 
             @Override
             public void mouseDragged(final MouseEvent e) {
-                hover(cellUnder(e));
+                hover(e);
                 // A pipe portal opens a dialog per placement, so every virtual object is placed on a press only.
                 if (tab.isPlacingVirtualObject()) {
                     return;
@@ -95,13 +120,13 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
 
             @Override
             public void mouseMoved(final MouseEvent e) {
-                hover(cellUnder(e));
-                tab.updateStatus(cellUnder(e));
+                hover(e);
+                tab.updateStatus(hoveredCell, hoveredEnemyPixel);
             }
 
             @Override
             public void mouseExited(final MouseEvent e) {
-                hover(null);
+                hover(null, null);
             }
 
             private void handle(final MouseEvent e) {
@@ -110,11 +135,11 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
                     return;
                 }
                 final Coordinates cell = cellUnder(e);
-                tab.updateStatus(cell);
+                tab.updateStatus(cell, enemyPixelUnder(e));
                 if (e.getButton() == MouseEvent.BUTTON3) {
-                    tab.eraseTile(cell);
+                    tab.eraseAt(cell, levelPixelUnder(e));
                 } else {
-                    tab.paintTile(cell);
+                    tab.paintTile(cell, enemyPixelUnder(e));
                 }
             }
         };
@@ -126,31 +151,115 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
         return of(e.getX() / TILE_SIZE, e.getY() / TILE_SIZE);
     }
 
-    private void hover(final Coordinates cell) {
-        if (Objects.equals(cell, hoveredCell)) {
+    private Coordinates levelPixelUnder(final MouseEvent e) {
+        return of(e.getX() / TILE_SCALE, e.getY() / TILE_SCALE);
+    }
+
+    /**
+     * Where an armed enemy goes for the pointer of {@code e}: the pointer in the middle of its rendering starter part,
+     * to the level pixel, or with Ctrl held exactly on the cell. {@code null} while no enemy is armed.
+     */
+    private Coordinates enemyPixelUnder(final MouseEvent e) {
+        if (tab.getPaletteSelectionService().getSelectedEnemy() == null) {
+            return null;
+        }
+        if (e.isControlDown()) {
+            final Coordinates cell = cellUnder(e);
+            return of(cell.x() * TILE_SPRITE_SIZE, cell.y() * TILE_SPRITE_SIZE);
+        }
+        final Coordinates pointer = levelPixelUnder(e);
+        return of(pointer.x() - TILE_SPRITE_SIZE / 2, pointer.y() - TILE_SPRITE_SIZE / 2);
+    }
+
+    /**
+     * Arrow keys nudge the selected enemy by a pixel, by {@value #COARSE_NUDGE_PIXELS} with Shift, and Escape drops
+     * the selection. While no enemy is selected the keys are left to the scroll pane.
+     */
+    private void bindNudgeKeys() {
+        bindNudgeKey(VK_LEFT, -1, 0);
+        bindNudgeKey(VK_RIGHT, 1, 0);
+        bindNudgeKey(VK_UP, 0, -1);
+        bindNudgeKey(VK_DOWN, 0, 1);
+        bindKey(getKeyStroke(VK_ESCAPE, 0), "dropEnemySelection", () -> {
+            tab.setSelectedEnemyPlacement(null);
+            tab.updateStatus(hoveredCell);
+            repaint();
+        });
+    }
+
+    private void bindNudgeKey(final int key, final int dx, final int dy) {
+        bindKey(getKeyStroke(key, 0), "nudge" + key, () -> nudgeSelectedEnemy(dx, dy));
+        bindKey(
+            getKeyStroke(key, SHIFT_DOWN_MASK),
+            "nudgeCoarse" + key,
+            () -> nudgeSelectedEnemy(dx * COARSE_NUDGE_PIXELS, dy * COARSE_NUDGE_PIXELS)
+        );
+    }
+
+    private void bindKey(final KeyStroke keyStroke, final String name, final Runnable action) {
+        getInputMap(WHEN_FOCUSED).put(keyStroke, name);
+        getActionMap().put(name, new SelectedEnemyAction(action));
+    }
+
+    private void nudgeSelectedEnemy(final int dx, final int dy) {
+        blockerFlash.beginGesture();
+        tab.nudgeSelectedEnemy(dx, dy);
+        tab.updateStatus(hoveredCell);
+    }
+
+    /** A key action that only takes the key while an enemy is selected. */
+    private final class SelectedEnemyAction extends AbstractAction {
+        private final transient Runnable action;
+
+        private SelectedEnemyAction(final Runnable action) {
+            this.action = action;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return tab.getSelectedEnemyPlacement() != null;
+        }
+
+        @Override
+        public void actionPerformed(final ActionEvent event) {
+            action.run();
+        }
+    }
+
+    private void hover(final MouseEvent e) {
+        hover(cellUnder(e), enemyPixelUnder(e));
+    }
+
+    private void hover(final Coordinates cell, final Coordinates enemyPixel) {
+        if (Objects.equals(cell, hoveredCell) && Objects.equals(enemyPixel, hoveredEnemyPixel)) {
             return;
         }
         hoveredCell = cell;
+        hoveredEnemyPixel = enemyPixel;
         refreshPreview();
     }
 
-    /** Repaints the preview's old and new area, after the hovered cell, the selection or the active layer changed. */
+    /**
+     * Repaints the preview's old and new area, after the hovered cell or enemy pixel, the selection or the active layer
+     * changed.
+     */
     public void refreshPreview() {
-        final MultiTileArea area = hoveredCell == null ? null : placementPreview.areaAt(hoveredCell).orElse(null);
-        Stream.of(paintedPreviewArea, area)
+        final Rectangle box = hoveredCell == null
+            ? null
+            : placementPreview.boxAt(hoveredCell, hoveredEnemyPixel).orElse(null);
+        Stream.of(paintedPreviewBox, box)
             .filter(Objects::nonNull)
-            .map(this::pixelBox)
             .reduce(Rectangle::union)
             .ifPresent(this::repaint);
-        paintedPreviewArea = area;
+        paintedPreviewBox = box;
     }
 
-    public void refusePlacement(final List<MultiTileArea> blockers) {
+    public void refusePlacement(final List<PixelArea> blockers) {
         blockerFlash.refuse(blockers);
     }
 
     /** Records an object placed during the current press and drag, which then never blinks as a blocker. */
-    public void notePlacement(final MultiTileArea placed) {
+    public void notePlacement(final PixelArea placed) {
         blockerFlash.notePlaced(placed);
     }
 
@@ -223,6 +332,9 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
                     drawTile(graphics, tiles[row][col], col * TILE_SIZE, row * TILE_SIZE);
                 }
             }
+            if (layer.getType() == NON_PLAYABLE_CHARACTERS) {
+                drawEnemies(graphics, layer.getEnemyPlacements());
+            }
         }
 
         // Grid lines
@@ -243,14 +355,34 @@ public class LevelSceneEditorGrid extends JPanel implements FontCapabilities, Gr
         drawSpawnPoint(graphics);
         drawRenderingStarter(graphics);
         drawLevelCompletionCard(graphics);
+        drawSelectedEnemy(graphics);
         if (hoveredCell != null) {
-            placementPreview.paint(graphics, hoveredCell);
+            placementPreview.paint(graphics, hoveredCell, hoveredEnemyPixel);
         }
         blockerFlash.paint(graphics);
 
         graphics.dispose();
     }
 
+    /** Draws each placed enemy, as one image, at its pixel position: enemies are not bound to the tile grid. */
+    private void drawEnemies(final Graphics2D graphics, final List<EnemyPlacement> enemies) {
+        final Rectangle clip = graphics.getClipBounds();
+        for (final EnemyPlacement enemy : enemies) {
+            tab.findStampOf(enemy).ifPresent(stamp -> {
+                final Rectangle box = pixelBox(stamp.boundsOf(enemy));
+                if (clip == null || clip.intersects(box)) {
+                    graphics.drawImage(enemyImages.of(stamp), box.x, box.y, box.width, box.height, null);
+                }
+            });
+        }
+    }
+
+    private void drawSelectedEnemy(final Graphics2D graphics) {
+        final EnemyPlacement selected = tab.getSelectedEnemyPlacement();
+        if (selected != null && isNpcLayerVisible()) {
+            tab.boundsOf(selected).ifPresent(bounds -> drawBorder(graphics, SELECTED_ENEMY, pixelBox(bounds)));
+        }
+    }
     private void drawSpawnPoint(final Graphics2D graphics) {
         final Coordinates upperCell = tab.getSpawnPoint();
         if (!isNpcLayerVisible() || upperCell == null) {

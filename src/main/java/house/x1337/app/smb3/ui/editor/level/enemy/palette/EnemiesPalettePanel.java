@@ -5,6 +5,7 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.service.EnemyStampService;
+import house.x1337.app.smb3.ui.editor.level.enemy.edit.EnemyContextMenu;
 import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorTab;
@@ -50,7 +51,7 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
     private final EnemyStampService enemyStampService;
     private final PaletteSelectionService paletteSelectionService;
     private final LevelSceneTabs levelSceneTabs;
-    private final EnemyTilesAssembler enemyTilesAssembler;
+    private final EnemyContextMenu enemyContextMenu;
 
     private final JPanel enemiesPanel = buildTilesPanel();
     private final JScrollPane scrollPane = buildScrollPane(enemiesPanel);
@@ -81,8 +82,8 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
     }
 
     /**
-     * Adds an enemy's section, or refreshes its image if it is already listed. Called both when the
-     * palette is first built and straight after an enemy is created, so a new enemy is placeable without
+     * Adds an enemy's section, or shows the newer copy of it if it is already listed. Called when the palette is
+     * first built, straight after an enemy is created, and after one is edited, so the change is placeable without
      * restarting the editor.
      */
     public void addEnemy(final EnemyStamp enemy) {
@@ -93,11 +94,12 @@ public class EnemiesPalettePanel extends JPanel implements ComponentsBuilder {
         }
         final EnemyButton existing = buttonsByEnemyId.get(enemy.getId());
         if (existing != null) {
-            existing.setThumbnail(enemyTilesAssembler.toIcon(enemy));
+            existing.show(enemy);
             return;
         }
 
         final EnemyButton button = EnemyButton.fromEnemy(enemy);
+        button.setComponentPopupMenu(enemyContextMenu.forEnemy(button::getEnemy));
         buttonsByEnemyId.put(enemy.getId(), button);
 
         final JPanel grid = buildGridPanel();

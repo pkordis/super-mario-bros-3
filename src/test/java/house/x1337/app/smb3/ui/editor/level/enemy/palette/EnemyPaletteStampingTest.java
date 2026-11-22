@@ -17,20 +17,17 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pins what the Enemies palette shows and what a click on the level grid does: an enemy's parts are drawn
- * back into the picture they were imported as, and stamping puts the rendering-starter part on the
- * clicked cell with every other part at its stored offset.
+ * Pins what the Enemies palette and the level grid show of an enemy: its parts drawn back into the picture they
+ * were imported as.
  *
- * <p>No {@code TileService} in sight: an {@link EnemyStamp} already carries its parts as resolved tiles, so
- * neither the assembler nor the stamper performs a lookup. Resolving stored ids is
- * {@code EnemyConverter}'s job.
+ * <p>No {@code TileService} in sight: an {@link EnemyStamp} already carries its parts as resolved tiles, so the
+ * assembler performs no lookup. Resolving stored ids is {@code EnemyConverter}'s job.
  */
 class EnemyPaletteStampingTest {
     private static final int RED = 0xFFFF0000;
     private static final int BLUE = 0xFF0000FF;
 
     private EnemyTilesAssembler assembler;
-    private EnemyLevelSceneGridStamper stamper;
 
     private Tile topLeft;
     private Tile topRight;
@@ -40,7 +37,6 @@ class EnemyPaletteStampingTest {
     @BeforeEach
     void prepare() {
         assembler = new EnemyTilesAssembler();
-        stamper = new EnemyLevelSceneGridStamper();
 
         topLeft = tile(10, RED);
         topRight = tile(11, BLUE);
@@ -83,55 +79,18 @@ class EnemyPaletteStampingTest {
     }
 
     @Test
-    @DisplayName("Stamping puts the rendering starter on the clicked cell and the rest around it")
-    void stampAnchorsOnTheClickedCell() {
-        // Prepare - a 2x2 enemy anchored bottom-left, clicked at column 1, row 3 of a 4x4 layer
-        final EnemyStamp enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
-        final Tile[][] layer = emptyLayer(4, 4);
-
-        // Execute
-        final int written = stamper.stamp(layer, enemy, of(1, 3));
-
-        // Verify - the clicked cell holds the anchor part, the enemy extends up and to the right
-        assertThat(written).isEqualTo(4);
-        assertThat(layer[3][1]).as("clicked cell holds the rendering starter part").isEqualTo(bottomLeft);
-        assertThat(layer[3][2]).isEqualTo(bottomRight);
-        assertThat(layer[2][1]).isEqualTo(topLeft);
-        assertThat(layer[2][2]).isEqualTo(topRight);
-        assertThat(layer[0][0]).as("untouched cells stay empty").isEqualTo(NULL_TILE);
-    }
-
-    @Test
-    @DisplayName("Parts falling outside the scene are clipped, not wrapped")
-    void stampClipsAtTheEdges() {
-        // Prepare - the same enemy clicked on the top-left cell, so its upper row falls off the scene
-        final EnemyStamp enemy = enemy(topLeft, topRight, bottomLeft, bottomRight);
-        final Tile[][] layer = emptyLayer(4, 4);
-
-        // Execute
-        final int written = stamper.stamp(layer, enemy, of(0, 0));
-
-        // Verify
-        assertThat(written).as("only the anchor row fits").isEqualTo(2);
-        assertThat(layer[0][0]).isEqualTo(bottomLeft);
-        assertThat(layer[0][1]).isEqualTo(bottomRight);
-        assertThat(layer[3][0]).as("nothing wrapped to the opposite edge").isEqualTo(NULL_TILE);
-    }
-
-    @Test
-    @DisplayName("A malformed enemy is drawn as one blank part and stamps nothing")
+    @DisplayName("A malformed enemy is drawn as one blank part")
     void malformedEnemyIsTolerated() {
         // Prepare - an enemy that lost its grid, as a hand-edited or outdated document might
         final EnemyStamp broken = EnemyStamp.builder().id("broken").enemyType(GOOMBA_NORMAL).build();
-        final Tile[][] layer = emptyLayer(4, 4);
 
-        // Execute & Verify - an image is produced, never a zero-sized one, and nothing is written
+        // Execute
         final BufferedImage assembled = assembler.assemble(broken);
+
+        // Verify - an image is produced, never a zero-sized one
         assertThat(broken.isWellFormed()).isFalse();
         assertThat(assembled.getWidth()).isEqualTo(TILE_SPRITE_SIZE);
         assertThat(assembled.getHeight()).isEqualTo(TILE_SPRITE_SIZE);
-        assertThat(stamper.stamp(layer, broken, of(1, 1))).isZero();
-        assertThat(layer[1][1]).isEqualTo(NULL_TILE);
     }
 
     // -------------------------------------------------------------------------
@@ -168,11 +127,4 @@ class EnemyPaletteStampingTest {
             .build();
     }
 
-    private static Tile[][] emptyLayer(final int rows, final int columns) {
-        final Tile[][] tiles = new Tile[rows][columns];
-        for (final Tile[] row : tiles) {
-            Arrays.fill(row, NULL_TILE);
-        }
-        return tiles;
-    }
 }

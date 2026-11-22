@@ -151,9 +151,6 @@ public final class KoopaTroopa implements KoopaTroopaFamilyEnemy, SlotSuccessor 
         rootNode.attachChild(leftShellFootGeometry);
         rootNode.attachChild(rightShellFootGeometry);
 
-        if (!adoptedSlot) {
-            erasePlacementFromBakedTexture();
-        }
         showGeometryForState();
         positionSprite();
     }

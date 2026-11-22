@@ -4,10 +4,11 @@ import house.x1337.app.smb3.enumeration.VirtualObjectType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.MultiTileArea;
+import house.x1337.app.smb3.model.game.PixelArea;
 import house.x1337.app.smb3.model.game.Coordinates;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyTilesAssembler;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.SpawnPointSprite;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,6 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
-import java.util.IdentityHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -29,26 +28,31 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
 import static java.awt.AlphaComposite.SRC_OVER;
 
 /**
- * The selected palette item drawn half transparent on the cell under the pointer, where a left click would place
- * it. See kb/editor.md, "Hover preview".
+ * The selected palette item drawn half transparent under the pointer, where a left click would place it: on the cell,
+ * or for an enemy on the pixel. See kb/editor.md, "Hover preview".
  */
 @RequiredArgsConstructor
 final class PlacementPreview implements GridBoxDrawing {
     static final float ALPHA = 0.5f;
 
-    private final Map<EnemyStamp, BufferedImage> enemyImages = new IdentityHashMap<>();
     private final LevelSceneEditorTab tab;
     private final SpawnPointSprite spawnPointSprite;
-    private final EnemyTilesAssembler enemyTilesAssembler;
+    private final EnemyImages enemyImages;
     private final Function<Tile, BufferedImage> tileImages;
 
-    /** The scene cells the preview covers with the pointer on {@code cell}; empty when nothing shows. */
-    Optional<MultiTileArea> areaAt(final Coordinates cell) {
-        return previewAt(cell).flatMap(preview -> preview.area().clippedTo(tab.getLevelSceneDimensions()));
+    /**
+     * The pixels the preview covers with the pointer on {@code cell}, an armed enemy on {@code enemyPixel} (see
+     * {@link LevelSceneEditorTab#paintTile(Coordinates, Coordinates)}); empty when nothing shows.
+     */
+    Optional<Rectangle> boxAt(final Coordinates cell, final Coordinates enemyPixel) {
+        return previewAt(cell, enemyPixel).flatMap(preview -> preview
+            .area()
+            .clippedTo(tab.getLevelSceneDimensions())
+            .map(this::pixelBox));
     }
 
-    void paint(final Graphics2D graphics, final Coordinates cell) {
-        final Optional<Preview> preview = previewAt(cell);
+    void paint(final Graphics2D graphics, final Coordinates cell, final Coordinates enemyPixel) {
+        final Optional<Preview> preview = previewAt(cell, enemyPixel);
         if (preview.isEmpty()) {
             return;
         }
@@ -63,7 +67,7 @@ final class PlacementPreview implements GridBoxDrawing {
         }
     }
 
-    private Optional<Preview> previewAt(final Coordinates cell) {
+    private Optional<Preview> previewAt(final Coordinates cell, final Coordinates enemyPixel) {
         final LevelSceneLayer activeLayer = tab.getActiveLayer();
         if (cell == null || isOutsideTheScene(cell) || activeLayer == null || !activeLayer.isVisible()) {
             return Optional.empty();
@@ -76,13 +80,22 @@ final class PlacementPreview implements GridBoxDrawing {
         }
         final EnemyStamp enemy = selection.getSelectedEnemy();
         if (enemy != null) {
-            return onNpcLayer && enemy.isWellFormed() ? Optional.of(enemyPreview(enemy, cell)) : Optional.empty();
+            if (!onNpcLayer || !enemy.isWellFormed()) {
+                return Optional.empty();
+            }
+            final EnemyPlacement placement = enemyPixel == null
+                ? enemy.placedAt(cell)
+                : enemy.placedAtPixel(enemyPixel);
+            return tab.isOutsideTheScene(placement) ? Optional.empty() : Optional.of(enemyPreview(enemy, placement));
         }
         final Tile tile = selection.getSelectedTile();
         if (tile == null || tile.getType() == null || !tile.getType().isPaintableOn(activeLayer.getType())) {
             return Optional.empty();
         }
-        return Optional.of(new Preview(new MultiTileArea(cell), (graphics, box) -> drawImage(graphics, tile, box)));
+        return Optional.of(new Preview(
+            new MultiTileArea(cell).toPixelArea(),
+            (graphics, box) -> drawImage(graphics, tile, box)
+        ));
     }
 
     private Optional<Preview> virtualObjectPreview(final VirtualObjectType type, final Coordinates cell) {
@@ -99,7 +112,7 @@ final class PlacementPreview implements GridBoxDrawing {
         if (type.getCategory() == SPAWN_POINT && !tab.spawnPointFits(of(cell.x(), cell.y() - 1))) {
             return Optional.empty();
         }
-        return Optional.of(new Preview(area, (graphics, box) -> {
+        return Optional.of(new Preview(area.toPixelArea(), (graphics, box) -> {
             if (type.getCategory() == SPAWN_POINT) {
                 spawnPointSprite.draw(graphics, box);
             }
@@ -107,10 +120,10 @@ final class PlacementPreview implements GridBoxDrawing {
         }));
     }
 
-    private Preview enemyPreview(final EnemyStamp enemy, final Coordinates cell) {
-        final BufferedImage image = enemyImages.computeIfAbsent(enemy, enemyTilesAssembler::assemble);
+    private Preview enemyPreview(final EnemyStamp enemy, final EnemyPlacement placement) {
+        final BufferedImage image = enemyImages.of(enemy);
         return new Preview(
-            enemy.placedAt(cell).bounds(),
+            enemy.boundsOf(placement),
             (graphics, box) -> graphics.drawImage(image, box.x, box.y, box.width, box.height, null)
         );
     }
@@ -127,6 +140,6 @@ final class PlacementPreview implements GridBoxDrawing {
         return cell.x() < 0 || cell.y() < 0 || cell.x() >= dimensions.columns() || cell.y() >= dimensions.rows();
     }
 
-    private record Preview(MultiTileArea area, BiConsumer<Graphics2D, Rectangle> painter) {
+    private record Preview(PixelArea area, BiConsumer<Graphics2D, Rectangle> painter) {
     }
 }

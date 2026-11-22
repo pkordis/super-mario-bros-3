@@ -19,6 +19,7 @@ class GoombaAnimatorAssetsTest {
     private static final String FRAMES_CONTEXT = "sprites/enemy/goomba/normal/";
     private static final String SQUISHED_FRAME_FILENAME = "goomba_squished.png";
     private static final int WALK_FRAME_COUNT = 2;
+    private static final int FEET_ROW = TILE_SPRITE_SIZE - 1;
 
     @Test
     @DisplayName("The mode's assets.json names the walk cycle in frame order, then the squished frame")
@@ -82,15 +83,15 @@ class GoombaAnimatorAssetsTest {
     }
 
     @Test
-    @DisplayName("The two walking frames are horizontal mirrors of one another")
-    void framesAreMirrored() throws IOException {
+    @DisplayName("The two walking frames are horizontal mirrors of one another above the bottom row of the feet")
+    void framesAreMirroredAboveTheFeet() throws IOException {
         // Prepare
         final List<String> filenames = walkFrameFilenames();
         final BufferedImage first = readFrame(filenames.getFirst());
         final BufferedImage second = readFrame(filenames.getLast());
 
-        // Execute & Verify
-        for (int row = 0; row < TILE_SPRITE_SIZE; row++) {
+        // Execute & Verify - the bottom row is drawn for each frame on its own and need not mirror
+        for (int row = 0; row < FEET_ROW; row++) {
             for (int column = 0; column < TILE_SPRITE_SIZE; column++) {
                 final int mirroredColumn = TILE_SPRITE_SIZE - 1 - column;
                 assertThat(second.getRGB(column, row))

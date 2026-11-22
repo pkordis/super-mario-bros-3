@@ -635,6 +635,7 @@ class EnemyMotionManagerTest {
         @Setter
         private boolean adoptedASlot;
         private int spawnIntoSceneCount;
+        @Setter
         private PixelPosition position;
         @Setter
         private double stepPixels;

@@ -5,11 +5,11 @@ import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
 import house.x1337.app.smb3.model.game.portal.PipePortal;
 import house.x1337.app.smb3.model.service.TileImportResult;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyTilesAssembler;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tab.LevelSceneEditorGrid;
@@ -195,7 +195,12 @@ public interface LevelSceneEditorTabFactory {
             .visible(sourceLayer.isVisible())
             .type(sourceLayer.getType())
             .tiles(tiles)
+            .enemyPlacements(copyOfEnemies(sourceLayer))
             .build();
+    }
+
+    private static List<EnemyPlacement> copyOfEnemies(final LevelSceneLayer layer) {
+        return layer.getEnemyPlacements() == null ? new ArrayList<>() : new ArrayList<>(layer.getEnemyPlacements());
     }
 
     private static LevelSceneLayer copyLevelSceneLayer(final LevelSceneLayer layer) {
@@ -208,6 +213,7 @@ public interface LevelSceneEditorTabFactory {
             .type(layer.getType())
             .visible(layer.isVisible())
             .tiles(copy)
+            .enemyPlacements(copyOfEnemies(layer))
             .build();
     }
 
@@ -238,7 +244,6 @@ public interface LevelSceneEditorTabFactory {
             getBean(LevelSceneImportRouter.class),
             getBean(TilePalettePanel.class),
             getBean(PaletteSelectionService.class),
-            getBean(EnemyLevelSceneGridStamper.class),
             getBean(EnemyStampService.class)
         );
     }

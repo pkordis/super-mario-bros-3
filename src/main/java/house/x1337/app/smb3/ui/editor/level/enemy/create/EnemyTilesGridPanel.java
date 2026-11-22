@@ -16,12 +16,18 @@ import java.awt.image.BufferedImage;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.model.game.Coordinates.of;
+import static java.awt.Cursor.CROSSHAIR_CURSOR;
 import static java.awt.Cursor.HAND_CURSOR;
 import static java.awt.Cursor.getPredefinedCursor;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 import static java.awt.image.BufferedImage.TYPE_INT_ARGB;
 
+/**
+ * An enemy's parts, magnified, for picking its rendering starter or, with {@link Tool#PIXEL_REMOVER}, clearing pixels
+ * of the parts it shows. Pixels are cleared in the part arrays passed to {@link #render}; parts sharing one array show
+ * a cleared pixel together.
+ */
 @Prototype
 public final class EnemyTilesGridPanel extends JPanel {
     private static final int PIXEL_SCALE = 8;
@@ -33,36 +39,98 @@ public final class EnemyTilesGridPanel extends JPanel {
     private static final Color GRID_COLOR = new Color(0, 0, 0, 60);
     private static final Color RENDERING_STARTER_COLOR = new Color(30, 100, 255);
     private static final int RENDERING_STARTER_STROKE = 4;
+    private static final int TRANSPARENT = 0;
+
+    public enum Tool {
+        RENDERING_STARTER,
+        PIXEL_REMOVER
+    }
 
     private BufferedImage[][] cellImages;
+    private int[][][] partPixels;
     private int rows;
     private int columns;
 
     @Getter
     private Coordinates renderingStarter;
+    @Getter
+    private Tool tool = Tool.RENDERING_STARTER;
 
+    public EnemyTilesGridPanel() {
+        final MouseAdapter mouse = new MouseAdapter() {
+            @Override
+            public void mousePressed(final MouseEvent event) {
+                if (tool == Tool.RENDERING_STARTER) {
+                    moveRenderingStarterTo(of(event.getX() / CELL_SIZE, event.getY() / CELL_SIZE));
+                } else {
+                    removePixelAt(event.getX(), event.getY());
+                }
+            }
+
+            @Override
+            public void mouseDragged(final MouseEvent event) {
+                if (tool == Tool.PIXEL_REMOVER) {
+                    removePixelAt(event.getX(), event.getY());
+                }
+            }
+        };
+        addMouseListener(mouse);
+        addMouseMotionListener(mouse);
+    }
+
+    /** Shows the parts, the rendering starter on the lower-left one: an enemy is anchored where it meets the ground. */
     public void render(final int[][][] partPixels) {
+        render(partPixels, of(0, partPixels.length - 1));
+    }
+
+    public void render(
+        final int[][][] partPixels,
+        final Coordinates renderingStarter
+    ) {
+        this.partPixels = partPixels;
         this.rows = partPixels.length;
         this.columns = partPixels[0].length;
-        this.cellImages = new BufferedImage[rows][columns];
+        this.renderingStarter = renderingStarter;
+        refreshCellImages();
+
+        final Dimension size = new Dimension(columns * CELL_SIZE, rows * CELL_SIZE);
+        setPreferredSize(size);
+        setMinimumSize(size);
+        setTool(tool);
+    }
+
+    public void setTool(final Tool tool) {
+        this.tool = tool;
+        setCursor(getPredefinedCursor(tool == Tool.RENDERING_STARTER ? HAND_CURSOR : CROSSHAIR_CURSOR));
+    }
+
+    /** Clears the sprite pixel under the panel point ({@code x}, {@code y}) to fully transparent. */
+    void removePixelAt(
+        final int x,
+        final int y
+    ) {
+        final int column = x / CELL_SIZE;
+        final int row = y / CELL_SIZE;
+        if (x < 0 || y < 0 || column >= columns || row >= rows) {
+            return;
+        }
+        final int index = (y % CELL_SIZE) / PIXEL_SCALE * TILE_SPRITE_SIZE + (x % CELL_SIZE) / PIXEL_SCALE;
+        final int[] pixels = partPixels[row][column];
+        if (pixels[index] == TRANSPARENT) {
+            return;
+        }
+        pixels[index] = TRANSPARENT;
+        refreshCellImages();
+        repaint();
+    }
+
+    private void refreshCellImages() {
+        cellImages = new BufferedImage[rows][columns];
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
                 cellImages[row][column] = toImage(partPixels[row][column]);
             }
         }
-        // The lower-left cell: an enemy is anchored where it meets the ground.
-        this.renderingStarter = of(0, rows - 1);
-
-        final Dimension size = new Dimension(columns * CELL_SIZE, rows * CELL_SIZE);
-        setPreferredSize(size);
-        setMinimumSize(size);
-        setCursor(getPredefinedCursor(HAND_CURSOR));
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(final MouseEvent event) {
-                moveRenderingStarterTo(of(event.getX() / CELL_SIZE, event.getY() / CELL_SIZE));
-            }
-        });
     }
 
     private void moveRenderingStarterTo(final Coordinates cell) {

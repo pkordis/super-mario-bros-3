@@ -8,7 +8,6 @@ import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
 import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.service.EnemyStampService;
-import house.x1337.app.smb3.ui.editor.level.enemy.palette.EnemyLevelSceneGridStamper;
 import house.x1337.app.smb3.ui.editor.level.service.PaletteSelectionService;
 import house.x1337.app.smb3.ui.editor.level.tile.palette.TilePalettePanel;
 import house.x1337.app.smb3.ui.editor.level.virtualobject.palette.VirtualObjectButton;
@@ -72,7 +71,6 @@ class SpawnPointAndRenderingStarterPlacementTest {
             mock(LevelSceneImportRouter.class),
             mock(TilePalettePanel.class),
             paletteSelectionService,
-            mock(EnemyLevelSceneGridStamper.class),
             mock(EnemyStampService.class)
         );
         tab.setLevelSceneDimensions(new LevelSceneDimensions(COLUMNS, ROWS));

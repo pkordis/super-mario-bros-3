@@ -51,4 +51,8 @@ public class Coordinates implements Serializable {
             floorDiv(sy, TILE_SPRITE_SIZE)
         );
     }
+
+    public Coordinates getOneBelow() {
+        return of(x(), y() + 1);
+    }
 }

@@ -2,11 +2,15 @@ package house.x1337.app.smb3.util.converter;
 
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.level.scene.LevelScene.LevelSceneLayer;
+import house.x1337.app.smb3.model.game.enemy.EnemyPlacement;
+import house.x1337.app.smb3.model.repository.EnemyPlacementRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord;
 import house.x1337.app.smb3.model.repository.LevelSceneRecord.LevelSceneLayerData;
 import house.x1337.app.smb3.model.ui.tile.Tile;
 import house.x1337.app.smb3.util.extractor.TilesExtractor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static house.x1337.app.smb3.GameConstants.NULL_TILE;
@@ -39,9 +43,19 @@ public interface LevelSceneLayerConverter extends TilesExtractor {
             .type(type)
             .visible(true)
             .tiles(tiles)
+            .enemyPlacements(toEnemyPlacements(data))
             .build();
     }
 
+    private List<EnemyPlacement> toEnemyPlacements(final LevelSceneLayerData data) {
+        final List<EnemyPlacement> placements = new ArrayList<>();
+        if (data != null && data.getEnemyPlacements() != null) {
+            data.getEnemyPlacements().forEach(record -> placements.add(
+                new EnemyPlacement(record.getStampId(), record.getX(), record.getY())
+            ));
+        }
+        return placements;
+    }
 
     default LevelSceneLayer toLevelSceneLayer(
         final LevelSceneLayerType layerType,
@@ -61,6 +75,18 @@ public interface LevelSceneLayerConverter extends TilesExtractor {
         return LevelSceneLayerData.builder()
             .type(type)
             .tileIds((layer != null) ? extractTileIds(layer.getTiles()) : null)
+            .enemyPlacements(toEnemyPlacementRecords(layer))
             .build();
+    }
+
+    private List<EnemyPlacementRecord> toEnemyPlacementRecords(final LevelSceneLayer layer) {
+        if (layer == null || layer.getEnemyPlacements() == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(layer
+            .getEnemyPlacements()
+            .stream()
+            .map(placement -> new EnemyPlacementRecord(placement.stampId(), placement.x(), placement.y()))
+            .toList());
     }
 }

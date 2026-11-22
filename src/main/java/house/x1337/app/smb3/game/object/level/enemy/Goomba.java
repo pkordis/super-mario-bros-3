@@ -132,9 +132,6 @@ public final class Goomba implements GoombaFamilyEnemy, SlotSuccessor {
         spriteGeometry = animator.buildSprite(this);
         gameEngine.getRootNode().attachChild(spriteGeometry);
 
-        if (!adoptedSlot) {
-            erasePlacementFromBakedTexture();
-        }
         positionSprite();
     }
 

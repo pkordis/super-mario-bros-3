@@ -5,8 +5,8 @@ import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.TileType;
 import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
 import house.x1337.app.smb3.ui.editor.level.palette.LayerGatedToggleButton;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 import java.awt.Insets;
 
@@ -19,19 +19,25 @@ import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
  */
 @Getter
 @Prototype
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class EnemyButton extends LayerGatedToggleButton {
     public static final LevelSceneLayerType OWNING_LAYER = TileType.ENEMY_PART.getLevelSceneLayerOwningType();
 
     private final EnemyTilesAssembler enemyTilesAssembler = getBean(EnemyTilesAssembler.class);
-    private final EnemyStamp enemy;
+    private EnemyStamp enemy;
 
     public static EnemyButton fromEnemy(final EnemyStamp enemy) {
         final EnemyButton button = getBean(EnemyButton.class, enemy);
-        button.setThumbnail(button.enemyTilesAssembler.toIcon(enemy));
         button.setMargin(new Insets(2, 2, 2, 2));
-        button.setBaseTooltip(buildTooltip(enemy));
+        button.show(enemy);
         return button;
+    }
+
+    /** Shows {@code enemy}, a newer copy of the stamp after an edit: the palette arms this one from now on. */
+    public void show(final EnemyStamp enemy) {
+        this.enemy = enemy;
+        setThumbnail(enemyTilesAssembler.toIcon(enemy));
+        setBaseTooltip(buildTooltip(enemy));
     }
 
     @Override

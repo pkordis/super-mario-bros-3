@@ -3,31 +3,21 @@ package house.x1337.app.smb3.game.object.level.enemy.base;
 import com.jme3.scene.Geometry;
 import house.x1337.app.smb3.enumeration.Reward;
 import house.x1337.app.smb3.enumeration.enemy.EnemyMode;
-import house.x1337.app.smb3.game.engine.GameEngine;
-import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
-import house.x1337.app.smb3.game.object.level.BakedLayerPainter;
 import house.x1337.app.smb3.game.player.level.LevelScenePlayer;
 import house.x1337.app.smb3.model.game.Coordinates;
 import house.x1337.app.smb3.model.game.DimensionsPixels;
-import house.x1337.app.smb3.model.game.LevelSceneDimensions;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
-import house.x1337.app.smb3.model.game.enemy.EnemyStamp;
-import house.x1337.app.smb3.model.ui.tile.Tile;
-import house.x1337.app.smb3.service.EnemyStampService;
-
-import java.util.List;
+import house.x1337.app.smb3.model.game.motion.PixelPosition;
 
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
 import static house.x1337.app.smb3.GameConstants.Z_DEPTH_ENEMY;
 import static house.x1337.app.smb3.GameConstants.Z_OFFSET_ENEMY_DETAIL;
-import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
-import static house.x1337.app.smb3.enumeration.LevelSceneLayerType.NON_PLAYABLE_CHARACTERS;
 import static house.x1337.app.smb3.enumeration.Reward.SCORE_100;
 import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static java.lang.Math.round;
 
-public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
+public interface EnemyLevelObject extends ActiveLevelObject {
     EnemyMode getMode();
     void motionUpdate();
     boolean isExpired();
@@ -99,51 +89,12 @@ public interface EnemyLevelObject extends ActiveLevelObject, BakedLayerPainter {
         return AxisAlignedBoundingBox.ofSize(getPosition(), getBoundsPixels());
     }
 
-    /**
-     * Takes the editor placement this enemy was spawned from out of the baked NPC layer, so the terrain
-     * stops drawing an enemy that is now a live sprite.
-     *
-     * <p>Erasing {@link #getOffset()} alone is not enough. An author places an enemy by stamping a whole
-     * {@link EnemyStamp} — a grid of {@code ENEMY_PART} cells anchored by its rendering-starter tile —
-     * and only that anchor cell becomes {@link #getOffset()}. Every other cell of the stamp stays baked
-     * where it was painted, which is invisible for an enemy drawn inside one tile but not for anything
-     * larger: a Para-Goomba's wings sit a tile above its body and spill into the column either side, so
-     * they would stay pinned to the terrain while the Para-Goomba flies away from them.
-     *
-     * <p>Call from {@code spawnIntoScene}, once the live sprite exists to take the placement's place.
-     */
-    default void erasePlacementFromBakedTexture() {
-        final GameEngine gameEngine = getGameEngine();
-        final LevelScene levelScene = gameEngine.getLevelScene();
-        final Geometry bakedLayerGeometry = gameEngine.getLayerGeometry(NON_PLAYABLE_CHARACTERS);
-        final LevelSceneDimensions dimensions = levelScene.getDimensions();
-        placementCells(levelScene)
-            .forEach(cell -> eraseFromBakedTexture(bakedLayerGeometry, dimensions, cell));
-    }
+    void setPosition(PixelPosition position);
 
-    /**
-     * The NPC-layer cells this enemy's placement occupies. Resolved from the layer rather than from the
-     * enemy's sprite size, because the footprint is whatever an author stamped — and falls back to the
-     * anchor cell alone when the layer no longer matches any stamp. This keeps an enemy spawned by hand
-     * (a test scene, or a Goomba adopting a Para-Goomba's slot) working.
-     */
-    private List<Coordinates> placementCells(final LevelScene levelScene) {
-        final Coordinates anchor = getOffset();
-        final LevelScene.LevelSceneLayer layer = levelScene.getNonPlayableCharactersLayer();
-        final Tile[][] tiles = layer == null ? null : layer.getTiles();
-        if (tiles == null) {
-            return List.of(anchor);
-        }
-        if (anchor.y() < 0 || anchor.y() >= tiles.length
-            || anchor.x() < 0 || anchor.x() >= tiles[anchor.y()].length) {
-            return List.of();
-        }
-        return getBean(EnemyStampService.class)
-            .findPlacementAt(tiles, anchor)
-            .map(placement -> placement.heldCells(tiles))
-            .orElseGet(() -> List.of(anchor));
+    /** Moves the enemy by {@code pixels}, in level pixels: the spawner places it within its cell this way. */
+    default void shiftPosition(final Coordinates pixels) {
+        setPosition(getPosition().plus(pixels.x(), pixels.y()));
     }
-
     /**
      * An enemy's stomp-depth reference is the Y it tracks, not its collision box top and not its sprite top:
      * the stomp is measured from the tracked Y regardless of how either is offset from it. An enemy that insets
