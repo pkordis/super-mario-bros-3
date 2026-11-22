@@ -54,6 +54,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private boolean running;
     private boolean runningOffLevel;
     private boolean runOffHalted;
+    private boolean slidingAgainstAWall;
     private boolean slowGravityBlocked;
     private boolean wasCarrying;
     private int deathPauseCounter;
@@ -77,11 +78,17 @@ public class PlayerRuntimeState implements KillTallyAware {
     }
 
     public boolean isSliding() {
-        return slideVelocity != 0;
+        return slideVelocity != 0 || slidingAgainstAWall;
     }
 
     public void stopSliding() {
         slideVelocity = 0;
+        slidingAgainstAWall = false;
+    }
+
+    public void slideAgainstAWall() {
+        slideVelocity = 0;
+        slidingAgainstAWall = true;
     }
 
     /**
@@ -138,7 +145,7 @@ public class PlayerRuntimeState implements KillTallyAware {
         enteredPipePortal = portal;
         pipeEntryDirection = direction;
         pipeCountdown = PIPE_ENTRY_TICKS;
-        slideVelocity = 0;
+        stopSliding();
     }
 
     public boolean isEnteringPipe() {

@@ -86,6 +86,19 @@ All in `StaticEnvironmentCollisionGrid.handleCollision`. Values in px/frame.
   steep slope, +1 on a gentle one, -1 on the flat: a slide coasts to a stop.
 - **Ends** (`stopSliding`) when the player is airborne (jumping is allowed), holds Left, Right or Up (prg008:3079), is
   stopped by a wall (prg008:5756), enters a pipe or dies, or the slide reaches 0.
+- **Against a wall the slide goes on in place** (SMB3-89). A wall that stops a slide while Down is held
+  (`slideAgainstAWall`) leaves the player sliding against it: `PlayerRuntimeState.slidingAgainstAWall` keeps
+  `isSliding` true, so the player is drawn sliding and a contact still counts as a slide, but X velocity stays 0, so
+  nothing moves (a still player does not slip). It ends like any slide, and also when Down is let go, which stands the
+  player up; pressing Down again starts a new slide. Without Down held, the wall ends the slide as before.
+  - Why: the first version stopped the slide and let it restart. With Down held, it restarted from 0 every other
+    frame: the pull stepped the player up to 5/16 px into the wall, the wall pushed them back and stopped the slide,
+    so X saw-toothed over a pixel and the pose flipped between sliding and standing each frame.
+  - dasm restarts the slide the same way (the wall clears `Player_Slide`, prg008:5752-5757, and a slide starts on any
+    frame with only Down held on a slope, prg008:5979-6046, setting the slide frame each time). The wall push comes in
+    the same frame as the move and X is drawn in whole pixels, so the player shows the slide frame and stays still.
+    The wall check (`PRG008_BAB1`) runs before the floor code that restarts the slide (`PRG008_BBE0`), so by the
+    end of the frame the player is sliding again, and objects meet a sliding player.
 - **While sliding:** no tail attack (dasm masks B, prg008:1353), no duck, no run flag.
 - **Drawing:** the movement is `SLIDING`, drawn with each mode's `sliding.png` (`renderSlide`). The art in the repo is a
   placeholder (a copy of the duck frame, the still frame for small).
@@ -180,3 +193,51 @@ are exactly on a ramp's surface under the centre, and 0 otherwise.
   in the air, cleared on death), snapshotted and interpolated with the position, and read through `getDrawY()`.
 - A first attempt interpolated between the pixel columns of the tile's surface. It made things worse: every pixel
   irregularity, and the gentle slope's two-column steps, showed up as bends in the drawn path.
+
+## 6. Enemies meeting the player and each other on a slope
+
+SMB3-89. Apart from the walking speed, the walk-animation rate and slide kills, the flat-ground contact rules hold on
+a ramp. Two of them needed a change, because a ramp puts two bodies that touch at different heights.
+
+### The player on the ground cannot stomp
+
+The stomp test (kb/dynamic-entities.md, "The stomp test") only asks whether the player's Y is 19 px above the enemy's
+stomp reference. A ramp lifts the uphill one by up to the full horizontal distance between them, so a player walking
+down into a Goomba walking up qualified and stomped it.
+
+`ActiveObjectGrid.dispatchDirectionalPlayerCollision` now sends the contact to `onPlayerOverlap` (the body hit: hurt,
+or kick for a still shell) when the player is on the ground (`LevelScenePlayer.isOnTheGround`, not jumping, falling or
+flying) and the enemy is not in the air falling slowly: it is grounded (`ActiveLevelObject.isGrounded`), rising, or
+falling at 10 sixteenths a tick or more (`SLOW_FALL_SPEED_LIMIT`). A player in the air stomps as before, on a ramp
+too. A sliding player never reaches this test: the slide runs first (section 3, "Sliding into enemies").
+
+dasm: `Player_HitEnemy` (prg000:3670-3770). For an object with `OA2_GNDPLAYERMOD` and a player not in the air
+(`PRG000_D205`), an object Y velocity `>= $0A` (an unsigned compare, so a rising object counts too) or an object that
+hit the ground (`Objects_DetStat & 4`) goes straight to `Object_HoldKickOrHurtPlayer`, skipping the stomp test. The
+flag is set on the Goomba, both Koopa Troopas, Buzzy Beetle, Spiny, the giant Goomba and Troopas and the flying green
+Paratroopa (prg004:194-220). The Para-Goomba (`$73`) and the hopping green Paratroopa (`$6E`) lack it, so in dasm a
+walking player can still stomp those on a slope. Here the rule applies to every enemy, as the ticket asks: on the
+ground only a slide kills.
+
+### Walkers bump on a slope
+
+`ActiveObjectGrid.resolveObjectToObjectBumps` turned two walkers only when they met side-on (`isSideContact`, the
+shallower overlap is horizontal), so a walker falling onto another's head does not turn. A Goomba's box is 13x8: on a
+steep ramp the height between two walkers equals the distance across, so the vertical overlap was always the smaller
+and they walked through each other. On a gentle ramp they still bumped, a few pixels later than on the flat.
+
+Now two objects that are both on the ground are judged as if they stood level (`ActiveObjectGrid.meetSideOn`): they
+meet side-on while the horizontal overlap is less than the smaller box height. On the flat that is the old rule. On a
+slope the height between them, which the ground alone causes, no longer counts. A walker that falls through another
+and lands inside it overlaps it by more than the height and still does not turn (`GoombaBumpTest`).
+
+dasm's `Object_BumpOffOthers` (prg000:2423-2475) turns on any bounding-box intersection between two
+`OAT_BOUNCEOFFOTHERS` objects in their normal state, facing away by sprite X; it has no side-on test. With the same
+13x8 box, two walkers on a steep ramp touch only when less than 8 px apart across, in dasm as here.
+
+### Testing
+
+`EnemySlopeContactTest` runs a real player and real Goombas over the steep and gentle hills through the object grid:
+walking up and down into a Goomba hurts, falling onto one stomps it, sliding into one kills it, and two Goombas turn
+away from each other on both slopes. `ActiveObjectGridTest` covers the rules with stubs, and `PlayerSlopeTest` the
+wall hold-off ("Sliding into a wall beside a ramp with Down held, the player stays still against it").

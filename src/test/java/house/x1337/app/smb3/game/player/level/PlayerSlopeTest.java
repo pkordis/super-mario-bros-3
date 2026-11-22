@@ -104,6 +104,51 @@ class PlayerSlopeTest {
         "########################################"
     );
 
+    private final SlopeTerrain rampDownIntoAWallOnTheRight = new SlopeTerrain(
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "............#...........",
+        "#########\\..#...........",
+        "##########\\.#...........",
+        "###########\\#...........",
+        "########################"
+    );
+
+    private final SlopeTerrain rampDownIntoAWallOnTheLeft = new SlopeTerrain(
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "...........#............",
+        "...........#../#########",
+        "...........#./##########",
+        "...........#/###########",
+        "########################"
+    );
+
+    private final SlopeTerrain gentleRampDownIntoAWall = new SlopeTerrain(
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "..........cd#...........",
+        "............#...........",
+        "########################"
+    );
+
     private MockedStatic<StaticBeanFactory> staticBeanFactory;
     private GameEngine gameEngine;
 
@@ -378,6 +423,71 @@ class PlayerSlopeTest {
         assertThat(runtimeState.isSliding()).as("Comes to a stop on the flat").isFalse();
         assertThat(runtimeState.getMovement()).as("No longer drawn sliding").isNotEqualTo(SLIDING);
         assertThat(player.getPosition().getDX()).isCloseTo(0, within(TOLERANCE));
+    }
+
+    Stream<Arguments> rampsDownIntoAWall() {
+        return Stream.of(PlayerMode.SHRUNK, NORMAL, PlayerMode.RACCOON).flatMap(mode -> Stream.of(
+            arguments(mode, "steep, wall on the right", rampDownIntoAWallOnTheRight, 9 * TILE_SPRITE_SIZE),
+            arguments(mode, "steep, wall on the left", rampDownIntoAWallOnTheLeft, 14 * TILE_SPRITE_SIZE),
+            arguments(mode, "gentle, wall on the right", gentleRampDownIntoAWall, 10 * TILE_SPRITE_SIZE)
+        ));
+    }
+
+    @ParameterizedTest(name = "{0}, {1}")
+    @MethodSource("rampsDownIntoAWall")
+    @DisplayName("Sliding into a wall beside a ramp with Down held, the player keeps sliding against it without moving")
+    void aSlideStoppedByAWallStaysStopped(
+        final PlayerMode mode,
+        final String name,
+        final SlopeTerrain terrain,
+        final int x
+    ) {
+        // Prepare - slid down into the wall
+        final LevelScenePlayer player = playerOn(terrain, mode, x);
+        player.updateFrame();
+        holding(player, HANDLER_DOWN);
+        for (int frame = 0; frame < 60; frame++) {
+            player.updateFrame();
+        }
+        final PlayerPosition position = player.getPosition();
+        final double stoppedX = position.getX();
+        final double stoppedDrawY = position.getDrawY();
+        final PlayerRuntimeState runtimeState = player.getRuntimeState();
+
+        // Execute & Verify
+        for (int frame = 0; frame < 60; frame++) {
+            player.updateFrame();
+            assertThat(runtimeState.isSliding()).as("Frame %d: sliding", frame).isTrue();
+            assertThat(runtimeState.getMovement()).as("Frame %d: drawn sliding", frame).isEqualTo(SLIDING);
+            assertThat(position.getDX()).as("Frame %d: not moving", frame).isZero();
+            assertThat(position.getX()).as("Frame %d: x", frame).isCloseTo(stoppedX, within(TOLERANCE));
+            assertThat(position.getDrawY()).as("Frame %d: drawn y", frame).isCloseTo(stoppedDrawY, within(TOLERANCE));
+        }
+        assertThat(runtimeState.isOnSlope()).as("Still on the ramp").isTrue();
+    }
+
+    @Test
+    @DisplayName("Against the wall, letting go of Down stands the player up, and pressing it again slides again")
+    void lettingGoOfDownAgainstAWallStands() {
+        // Prepare - slid down into the wall
+        final LevelScenePlayer player = playerOn(rampDownIntoAWallOnTheRight, NORMAL, 9 * TILE_SPRITE_SIZE);
+        final PlayerRuntimeState runtimeState = player.getRuntimeState();
+        player.updateFrame();
+        holding(player, HANDLER_DOWN);
+        for (int frame = 0; frame < 60; frame++) {
+            player.updateFrame();
+        }
+
+        // Execute & Verify
+        holding(player);
+        player.updateFrame();
+        assertThat(runtimeState.isSliding()).as("Let go of Down").isFalse();
+        assertThat(runtimeState.getMovement()).as("Let go of Down").isNotEqualTo(SLIDING);
+
+        holding(player, HANDLER_DOWN);
+        player.updateFrame();
+        assertThat(runtimeState.isSliding()).as("Down again").isTrue();
+        assertThat(runtimeState.getMovement()).as("Down again").isEqualTo(SLIDING);
     }
 
     @Test

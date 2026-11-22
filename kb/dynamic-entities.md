@@ -652,6 +652,33 @@ object-collision-box bottom (`getY()+32`) — box == sprite on both sides. So th
 Covered by `ActiveObjectGridTest`: stomp (8px, fires), shallow (3px, waits), from-below, side-hit,
 non-opt-in reward.
 
+### The stomp test
+
+The current rule, which replaced the refinement above. `ActiveObjectGrid.dispatchDirectionalPlayerCollision` decides
+the side of a player-enemy contact from the vertical positions alone; the horizontal axis is never consulted. Once the
+boxes overlap, the only question is whether the player's Y sits at least 19 px (`STOMP_RANGE_PIXELS`) above the
+enemy's stomp reference (`getStompReferenceTop`, the enemy's tracked Y):
+
+- **From above** (`onCollisionFromAbove`), a stomp: within range and not rising (`DY >= 0`).
+- Within range and rising: nothing. The player is leaving, most often on the bounce a stomp just gave.
+- **From below** (`onCollisionFromBelow`): too deep for a stomp and rising.
+- **Overlap** (`onPlayerOverlap`), the body hit: too deep and not rising.
+
+Three contacts skip the test: a sliding player goes to `onSlidInto` (kb/slopes.md, "Sliding into enemies"), an enemy
+that cannot be stomped goes to `onPlayerOverlap`, and so does a player on the ground meeting an enemy on the ground
+(kb/slopes.md, "The player on the ground cannot stomp").
+
+- The reference is `PlayerPosition`'s Y, not the hitbox top. The feet are at `Y + 32` for either size, so one
+  constant serves large and small Mario (Y is near the hat when Super and about 16 px above the head when small).
+  Measured from the hitbox top, the two sizes would stomp at different depths.
+- The least-overlapping-axis test and the 6 px minimum sink depth of the refinement made a stomp harder the faster
+  the player fell (a deeper vertical overlap demanded an equally deep horizontal one). A stomp only registered near
+  the enemy's centre, and a player landing across two adjacent enemies stomped neither. Running into an enemy's side
+  puts the feet level with the enemy's, far too deep for the 19 px range, so the vertical test covers the side hit.
+- dasm (`PRG000_D218`, prg000:3769) uses 17 px for a pile-driver Micro-Goomba and a hopping Cheep Cheep, 8 px for a
+  giant object and 19 px otherwise. Only the ordinary value is needed so far; it becomes a per-object property when a
+  giant or a Micro-Goomba arrives.
+
 ---
 
 ## Animator / animation / motion manager are three concerns — where an enemy animator is reset (2026-09)
