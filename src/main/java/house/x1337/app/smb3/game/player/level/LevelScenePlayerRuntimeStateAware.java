@@ -299,6 +299,10 @@ public interface LevelScenePlayerRuntimeStateAware
         return getRuntimeState().isSliding();
     }
 
+    default boolean isOnTheGround() {
+        return !getRuntimeState().isInAir();
+    }
+
     /**
      * Whether a carriable object touching the player right now may be taken. A player who held something on
      * the previous tick cannot pick anything up.

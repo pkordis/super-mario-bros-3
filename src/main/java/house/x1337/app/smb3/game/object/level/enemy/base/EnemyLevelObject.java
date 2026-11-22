@@ -141,6 +141,7 @@ public interface EnemyLevelObject extends ActiveLevelObject {
         return false;
     }
 
+    @Override
     default boolean isGrounded() {
         return true;
     }

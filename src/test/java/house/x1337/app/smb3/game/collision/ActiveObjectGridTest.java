@@ -16,6 +16,8 @@ import house.x1337.app.smb3.model.game.motion.PixelPosition;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -346,6 +348,79 @@ class ActiveObjectGridTest {
     }
 
     @Test
+    @DisplayName("A player on the ground meeting an object on the ground in stomp range is hurt, not stomping")
+    void aGroundedPlayerCannotStompAGroundedObject() {
+        // Prepare - the stomp geometry of stompTriggersOnCollisionFromAbove, as a slope puts the two
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80).grounded();
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
+        when(player.isOnTheGround()).thenReturn(true);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.overlapCount).isEqualTo(1);
+        assertThat(enemy.fromAboveCount).isZero();
+    }
+
+    @ParameterizedTest(name = "falling at {0}")
+    @ValueSource(ints = {-8, 10, 32})
+    @DisplayName("A player on the ground meeting an object in the air that rises or falls fast is hurt")
+    void aGroundedPlayerCannotStompAFastObject(final int fallSpeed) {
+        // Prepare
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80).fallingAt(fallSpeed);
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
+        when(player.isOnTheGround()).thenReturn(true);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.overlapCount).isEqualTo(1);
+        assertThat(enemy.fromAboveCount).isZero();
+    }
+
+    @ParameterizedTest(name = "falling at {0}")
+    @ValueSource(ints = {0, 9})
+    @DisplayName("A player on the ground still stomps an object in the air that falls slowly")
+    void aGroundedPlayerStompsASlowlyFallingObject(final int fallSpeed) {
+        // Prepare
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80).fallingAt(fallSpeed);
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
+        when(player.isOnTheGround()).thenReturn(true);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.fromAboveCount).isEqualTo(1);
+        assertThat(enemy.overlapCount).isZero();
+    }
+
+    @Test
+    @DisplayName("A player in the air stomps an object on the ground")
+    void anAirbornePlayerStompsAGroundedObject() {
+        // Prepare
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject enemy = enemyAt(20, 80).grounded();
+        grid.insert(enemy);
+        final LevelScenePlayer player = playerAt(20, 55, 1.0);
+
+        // Execute
+        grid.resolveActiveObjectCollisions(List.of(player));
+
+        // Verify
+        assertThat(enemy.fromAboveCount).isEqualTo(1);
+        assertThat(enemy.overlapCount).isZero();
+    }
+
+    @Test
     @DisplayName("an object that does not opt in gets only the undirected onCollisionWith")
     void nonOptInObjectGetsOnlyUndirectedCollision() {
         // Prepare — a reward-like object (directional == false) landed on from above.
@@ -405,6 +480,45 @@ class ActiveObjectGridTest {
         // Verify
         assertThat(upper.bumpedFrom).isEmpty();
         assertThat(lower.bumpedFrom).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Two bouncing objects on the ground at different heights bump as if they stood level, as on a slope")
+    void groundedBouncersBumpOnASlope() {
+        // Prepare - 13x8 boxes 6 px apart across and 6 px apart in height, as a steep slope puts two walkers: 7 px of X
+        // overlap, less than the 8 px of Y they would share standing level, although they share only 2
+        final DimensionsPixels dimensions = new DimensionsPixels(13, 8);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject upper = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing().grounded();
+        final StubObject lower = new StubObject(AxisAlignedBoundingBox.ofSize(6, 6, dimensions)).bouncing().grounded();
+        grid.insert(upper);
+        grid.insert(lower);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(upper.bumpedFrom).containsExactly(lower);
+        assertThat(lower.bumpedFrom).containsExactly(upper);
+    }
+
+    @Test
+    @DisplayName("Two bouncing objects on the ground overlapping by more than their height across do not bump")
+    void groundedBouncersOneInsideTheOtherDoNotBump() {
+        // Prepare - one landed right inside the other: 11 px of X overlap against 8 px of height
+        final DimensionsPixels dimensions = new DimensionsPixels(13, 8);
+        final ActiveObjectGrid<StubObject> grid = newGrid();
+        final StubObject first = new StubObject(AxisAlignedBoundingBox.ofSize(0, 0, dimensions)).bouncing().grounded();
+        final StubObject second = new StubObject(AxisAlignedBoundingBox.ofSize(2, 0, dimensions)).bouncing().grounded();
+        grid.insert(first);
+        grid.insert(second);
+
+        // Execute
+        grid.resolveObjectToObjectBumps();
+
+        // Verify
+        assertThat(first.bumpedFrom).isEmpty();
+        assertThat(second.bumpedFrom).isEmpty();
     }
 
     @Test
@@ -780,6 +894,8 @@ class ActiveObjectGridTest {
         private boolean rammable = true;
         private boolean stompable = true;
         private boolean diesOnFirstStrike;
+        private boolean grounded;
+        private FixedPointVelocity velocity = STILL;
         private int collisionCount;
         private int struckByKick;
         private int lastKnock;
@@ -801,6 +917,21 @@ class ActiveObjectGridTest {
         private StubObject bouncing() {
             bouncing = true;
             return this;
+        }
+
+        private StubObject grounded() {
+            grounded = true;
+            return this;
+        }
+
+        private StubObject fallingAt(final int fallSpeed) {
+            velocity = STILL.withY(fallSpeed);
+            return this;
+        }
+
+        @Override
+        public boolean isGrounded() {
+            return grounded;
         }
 
         /** Opts this stub into the lethal pass, as a rolling shell does. */
@@ -893,7 +1024,7 @@ class ActiveObjectGridTest {
 
         @Override
         public FixedPointVelocity getVelocity() {
-            return STILL;
+            return velocity;
         }
 
         @Override

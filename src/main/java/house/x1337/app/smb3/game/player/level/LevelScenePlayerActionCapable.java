@@ -70,18 +70,33 @@ public interface LevelScenePlayerActionCapable
     ) {
         final PlayerRuntimeState runtimeState = getRuntimeState();
         final PlayerPosition position = getPosition();
+        final boolean inputDown = inputHandler.isActive(HANDLER_DOWN);
         final boolean inputLeft = inputHandler.isActive(HANDLER_LEFT);
         final boolean inputRight = inputHandler.isActive(HANDLER_RIGHT);
 
         if (runtimeState.isSliding()) {
-            final boolean stoppedByAWall = hitWall && position.getDX() == 0;
-            if (runtimeState.isInAir() || inputLeft || inputRight || inputHandler.isActive(HANDLER_UP)
-                || stoppedByAWall) {
+            if (runtimeState.isInAir() || inputLeft || inputRight || inputHandler.isActive(HANDLER_UP)) {
                 runtimeState.stopSliding();
                 return;
             }
-        } else if (runtimeState.isInAir() || !runtimeState.isOnSlope() || runtimeState.isCarrying()
-            || !inputHandler.isActive(HANDLER_DOWN) || inputLeft || inputRight) {
+            if (runtimeState.isSlidingAgainstAWall()) {
+                // Still pushing downhill into the wall, without moving, for as long as Down is held
+                position.setDX(0);
+                if (!inputDown || !runtimeState.isOnSlope()) {
+                    runtimeState.stopSliding();
+                }
+                return;
+            }
+            if (hitWall && position.getDX() == 0) {
+                if (inputDown) {
+                    runtimeState.slideAgainstAWall();
+                } else {
+                    runtimeState.stopSliding();
+                }
+                return;
+            }
+        } else if (runtimeState.isInAir() || !runtimeState.isOnSlope() || runtimeState.isCarrying() || !inputDown
+            || inputLeft || inputRight) {
             return;
         }
         runtimeState.advanceSlide();

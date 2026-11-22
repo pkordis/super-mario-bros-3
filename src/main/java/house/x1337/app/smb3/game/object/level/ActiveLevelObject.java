@@ -51,6 +51,10 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         return true;
     }
 
+    default boolean isGrounded() {
+        return false;
+    }
+
     default void onSlidInto(final LevelScenePlayer player) {
         onPlayerOverlap(player);
     }

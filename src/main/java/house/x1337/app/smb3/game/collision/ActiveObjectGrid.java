@@ -42,20 +42,17 @@ import static java.lang.Math.min;
  *
  * <p>Not thread-safe; it is driven from the single simulation thread.
  *
+ * <p>A stomp needs the player's Y at least {@value #STOMP_RANGE_PIXELS} px above the object's stomp reference.
+ * Against a player on the ground, an object can only be stomped while it is in the air, falling slower than
+ * {@value #SLOW_FALL_SPEED_LIMIT} sixteenths of a pixel per tick. See kb/slopes.md, "Enemies meeting the player and
+ * each other on a slope".
+ *
  * @param <T> the concrete active-object type this grid indexes
  */
 @Prototype
 @RequiredArgsConstructor
 public final class ActiveObjectGrid<T extends ActiveLevelObject> {
-    /**
-     * How far above an object's top the player's reference Y must be for contact to count as a stomp
-     * rather than a body hit: the player's Y is compared against the object's top minus 19.
-     *
-     * <p>The range differs per object: {@code 17} for a pile-driver microgoomba and a hopping Cheep
-     * Cheep, {@code 8} when the object is giant, {@code 19} for everything else. Only ordinary-sized
-     * enemies exist here, so the ordinary value is the only one needed; it becomes a per-object property
-     * the moment a giant or microgoomba does.
-     */
+    private static final int SLOW_FALL_SPEED_LIMIT = 10;
     private static final double STOMP_RANGE_PIXELS = 19.0;
 
     private final Map<Coordinates, List<T>> cellsByKey = new HashMap<>();
@@ -224,24 +221,9 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
-     * Turns every pair of overlapping {@link ActiveLevelObject#bouncesOffOtherObjects() bouncing}
-     * objects away from each other, but only where they meet <b>side-on</b>. This is what stops a row of
-     * walking enemies from drifting through one another.
-     *
-     * <p>Run as its own phase, after every manager has moved and re-inserted its objects and before the
-     * player pass. It cannot be folded into the walk itself: an enemy deciding mid-move whether a
-     * neighbor blocks it would be querying a half-filled grid, seeing only the objects whose managers
-     * happened to run first and missing the rest entirely. That is the same reason the tail strike is
-     * resolved from here.
-     *
-     * <p>Consequently the bump is detected just <em>after</em> the overlap rather than instead of it, so
-     * the two objects interpenetrate briefly — at a walking pace of half a pixel per tick, by under a
-     * pixel — and separate on the following tick. That is the intended behaviour: the objects have
-     * already moved, and the bump only rewrites their facing, never their position.
-     *
-     * <p>Each object is resolved against every neighbour independently and told to face <em>away</em>
-     * from it, so the outcome does not depend on iteration order and a pair that spawns already
-     * overlapping still separates instead of flipping in lockstep.
+     * Turns every pair of overlapping {@link ActiveLevelObject#bouncesOffOtherObjects() bouncing} objects away from
+     * each other where they meet side-on, on the flat or on a slope. Runs after every object has moved this tick. See
+     * kb/slopes.md, "Enemies meeting the player and each other on a slope".
      */
     public void resolveObjectToObjectBumps() {
         for (final T object : bouncingObjects) {
@@ -251,7 +233,7 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
                     continue;
                 }
                 final AxisAlignedBoundingBox otherBounds = other.getBounds();
-                if (bounds.intersects(otherBounds) && isSideContact(bounds, otherBounds)) {
+                if (bounds.intersects(otherBounds) && meetSideOn(object, other)) {
                     object.onSideCollisionWith(other);
                 }
             }
@@ -344,6 +326,24 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
+     * Whether two overlapping objects meet side-on. Two objects on the ground are judged as if they stood level, since
+     * on a slope the ground alone puts them at different heights.
+     */
+    private boolean meetSideOn(
+        final T object,
+        final T other
+    ) {
+        final AxisAlignedBoundingBox bounds = object.getBounds();
+        final AxisAlignedBoundingBox otherBounds = other.getBounds();
+        if (!object.isGrounded() || !other.isGrounded()) {
+            return isSideContact(bounds, otherBounds);
+        }
+        final double horizontalOverlap = min(bounds.right() - otherBounds.left(), otherBounds.right() - bounds.left());
+        final double levelOverlap = min(bounds.bottom() - bounds.top(), otherBounds.bottom() - otherBounds.top());
+        return horizontalOverlap < levelOverlap;
+    }
+
+    /**
      * Whether two overlapping boxes meet on a vertical face rather than a horizontal one, by the same
      * <b>least-overlapping-axis</b> rule {@link #dispatchDirectionalPlayerCollision} uses: the shallower
      * axis is the one they actually came together along.
@@ -405,40 +405,10 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
     }
 
     /**
-     * Resolves which side of an {@link ActiveLevelObject} the player struck and dispatches the matching
-     * directional {@link house.x1337.app.smb3.game.object.level.LevelObject} method — the active-object
-     * mirror of {@code StaticEnvironmentCollisionGrid}'s terrain dispatch, for the objects that opt in
-     * via {@link ActiveLevelObject#resolvesDirectionalPlayerCollision()} (the enemies).
-     *
-     * <p>The split is <b>purely vertical</b>, and deliberately so: a stomp is decided from the vertical
-     * positions alone, and the horizontal axis is never consulted at all. Once the boxes overlap, the
-     * only question is whether the player's reference top sits at least {@value #STOMP_RANGE_PIXELS}px
-     * above the object's top:
-     *
-     * <ul>
-     *   <li><b>From above</b> ({@code onCollisionFromAbove}) — a stomp: within stomp range and the player
-     *       not rising ({@code DY >= 0}).</li>
-     *   <li><b>From below</b> ({@code onCollisionFromBelow}) — too deep to be a stomp, and the player is
-     *       rising into the object.</li>
-     *   <li><b>Overlap</b> ({@code onPlayerOverlap}) — too deep to be a stomp and not rising: the body
-     *       hit, answered by hurting the player.</li>
-     * </ul>
-     *
-     * <p>Note the threshold measures from {@link house.x1337.app.smb3.model.game.player.PlayerPosition}'s
-     * Y, <b>not</b> from the hitbox top. That reference is the same for either size — the feet are always
-     * at {@code Y + 32} — so one constant covers large and small Mario alike (the player's Y is near the
-     * hat when Super and roughly 16 pixels above the head when small). Measuring from the hitbox top
-     * instead would silently make the two sizes stomp at different depths.
-     *
-     * <p>This replaced a least-overlapping-axis test plus a 6px minimum sink depth, neither of which the
-     * stomp needs. Together they made the stomp progressively harder the faster the player fell — a
-     * deeper vertical overlap demanded an equally deep horizontal one — so a stomp only registered near
-     * the enemy's centre, and a player landing across two adjacent enemies got roughly half the needed
-     * overlap on each and stomped neither. The vertical threshold subsumes what the axis test was for:
-     * running into an enemy's side puts the player's feet level with its feet, far too deep to qualify.
-     *
-     * @param object       the object the player is overlapping this tick
-     * @param player       the colliding player
+     * Sends the player's contact with an object that opts in to directional collision to the slide, the stomp, the
+     * hit from below or the body hit. The stomp is decided from the vertical positions alone. See
+     * kb/dynamic-entities.md, "The stomp test", and kb/slopes.md, "Enemies meeting the player and each other on a
+     * slope".
      */
     private void dispatchDirectionalPlayerCollision(
         final ActiveLevelObject object,
@@ -448,8 +418,8 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
             object.onSlidInto(player);
             return;
         }
-        if (!object.canBeStomped()) {
-            // No stomp to tell apart from a side hit, and no bounce to let the player rise out of.
+        if (!object.canBeStomped() || isMetOnTheGround(object, player)) {
+            // No stomp possible, and no bounce to let the player rise out of.
             object.onPlayerOverlap(player);
             return;
         }
@@ -470,6 +440,19 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
             return;
         }
         object.onPlayerOverlap(player);
+    }
+
+    /**
+     * Whether a player on the ground meets the object on the ground too, where it cannot be stomped: the object is not
+     * in the air falling slowly. On a slope the player can stand high enough above an enemy to be in stomp range.
+     */
+    private boolean isMetOnTheGround(
+        final ActiveLevelObject object,
+        final LevelScenePlayer player
+    ) {
+        final int fallSpeed = object.getVelocity().y();
+        final boolean fallingSlowly = fallSpeed >= 0 && fallSpeed < SLOW_FALL_SPEED_LIMIT;
+        return player.isOnTheGround() && (object.isGrounded() || !fallingSlowly);
     }
 
     /**
