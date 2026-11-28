@@ -10,6 +10,7 @@ import house.x1337.app.smb3.game.object.level.block.EmptyBlock;
 import house.x1337.app.smb3.game.object.level.block.PressedSwitchBlock;
 import house.x1337.app.smb3.game.object.level.block.SwitchBlock;
 import house.x1337.app.smb3.game.object.level.reward.Coin;
+import house.x1337.app.smb3.game.object.level.reward.Starman;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
 import lombok.Getter;
@@ -36,6 +37,7 @@ public enum LevelObjectTypeSingleTiled implements LevelObjectType, LevelObjectVa
     // Rewards
     COIN_FLIPPING("Coin", Coin.class, V_NONE),
     ONE_UP_MUSHROOM("1UP Mushroom", SuperMushroom.class, V_LIFE_AWARDING_GREEN),
+    STARMAN("Starman", Starman.class, V_NONE),
     SUPER_LEAF("Super Leaf", SuperLeaf.class, V_GROWING_CAPABLE),
     SUPER_MUSHROOM("Super Mushroom", SuperMushroom.class, V_GROWING_CAPABLE);
 

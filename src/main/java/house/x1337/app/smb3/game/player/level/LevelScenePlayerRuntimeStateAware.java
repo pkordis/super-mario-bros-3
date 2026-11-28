@@ -283,6 +283,7 @@ public interface LevelScenePlayerRuntimeStateAware
     default boolean isHurtable() {
         final PlayerRuntimeState runtimeState = getRuntimeState();
         return !runtimeState.isHurtInvincible()
+            && !runtimeState.isStarInvincible()
             && !runtimeState.isTransitioning()
             && !runtimeState.isDying()
             && !runtimeState.isInPipe();

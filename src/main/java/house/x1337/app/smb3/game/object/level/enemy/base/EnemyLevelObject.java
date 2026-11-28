@@ -18,6 +18,8 @@ import static house.x1337.app.smb3.enumeration.SoundEffect.KOOPA_SHELL;
 import static java.lang.Math.round;
 
 public interface EnemyLevelObject extends ActiveLevelObject {
+    int INVINCIBLE_KNOCK_VELOCITY = 8;
+
     EnemyMode getMode();
     void motionUpdate();
     boolean isExpired();
@@ -144,6 +146,26 @@ public interface EnemyLevelObject extends ActiveLevelObject {
     @Override
     default boolean isGrounded() {
         return true;
+    }
+
+    /**
+     * A player made invincible by a star kills the enemy it touches outright, knocking it away from the player for 100
+     * points, unless it cannot be killed that way, in which case the touch is an ordinary one that the invincible
+     * player shrugs off.
+     */
+    @Override
+    default void onStruckByInvinciblePlayer(final LevelScenePlayer levelScenePlayer) {
+        if (!isKilledByRammedObject()) {
+            onPlayerOverlap(levelScenePlayer);
+            return;
+        }
+        if (!isHittable()) {
+            return;
+        }
+        final boolean playerOnTheRight = levelScenePlayer.getPosition().getX() > getPosition().x();
+        onStruckByKickedObject(playerOnTheRight ? -INVINCIBLE_KNOCK_VELOCITY : INVINCIBLE_KNOCK_VELOCITY);
+        setPendingScoreReward(SCORE_100);
+        getSoundPlayer().play(KOOPA_SHELL);
     }
 
     /**

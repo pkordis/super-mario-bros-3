@@ -35,6 +35,8 @@ public class PlayerRuntimeState implements KillTallyAware {
     public static final int PIPE_SIDE_MOVE_MIN_COUNTDOWN = 16;
     public static final int RACCOON_TRANSITION_TICKS = 23;
     public static final int SUIT_LOSS_TRANSITION_TICKS = 23;
+    public static final int STAR_INVINCIBILITY_COUNT = 224;
+    public static final int STAR_MUSIC_END_COUNT = 32;
     public static final int TURN_AROUND_FACE_TICKS = 7;
 
     private static final int INVINCIBILITY_BLANK_PHASE_MASK = 2;
@@ -47,6 +49,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private PlayerDeathKind deathKind = NONE;
     private PlayerMode queuedMode;
     private PlayerMovement movement = STILL;
+    private boolean airFlipping;
     private boolean ducking;
     private boolean hitCeiling;
     private boolean noteBlockBoosted;
@@ -56,6 +59,7 @@ public class PlayerRuntimeState implements KillTallyAware {
     private boolean runOffHalted;
     private boolean slidingAgainstAWall;
     private boolean slowGravityBlocked;
+    private boolean starPaletteShown;
     private boolean wasCarrying;
     private int deathPauseCounter;
     private int flyTimeToggle;
@@ -71,7 +75,27 @@ public class PlayerRuntimeState implements KillTallyAware {
     private int poofCounter;
     private int slideVelocity;
     private int slopePull;
+    private int starInvincibilityCounter;
     private int turnAroundFaceCounter;
+
+    public boolean isStarInvincible() {
+        return starInvincibilityCounter > 0;
+    }
+
+    public void startStarInvincibility() {
+        starInvincibilityCounter = STAR_INVINCIBILITY_COUNT;
+    }
+
+    public void endStarInvincibility() {
+        starInvincibilityCounter = 0;
+        airFlipping = false;
+    }
+
+    public void decrementStarInvincibility() {
+        if (starInvincibilityCounter > 0) {
+            starInvincibilityCounter--;
+        }
+    }
 
     public boolean isInAir() {
         return movement == JUMPING || movement == FALLING || movement == FLYING;

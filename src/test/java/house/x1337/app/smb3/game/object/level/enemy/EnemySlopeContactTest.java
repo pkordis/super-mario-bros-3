@@ -4,6 +4,7 @@ import house.x1337.app.smb3.bean.StaticBeanFactory;
 import house.x1337.app.smb3.game.collision.ActiveObjectGrid;
 import house.x1337.app.smb3.game.collision.SlopeTerrain;
 import house.x1337.app.smb3.game.engine.GameEngine;
+import house.x1337.app.smb3.game.engine.LevelFrameCounter;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.ActiveLevelObject;
 import house.x1337.app.smb3.game.object.level.enemy.animator.GoombaAnimator;
@@ -166,6 +167,41 @@ class EnemySlopeContactTest {
     }
 
     @Test
+    @DisplayName("Walking into a Goomba down a steep slope with the star's invincibility kills it, unhurt")
+    void anInvinciblePlayerKillsAGoombaItWalksInto() {
+        // Prepare
+        useTerrain(steepHill);
+        final LevelScenePlayer player = playerAt(14 * TILE_SPRITE_SIZE, HANDLER_RIGHT);
+        player.getRuntimeState().startStarInvincibility();
+        final Goomba goomba = goombaAt(18, false);
+
+        // Execute
+        final int frame = tickUntilTheyMeet(player, goomba);
+
+        // Verify
+        assertThat(frame).as("They met").isLessThan(MAX_FRAMES);
+        assertThat(goomba.isDefeated()).as("The Goomba is killed").isTrue();
+        assertThat(player.getRuntimeState().isChangingSize()).as("The player is not hurt").isFalse();
+    }
+
+    @Test
+    @DisplayName("Walking up a steep slope into a Goomba with the star's invincibility, the player is not hurt")
+    void anInvinciblePlayerIsNeverHurt() {
+        // Prepare
+        useTerrain(steepHill);
+        final LevelScenePlayer player = playerAt(18 * TILE_SPRITE_SIZE, HANDLER_LEFT);
+        player.getRuntimeState().startStarInvincibility();
+        final Goomba goomba = goombaAt(14, true);
+
+        // Execute
+        final int frame = tickUntilTheyMeet(player, goomba);
+
+        // Verify
+        assertThat(frame).as("They met").isLessThan(MAX_FRAMES);
+        assertThat(player.getRuntimeState().isChangingSize()).as("The player is not hurt").isFalse();
+    }
+
+    @Test
     @DisplayName("Sliding down a steep slope into a Goomba still kills it")
     void slidingIntoAGoombaKillsIt() {
         // Prepare
@@ -264,6 +300,7 @@ class EnemySlopeContactTest {
         doCallRealMethod().when(cameraState).isBelowVisibleBottom(any());
 
         gameEngine = mock(GameEngine.class);
+        when(gameEngine.getLevelFrameCounter()).thenReturn(new LevelFrameCounter());
         when(gameEngine.getLevelScene()).thenReturn(levelScene);
         when(gameEngine.getCameraState()).thenReturn(cameraState);
         when(gameEngine.getCollisionGrid()).thenReturn(terrain.toGrid(gameEngine));

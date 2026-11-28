@@ -21,6 +21,7 @@ public sealed interface LevelScenePlayerCapabilities
         LevelScenePlayerActionEventListener,
         LevelScenePlayerPipeUsingCapabilities,
         LevelScenePlayerRunningOffCapabilities,
+        LevelScenePlayerStarInvincibilityCapable,
         RewardConsumingPlayer
     permits
         LevelScenePlayer {

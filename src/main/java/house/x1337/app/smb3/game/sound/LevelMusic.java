@@ -12,6 +12,8 @@ import house.x1337.app.smb3.model.event.PlayerTimerHurryUp;
 import house.x1337.app.smb3.model.event.PowerSwitchActivated;
 import house.x1337.app.smb3.model.event.PowerSwitchExpired;
 import house.x1337.app.smb3.model.event.SoundPlayComplete;
+import house.x1337.app.smb3.model.event.StarInvincibilityMusicEnded;
+import house.x1337.app.smb3.model.event.StarInvincibilityStarted;
 import lombok.RequiredArgsConstructor;
 
 import static house.x1337.app.smb3.enumeration.MusicTrack.COURSE_CLEAR;
@@ -19,12 +21,14 @@ import static house.x1337.app.smb3.enumeration.MusicTrack.HURRY_UP;
 import static house.x1337.app.smb3.enumeration.MusicTrack.PLAYER_DOWN;
 import static house.x1337.app.smb3.enumeration.MusicTrack.VICTORY_FANFARE;
 import static house.x1337.app.smb3.enumeration.MusicTrack.P_SWITCH;
+import static house.x1337.app.smb3.enumeration.MusicTrack.STAR;
 
 /**
  * Decides what music plays during a level, so no gameplay class has to.
  *
- * <p>The music the level wants is {@link MusicTrack#P_SWITCH} while the P-switch window is open, otherwise the
- * scene's background music, otherwise silence. Every level build starts it from the beginning through
+ * <p>The music the level wants is {@link MusicTrack#P_SWITCH} while the P-switch window is open, otherwise
+ * {@link MusicTrack#STAR} while the star's music runs, otherwise the scene's background music, otherwise silence. A
+ * star collected while one is running starts its music over. Every level build starts it from the beginning through
  * {@link #start(LevelScene, LevelRunStart)}, except that a run carried over from another scene keeps a track that
  * is already playing when the new scene wants the same one.
  *
@@ -62,6 +66,7 @@ public final class LevelMusic {
 
     private MusicTrack sceneTrack;
     private boolean powerSwitchOpen;
+    private boolean starMusicOn;
     private MusicTrack jingle;
     private boolean silenced;
     private boolean hurried;
@@ -78,6 +83,8 @@ public final class LevelMusic {
         gameEventBus.subscribe(SoundPlayComplete.class, this::onSoundPlayComplete);
         gameEventBus.subscribe(PowerSwitchActivated.class, event -> onPowerSwitchChanged(true));
         gameEventBus.subscribe(PowerSwitchExpired.class, event -> onPowerSwitchChanged(false));
+        gameEventBus.subscribe(StarInvincibilityStarted.class, event -> onStarMusicChanged(true));
+        gameEventBus.subscribe(StarInvincibilityMusicEnded.class, event -> onStarMusicChanged(false));
     }
 
     /**
@@ -112,6 +119,7 @@ public final class LevelMusic {
         jingle = null;
         silenced = false;
         powerSwitchOpen = false;
+        starMusicOn = false;
     }
 
     private void playJingle(final MusicTrack track) {
@@ -144,6 +152,16 @@ public final class LevelMusic {
         }
     }
 
+    private void onStarMusicChanged(final boolean on) {
+        if (!on && !starMusicOn) {
+            return;
+        }
+        starMusicOn = on;
+        if (jingle == null && !silenced) {
+            playWanted();
+        }
+    }
+
     private void playWanted() {
         final MusicTrack wanted = wantedTrack();
         if (wanted == null) {
@@ -154,6 +172,9 @@ public final class LevelMusic {
     }
 
     private MusicTrack wantedTrack() {
-        return powerSwitchOpen ? P_SWITCH : sceneTrack;
+        if (powerSwitchOpen) {
+            return P_SWITCH;
+        }
+        return starMusicOn ? STAR : sceneTrack;
     }
 }

@@ -414,6 +414,10 @@ public final class ActiveObjectGrid<T extends ActiveLevelObject> {
         final ActiveLevelObject object,
         final LevelScenePlayer player
     ) {
+        if (player.isStarInvincible()) {
+            object.onStruckByInvinciblePlayer(player);
+            return;
+        }
         if (player.isSliding()) {
             object.onSlidInto(player);
             return;

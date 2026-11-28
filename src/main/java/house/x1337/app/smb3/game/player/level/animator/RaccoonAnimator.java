@@ -93,6 +93,10 @@ public final class RaccoonAnimator
             return;
         }
 
+        if (renderSomersault(node, levelScenePlayer, assets.somersault())) {
+            return;
+        }
+
         // Tail attack overrides all other animations.
         if (tailAttackCountdown > 0) {
             renderTailAttack(

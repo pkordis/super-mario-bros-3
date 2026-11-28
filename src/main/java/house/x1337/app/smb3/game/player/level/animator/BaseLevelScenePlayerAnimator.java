@@ -1,6 +1,9 @@
 package house.x1337.app.smb3.game.player.level.animator;
 
+import com.jme3.math.Vector3f;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.texture.Texture;
 import house.x1337.app.smb3.enumeration.PlayerMode;
 import house.x1337.app.smb3.enumeration.PlayerMovement;
@@ -12,7 +15,11 @@ import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import house.x1337.app.smb3.model.game.player.level.LevelScenePlayerAnimatorSpecifications;
 import lombok.Data;
 
+import static com.jme3.material.RenderState.FaceCullMode.Off;
+import static house.x1337.app.smb3.GameConstants.PIXELS_TO_GAME_UNITS;
 import static house.x1337.app.smb3.GameConstants.TILE_SPRITE_SIZE;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.LEFT;
+import static house.x1337.app.smb3.enumeration.PlayerOrientationHorizontal.RIGHT;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.POWER_RUNNING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.SLIDING;
 import static house.x1337.app.smb3.enumeration.PlayerMovement.STILL;
@@ -31,6 +38,9 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     static final int KICK_FRAME = -3;
     static final int RUN_OFF_WALK_TICKS_PER_FRAME = 2;
     static final int STANDING_WALK_FRAME = 2;
+    static final int SOMERSAULT_BEATS_MASK = 7;
+    static final int SOMERSAULT_BEATS_PER_HALF_TURN = 4;
+    static final int SOMERSAULT_FRAME_KEY_BASE = 100;
 
     private A assets;
     private LevelScenePlayerAnimatorSpecifications specifications;
@@ -39,6 +49,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
     private boolean wasCarryPosed;
     private boolean wasKickPosed;
     private boolean wasPipePosed;
+    private boolean wasSomersaulting;
     private int lastWalkFrame = -1;
     private int walkAnimTicks;
     private int walkFrameIndex;
@@ -140,6 +151,67 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         }
     }
 
+    /**
+     * Draws the star invincibility's air flip, a somersault that turns upside down and back every few frames.
+     *
+     * @param somersault the four frames of the roll
+     * @return {@code true} if the flip owns the drawing this tick
+     */
+    protected final boolean renderSomersault(
+        final Node node,
+        final LevelScenePlayer levelScenePlayer,
+        final Texture[] somersault
+    ) {
+        final PlayerRuntimeState runtimeState = levelScenePlayer.getRuntimeState();
+        if (!runtimeState.isAirFlipping() || !runtimeState.isInAir()) {
+            if (wasSomersaulting) {
+                wasSomersaulting = false;
+                lastRenderedState = null;
+                lastOrientation = null;
+                lastWalkFrame = -1;
+            }
+            return false;
+        }
+
+        final int beat = levelScenePlayer.getGameEngine().getLevelFrameCounter().getTicks() >> 1;
+        final int frame = beat & (somersault.length - 1);
+        final boolean upsideDown = (beat & SOMERSAULT_BEATS_MASK) >= SOMERSAULT_BEATS_PER_HALF_TURN;
+        final boolean mirrored = upsideDown ^ (levelScenePlayer.getPosition().getDX() < 0);
+        final PlayerOrientationHorizontal orientation = mirrored ? RIGHT : LEFT;
+        final int frameKey = SOMERSAULT_FRAME_KEY_BASE + frame + (upsideDown ? somersault.length : 0);
+        final PlayerMovement movement = runtimeState.getMovement();
+        if (!wasSomersaulting || frameChanged(movement, orientation, frameKey)) {
+            // The roll is wider than the body, so it is centred on it
+            final float centring = (specifications.getQuadWidth() - TILE_SPRITE_SIZE * PIXELS_TO_GAME_UNITS) / 2;
+            rebuildWithTexture(
+                node,
+                somersault[frame],
+                orientation,
+                specifications.getQuadWidth(),
+                specifications.getQuadHeight(),
+                centring,
+                centring
+            );
+            if (upsideDown) {
+                turnUpsideDown(node, specifications.getQuadHeight());
+            }
+            markRendered(movement, orientation, frameKey);
+        }
+        wasSomersaulting = true;
+        return true;
+    }
+
+    private void turnUpsideDown(
+        final Node node,
+        final float quadHeight
+    ) {
+        final Spatial quad = node.getChild(0);
+        final Vector3f scale = quad.getLocalScale();
+        quad.setLocalScale(scale.x, -1, scale.z);
+        quad.move(0, quadHeight, 0);
+        ((Geometry) quad).getMaterial().getAdditionalRenderState().setFaceCullMode(Off);
+    }
+
     public void resetState() {
         lastRenderedState = null;
         lastOrientation = null;
@@ -149,6 +221,7 @@ public abstract class BaseLevelScenePlayerAnimator<A extends PlayerAnimatorAsset
         wasCarryPosed = false;
         wasKickPosed = false;
         wasPipePosed = false;
+        wasSomersaulting = false;
     }
 
     static int pipePoseFrame(final PlayerRuntimeState runtimeState, final int[] walkFrameSequence) {
