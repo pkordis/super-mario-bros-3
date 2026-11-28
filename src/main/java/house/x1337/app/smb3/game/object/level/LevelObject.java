@@ -43,6 +43,14 @@ public interface LevelObject extends GameObject {
         return true;
     }
 
+    /**
+     * Whether the object is not drawn and not solid until the player's head or tail strikes it. See
+     * kb/invisible-block.md.
+     */
+    default boolean isHidden() {
+        return false;
+    }
+
     default boolean isPassableForPlayers() {
         return false;
     }

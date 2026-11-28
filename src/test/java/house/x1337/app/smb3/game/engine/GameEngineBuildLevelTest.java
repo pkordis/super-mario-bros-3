@@ -2,6 +2,7 @@ package house.x1337.app.smb3.game.engine;
 
 import com.jme3.input.InputManager;
 import house.x1337.app.smb3.bean.StaticBeanFactory;
+import house.x1337.app.smb3.game.collision.StaticEnvironmentCollisionGrid;
 import house.x1337.app.smb3.game.engine.fade.FadingEngine;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
 import house.x1337.app.smb3.game.object.level.MotionManager;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,6 +98,7 @@ class GameEngineBuildLevelTest {
         gameEngine = spy(new GameEngine(mock(CameraState.class), playerData));
         doNothing().when(gameEngine).renderLevelTiles(any());
         doNothing().when(gameEngine).setupLevel(any());
+        ReflectionTestUtils.setField(gameEngine, "collisionGrid", mock(StaticEnvironmentCollisionGrid.class));
         final LevelScene levelScene = mock(LevelScene.class);
         when(levelScene.getDimensions()).thenReturn(new LevelSceneDimensions(32, 12));
         gameEngine.setLevelScene(levelScene);

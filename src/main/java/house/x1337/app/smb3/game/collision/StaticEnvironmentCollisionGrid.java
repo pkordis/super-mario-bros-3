@@ -4,6 +4,7 @@ import house.x1337.app.smb3.annotation.Prototype;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.engine.GameEngineAware;
+import house.x1337.app.smb3.game.object.level.BakedLayerPainter;
 import house.x1337.app.smb3.game.object.level.LevelObject;
 import house.x1337.app.smb3.game.object.level.block.motion.BlockMotionManager;
 import house.x1337.app.smb3.game.player.Player;
@@ -132,7 +133,8 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
         final ProbeLocation tVert = probe.vertical();
         final ProbeLocation tHoriz = probe.horizontal();
 
-        final boolean solidVert = isSolidVert(levelScenePlayer, tVert, playerIsMovingUp, nearRamp);
+        final boolean solidVert = isSolidVert(levelScenePlayer, tVert, playerIsMovingUp, nearRamp)
+            || isHeadInHiddenObject(levelScenePlayer, tVert, playerIsMovingUp);
 
         final boolean solidHoriz1 = isWallInFront(levelScenePlayer, tHoriz.first(), playerIsLeftHalf);
         final boolean solidHoriz2 = isWallInFront(levelScenePlayer, tHoriz.second(), playerIsLeftHalf);
@@ -465,6 +467,39 @@ public final class StaticEnvironmentCollisionGrid implements GameEngineAware, Ga
             solidVert = solidVert1 || solidVert2;
         }
         return solidVert;
+    }
+
+    /**
+     * A rising, airborne player whose head probe is inside a hidden object strikes it like a ceiling. The object is
+     * not solid, so this is the only way its head hit is reached.
+     */
+    private boolean isHeadInHiddenObject(
+        final LevelScenePlayer levelScenePlayer,
+        final ProbeLocation tVert,
+        final boolean playerIsMovingUp
+    ) {
+        if (!playerIsMovingUp || !levelScenePlayer.getRuntimeState().isInAir()) {
+            return false;
+        }
+        final Coordinates cell = fromPlayerOffset(levelScenePlayer, tVert.first());
+        return !isOutsideTheGrid(cell) && getLevelObjectAt(cell).isHidden();
+    }
+
+    /** Clears the cell of every hidden object from the baked layer that painted it. */
+    public void eraseHiddenObjects() {
+        for (int row = 0; row < objects.length; row++) {
+            for (int column = 0; column < objects[row].length; column++) {
+                final Coordinates cell = of(column, row);
+                final LevelObject object = objects[row][column];
+                if (object.isHidden() && object instanceof final BakedLayerPainter painter) {
+                    painter.eraseFromBakedTexture(
+                        gameEngine.getLayerGeometry(getSourceLayerAt(cell)),
+                        dimensions,
+                        cell
+                    );
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
