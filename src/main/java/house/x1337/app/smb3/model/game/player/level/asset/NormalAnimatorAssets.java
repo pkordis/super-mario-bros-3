@@ -17,6 +17,7 @@ public record NormalAnimatorAssets(
     Texture jump,
     Texture kick,
     Texture fastJump,
+    Texture[] somersault,
     Texture[] walk,
     Texture[] run
 ) implements PlayerAnimatorAssetsMoving, NormalDimensions {

@@ -20,12 +20,13 @@ import house.x1337.app.smb3.input.PlayerInputHandler;
 import house.x1337.app.smb3.jme3.core.CameraState;
 import house.x1337.app.smb3.model.event.PlayerDeathFallEnded;
 import house.x1337.app.smb3.model.event.PlayerDeathStarted;
+import house.x1337.app.smb3.model.event.StarInvincibilityMusicEnded;
+import house.x1337.app.smb3.model.event.StarInvincibilityStarted;
 import house.x1337.app.smb3.model.game.collision.AxisAlignedBoundingBox;
 import house.x1337.app.smb3.model.game.player.PlayerOrientation;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 import house.x1337.app.smb3.model.game.player.PlayerRuntimeState;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
 import static house.x1337.app.smb3.bean.StaticBeanFactory.getBean;
 import static house.x1337.app.smb3.GameConstants.PLAYER_DEATH_FALL_MAX;
@@ -58,7 +59,6 @@ import static java.lang.Math.min;
  * whose {@link TileType} category is {@link TileType.Category#COLLIDING}.
  */
 @Data
-@Slf4j
 @Prototype
 public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     // Raccoon tail-attack hitbox for dynamic objects, in sprite-pixel space: 10 wide, 15 tall, covering
@@ -327,6 +327,7 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
     @Override
     public void advanceAnimation() {
         animationContext.update(this);
+        applyStarPalette();
         // Paired with the frame the animator just chose, because the hurt-flash blanking is part of drawing
         // that frame rather than a separate effect: it is decided before any sprite is drawn.
         applyHurtFlashVisibility();
@@ -498,6 +499,8 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
             return;
         }
 
+        tickStarInvincibilityCountdown();
+
         // Advance raccoon sprite animation (walk cycle, still/moving transitions)
         advanceAnimation();
 
@@ -595,6 +598,24 @@ public final class LevelScenePlayer implements LevelScenePlayerCapabilities {
         // A death closes the P-Switch window at once, quietly: the death music is about to silence the level anyway
         gameEngine.getCollisionGrid().getPowerSwitchTimeWindow().reset();
         gameEngine.publish(new PlayerDeathStarted(kind));
+        endStarInvincibility();
+    }
+
+    public boolean isStarInvincible() {
+        return runtimeState.isStarInvincible();
+    }
+
+    /** Starts the star invincibility over, and the star music with it, whether or not it was already running. */
+    public void startStarInvincibility() {
+        runtimeState.startStarInvincibility();
+        gameEngine.publish(new StarInvincibilityStarted());
+    }
+
+    public void endStarInvincibility() {
+        if (runtimeState.isStarInvincible()) {
+            runtimeState.endStarInvincibility();
+            gameEngine.publish(new StarInvincibilityMusicEnded());
+        }
     }
 
     @Override

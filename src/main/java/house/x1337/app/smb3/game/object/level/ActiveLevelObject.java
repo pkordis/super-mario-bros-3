@@ -59,6 +59,11 @@ public interface ActiveLevelObject extends LevelObject, GameEngineAware {
         onPlayerOverlap(player);
     }
 
+    /** What touching it does to a player made invincible by a star: nothing unless the object can be killed. */
+    default void onStruckByInvinciblePlayer(final LevelScenePlayer player) {
+        onPlayerOverlap(player);
+    }
+
     default boolean bouncesOffOtherObjects() {
         return false;
     }

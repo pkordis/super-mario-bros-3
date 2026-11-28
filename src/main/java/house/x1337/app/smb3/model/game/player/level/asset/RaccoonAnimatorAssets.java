@@ -16,6 +16,7 @@ public record RaccoonAnimatorAssets(
     Texture[] hold,
     Texture jump,
     Texture kick,
+    Texture[] somersault,
     Texture[] tailFall,
     Texture[] tailFly,
     Texture[] tailAttack,

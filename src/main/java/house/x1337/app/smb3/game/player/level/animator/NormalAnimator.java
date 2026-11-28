@@ -73,6 +73,10 @@ public final class NormalAnimator extends BaseLevelScenePlayerAnimator<NormalAni
             return;
         }
 
+        if (renderSomersault(node, levelScenePlayer, assets.somersault())) {
+            return;
+        }
+
         if (movement == SLIDING) {
             renderSlide(node, orientation, assets.slide());
             return;

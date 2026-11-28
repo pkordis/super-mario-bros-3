@@ -8,8 +8,10 @@ import house.x1337.app.smb3.game.engine.GameEngine;
 import house.x1337.app.smb3.game.object.level.block.animator.NoteBlockAnimator;
 import house.x1337.app.smb3.game.object.level.block.motion.CoinRewardMotionManager;
 import house.x1337.app.smb3.game.object.level.block.motion.NoteBlockBounceMotionManager;
+import house.x1337.app.smb3.game.object.level.reward.Starman;
 import house.x1337.app.smb3.game.object.level.reward.SuperLeaf;
 import house.x1337.app.smb3.game.object.level.reward.SuperMushroom;
+import house.x1337.app.smb3.game.object.level.reward.motion.StarmanMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.motion.SuperLeafMotionManager;
 import house.x1337.app.smb3.game.object.level.reward.motion.SuperMushroomMotionManager;
 import house.x1337.app.smb3.game.player.PlayerData;
@@ -70,6 +72,8 @@ class NoteBlockRewardTest {
     private final GameEngine gameEngine = mock(GameEngine.class);
     private final SuperLeaf leaf = mock(SuperLeaf.class);
     private final SuperMushroom mushroom = mock(SuperMushroom.class);
+    private final StarmanMotionManager starmanManager = mock(StarmanMotionManager.class);
+    private final Starman starman = mock(Starman.class);
     private final PlayerPosition position = new PlayerPosition();
     private final PlayerRuntimeState runtimeState = new PlayerRuntimeState();
 
@@ -108,6 +112,12 @@ class NoteBlockRewardTest {
             }
             if (type == SuperMushroom.class) {
                 return mushroom;
+            }
+            if (type == StarmanMotionManager.class) {
+                return starmanManager;
+            }
+            if (type == Starman.class) {
+                return starman;
             }
             return mock(type);
         });
@@ -170,6 +180,27 @@ class NoteBlockRewardTest {
         // Verify
         verify(mushroom, times(side == RewardDispenseSide.BELOW ? 1 : 0)).dropOutOfTheBlockBelow();
         verify(mushroomManager).spawn(mushroom);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RewardDispenseSide.class)
+    @DisplayName("A star is dropped only when it comes out below the block, and a small player still gets it")
+    void aStarDropsOnlyBelowAndIsNotSwappedForASmallPlayer(final RewardDispenseSide side) {
+        // Prepare
+        final Block noteBlock = noteBlock("STARMAN");
+        final LevelScenePlayer player = player(true);
+
+        // Execute
+        if (side == RewardDispenseSide.BELOW) {
+            noteBlock.onCollisionFromAbove(player);
+        } else {
+            noteBlock.onCollisionFromBelow(player);
+        }
+
+        // Verify
+        verify(starman, times(side == RewardDispenseSide.BELOW ? 1 : 0)).dropOutOfTheBlockBelow();
+        verify(starmanManager).spawn(starman);
+        verifyNoInteractions(mushroomManager);
     }
 
     @Test

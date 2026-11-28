@@ -1,11 +1,8 @@
 package house.x1337.app.smb3.game.player.level;
 
-import com.jme3.material.Material;
-import com.jme3.math.ColorRGBA;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.scene.shape.Quad;
 import house.x1337.app.smb3.enumeration.LevelSceneLayerType;
 import house.x1337.app.smb3.enumeration.PlayerVisibility;
 import house.x1337.app.smb3.game.level.scene.LevelScene;
@@ -18,7 +15,6 @@ import house.x1337.app.smb3.game.player.level.animator.LevelScenePlayerAnimation
 import house.x1337.app.smb3.game.player.level.animator.RaccoonAnimator;
 import house.x1337.app.smb3.model.game.player.PlayerPosition;
 
-import static com.jme3.material.RenderState.BlendMode.Alpha;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Translucent;
 import static com.jme3.renderer.queue.RenderQueue.Bucket.Transparent;
 import static com.jme3.scene.Spatial.CullHint.Always;
@@ -35,17 +31,6 @@ public interface LevelScenePlayerRenderer
         PlayerModeAware,
         Player {
     float PIPE_STEP_UP_PIXELS = 2f;
-
-    /**
-     * Returns the box height in game-units (tile-fractions) for the current
-     * effective size. The height is derived from the collision probe extents:
-     * Large/standing: head at Y+6, feet at Y+32 → 26px visible, but full
-     * sprite is 32px. Small/ducking: head at Y+16, feet at Y+32 → 16px = 1.0.
-     */
-    default float currentBoxHeight() {
-        final boolean compact = isSmall() || getRuntimeState().isDucking();
-        return (float) (compact ? TILE_SPRITE_SIZE : TILE_SPRITE_SIZE * 2) / TILE_SPRITE_SIZE;
-    }
 
     default void createNode() {
         // Assign the node field BEFORE building geometry. rebuildGeometry()
@@ -71,31 +56,6 @@ public interface LevelScenePlayerRenderer
             animationContext.resetActiveAnimator();
             animationContext.update(levelScenePlayer);
         }
-    }
-
-    /**
-     * Builds the legacy cyan colored box geometry at the current player size.
-     * Used as a fallback for modes/states without sprite-based rendering.
-     */
-    default void buildCyanBox(final Node node) {
-        node.detachAllChildren();
-
-        // Player box size in game-units (tile-units): 1 tile = 1.0 game-units.
-        // Large: 12px wide × 32px tall → 0.75 × 2.0 game-units
-        // Small: 12px wide × 16px tall → 0.75 × 1.0 game-units
-        final float boxWidth = 12.0f / 16.0f;
-        final float boxHeight = currentBoxHeight();
-
-        final Quad quad = new Quad(boxWidth, boxHeight);
-        final Geometry geometry = new Geometry("Player", quad);
-        final Material material = new Material(getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-        material.setColor("Color", new ColorRGBA(0, 1, 1, 1)); // Cyan
-        material.getAdditionalRenderState().setBlendMode(Alpha);
-
-        geometry.setMaterial(material);
-        geometry.setQueueBucket(Transparent);
-
-        node.attachChild(geometry);
     }
 
     /**

@@ -8,6 +8,7 @@
   "jump": "jumping.png",
   "kick": "kicking.png",
   "fastJump": "flying.png",
+  "somersault": ["somersault_1.png", "somersault_2.png", "somersault_3.png", "somersault_4.png"],
   "walk": ["walking_1.png", "walking_2.png", "still.png"],
   "run": ["running_1.png", "running_2.png", "running_3.png"]
 }

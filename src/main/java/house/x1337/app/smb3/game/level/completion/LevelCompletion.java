@@ -218,6 +218,7 @@ public final class LevelCompletion implements GameEngineAware {
         clearTheObjects(player);
 
         gameEngine.publish(new LevelCardCollected(card, fanfare));
+        player.endStarInvincibility();
     }
 
     /** Runs one tick that is not halted, after the players have moved. */

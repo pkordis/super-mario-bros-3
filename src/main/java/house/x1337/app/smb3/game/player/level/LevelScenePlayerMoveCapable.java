@@ -164,6 +164,12 @@ public interface LevelScenePlayerMoveCapable extends LevelScenePlayerDataAware {
                 position.setDY(JUMP_FORCE[dx]);
                 runtimeState.setTo(JUMPING);
                 runtimeState.setPlayerWagCount(0);
+                runtimeState.setAirFlipping(
+                    runtimeState.isStarInvincible()
+                        && !isSmall()
+                        && !runtimeState.isCarrying()
+                        && getPlayerData().getPlayerPower() < PMETER_LEVELS
+                );
                 getSoundPlayer().play(JUMP);
                 // Full P-meter launch grants flyTime to ALL suits (the flight
                 // time is set before the suit's abilities are checked). For large suits this
