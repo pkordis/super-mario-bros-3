@@ -82,6 +82,9 @@ import static house.x1337.app.smb3.model.game.Coordinates.of;
  * support for this block's {@link #type}; whether a hit dispenses a reward or breaks the block is
  * selected by {@link #hasReward()}, the note block aside. Both derive from {@link #blockType}, which is injected at
  * instantiation (see {@code LevelObjectRecordCapabilities#toLevelObject}).
+ *
+ * <p>A reward block whose data says {@code invisible} is neither drawn nor solid until the player's head or tail
+ * strikes it. See {@code kb/invisible-block.md}.
  */
 @Slf4j
 @Getter
@@ -105,6 +108,7 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
     private LevelObjectType type;
     private ItemType reward;
     private BlockType blockType;
+    private boolean invisible;
 
     @Override
     public void configure(final LevelObjectData data) {
@@ -112,6 +116,12 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
             .getEnum(BlockType.class, "blockType")
             .orElseThrow();
         type = Enum.valueOf(LevelObjectTypeSingleTiled.class, blockType.name());
+        if (data.getBoolean("invisible")) {
+            invisible = hasReward() && !isNoteBlock();
+            if (!invisible) {
+                log.warn("Block {} at {}x{} cannot be invisible, flag disregarded", blockType, offset.x(), offset.y());
+            }
+        }
         if (!hasReward()) {
             return;
         }
@@ -151,6 +161,9 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
 
     @Override
     public void onKickedObjectStrike(final LevelScenePlayer levelScenePlayer) {
+        if (invisible) {
+            return;
+        }
         strikeFromTheSide(levelScenePlayer);
     }
 
@@ -218,10 +231,16 @@ public class Block implements AnimatableLevelObject, BreakableBrickCapabilities,
      */
     @Override
     public boolean isCollidable() {
-        return !isCoinSubstituted();
+        return !invisible && !isCoinSubstituted();
+    }
+
+    @Override
+    public boolean isHidden() {
+        return invisible;
     }
 
     private void hit(final LevelScenePlayer levelScenePlayer) {
+        invisible = false;
         final StaticEnvironmentCollisionGrid collisionGrid = levelScenePlayer.getCollisionGrid();
         final GameEngine gameEngine = levelScenePlayer.getGameEngine();
         final LevelSceneDimensions dimensions = gameEngine.getLevelScene().getDimensions();

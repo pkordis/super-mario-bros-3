@@ -16,6 +16,11 @@ public record LevelObjectData(Map<String, Object> asMap) {
         }
     }
 
+    /** @return whether the property is set to {@code true}, as a boolean or as the text the editor stores */
+    public boolean getBoolean(final String propertyName) {
+        return asMap != null && Boolean.parseBoolean(String.valueOf(asMap.get(propertyName)).trim());
+    }
+
     public boolean areAvailable() {
         return asMap != null && !asMap.isEmpty();
     }

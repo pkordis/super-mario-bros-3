@@ -87,7 +87,8 @@ public interface StaticEnvironmentCollisionGridCapabilities {
         animatorRegistry.resetAll(GameObjectAnimator.class);
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < columns; col++) {
-                if (objects[row][col] instanceof final AnimatableLevelObject animatableLevelObject) {
+                if (objects[row][col] instanceof final AnimatableLevelObject animatableLevelObject
+                    && !animatableLevelObject.isHidden()) {
                     final GameObjectAnimator<AnimatableLevelObject> animator = animatorRegistry
                         .findSuitableAnimator(animatableLevelObject.getType());
                     animator.add(animatableLevelObject);

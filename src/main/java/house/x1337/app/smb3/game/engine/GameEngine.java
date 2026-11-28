@@ -266,6 +266,7 @@ public final class GameEngine extends GameEngineCapabilities {
         // this rebuilds the grids fresh and spawnPlacedEnemies first resets the enemy managers, so no
         // enemy is duplicated.
         setupLevel(levelScene);
+        collisionGrid.eraseHiddenObjects();
 
         // Every run starts its level frame counter phases over, with the end-level card uncollected and every sound
         // effect heard again, after a completion has muted them.
